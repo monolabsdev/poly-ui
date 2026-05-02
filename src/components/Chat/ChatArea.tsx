@@ -1,4 +1,4 @@
-import { useEffect, useRef, useMemo, type RefObject } from "react";
+import { memo, useEffect, useRef, useMemo, useState, type RefObject } from "react";
 import type { ChatMessage } from "@/types/chat";
 import { Message } from "./Message";
 import { Box, CircularProgress, Typography } from "@mui/material";
@@ -17,7 +17,11 @@ interface MessageTurn {
   startIndex: number;
 }
 
-export function ChatArea({
+const VIRTUALIZE_AFTER_TURNS = 80;
+const ESTIMATED_TURN_HEIGHT = 220;
+const OVERSCAN_TURNS = 8;
+
+export const ChatArea = memo(function ChatArea({
   messages,
   bottomRef,
   onRegenerate,
@@ -25,7 +29,11 @@ export function ChatArea({
 }: ChatAreaProps) {
   const hasMoreMessages = useChatStore((state) => state.hasMoreMessages);
   const loadMoreMessages = useChatStore((state) => state.actions.loadMoreMessages);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const loadMoreRef = useRef<HTMLDivElement>(null);
+  const scrollFrameRef = useRef<number | null>(null);
+  const viewportRef = useRef({ top: 0, height: 0 });
+  const [viewport, setViewport] = useState({ top: 0, height: 0 });
 
   useEffect(() => {
     if (!hasMoreMessages) return;
@@ -36,7 +44,7 @@ export function ChatArea({
           void loadMoreMessages();
         }
       },
-      { threshold: 0.1 },
+      { root: scrollRef.current, threshold: 0.1 },
     );
 
     if (loadMoreRef.current) {
@@ -45,6 +53,46 @@ export function ChatArea({
 
     return () => observer.disconnect();
   }, [hasMoreMessages, loadMoreMessages]);
+
+  useEffect(() => {
+    const element = scrollRef.current;
+    if (!element) return;
+
+    const updateViewport = () => {
+      scrollFrameRef.current = null;
+      const next = {
+        top: element.scrollTop,
+        height: element.clientHeight,
+      };
+      const current = viewportRef.current;
+      if (Math.abs(next.top - current.top) < 1 && Math.abs(next.height - current.height) < 1) {
+        return;
+      }
+      viewportRef.current = next;
+      setViewport({
+        top: next.top,
+        height: next.height,
+      });
+    };
+
+    const scheduleViewportUpdate = () => {
+      if (scrollFrameRef.current !== null) return;
+      scrollFrameRef.current = requestAnimationFrame(updateViewport);
+    };
+
+    updateViewport();
+    const resizeObserver = new ResizeObserver(scheduleViewportUpdate);
+    resizeObserver.observe(element);
+    element.addEventListener("scroll", scheduleViewportUpdate, { passive: true });
+
+    return () => {
+      resizeObserver.disconnect();
+      element.removeEventListener("scroll", scheduleViewportUpdate);
+      if (scrollFrameRef.current !== null) {
+        cancelAnimationFrame(scrollFrameRef.current);
+      }
+    };
+  }, []);
 
   const turns = useMemo(() => {
     const result: MessageTurn[] = [];
@@ -80,8 +128,39 @@ export function ChatArea({
     return result;
   }, [messages]);
 
+  const virtualWindow = useMemo(() => {
+    if (turns.length <= VIRTUALIZE_AFTER_TURNS || viewport.height === 0) {
+      return {
+        start: 0,
+        end: turns.length,
+        topSpacer: 0,
+        bottomSpacer: 0,
+      };
+    }
+
+    const start = Math.max(
+      0,
+      Math.floor(viewport.top / ESTIMATED_TURN_HEIGHT) - OVERSCAN_TURNS,
+    );
+    const visibleCount =
+      Math.ceil(viewport.height / ESTIMATED_TURN_HEIGHT) + OVERSCAN_TURNS * 2;
+    const end = Math.min(turns.length, start + visibleCount);
+
+    return {
+      start,
+      end,
+      topSpacer: start * ESTIMATED_TURN_HEIGHT,
+      bottomSpacer: Math.max(0, (turns.length - end) * ESTIMATED_TURN_HEIGHT),
+    };
+  }, [turns.length, viewport.height, viewport.top]);
+
+  const visibleTurns = useMemo(
+    () => turns.slice(virtualWindow.start, virtualWindow.end),
+    [turns, virtualWindow.start, virtualWindow.end],
+  );
+
   return (
-    <Box sx={{ flex: 1, overflowY: "auto" }}>
+    <Box ref={scrollRef} sx={{ flex: 1, overflowY: "auto" }}>
       <Box
         sx={{
           mx: "auto",
@@ -139,7 +218,13 @@ export function ChatArea({
           {hasMoreMessages && <CircularProgress size={20} color="inherit" />}
         </Box>
 
-        {turns.map((turn, turnIndex) => (
+        {virtualWindow.topSpacer > 0 && (
+          <Box aria-hidden sx={{ height: virtualWindow.topSpacer, flexShrink: 0 }} />
+        )}
+
+        {visibleTurns.map((turn, visibleTurnIndex) => {
+          const turnIndex = virtualWindow.start + visibleTurnIndex;
+          return (
           <Box
             key={turn.userMessage?.id || turn.assistantMessages[0]?.id || `turn-${turnIndex}`}
             sx={{ display: "flex", flexDirection: "column", gap: 1 }}
@@ -184,7 +269,6 @@ export function ChatArea({
                         display: "flex",
                         flexDirection: "column",
                         bgcolor: "transparent",
-                        transition: "all 0.2s ease",
                       }}
                     >
                       <Message
@@ -195,6 +279,7 @@ export function ChatArea({
                         thinking={msg.thinking}
                         thinkingDuration={msg.thinkingDuration}
                         isThinking={msg.isThinking}
+                        isStreaming={msg.isStreaming}
                         messageIndex={turn.startIndex + 1 + msgIndex}
                         onRegenerate={onRegenerate}
                       />
@@ -204,9 +289,14 @@ export function ChatArea({
               </Box>
             )}
           </Box>
-        ))}
+        );
+        })}
+
+        {virtualWindow.bottomSpacer > 0 && (
+          <Box aria-hidden sx={{ height: virtualWindow.bottomSpacer, flexShrink: 0 }} />
+        )}
         <Box ref={bottomRef} sx={{ height: 80 }} />
       </Box>
     </Box>
   );
-}
+});

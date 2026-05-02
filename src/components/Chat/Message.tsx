@@ -7,7 +7,6 @@ import {
   Paperclip,
 } from "lucide-react";
 import { memo, useState, useEffect, useMemo } from "react";
-import { measureTextHeight } from "@/lib/text-measure";
 import ReactMarkdown from "react-markdown";
 import ThinkingIndicator from "./ThinkingIndicator";
 import remarkGfm from "remark-gfm";
@@ -35,6 +34,7 @@ export interface MessageProps {
   thinking?: string;
   thinkingDuration?: number;
   isThinking?: boolean;
+  isStreaming?: boolean;
   onRegenerate?: (messageIndex: number) => void;
 }
 
@@ -75,7 +75,7 @@ const CodeBlock = ({
             bgcolor: "rgba(30, 30, 30, 0.4)",
             backdropFilter: "blur(4px)",
             opacity: 0,
-            transition: "all 0.2s ease-in-out",
+            transition: "opacity 0.18s ease, background-color 0.18s ease, color 0.18s ease",
             "&:hover": {
               color: "rgba(255, 255, 255, 0.9)",
               bgcolor: "rgba(30, 30, 30, 0.7)",
@@ -111,33 +111,12 @@ export const Message = memo(function Message({
   thinking,
   thinkingDuration,
   isThinking,
+  isStreaming,
   onRegenerate,
 }: MessageProps) {
   const [copied, setCopied] = useState(false);
   const [thinkingExpanded, setThinkingExpanded] = useState(isThinking || false);
   const isUser = role === "user";
-  const [containerWidth, setContainerWidth] = useState(0);
-
-  useEffect(() => {
-    if (isUser) return;
-
-    const element = document.getElementById(`message-${messageIndex}`);
-    if (!element) return;
-
-    const resizeObserver = new ResizeObserver((entries) => {
-      if (entries[0]) {
-        setContainerWidth(entries[0].contentRect.width);
-      }
-    });
-
-    resizeObserver.observe(element);
-    return () => resizeObserver.disconnect();
-  }, [isUser, messageIndex]);
-
-  const measuredHeight = useMemo(() => {
-    if (isUser || !content || containerWidth === 0) return null;
-    return measureTextHeight(content, containerWidth);
-  }, [isUser, content, containerWidth]);
 
   // Memoize processed content to avoid re-parsing markdown on every render
   const processedContent = useMemo(() => {
@@ -251,7 +230,7 @@ export const Message = memo(function Message({
                   alignItems: "center",
                   p: isImageAttachment(att.type) ? 0 : 1.5,
                   gap: 1.5,
-                  transition: "all 0.2s ease",
+                  transition: "background-color 0.18s ease, border-color 0.18s ease",
                 }}
               >
                 {isImageAttachment(att.type) ? (
@@ -315,7 +294,7 @@ export const Message = memo(function Message({
             borderColor: "border.light",
             px: 2.5,
             py: 1.5,
-            transition: "all 0.2s ease",
+            transition: "background-color 0.18s ease, border-color 0.18s ease",
           }}
         >
           <Typography
@@ -433,7 +412,8 @@ export const Message = memo(function Message({
               fontSize: "15px",
               lineHeight: 1.6,
               maxWidth: isUser ? "100%" : { xs: "90%", sm: "80%" },
-              minHeight: measuredHeight || "auto",
+              contentVisibility: "auto",
+              containIntrinsicSize: "1px 240px",
               "& p": {
                 mb: 2,
                 "&:last-child": { mb: 0 },
@@ -477,13 +457,27 @@ export const Message = memo(function Message({
               "& th": { bgcolor: "action.hover", fontWeight: 600 },
             }}
           >
-            <ReactMarkdown
-              remarkPlugins={[remarkGfm, remarkMath]}
-              rehypePlugins={[rehypeKatex]}
-              components={markdownComponents}
-            >
-              {processedContent}
-            </ReactMarkdown>
+            {isStreaming ? (
+              <Typography
+                component="div"
+                sx={{
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-word",
+                  lineHeight: 1.6,
+                  fontSize: "15px",
+                }}
+              >
+                {content}
+              </Typography>
+            ) : (
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm, remarkMath]}
+                rehypePlugins={[rehypeKatex]}
+                components={markdownComponents}
+              >
+                {processedContent}
+              </ReactMarkdown>
+            )}
           </Box>
         ) : null}
 

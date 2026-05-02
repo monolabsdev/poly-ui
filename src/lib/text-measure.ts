@@ -4,7 +4,7 @@ interface MeasureConfig {
   font: string;
   lineHeight: number;
   whiteSpace?: 'normal' | 'pre-wrap';
-  wordBreak?: 'normal' | 'keep-all';
+  wordBreak?: 'normal' | 'keep-all' | 'break-word';
   letterSpacing?: number;
 }
 

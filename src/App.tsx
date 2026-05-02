@@ -118,8 +118,8 @@ function App() {
     init();
   }, []);
 
-  const handleOpenSettings = () => setIsSettingsOpen(true);
-  const handleCloseSettings = () => setIsSettingsOpen(false);
+  const handleOpenSettings = useCallback(() => setIsSettingsOpen(true), []);
+  const handleCloseSettings = useCallback(() => setIsSettingsOpen(false), []);
 
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
@@ -165,11 +165,11 @@ function App() {
     clearCurrentAttachments,
   } = useChatStore((state) => state.actions);
 
-  const ensureConversation = async (): Promise<string> => {
+  const ensureConversation = useCallback(async (): Promise<string> => {
     if (activeConversationId) return activeConversationId;
     const created = await createConversation("New Chat", false);
     return created.id;
-  };
+  }, [activeConversationId, createConversation]);
 
   const handleSend = useCallback(async (content: string) => {
     const trimmed = content.trim();
@@ -178,7 +178,7 @@ function App() {
     await ensureConversation();
     sendMessage(trimmed, currentAttachments);
     clearCurrentAttachments();
-  }, [selectedModel, currentAttachments, sendMessage, clearCurrentAttachments]);
+  }, [selectedModel, currentAttachments, ensureConversation, sendMessage, clearCurrentAttachments]);
 
   const handleRegenerate = useCallback(async (messageIndex: number) => {
     await measureAsyncInteraction("app.handleRegenerate", { messageIndex }, async () => {
@@ -202,7 +202,7 @@ function App() {
     });
   }, [activeConversationId, deleteMessagesAfter, isStreaming, messages, sendMessage]);
 
-  const handleNewChat = (isTemporary = false) => {
+  const handleNewChat = useCallback((isTemporary = false) => {
     measureSyncInteraction("app.handleNewChat", { isTemporary }, () => {
       stopStreaming();
 
@@ -213,16 +213,16 @@ function App() {
 
       setActiveConversationId(null);
     });
-  };
+  }, [createConversation, setActiveConversationId, stopStreaming]);
 
-  const handleSelectConversation = (id: string) => {
+  const handleSelectConversation = useCallback((id: string) => {
     measureSyncInteraction("app.handleSelectConversation", { id }, () => {
       stopStreaming();
       setActiveConversationId(id);
     });
-  };
+  }, [setActiveConversationId, stopStreaming]);
 
-  const handleDeleteConversation = async (id: string) => {
+  const handleDeleteConversation = useCallback(async (id: string) => {
     await measureAsyncInteraction(
       "app.handleDeleteConversation",
       { id },
@@ -231,9 +231,9 @@ function App() {
         await deleteConversation(id);
       },
     );
-  };
+  }, [deleteConversation, stopStreaming]);
 
-  const handleRenameConversation = async (id: string, newTitle: string) => {
+  const handleRenameConversation = useCallback(async (id: string, newTitle: string) => {
     await measureAsyncInteraction(
       "app.handleRenameConversation",
       { id, titleLength: newTitle.length },
@@ -241,18 +241,20 @@ function App() {
         await renameConversation(id, newTitle);
       },
     );
-  };
+  }, [renameConversation]);
 
-  const handleSetDefaultModel = (model: string) => {
+  const handleSetDefaultModel = useCallback((model: string) => {
     setDefaultModel(model);
     setToast({ open: true, message: `${model} set as default` });
-  };
+  }, [setDefaultModel]);
 
-  const handleCloseToast = () => setToast({ ...toast, open: false });
+  const handleCloseToast = useCallback(() => {
+    setToast((current) => ({ ...current, open: false }));
+  }, []);
 
   const isTemporary = Boolean(conversations.find((c) => c.id === activeConversationId)?.isTemporary);
 
-  const handleToggleTemporaryChat = async () => {
+  const handleToggleTemporaryChat = useCallback(async () => {
     await measureAsyncInteraction("app.handleToggleTemporaryChat", { isTemporary }, async () => {
       if (isStreaming) stopStreaming();
 
@@ -263,7 +265,19 @@ function App() {
 
       await createConversation("Temporary Chat", true);
     });
-  };
+  }, [createConversation, isStreaming, isTemporary, setActiveConversationId, stopStreaming]);
+
+  const handleAddModel = useCallback(() => {
+    addSelectedModel("ollama", availableModels.ollama[0]?.name || "");
+  }, [addSelectedModel, availableModels.ollama]);
+
+  const handleToggleInspector = useCallback(() => {
+    setIsInspectorOpen((v) => !v);
+  }, []);
+
+  const handleCloseInspector = useCallback(() => {
+    setIsInspectorOpen(false);
+  }, []);
 
   return (
     <SidebarProvider>
@@ -283,14 +297,12 @@ function App() {
           selectedModels={selectedModels}
           availableModels={availableModels}
           onModelChange={updateSelectedModel}
-          onAddModel={() =>
-            addSelectedModel("ollama", availableModels.ollama[0]?.name || "")
-          }
+          onAddModel={handleAddModel}
           onRemoveModel={removeSelectedModel}
           isLoading={isLoading}
           ollamaError={ollamaError}
           onSetDefault={handleSetDefaultModel}
-          onToggleInspector={() => setIsInspectorOpen((v) => !v)}
+          onToggleInspector={handleToggleInspector}
           isInspectorOpen={isInspectorOpen}
           isTemporary={isTemporary}
           onToggleTemporaryChat={handleToggleTemporaryChat}
@@ -366,7 +378,7 @@ function App() {
           </Box>
           <InspectorPanel
             open={isInspectorOpen}
-            onClose={() => setIsInspectorOpen(false)}
+            onClose={handleCloseInspector}
           />
         </Box>
       </SidebarInset>

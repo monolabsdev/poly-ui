@@ -14,8 +14,6 @@ import { useInspectorStore } from "@/store/inspectorStore";
 import { useToolStore } from "@/store/toolStore";
 import { cleanTitle, loggedInvoke } from "@/lib/utils";
 
-const STREAM_FLUSH_INTERVAL_MS = 33;
-
 // Break up long tasks to allow input processing
 function yieldToMain(): Promise<void> {
   const scheduler = (window as Window & {
@@ -51,6 +49,7 @@ type StreamingMessage = {
   content: string;
   thinking?: string;
   isThinking?: boolean;
+  isStreaming?: boolean;
   conversationId: string;
   createdAt: string;
   model: string;
@@ -143,7 +142,7 @@ export function useChatStream(selectedModels: string[], systemPrompt = "") {
   const activeConversationIdRef = useRef(activeConversationId);
   const streamingMessagesRef = useRef<Record<string, StreamingMessage>>({});
   const flushScheduledRef = useRef(false);
-  const flushTimeoutRef = useRef<number | null>(null);
+  const flushFrameRef = useRef<number | null>(null);
   const chunkCounterRef = useRef(0);
 
   const displayMessages = useMemo<ChatMessage[]>(() => {
@@ -164,9 +163,9 @@ export function useChatStream(selectedModels: string[], systemPrompt = "") {
 
   const flushStreamingMessages = useCallback(() => {
     flushScheduledRef.current = false;
-    if (flushTimeoutRef.current !== null) {
-      window.clearTimeout(flushTimeoutRef.current);
-      flushTimeoutRef.current = null;
+    if (flushFrameRef.current !== null) {
+      cancelAnimationFrame(flushFrameRef.current);
+      flushFrameRef.current = null;
     }
 
     startTransition(() => {
@@ -177,9 +176,9 @@ export function useChatStream(selectedModels: string[], systemPrompt = "") {
   const scheduleStreamingFlush = useCallback(() => {
     if (flushScheduledRef.current) return;
     flushScheduledRef.current = true;
-    flushTimeoutRef.current = window.setTimeout(() => {
+    flushFrameRef.current = requestAnimationFrame(() => {
       flushStreamingMessages();
-    }, STREAM_FLUSH_INTERVAL_MS);
+    });
   }, [flushStreamingMessages]);
 
   const updateStreamingMessage = useCallback(
@@ -231,9 +230,9 @@ export function useChatStream(selectedModels: string[], systemPrompt = "") {
   }, []);
 
   const resetStreamState = useCallback(() => {
-    if (flushTimeoutRef.current !== null) {
-      window.clearTimeout(flushTimeoutRef.current);
-      flushTimeoutRef.current = null;
+    if (flushFrameRef.current !== null) {
+      cancelAnimationFrame(flushFrameRef.current);
+      flushFrameRef.current = null;
     }
     flushScheduledRef.current = false;
     streamingMessagesRef.current = {};
@@ -338,6 +337,7 @@ export function useChatStream(selectedModels: string[], systemPrompt = "") {
               content: fullContent,
               thinking: thinkingAccRef.current[request_id],
               isThinking: true,
+              isStreaming: true,
               conversationId,
               createdAt: new Date().toISOString(),
               model: log?.model ?? "unknown",
@@ -453,6 +453,7 @@ export function useChatStream(selectedModels: string[], systemPrompt = "") {
             content: "",
             thinking,
             isThinking: is_thinking,
+            isStreaming: true,
             conversationId,
             createdAt: new Date().toISOString(),
             model: log?.model ?? "unknown",

@@ -3,12 +3,10 @@ import {
   Box,
   IconButton,
   Drawer,
-  useMediaQuery,
-  Theme,
   CSSObject,
 } from "@mui/material";
 import { PanelLeft } from "lucide-react";
-import { motion } from "motion/react";
+import { useElementBreakpoint, useResizeActivity } from "@/hooks/useResizePerformance";
 
 interface SidebarContextValue {
   isOpen: boolean;
@@ -33,11 +31,16 @@ export function useSidebar() {
 }
 
 export function SidebarProvider({ children }: { children: React.ReactNode }) {
-  const isMobile = useMediaQuery((theme: Theme) =>
-    theme.breakpoints.down("md"),
-  );
+  const rootRef = React.useRef<HTMLDivElement>(null);
+  const [isMobile, setIsMobile] = React.useState(false);
   const [openMobile, setOpenMobile] = React.useState(false);
   const [isCollapsed, setIsCollapsed] = React.useState(false);
+  const handleBreakpointChange = React.useCallback((matches: boolean) => {
+    setIsMobile((current) => (current === matches ? current : matches));
+  }, []);
+
+  useResizeActivity(rootRef);
+  useElementBreakpoint(rootRef, 900, handleBreakpointChange);
 
   const value = React.useMemo(
     () => ({
@@ -55,6 +58,8 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
   return (
     <SidebarContext.Provider value={value}>
       <Box
+        ref={rootRef}
+        data-resize-contain
         sx={{
           display: "flex",
           width: "100%",
@@ -101,24 +106,21 @@ export function Sidebar({
   const width = isCollapsed && collapsible === "icon" ? 60 : 260;
 
   return (
-    <motion.div
-      animate={{ width }}
-      transition={{ type: "spring", bounce: 0, duration: 0.4 }}
-      style={{
+    <Box
+      sx={{
         flexShrink: 0,
         height: "100%",
         display: "flex",
         flexDirection: "column",
         overflowX: "hidden",
-      }}
-      sx={{
+        width,
         bgcolor: "background.sidebar",
         borderRight: "1px solid",
         borderColor: "divider",
       }}
     >
       {children}
-    </motion.div>
+    </Box>
   );
 }
 
@@ -272,7 +274,8 @@ export function SidebarMenuButton({
         height: 36,
         borderRadius: "8px",
         cursor: "pointer",
-        transition: "all 0.2s",
+        transition: "background-color 0.18s ease, color 0.18s ease, transform 0.18s ease",
+        willChange: "transform",
         bgcolor: isActive ? "action.hover" : "transparent",
         color: isActive ? "text.primary" : "text.secondary",
         fontSize: "13px",

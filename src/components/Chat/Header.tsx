@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { ModelProvider, OllamaModel, PullProgress, SystemPrompt } from "@/store/modelStore";
 import {
   Box,
@@ -43,7 +44,7 @@ interface HeaderProps {
   onSystemPromptChange: (id: string | null) => void;
 }
 
-export function Header({
+export const Header = memo(function Header({
   availableModels,
   selectedModels,
   // selectedProviders,
@@ -275,7 +276,7 @@ export function Header({
                 bgcolor: "action.hover",
                 color: "text.primary",
               },
-              transition: "all 0.2s ease-in-out",
+              transition: "background-color 0.18s ease, color 0.18s ease, transform 0.18s ease",
             }}
           >
             <svg
@@ -313,7 +314,7 @@ export function Header({
                 bgcolor: "action.hover",
                 color: "text.primary",
               },
-              transition: "all 0.2s ease-in-out",
+              transition: "background-color 0.18s ease, color 0.18s ease, transform 0.18s ease",
             }}
           >
             <Settings2 size={18} />
@@ -346,7 +347,7 @@ export function Header({
                     bgcolor: "action.hover",
                     color: "text.primary",
                   },
-                  transition: "all 0.2s ease-in-out",
+                  transition: "background-color 0.18s ease, color 0.18s ease, transform 0.18s ease",
                   minHeight: "unset !important",
                   height: "30px !important",
                   boxSizing: "border-box",
@@ -388,4 +389,4 @@ export function Header({
     </Box>
   </Box>
 );
-}
+});

@@ -3,6 +3,7 @@ import { Box, Typography, Stack, useTheme } from "@mui/material";
 import { styled } from "@mui/material/styles";
 import { motion } from "motion/react";
 import { ChevronDown, ChevronUp } from "lucide-react";
+import { useIsResizeActive } from "@/hooks/useResizePerformance";
 
 interface ThinkingIndicatorProps {
   text?: string;
@@ -29,6 +30,7 @@ const ThinkingIndicator: React.FC<ThinkingIndicatorProps> = React.memo(
     thinkingDuration,
   }) => {
     const theme = useTheme();
+    const isResizeActive = useIsResizeActive();
     const [seconds, setSeconds] = useState(thinkingDuration || 0);
     const startTimeRef = useRef<number | null>(null);
 
@@ -101,7 +103,7 @@ const ThinkingIndicator: React.FC<ThinkingIndicatorProps> = React.memo(
         <ShimmerContainer>
           <motion.div
             animate={
-              isActive
+              isActive && !isResizeActive
                 ? {
                     backgroundPosition: ["100% 0", "-100% 0"],
                   }
@@ -110,7 +112,7 @@ const ThinkingIndicator: React.FC<ThinkingIndicatorProps> = React.memo(
             transition={{
               duration: duration,
               ease: "linear",
-              repeat: isActive ? Infinity : 0,
+              repeat: isActive && !isResizeActive ? Infinity : 0,
             }}
             style={
               isActive

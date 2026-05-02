@@ -115,6 +115,18 @@
   }
 }
 
+.app-resizing *,
+.app-resizing *::before,
+.app-resizing *::after {
+  transition-duration: 0ms !important;
+  animation-duration: 0ms !important;
+  scroll-behavior: auto !important;
+}
+
+.app-resizing [data-resize-contain] {
+  contain: layout paint style;
+}
+
 #sidebar-chat-item {
 	/* sidebar item sizing scales for the chat list entries */
 	min-height: calc(32px * var(--app-text-scale, 1));

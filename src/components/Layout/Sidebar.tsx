@@ -3,8 +3,6 @@ import {
   Box,
   IconButton,
   Drawer,
-  useMediaQuery,
-  Theme,
   CSSObject,
   Typography,
   Tooltip,
@@ -29,6 +27,10 @@ import {
 import { DeleteConversationDialog } from "@/components/Chat/DeleteConversationDialog";
 import { ProfileMenu } from "@/components/Profile/ProfileMenu";
 import { isToday, isYesterday, subDays, isAfter } from "date-fns";
+import { useElementBreakpoint, useResizeActivity } from "@/hooks/useResizePerformance";
+
+const interactiveTransformTransition =
+  "background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease, opacity 0.18s ease, transform 0.18s ease";
 interface SidebarContextValue {
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
@@ -52,11 +54,16 @@ export function useSidebar() {
 }
 
 export function SidebarProvider({ children }: { children: React.ReactNode }) {
-  const isMobile = useMediaQuery((theme: Theme) =>
-    theme.breakpoints.down("md"),
-  );
+  const rootRef = React.useRef<HTMLDivElement>(null);
+  const [isMobile, setIsMobile] = React.useState(false);
   const [openMobile, setOpenMobile] = React.useState(false);
   const [isCollapsed, setIsCollapsed] = React.useState(false);
+  const handleBreakpointChange = React.useCallback((matches: boolean) => {
+    setIsMobile((current) => (current === matches ? current : matches));
+  }, []);
+
+  useResizeActivity(rootRef);
+  useElementBreakpoint(rootRef, 900, handleBreakpointChange);
 
   const value = React.useMemo(
     () => ({
@@ -74,6 +81,8 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
   return (
     <SidebarContext.Provider value={value}>
       <Box
+        ref={rootRef}
+        data-resize-contain
         sx={{
           display: "flex",
           width: "100%",
@@ -99,7 +108,7 @@ interface SidebarProps {
   collapsible?: "icon" | "none";
 }
 
-function ConversationItem({
+const ConversationItem = React.memo(function ConversationItem({
   conv,
   activeConversationId,
   editingId,
@@ -254,9 +263,9 @@ function ConversationItem({
       </>
     </Box>
   );
-}
+});
 
-export function Sidebar({
+export const Sidebar = React.memo(function Sidebar({
   onOpenSettings,
   onNewChat,
   onSelectConversation,
@@ -361,7 +370,6 @@ export function Sidebar({
             width: "100%",
             px: isCollapsed ? 0 : 2,
             pt: isCollapsed ? 1 : 0,
-            transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
           }}
         >
           <Box
@@ -371,7 +379,9 @@ export function Sidebar({
               opacity: isCollapsed ? 0 : 1,
               width: isCollapsed ? 0 : "auto",
               overflow: "hidden",
-              transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+              transition: "opacity 0.18s ease",
+              willChange: "opacity, transform",
+              pointerEvents: isCollapsed ? "none" : "auto",
             }}
           >
             <Typography
@@ -419,7 +429,8 @@ export function Sidebar({
                   opacity: isCollapsed ? 0 : 1,
                   width: isCollapsed ? 0 : "auto",
                   overflow: "hidden",
-                  transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+                  transition: "opacity 0.18s ease",
+                  willChange: "opacity, transform",
                 }}
               >
                 New Chat
@@ -464,7 +475,8 @@ export function Sidebar({
                   opacity: isCollapsed ? 0 : 1,
                   width: isCollapsed ? 0 : "auto",
                   overflow: "hidden",
-                  transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+                  transition: "opacity 0.18s ease",
+                  willChange: "opacity, transform",
                 }}
               >
                 Temporary Chat
@@ -481,7 +493,8 @@ export function Sidebar({
             mt: 1,
             opacity: isCollapsed ? 0 : 1,
             visibility: isCollapsed ? "hidden" : "visible",
-            transition: "opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+            transition: "opacity 0.18s ease",
+            willChange: "opacity, transform",
             height: isCollapsed ? 0 : "auto",
             overflow: "hidden",
           }}
@@ -590,7 +603,7 @@ export function Sidebar({
       </Box>
     </Box>
   );
-}
+});
 
 export function SidebarHeader({
   children,
@@ -750,7 +763,8 @@ export function SidebarMenuButton({
         height: 40,
         borderRadius: "10px",
         cursor: "pointer",
-        transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+        transition: interactiveTransformTransition,
+        willChange: "transform",
         bgcolor: isActive ? "action.selected" : "transparent",
         color: isActive ? "text.primary" : "text.secondary",
         fontSize: "13.5px",
@@ -808,7 +822,8 @@ export function SidebarTrigger({ sx }: { sx?: CSSObject }) {
           height: 40,
           borderRadius: "10px",
           bgcolor: isCollapsed ? "action.hover" : "transparent",
-          transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+          transition: interactiveTransformTransition,
+          willChange: "transform",
           "&:hover": {
             color: "text.primary",
             bgcolor: "action.selected",

@@ -28,6 +28,7 @@ export interface ChatMessage {
   thinking?: string;
   thinkingDuration?: number;
   isThinking?: boolean;
+  isStreaming?: boolean;
 }
 
 export interface Message extends ChatMessage {}

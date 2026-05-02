@@ -219,7 +219,7 @@ export const ChatInput = memo(function ChatInput({
             borderRadius: "24px",
             bgcolor: isDragging ? "action.selected" : "background.paper",
             p: 1.5,
-            transition: "all 0.2s",
+            transition: "background-color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease",
             border: isDragging ? "2px dashed" : isTemporary ? "1px dashed" : "1px solid",
             borderColor: isDragging || isTemporary ? "border.main" : "divider",
             "&:focus-within": {

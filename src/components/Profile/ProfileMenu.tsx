@@ -93,7 +93,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
       }}
     >
       <Box className="relative flex-shrink-0" sx={{ display: "flex" }}>
-        <Avatar sx={{ width: isCollapsed ? 28 : 36, height: isCollapsed ? 28 : 36, transition: "all 0.2s" }}>
+        <Avatar sx={{ width: isCollapsed ? 28 : 36, height: isCollapsed ? 28 : 36 }}>
           {user.avatarUrl && (
             <AvatarImage
               src={user.avatarUrl}

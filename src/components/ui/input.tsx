@@ -22,7 +22,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
           px: 1.5,
           py: 0.5,
           fontSize: "14px",
-          transition: "all 0.2s",
+          transition: "border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease",
           "&.Mui-focused": {
             borderColor: "primary.main",
             boxShadow: (theme) => `0 0 0 2px ${theme.palette.primary.main}33`,
