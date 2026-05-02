@@ -1,25 +1,37 @@
-import { useEffect, useState, useCallback, useDeferredValue, useMemo } from "react";
-import { useChatStream, useModelPicker, useSystemPrompts } from "@/hooks";
-import { Header, ChatArea, EmptyState, ChatInput } from "@/components/Chat";
-import { InspectorPanel } from "@/components/Inspector/InspectorPanel";
+import {
+  Suspense,
+  lazy,
+  useRef,
+  useCallback,
+  useMemo,
+  useState,
+  useEffect,
+} from "react";
+import { Header } from "@/components/Chat/Header";
 import { useModelStore } from "@/store/modelStore";
 import {
   Sidebar,
   SidebarInset,
   SidebarProvider,
 } from "@/components/Layout/Sidebar";
-import { SettingsModal } from "@/components/Settings/SettingsModal";
 import { Box, Snackbar, Alert } from "@mui/material";
 import { useChatStore } from "@/store/chatStore";
 import { useAuthStore } from "@/store/authStore";
-import { useSettingsStore } from "@/store/settingsStore";
-import { useToolStore } from "@/store/toolStore";
-import { AuthModal } from "@/components/Auth/AuthModal";
-import ToolApproval from "@/components/Chat/ToolApproval";
-import type { ChatMessage } from "@/types/chat";
 import { useShallow } from "zustand/react/shallow";
 import "./App.css";
-import * as db from "@/lib/db";
+
+const AuthModal = lazy(() =>
+  import("@/components/Auth/AuthModal").then((module) => ({
+    default: module.AuthModal,
+  })),
+);
+const ChatWorkspace = lazy(() => import("@/components/Chat/ChatWorkspace"));
+const SettingsModal = lazy(() =>
+  import("@/components/Settings/SettingsModal").then((module) => ({
+    default: module.SettingsModal,
+  })),
+);
+const ToolApproval = lazy(() => import("@/components/Chat/ToolApproval"));
 
 function measureAsyncInteraction<T>(
   _name: string,
@@ -40,6 +52,7 @@ function measureSyncInteraction<T>(
 function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isInspectorOpen, setIsInspectorOpen] = useState(false);
+  const stopStreamingRef = useRef<(() => void) | null>(null);
   const [toast, setToast] = useState<{ open: boolean; message: string }>({
     open: false,
     message: "",
@@ -78,48 +91,11 @@ function App() {
 
   const selectedModel = selectedModels[0] ?? "";
 
-  useModelPicker();
-  useSystemPrompts();
-
-  useEffect(() => {
-    async function init() {
-      try {
-        await db.initDB().catch(() => {});
-        await Promise.all([
-          Promise.race([
-            useSettingsStore.getState().actions.syncToBackend(),
-            new Promise((_, reject) =>
-              setTimeout(
-                () => reject(new Error("Timeout syncing settings")),
-                3000,
-              ),
-            ),
-          ]).catch(() => {}),
-          useAuthStore
-            .getState()
-            .actions.restoreSession()
-            .catch(() => {}),
-          useChatStore
-            .getState()
-            .actions.loadConversations()
-            .catch(() => {}),
-          useToolStore
-            .getState()
-            .actions.loadTools()
-            .catch(() => {}),
-        ]);
-      } finally {
-        const { isLoading } = useAuthStore.getState();
-        if (isLoading) {
-          useAuthStore.setState({ isLoading: false });
-        }
-      }
-    }
-    init();
-  }, []);
-
   const handleOpenSettings = useCallback(() => setIsSettingsOpen(true), []);
   const handleCloseSettings = useCallback(() => setIsSettingsOpen(false), []);
+  const handleStopStreamingReady = useCallback((stopStreaming: (() => void) | null) => {
+    stopStreamingRef.current = stopStreaming;
+  }, []);
 
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
@@ -138,21 +114,10 @@ function App() {
   );
 
   const systemPromptContent = activeSystemPrompt?.content ?? "";
-
-  const {
-    messages,
-    isStreaming,
-    sendMessage,
-    stopStreaming,
-    bottomRef,
-    hasMessages,
-  } = useChatStream(selectedModels, systemPromptContent);
-  const deferredMessages = useDeferredValue(messages);
-  const { conversations, activeConversationId, currentAttachments } = useChatStore(
+  const { conversations, activeConversationId } = useChatStore(
     useShallow((state) => ({
       conversations: state.conversations,
       activeConversationId: state.activeConversationId,
-      currentAttachments: state.currentAttachments,
     })),
   );
   const user = useAuthStore((state) => state.user);
@@ -161,50 +126,11 @@ function App() {
     setActiveConversationId,
     deleteConversation,
     renameConversation,
-    deleteMessagesAfter,
-    clearCurrentAttachments,
   } = useChatStore((state) => state.actions);
-
-  const ensureConversation = useCallback(async (): Promise<string> => {
-    if (activeConversationId) return activeConversationId;
-    const created = await createConversation("New Chat", false);
-    return created.id;
-  }, [activeConversationId, createConversation]);
-
-  const handleSend = useCallback(async (content: string) => {
-    const trimmed = content.trim();
-    if (!trimmed && currentAttachments.length === 0) return;
-    if (!selectedModel) return;
-    await ensureConversation();
-    sendMessage(trimmed, currentAttachments);
-    clearCurrentAttachments();
-  }, [selectedModel, currentAttachments, ensureConversation, sendMessage, clearCurrentAttachments]);
-
-  const handleRegenerate = useCallback(async (messageIndex: number) => {
-    await measureAsyncInteraction("app.handleRegenerate", { messageIndex }, async () => {
-      if (isStreaming || !activeConversationId) return;
-
-      const targetMessage = messages[messageIndex];
-      if (targetMessage?.role !== "assistant") return;
-
-      let previousUserMessage: ChatMessage | null = null;
-      for (let i = messageIndex - 1; i >= 0; i--) {
-        if (messages[i]?.role === "user") {
-          previousUserMessage = messages[i];
-          break;
-        }
-      }
-
-      if (!previousUserMessage) return;
-
-      await deleteMessagesAfter(activeConversationId, targetMessage.id);
-      sendMessage(previousUserMessage.content);
-    });
-  }, [activeConversationId, deleteMessagesAfter, isStreaming, messages, sendMessage]);
 
   const handleNewChat = useCallback((isTemporary = false) => {
     measureSyncInteraction("app.handleNewChat", { isTemporary }, () => {
-      stopStreaming();
+      stopStreamingRef.current?.();
 
       if (isTemporary) {
         void createConversation("Temporary Chat", true);
@@ -213,25 +139,25 @@ function App() {
 
       setActiveConversationId(null);
     });
-  }, [createConversation, setActiveConversationId, stopStreaming]);
+  }, [createConversation, setActiveConversationId]);
 
   const handleSelectConversation = useCallback((id: string) => {
     measureSyncInteraction("app.handleSelectConversation", { id }, () => {
-      stopStreaming();
+      stopStreamingRef.current?.();
       setActiveConversationId(id);
     });
-  }, [setActiveConversationId, stopStreaming]);
+  }, [setActiveConversationId]);
 
   const handleDeleteConversation = useCallback(async (id: string) => {
     await measureAsyncInteraction(
       "app.handleDeleteConversation",
       { id },
       async () => {
-        stopStreaming();
+        stopStreamingRef.current?.();
         await deleteConversation(id);
       },
     );
-  }, [deleteConversation, stopStreaming]);
+  }, [deleteConversation]);
 
   const handleRenameConversation = useCallback(async (id: string, newTitle: string) => {
     await measureAsyncInteraction(
@@ -256,7 +182,7 @@ function App() {
 
   const handleToggleTemporaryChat = useCallback(async () => {
     await measureAsyncInteraction("app.handleToggleTemporaryChat", { isTemporary }, async () => {
-      if (isStreaming) stopStreaming();
+      stopStreamingRef.current?.();
 
       if (isTemporary) {
         setActiveConversationId(null);
@@ -265,7 +191,7 @@ function App() {
 
       await createConversation("Temporary Chat", true);
     });
-  }, [createConversation, isStreaming, isTemporary, setActiveConversationId, stopStreaming]);
+  }, [createConversation, isTemporary, setActiveConversationId]);
 
   const handleAddModel = useCallback(() => {
     addSelectedModel("ollama", availableModels.ollama[0]?.name || "");
@@ -325,67 +251,30 @@ function App() {
             pt: "56px",
           }}
         >
-          <Box
-            sx={{
-              flex: 1,
-              display: "flex",
-              flexDirection: "column",
-              overflow: "hidden",
-              justifyContent: "flex-start",
-              transition: (theme) =>
-                theme.transitions.create("margin", {
-                  easing: theme.transitions.easing.sharp,
-                  duration: theme.transitions.duration.leavingScreen,
-                }),
-              marginRight: isInspectorOpen ? "0px" : "-350px",
-              width: "100%",
-            }}
-          >
-            {hasMessages ? (
-              <ChatArea
-                messages={deferredMessages}
-                bottomRef={bottomRef}
-                onRegenerate={handleRegenerate}
-                isTemporary={isTemporary}
-              />
-            ) : (
-              <EmptyState
-                selectedModels={selectedModels}
-                userName={user?.fullName || user?.email}
-                isTemporary={isTemporary}
-              >
-                <ChatInput
-                  onSubmit={handleSend}
-                  onStop={stopStreaming}
-                  isStreaming={isStreaming}
-                  selectedModel={selectedModel}
-                  hasMessages={hasMessages}
-                  isTemporary={isTemporary}
-                />
-              </EmptyState>
-            )}
-
-            {hasMessages && (
-              <ChatInput
-                onSubmit={handleSend}
-                onStop={stopStreaming}
-                isStreaming={isStreaming}
-                selectedModel={selectedModel}
-                hasMessages={hasMessages}
-                isTemporary={isTemporary}
-              />
-            )}
-          </Box>
-          <InspectorPanel
-            open={isInspectorOpen}
-            onClose={handleCloseInspector}
-          />
+          <Suspense fallback={<Box sx={{ flex: 1 }} />}>
+            <ChatWorkspace
+              selectedModels={selectedModels}
+              selectedModel={selectedModel}
+              systemPromptContent={systemPromptContent}
+              userName={user?.fullName || user?.email}
+              isTemporary={isTemporary}
+              isInspectorOpen={isInspectorOpen}
+              onCloseInspector={handleCloseInspector}
+              onStopStreamingReady={handleStopStreamingReady}
+            />
+          </Suspense>
         </Box>
       </SidebarInset>
 
-      <SettingsModal isOpen={isSettingsOpen} onClose={handleCloseSettings} />
-      <AuthModal />
-      <ToolApproval />
+      {isSettingsOpen && (
+        <Suspense fallback={null}>
+          <SettingsModal isOpen={isSettingsOpen} onClose={handleCloseSettings} />
+        </Suspense>
+      )}
+      <Suspense fallback={null}>
+        <AuthModal />
+        <ToolApproval />
+      </Suspense>
 
       <Snackbar
         open={toast.open}

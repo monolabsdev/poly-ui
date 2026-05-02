@@ -11,10 +11,12 @@ type StoredPrompts = {
 /**
  * Persist system prompts to localStorage and restore on startup.
  */
-export function useSystemPrompts() {
+export function useSystemPrompts({ enabled = true }: { enabled?: boolean } = {}) {
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    if (!enabled) return;
+
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
@@ -59,5 +61,5 @@ export function useSystemPrompts() {
         clearTimeout(timeoutRef.current);
       }
     };
-  }, []);
+  }, [enabled]);
 }

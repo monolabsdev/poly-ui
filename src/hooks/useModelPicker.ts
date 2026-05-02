@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useModelStore, type OllamaModel } from "@/store/modelStore";
 import { loggedInvoke } from "@/lib/utils";
 
-export function useModelPicker() {
+export function useModelPicker({ enabled = true }: { enabled?: boolean } = {}) {
   const setAvailableModels = useModelStore((state) => state.setAvailableModels);
   const setSelectedModel = useModelStore((state) => state.setSelectedModel);
   const setIsLoading = useModelStore((state) => state.setIsLoading);
@@ -34,6 +34,7 @@ export function useModelPicker() {
   };
 
   useEffect(() => {
+    if (!enabled) return;
     loadOllamaModels();
-  }, []); // Only load on mount
+  }, [enabled]); // Only load after startup gate opens
 }
