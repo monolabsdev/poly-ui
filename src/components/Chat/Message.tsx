@@ -7,6 +7,7 @@ import {
   Paperclip,
 } from "lucide-react";
 import { memo, useState, useEffect, useMemo } from "react";
+import { measureTextHeight } from "@/lib/text-measure";
 import ReactMarkdown from "react-markdown";
 import ThinkingIndicator from "./ThinkingIndicator";
 import remarkGfm from "remark-gfm";
@@ -115,6 +116,28 @@ export const Message = memo(function Message({
   const [copied, setCopied] = useState(false);
   const [thinkingExpanded, setThinkingExpanded] = useState(isThinking || false);
   const isUser = role === "user";
+  const [containerWidth, setContainerWidth] = useState(0);
+
+  useEffect(() => {
+    if (isUser) return;
+
+    const element = document.getElementById(`message-${messageIndex}`);
+    if (!element) return;
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      if (entries[0]) {
+        setContainerWidth(entries[0].contentRect.width);
+      }
+    });
+
+    resizeObserver.observe(element);
+    return () => resizeObserver.disconnect();
+  }, [isUser, messageIndex]);
+
+  const measuredHeight = useMemo(() => {
+    if (isUser || !content || containerWidth === 0) return null;
+    return measureTextHeight(content, containerWidth);
+  }, [isUser, content, containerWidth]);
 
   // Memoize processed content to avoid re-parsing markdown on every render
   const processedContent = useMemo(() => {
@@ -404,11 +427,13 @@ export const Message = memo(function Message({
 
         {content ? (
           <Box
+            id={`message-${messageIndex}`}
             sx={{
               color: "text.primary",
               fontSize: "15px",
               lineHeight: 1.6,
               maxWidth: isUser ? "100%" : { xs: "90%", sm: "80%" },
+              minHeight: measuredHeight || "auto",
               "& p": {
                 mb: 2,
                 "&:last-child": { mb: 0 },

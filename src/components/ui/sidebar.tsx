@@ -8,6 +8,7 @@ import {
   CSSObject,
 } from "@mui/material";
 import { PanelLeft } from "lucide-react";
+import { motion } from "motion/react";
 
 interface SidebarContextValue {
   isOpen: boolean;
@@ -100,22 +101,24 @@ export function Sidebar({
   const width = isCollapsed && collapsible === "icon" ? 60 : 260;
 
   return (
-    <Box
-      sx={{
-        width,
+    <motion.div
+      animate={{ width }}
+      transition={{ type: "spring", bounce: 0, duration: 0.4 }}
+      style={{
         flexShrink: 0,
         height: "100%",
         display: "flex",
         flexDirection: "column",
+        overflowX: "hidden",
+      }}
+      sx={{
         bgcolor: "background.sidebar",
         borderRight: "1px solid",
         borderColor: "divider",
-        transition: "width 0.2s ease-in-out",
-        overflowX: "hidden", // Fixes horizontal scroll
       }}
     >
       {children}
-    </Box>
+    </motion.div>
   );
 }
 
