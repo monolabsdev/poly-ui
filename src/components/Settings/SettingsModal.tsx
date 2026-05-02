@@ -38,10 +38,15 @@ import {
   Sun,
   Trash2,
   Wrench,
-  Search,
 } from "lucide-react";
 import { ModelManagement } from "./ModelManagement";
-import { SettingCard, SectionHeader, Badge, EmptyState, selectSx } from "./SettingComponents";
+import {
+  SettingCard,
+  SectionHeader,
+  Badge,
+  EmptyState,
+  selectSx,
+} from "./SettingComponents";
 
 type SettingsModalProps = {
   isOpen: boolean;
@@ -91,14 +96,14 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   };
 
   return (
-    <AppDialogFrame
-      open={isOpen}
-      onOpenChange={(open) => !open && onClose()}
-    >
+    <AppDialogFrame open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <Box
         sx={{
           display: "grid",
-          gridTemplateColumns: { xs: "1fr", md: `${APP_DIALOG_SIDEBAR_WIDTH}px 1fr` },
+          gridTemplateColumns: {
+            xs: "1fr",
+            md: `${APP_DIALOG_SIDEBAR_WIDTH}px 1fr`,
+          },
           width: "100%",
           height: "100%",
           minWidth: 0,
@@ -114,23 +119,6 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             p: 2,
           }}
         >
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 1,
-              mb: 3,
-              px: 1.5,
-              py: 0.75,
-              borderRadius: "999px",
-              bgcolor: "action.hover",
-              color: "text.secondary",
-            }}
-          >
-            <Search size={14} />
-            <Typography sx={{ fontSize: 13, fontWeight: 500 }}>Search</Typography>
-          </Box>
-
           <Stack component="nav" spacing={0.5}>
             {SIDEBAR_ITEMS.map((item) => {
               const Icon = item.icon;
@@ -161,7 +149,9 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   }}
                 >
                   <Icon size={16} />
-                  <Typography sx={{ fontSize: 13, fontWeight: isActive ? 600 : 500 }}>
+                  <Typography
+                    sx={{ fontSize: 13, fontWeight: isActive ? 600 : 500 }}
+                  >
                     {item.label}
                   </Typography>
                 </Box>
@@ -170,7 +160,14 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           </Stack>
         </Box>
 
-        <Box sx={{ display: "flex", flexDirection: "column", minWidth: 0, minHeight: 0 }}>
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            minWidth: 0,
+            minHeight: 0,
+          }}
+        >
           <AppDialogHeader
             title={activeItem?.label ?? "Settings"}
             onClose={onClose}
@@ -313,9 +310,11 @@ function GeneralTab({
       </SettingCard>
 
       <SettingCard title="About OpenBench">
-        <Typography sx={{ fontSize: 13, color: "text.secondary", lineHeight: 1.65 }}>
-          OpenBench is a local-first AI client for comparing and interacting with various models.
-          All your data is stored locally in your machine.
+        <Typography
+          sx={{ fontSize: 13, color: "text.secondary", lineHeight: 1.65 }}
+        >
+          OpenBench is a local-first AI client for comparing and interacting
+          with various models. All your data is stored locally in your machine.
         </Typography>
       </SettingCard>
     </Stack>
@@ -354,7 +353,9 @@ function PromptLibraryTab() {
     }
   };
 
-  const categories = Array.from(new Set(systemPrompts.map((prompt) => prompt.category || "General")));
+  const categories = Array.from(
+    new Set(systemPrompts.map((prompt) => prompt.category || "General")),
+  );
 
   return (
     <Stack spacing={0}>
@@ -384,7 +385,9 @@ function PromptLibraryTab() {
                 size="small"
                 fullWidth
                 value={editingPrompt.name}
-                onChange={(e) => setEditingPrompt({ ...editingPrompt, name: e.target.value })}
+                onChange={(e) =>
+                  setEditingPrompt({ ...editingPrompt, name: e.target.value })
+                }
                 sx={appTextFieldSx}
               />
               <TextField
@@ -392,7 +395,12 @@ function PromptLibraryTab() {
                 size="small"
                 fullWidth
                 value={editingPrompt.category || ""}
-                onChange={(e) => setEditingPrompt({ ...editingPrompt, category: e.target.value })}
+                onChange={(e) =>
+                  setEditingPrompt({
+                    ...editingPrompt,
+                    category: e.target.value,
+                  })
+                }
                 placeholder="e.g. Coding, Creative, etc."
                 sx={appTextFieldSx}
               />
@@ -403,14 +411,28 @@ function PromptLibraryTab() {
               minRows={8}
               fullWidth
               value={editingPrompt.content}
-              onChange={(e) => setEditingPrompt({ ...editingPrompt, content: e.target.value })}
+              onChange={(e) =>
+                setEditingPrompt({ ...editingPrompt, content: e.target.value })
+              }
               sx={appTextFieldSx}
             />
             <Stack direction="row" justifyContent="flex-end" spacing={1}>
-              <Button size="small" variant="text" onClick={() => { setEditingPrompt(null); setIsAdding(false); }}>
+              <Button
+                size="small"
+                variant="text"
+                onClick={() => {
+                  setEditingPrompt(null);
+                  setIsAdding(false);
+                }}
+              >
                 Cancel
               </Button>
-              <Button size="small" variant="contained" disableElevation onClick={() => handleSave(editingPrompt)}>
+              <Button
+                size="small"
+                variant="contained"
+                disableElevation
+                onClick={() => handleSave(editingPrompt)}
+              >
                 Save
               </Button>
             </Stack>
@@ -433,7 +455,9 @@ function PromptLibraryTab() {
               </Typography>
               <Stack spacing={1}>
                 {systemPrompts
-                  .filter((prompt) => (prompt.category || "General") === category)
+                  .filter(
+                    (prompt) => (prompt.category || "General") === category,
+                  )
                   .map((prompt) => {
                     const isActive = activeSystemPromptId === prompt.id;
 
@@ -447,25 +471,60 @@ function PromptLibraryTab() {
                           gap: 1,
                         }}
                       >
-                        <Stack direction="row" alignItems="center" spacing={1.5}>
+                        <Stack
+                          direction="row"
+                          alignItems="center"
+                          spacing={1.5}
+                        >
                           <Box
                             onClick={() => actions.setSystemPrompt(prompt.id)}
                             sx={{ flex: 1, minWidth: 0, cursor: "pointer" }}
                           >
-                            <Stack direction="row" alignItems="center" spacing={1}>
-                              <Typography sx={{ fontSize: 14, fontWeight: isActive ? 800 : 700 }}>
+                            <Stack
+                              direction="row"
+                              alignItems="center"
+                              spacing={1}
+                            >
+                              <Typography
+                                sx={{
+                                  fontSize: 14,
+                                  fontWeight: isActive ? 800 : 700,
+                                }}
+                              >
                                 {prompt.name}
                               </Typography>
-                              {isActive && <Check size={14} color={theme.palette.primary.main} />}
+                              {isActive && (
+                                <Check
+                                  size={14}
+                                  color={theme.palette.primary.main}
+                                />
+                              )}
                             </Stack>
-                            <Typography noWrap sx={{ display: "block", color: "text.secondary", fontSize: 12, mt: 0.25 }}>
+                            <Typography
+                              noWrap
+                              sx={{
+                                display: "block",
+                                color: "text.secondary",
+                                fontSize: 12,
+                                mt: 0.25,
+                              }}
+                            >
                               {prompt.content || "No content"}
                             </Typography>
                           </Box>
-                          <IconButton size="small" onClick={() => setEditingPrompt(prompt)} sx={{ borderRadius: "8px" }}>
+                          <IconButton
+                            size="small"
+                            onClick={() => setEditingPrompt(prompt)}
+                            sx={{ borderRadius: "8px" }}
+                          >
                             <Edit2 size={15} />
                           </IconButton>
-                          <IconButton size="small" onClick={() => handleDelete(prompt.id)} disabled={prompt.id === "default"} sx={{ borderRadius: "8px" }}>
+                          <IconButton
+                            size="small"
+                            onClick={() => handleDelete(prompt.id)}
+                            disabled={prompt.id === "default"}
+                            sx={{ borderRadius: "8px" }}
+                          >
                             <Trash2 size={15} />
                           </IconButton>
                         </Stack>
@@ -516,32 +575,63 @@ function ToolsTab() {
       />
 
       {tools.length === 0 && !isLoading && (
-        <EmptyState>No tools registered. Tools will appear here once the backend is running.</EmptyState>
+        <EmptyState>
+          No tools registered. Tools will appear here once the backend is
+          running.
+        </EmptyState>
       )}
 
       <Stack spacing={1}>
         {tools.map((tool: ToolDefinition) => {
-          const sourceColor = sourceColors[tool.source] ?? theme.palette.text.secondary;
+          const sourceColor =
+            sourceColors[tool.source] ?? theme.palette.text.secondary;
 
           return (
-            <Box key={tool.name} sx={{ py: 1.5, opacity: tool.enabled ? 1 : 0.62, borderBottom: "1px solid", borderColor: "divider" }}>
-              <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
+            <Box
+              key={tool.name}
+              sx={{
+                py: 1.5,
+                opacity: tool.enabled ? 1 : 0.62,
+                borderBottom: "1px solid",
+                borderColor: "divider",
+              }}
+            >
+              <Stack
+                direction="row"
+                alignItems="center"
+                justifyContent="space-between"
+                spacing={2}
+              >
                 <Box sx={{ minWidth: 0, flex: 1 }}>
-                  <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
+                  <Stack
+                    direction="row"
+                    alignItems="center"
+                    spacing={1}
+                    sx={{ mb: 0.5 }}
+                  >
                     <Typography
                       sx={{
                         fontSize: 14,
                         fontWeight: 800,
-                        fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+                        fontFamily:
+                          "ui-monospace, SFMono-Regular, Menlo, monospace",
                         color: "text.primary",
                       }}
                     >
                       {tool.name}
                     </Typography>
                     <Badge label={tool.source} color={sourceColor} />
-                    {tool.requiresApproval && <Badge label="Approval" color={theme.palette.warning.main} />}
+                    {tool.requiresApproval && (
+                      <Badge
+                        label="Approval"
+                        color={theme.palette.warning.main}
+                      />
+                    )}
                   </Stack>
-                  <Typography noWrap sx={{ fontSize: 12, color: "text.secondary" }}>
+                  <Typography
+                    noWrap
+                    sx={{ fontSize: 12, color: "text.secondary" }}
+                  >
                     {tool.description}
                   </Typography>
                 </Box>
@@ -567,5 +657,3 @@ function ToolsTab() {
     </Stack>
   );
 }
-
-
