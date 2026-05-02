@@ -1,0 +1,11 @@
+DROP TABLE IF EXISTS sessions;
+
+CREATE TABLE sessions (
+  id TEXT PRIMARY KEY,
+  userId INTEGER NOT NULL,
+  token TEXT NOT NULL UNIQUE,
+  expiresAt TEXT NOT NULL,
+  createdAt TEXT NOT NULL,
+  FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
+);
+

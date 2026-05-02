@@ -4,14 +4,13 @@ import {
   Typography, 
   TextField, 
   Button, 
-  List, 
-  ListItem, 
-  ListItemText, 
   IconButton, 
   LinearProgress,
-  Paper,
+  Stack,
 } from "@mui/material";
 import { Download, Trash2, RefreshCw, XCircle } from "lucide-react";
+import { appPanelSx, appTextFieldSx } from "@/components/ui/appDialog";
+import { SectionHeader, EmptyState } from "./SettingComponents";
 import { useModelStore, type OllamaModel, type PullProgress } from "@/store/modelStore";
 import { loggedInvoke, formatFileSize, cn } from "@/lib/utils";
 import { listen } from "@tauri-apps/api/event";
@@ -90,12 +89,13 @@ export function ModelManagement() {
   }, [setPullProgress]);
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+    <Stack spacing={3}>
       {/* Pull Model Section */}
-      <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-        <Typography variant="subtitle2" sx={{ fontWeight: 600, fontSize: "14px" }}>
-          Pull New Model
-        </Typography>
+      <Stack spacing={1.5}>
+        <SectionHeader 
+          title="Pull New Model" 
+          description="Download a model from the Ollama registry."
+        />
         <Box sx={{ display: "flex", gap: 1 }}>
           <TextField
             fullWidth
@@ -105,12 +105,11 @@ export function ModelManagement() {
             onChange={(e) => setNewModelName(e.target.value)}
             disabled={isPulling}
             sx={{
+              ...appTextFieldSx,
               "& .MuiOutlinedInput-root": {
-                borderRadius: "8px",
+                ...appTextFieldSx["& .MuiOutlinedInput-root"],
                 bgcolor: "action.hover",
-                fontSize: "14px",
-                "& fieldset": { border: "none" },
-              },
+              }
             }}
           />
           <Button
@@ -124,6 +123,7 @@ export function ModelManagement() {
               textTransform: "none",
               px: 3,
               bgcolor: "primary.main",
+              fontWeight: 600,
               "&:hover": { bgcolor: "primary.dark" },
             }}
           >
@@ -132,24 +132,16 @@ export function ModelManagement() {
         </Box>
 
         {isPulling && pullProgress ? (
-          <Paper
-            variant="outlined"
-            sx={{
-              p: 2,
-              borderRadius: "8px",
-              bgcolor: "action.hover",
-              border: "none",
-            }}
-          >
+          <Box sx={appPanelSx}>
             <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1, alignItems: "center" }}>
-              <Typography variant="body2" sx={{ fontWeight: 500, fontSize: "13px" }}>
+              <Typography sx={{ fontWeight: 600, fontSize: 13, color: "text.primary" }}>
                 Pulling {pullingModel}...
               </Typography>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <Typography variant="body2" color="text.secondary" sx={{ fontSize: "12px" }}>
+                <Typography sx={{ color: "text.secondary", fontSize: 12 }}>
                   {pullProgress.status}
                 </Typography>
-                <IconButton size="small" onClick={handleCancelPull} title="Cancel Pull" sx={{ color: "error.main", p: 0.5 }}>
+                <IconButton size="small" onClick={handleCancelPull} title="Cancel Pull" sx={{ color: "error.main", p: 0.5, borderRadius: "8px" }}>
                   <XCircle size={14} />
                 </IconButton>
               </Box>
@@ -169,73 +161,58 @@ export function ModelManagement() {
                     }
                   }}
                 />
-                <Typography variant="caption" sx={{ minWidth: 35, fontSize: "11px", fontWeight: 600 }}>
+                <Typography sx={{ minWidth: 35, fontSize: 12, fontWeight: 600, color: "text.primary" }}>
                   {Math.round((pullProgress.completed / pullProgress.total) * 100)}%
                 </Typography>
               </Box>
             ) : (
               <LinearProgress sx={{ height: 4, borderRadius: 2 }} />
             )}
-          </Paper>
+          </Box>
         ) : null}
-      </Box>
+      </Stack>
 
       {/* Local Models Section */}
-      <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <Typography variant="subtitle2" sx={{ fontWeight: 600, fontSize: "14px" }}>
-            Local Models
-          </Typography>
-          <IconButton size="small" onClick={refreshModels} disabled={isRefreshing}>
-            <RefreshCw size={16} className={cn(isRefreshing && "animate-spin")} />
-          </IconButton>
-        </Box>
+      <Stack spacing={1.5}>
+        <SectionHeader 
+          title="Local Models" 
+          description="Models currently stored on your machine."
+          action={
+            <IconButton size="small" onClick={refreshModels} disabled={isRefreshing} sx={{ borderRadius: "8px" }}>
+              <RefreshCw size={16} className={cn(isRefreshing && "animate-spin")} />
+            </IconButton>
+          }
+        />
 
-        <List sx={{ p: 0, display: "flex", flexDirection: "column", gap: 1 }}>
+        <Stack spacing={1}>
           {availableModels.ollama.map((model) => (
-            <ListItem
-              key={model.name}
-              sx={{
-                borderRadius: "8px",
-                bgcolor: "action.hover",
-                "&:hover": { bgcolor: "action.selected" },
-                py: 1,
-                px: 2,
-              }}
-              secondaryAction={
-                <IconButton
-                  edge="end"
-                  size="small"
-                  onClick={() => handleDeleteModel(model.name)}
-                  sx={{
-                    color: "text.secondary",
-                    "&:hover": { color: "error.main" }
-                  }}
-                >
-                  <Trash2 size={16} />
-                </IconButton>
-              }
-            >
-              <ListItemText
-                primary={model.name}
-                secondary={
-                  <Box sx={{ display: "flex", gap: 2, alignItems: "center", mt: 0.5 }}>
-                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: "12px" }}>
-                      {formatFileSize(model.size)}
-                    </Typography>
-                  </Box>
-                }
-                primaryTypographyProps={{ fontSize: "14px", fontWeight: 500 }}
-              />
-            </ListItem>
+            <Box key={model.name} sx={{ ...appPanelSx, p: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <Box>
+                <Typography sx={{ fontSize: 13, fontWeight: 600, color: "text.primary" }}>
+                  {model.name}
+                </Typography>
+                <Typography sx={{ fontSize: 12, color: "text.secondary", mt: 0.25 }}>
+                  {formatFileSize(model.size)}
+                </Typography>
+              </Box>
+              <IconButton
+                size="small"
+                onClick={() => handleDeleteModel(model.name)}
+                sx={{
+                  color: "text.secondary",
+                  borderRadius: "8px",
+                  "&:hover": { color: "error.main", bgcolor: "error.main", opacity: 0.8 },
+                }}
+              >
+                <Trash2 size={16} />
+              </IconButton>
+            </Box>
           ))}
           {availableModels.ollama.length === 0 && !isRefreshing ? (
-            <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center", py: 4, fontSize: "13px" }}>
-              No local models found.
-            </Typography>
+            <EmptyState>No local models found.</EmptyState>
           ) : null}
-        </List>
-      </Box>
-    </Box>
+        </Stack>
+      </Stack>
+    </Stack>
   );
 }

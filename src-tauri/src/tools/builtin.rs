@@ -5,16 +5,7 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 use sysinfo::System;
 
-/// # Built-in Tools
-///
-/// This module contains the implementation of all native tools available in OpenBench.
-/// Each tool is implemented as a struct with the `#[derive(Tool)]` macro.
-///
-/// To add a new tool:
-/// 1. Define an arguments struct with `#[derive(JsonSchema, Deserialize)]`.
-/// 2. Define a tool struct with `#[derive(Tool)]`.
-/// 3. Implement `run(...)` for the tool struct.
-/// 4. Register it in `register_all`.
+// Built-in native tools. Each tool uses `#[derive(Tool)]`.
 
 pub(crate) fn register_all(registry: &mut RegistryInner) {
     registry.register(Box::new(GetCurrentTimestampTool));
@@ -104,7 +95,7 @@ impl CalculateTimestampTool {
                 target.map(|tw| {
                     let mut current = now + Duration::days(1);
                     while current.weekday() != tw {
-                        current = current + Duration::days(1);
+                        current += Duration::days(1);
                     }
                     current
                 })

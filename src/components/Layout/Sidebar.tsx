@@ -7,10 +7,12 @@ import {
   Theme,
   CSSObject,
   Typography,
+  Tooltip,
+  useTheme,
 } from "@mui/material";
+import { motion, AnimatePresence } from "motion/react";
 import {
   PanelLeft,
-  Plus,
   Trash2,
   Edit2,
   Check,
@@ -18,6 +20,7 @@ import {
   MoreHorizontal,
   Archive,
   Search,
+  MessageSquare,
 } from "lucide-react";
 import { Conversation, useChatStore } from "@/store/chatStore";
 import {
@@ -124,6 +127,7 @@ function ConversationItem({
   handleArchive: (id: string) => void;
   handleStartDelete: (conv: Conversation) => void;
 }) {
+  const { isCollapsed } = useSidebar();
   return (
     <Box
       sx={{
@@ -131,109 +135,137 @@ function ConversationItem({
         alignItems: "center",
         width: "100%",
         minWidth: 0,
+        height: "100%",
       }}
     >
-      {editingId === conv.id ? (
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            width: "100%",
-            gap: 0.5,
-          }}
-        >
-          <input
-            autoFocus
-            value={editValue}
-            onChange={(e) => setEditValue(e.target.value)}
-            onClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") handleConfirmRename(e as any, conv.id);
-              if (e.key === "Escape") handleCancelRename(e as any);
-            }}
+      <AnimatePresence mode="wait">
+        {editingId === conv.id ? (
+          <motion.div
+            key="editing"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
             style={{
-              flex: 1,
-              background: "transparent",
-              border: "none",
-              color: "inherit",
-              outline: "none",
-              fontSize: "inherit",
-              padding: 0,
-            }}
-          />
-          <IconButton
-            size="small"
-            onClick={(e) => handleConfirmRename(e, conv.id)}
-            sx={{ p: 0.5, color: "text.secondary" }}
-          >
-            <Check size={14} />
-          </IconButton>
-          <IconButton
-            size="small"
-            onClick={handleCancelRename}
-            sx={{ p: 0.5, color: "text.secondary" }}
-          >
-            <X size={14} />
-          </IconButton>
-        </Box>
-      ) : (
-        <>
-          <Typography
-            variant="body2"
-            noWrap
-            sx={{
-              flex: 1,
-              color:
-                activeConversationId === conv.id ? "text.primary" : "inherit",
-            }}
-          >
-            {conv.title || "Untitled"}
-          </Typography>
-          <Box
-            className="conversation-actions"
-            sx={{
               display: "flex",
-              gap: 0,
-              opacity: 0,
-              transition: "opacity 0.2s",
+              alignItems: "center",
+              width: "100%",
+              gap: "4px",
             }}
           >
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <IconButton
-                  size="small"
-                  onClick={(e) => e.stopPropagation()}
-                  sx={{
-                    p: 0.5,
-                    color: "text.secondary",
-                    "&:hover": {
-                      color: "text.primary",
-                      bgcolor: "action.selected",
-                    },
-                  }}
-                >
-                  <MoreHorizontal size={14} />
-                </IconButton>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={(e) => handleStartRename(e, conv)}>
-                  <Edit2 size={14} /> Rename
-                </DropdownMenuItem>
+            <input
+              autoFocus
+              value={editValue}
+              onChange={(e) => setEditValue(e.target.value)}
+              onClick={(e) => e.stopPropagation()}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleConfirmRename(e as any, conv.id);
+                if (e.key === "Escape") handleCancelRename(e as any);
+              }}
+              style={{
+                flex: 1,
+                background: "transparent",
+                border: "none",
+                color: "inherit",
+                outline: "none",
+                fontSize: "inherit",
+                padding: 0,
+                width: "100%",
+              }}
+            />
+            <IconButton
+              size="small"
+              onClick={(e) => handleConfirmRename(e, conv.id)}
+              sx={{ p: 0.5, color: "text.secondary" }}
+            >
+              <Check size={14} />
+            </IconButton>
+            <IconButton
+              size="small"
+              onClick={handleCancelRename}
+              sx={{ p: 0.5, color: "text.secondary" }}
+            >
+              <X size={14} />
+            </IconButton>
+          </motion.div>
+        ) : (
+          <motion.div
+            key="display"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              width: "100%",
+              minWidth: 0,
+            }}
+          >
+            <Typography
+              variant="body2"
+              noWrap
+              sx={{
+                flex: 1,
+                color:
+                  activeConversationId === conv.id ? "text.primary" : "inherit",
+                fontSize: "13.5px",
+                fontWeight: activeConversationId === conv.id ? 500 : 400,
+                pr: 1,
+              }}
+            >
+              {conv.title || "Untitled"}
+            </Typography>
 
-                <DropdownMenuItem onClick={() => handleArchive(conv.id)}>
-                  <Archive size={14} /> Archive
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  variant="destructive"
-                  onClick={() => handleStartDelete(conv)}
-                >
-                  <Trash2 size={14} /> Delete
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </Box>
-        </>
-      )}
+            {!isCollapsed && (
+              <Box
+                className="conversation-actions"
+                sx={{
+                  display: "flex",
+                  gap: 0,
+                  opacity: 0,
+                  transition: "opacity 0.2s",
+                  mr: -0.5,
+                }}
+              >
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <IconButton
+                      size="small"
+                      onClick={(e) => e.stopPropagation()}
+                      sx={{
+                        p: 0.5,
+                        color: "text.secondary",
+                        "&:hover": {
+                          color: "text.primary",
+                          bgcolor: "action.selected",
+                        },
+                      }}
+                    >
+                      <MoreHorizontal size={14} />
+                    </IconButton>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                      onClick={(e) => handleStartRename(e, conv)}
+                    >
+                      <Edit2 size={14} /> Rename
+                    </DropdownMenuItem>
+
+                    <DropdownMenuItem onClick={() => handleArchive(conv.id)}>
+                      <Archive size={14} /> Archive
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      variant="destructive"
+                      onClick={() => handleStartDelete(conv)}
+                    >
+                      <Trash2 size={14} /> Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </Box>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </Box>
   );
 }
@@ -248,8 +280,11 @@ export function Sidebar({
   activeConversationId,
   collapsible,
 }: SidebarProps) {
-  const { isCollapsed, isMobile, openMobile, setOpenMobile } = useSidebar();
-  const archiveConversation = useChatStore((state) => state.actions.archiveConversation);
+  const { isCollapsed, setIsCollapsed, isMobile, openMobile, setOpenMobile } =
+    useSidebar();
+  const archiveConversation = useChatStore(
+    (state) => state.actions.archiveConversation,
+  );
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [editValue, setEditValue] = React.useState("");
   const [deleteId, setDeleteId] = React.useState<string | null>(null);
@@ -338,181 +373,144 @@ export function Sidebar({
   const sidebarContent = (
     <>
       <SidebarHeader>
-        {!isCollapsed ? (
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              width: "100%",
-              px: 2,
-            }}
-          >
-            <Typography
-              variant="subtitle2"
-              sx={{
-                fontWeight: 600,
-                color: "primary.main",
-                letterSpacing: "0.01em",
-                opacity: 1,
-              }}
-            >
-              OpenBench
-            </Typography>
-            <SidebarTrigger />
-          </Box>
-        ) : (
-          <Box
-            sx={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              width: "100%",
-              pt: 2,
-              gap: 2,
-            }}
-          >
-            <SidebarTrigger />
-            <IconButton
-              onClick={() => onNewChat(false)}
-              size="small"
-              sx={{
-                color: "text.secondary",
-                "&:hover": { color: "text.primary", bgcolor: "action.hover" },
-              }}
-            >
-              <Plus size={18} />
-            </IconButton>
-            <IconButton
-              onClick={() => onNewChat(true)}
-              size="small"
-              sx={{
-                color: "text.secondary",
-                "&:hover": { color: "text.primary", bgcolor: "action.hover" },
-              }}
-            >
-              <svg
-                aria-hidden="true"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth="1.5"
-                stroke="currentColor"
-                style={{ width: 18, height: 18 }}
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: isCollapsed ? "center" : "space-between",
+            width: "100%",
+            px: isCollapsed ? 0 : 2,
+            pt: isCollapsed ? 1 : 0,
+          }}
+        >
+          <AnimatePresence mode="wait">
+            {!isCollapsed ? (
+              <motion.div
+                key="logo"
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -10 }}
+                transition={{ duration: 0.2 }}
+                style={{ display: "flex", alignItems: "center" }}
               >
-                <path
-                  d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 13.8214 2.48697 15.5291 3.33782 17L2.5 21.5L7 20.6622C8.47087 21.513 10.1786 22 12 22Z"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeDasharray="2.5 3.5"
-                ></path>
-              </svg>
-            </IconButton>
-          </Box>
-        )}
+                <Typography
+                  variant="subtitle2"
+                  sx={{
+                    fontWeight: 700,
+                    color: "primary.main",
+                    letterSpacing: "-0.01em",
+                    fontSize: "15px",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  OpenBench
+                </Typography>
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
+          <SidebarTrigger />
+        </Box>
       </SidebarHeader>
 
       <SidebarContent>
-        {!isCollapsed && (
-          <Box sx={{ px: 1.5, mb: 1.5, mt: 0.5 }}>
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                gap: 1,
-                px: 1.5,
-                height: 36,
-                borderRadius: "10px",
-                bgcolor: "action.hover",
-                color: "text.secondary",
-                border: "1px solid",
-                borderColor: "transparent",
-                transition: "all 0.2s",
-                "&:focus-within": {
-                  borderColor: "primary.main",
-                  bgcolor: "background.paper",
-                  boxShadow: "0 0 0 2px rgba(var(--primary-rgb), 0.1)",
-                },
-              }}
-            >
-              <Search size={14} />
-              <InputBase
-                placeholder="Search chats..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                sx={{
-                  flex: 1,
-                  fontSize: "13px",
-                  color: "text.primary",
-                  "& .MuiInputBase-input::placeholder": {
-                    color: "text.secondary",
-                    opacity: 0.7,
-                  },
-                }}
-              />
-              {searchQuery && (
-                <IconButton
-                  size="small"
-                  onClick={() => setSearchQuery("")}
+        <Box sx={{ px: 1.5, mb: 1, mt: 1 }}>
+          <AnimatePresence>
+            {!isCollapsed ? (
+              <motion.div
+                key="search-input"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+              >
+                <Box
                   sx={{
-                    p: 0.5,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1,
+                    px: 1.5,
+                    height: 38,
+                    borderRadius: "10px",
+                    bgcolor: "action.hover",
                     color: "text.secondary",
-                    "&:hover": { color: "text.primary" },
+                    border: "1px solid",
+                    borderColor: "transparent",
+                    transition: "all 0.2s",
+                    mb: 1.5,
+                    "&:focus-within": {
+                      borderColor: "primary.main",
+                      bgcolor: "background.paper",
+                      boxShadow: "0 0 0 2px rgba(255, 255, 255, 0.05)",
+                    },
                   }}
                 >
-                  <X size={12} />
-                </IconButton>
-              )}
-            </Box>
-          </Box>
-        )}
+                  <Search size={14} />
+                  <InputBase
+                    placeholder="Search chats..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    sx={{
+                      flex: 1,
+                      fontSize: "13px",
+                      color: "text.primary",
+                      "& .MuiInputBase-input::placeholder": {
+                        color: "text.secondary",
+                        opacity: 0.7,
+                      },
+                    }}
+                  />
+                </Box>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="search-icon"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                style={{ marginBottom: "8px" }}
+              >
+                <SidebarMenuButton
+                  tooltip="Search"
+                  onClick={() => setIsCollapsed(false)}
+                >
+                  <Search size={18} />
+                </SidebarMenuButton>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-        {!isCollapsed && (
-          <Box
-            sx={{
-              px: 1.5,
-              mb: 1,
-              mt: 1,
-              display: "flex",
-              flexDirection: "column",
-              gap: 1,
-            }}
-          >
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
             <SidebarMenuButton
               onClick={() => onNewChat(false)}
               isActive={false}
+              tooltip="New Chat"
               sx={{
-                width: "100%",
-                justifyContent: "flex-start",
-                bgcolor: "background.paper",
-                border: "1px solid",
+                bgcolor: isCollapsed ? "transparent" : "background.paper",
+                border: isCollapsed ? "none" : "1px solid",
                 borderColor: "divider",
-                borderRadius: "12px",
-                py: 2.5,
-                px: 2,
+                boxShadow: isCollapsed ? "none" : "0 1px 2px rgba(0,0,0,0.05)",
                 "&:hover": {
                   bgcolor: "action.hover",
                   borderColor: "border.main",
                 },
               }}
             >
-              <Plus size={18} />
-              <Box component="span" sx={{ ml: 1, fontWeight: 500 }}>
-                New Chat
-              </Box>
+              <Edit2 size={18} />
+              {!isCollapsed && (
+                <span style={{ fontWeight: 600, whiteSpace: "nowrap" }}>
+                  New Chat
+                </span>
+              )}
             </SidebarMenuButton>
+
             <SidebarMenuButton
               onClick={() => onNewChat(true)}
               isActive={false}
+              tooltip="Temporary Chat"
               sx={{
-                width: "100%",
-                justifyContent: "flex-start",
                 bgcolor: "transparent",
-                border: "1px dashed",
+                border: isCollapsed ? "none" : "1px dashed",
                 borderColor: "divider",
-                borderRadius: "12px",
-                py: 2.5,
-                px: 2,
                 "&:hover": {
                   bgcolor: "action.hover",
                   borderColor: "border.main",
@@ -535,60 +533,69 @@ export function Sidebar({
                   strokeDasharray="2.5 3.5"
                 ></path>
               </svg>
-              <Box component="span" sx={{ ml: 1, fontWeight: 500 }}>
-                Temporary Chat
-              </Box>
+              {!isCollapsed && (
+                <span style={{ fontWeight: 500, whiteSpace: "nowrap" }}>
+                  Temporary Chat
+                </span>
+              )}
             </SidebarMenuButton>
           </Box>
-        )}
+        </Box>
 
-        {!isCollapsed && (
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-            {groupedConversations.map((group) => (
-              <SidebarGroup key={group.id} sx={{ mb: 0 }}>
-                <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
-                <SidebarGroupContent sx={{ mt: 0.75 }}>
-                  <SidebarMenu>
-                    {group.items.map((conv) => (
-                      <SidebarMenuButton
-                        key={conv.id}
-                        isActive={activeConversationId === conv.id}
-                        onClick={() => {
-                          onSelectConversation(conv.id);
-                          if (isMobile) setOpenMobile(false);
-                        }}
-                        sx={{
-                          py: 1,
-                          px: 2.5,
-                          mx: 0,
-                          width: "100%",
-                          borderRadius: "12px",
-                          "&:hover .conversation-actions": { opacity: 1 },
-                        }}
-                      >
-                        <ConversationItem
-                          conv={conv}
-                          activeConversationId={activeConversationId}
-                          editingId={editingId}
-                          editValue={editValue}
-                          setEditValue={setEditValue}
-                          handleConfirmRename={handleConfirmRename}
-                          handleCancelRename={handleCancelRename}
-                          handleStartRename={handleStartRename}
-                          handleArchive={handleArchive}
-                          handleStartDelete={handleStartDelete}
-                        />
-                      </SidebarMenuButton>
-                    ))}
-                  </SidebarMenu>
-                </SidebarGroupContent>
-              </SidebarGroup>
-            ))}
-          </Box>
-        )}
+        <AnimatePresence>
+          {!isCollapsed && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <Box
+                sx={{ display: "flex", flexDirection: "column", gap: 1, mt: 1 }}
+              >
+                {groupedConversations.map((group) => (
+                  <SidebarGroup key={group.id} sx={{ mb: 1 }}>
+                    <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+                    <SidebarGroupContent sx={{ mt: 0.5 }}>
+                      <SidebarMenu>
+                        {group.items.map((conv) => (
+                          <SidebarMenuButton
+                            key={conv.id}
+                            isActive={activeConversationId === conv.id}
+                            tooltip={conv.title || "Untitled"}
+                            onClick={() => {
+                              onSelectConversation(conv.id);
+                              if (isMobile) setOpenMobile(false);
+                            }}
+                            sx={{
+                              "&:hover .conversation-actions": { opacity: 1 },
+                            }}
+                          >
+                            <ConversationItem
+                              conv={conv}
+                              activeConversationId={activeConversationId}
+                              editingId={editingId}
+                              editValue={editValue}
+                              setEditValue={setEditValue}
+                              handleConfirmRename={handleConfirmRename}
+                              handleCancelRename={handleCancelRename}
+                              handleStartRename={handleStartRename}
+                              handleArchive={handleArchive}
+                              handleStartDelete={handleStartDelete}
+                            />
+                          </SidebarMenuButton>
+                        ))}
+                      </SidebarMenu>
+                    </SidebarGroupContent>
+                  </SidebarGroup>
+                ))}
+              </Box>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </SidebarContent>
 
-      <SidebarFooter sx={{ flexDirection: "column", gap: 1, p: 1.5 }}>
+      <SidebarFooter>
         <ProfileMenu onOpenSettings={onOpenSettings} />
       </SidebarFooter>
 
@@ -621,26 +628,45 @@ export function Sidebar({
     );
   }
 
+  const theme = useTheme();
   const width = isCollapsed && collapsible === "icon" ? 60 : 260;
 
   return (
-    <Box
-      sx={{
+    <motion.div
+      initial={false}
+      animate={{
         width,
+        transition: {
+          type: "spring",
+          stiffness: 300,
+          damping: 30,
+          mass: 0.8,
+        },
+      }}
+      style={{
         flexShrink: 0,
         height: "100%",
         display: "flex",
         flexDirection: "column",
-        bgcolor: "background.sidebar",
+        backgroundColor: theme.palette.background.sidebar,
         borderRight: "1px solid",
-        borderColor: "divider",
-        transition: "width 0.2s ease-in-out",
+        borderColor: theme.palette.divider,
         overflowX: "hidden",
-        backgroundImage: "none",
+        position: "relative",
       }}
     >
-      {sidebarContent}
-    </Box>
+      <Box
+        sx={{
+          width: isCollapsed ? 60 : 260, // Explicitly set width to prevent layout issues during animation
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+          bgcolor: "transparent",
+        }}
+      >
+        {sidebarContent}
+      </Box>
+    </motion.div>
   );
 }
 
@@ -651,15 +677,15 @@ export function SidebarHeader({
   children: React.ReactNode;
   sx?: CSSObject;
 }) {
-  const { isCollapsed } = useSidebar();
   return (
     <Box
       sx={{
         p: 0,
         display: "flex",
         alignItems: "center",
-        justifyContent: isCollapsed ? "center" : "flex-start",
-        minHeight: 56,
+        minHeight: 64,
+        borderBottom: "1px solid",
+        borderColor: "transparent",
         ...sx,
       }}
     >
@@ -695,13 +721,13 @@ export function SidebarFooter({
   return (
     <Box
       sx={{
-        p: 1.5,
-        px: isCollapsed ? 0 : 1.5,
+        p: isCollapsed ? 1 : 1.5,
         display: "flex",
-        alignItems: "center",
-        justifyContent: isCollapsed ? "center" : "flex-start",
+        flexDirection: "column",
+        gap: 1,
         borderTop: "1px solid",
         borderColor: "divider",
+        transition: "padding 0.2s",
         ...sx,
       }}
     >
@@ -746,10 +772,7 @@ export function SidebarGroupContent({
   children: React.ReactNode;
   sx?: CSSObject;
 }) {
-  const { isCollapsed } = useSidebar();
-  return (
-    <Box sx={{ px: isCollapsed ? 0 : 0, width: "100%", ...sx }}>{children}</Box>
-  );
+  return <Box sx={{ px: 0, width: "100%", ...sx }}>{children}</Box>;
 }
 
 export function SidebarMenu({
@@ -767,7 +790,7 @@ export function SidebarMenu({
         flexDirection: "column",
         gap: 0.5,
         px: isCollapsed ? 0 : 1.5,
-        alignItems: isCollapsed ? "center" : "stretch",
+        alignItems: "stretch",
         width: "100%",
         ...sx,
       }}
@@ -782,35 +805,42 @@ export function SidebarMenuButton({
   isActive,
   onClick,
   sx,
+  tooltip,
 }: {
   children: React.ReactNode;
   isActive?: boolean;
   onClick?: () => void;
   sx?: CSSObject;
+  tooltip?: string;
 }) {
   const { isCollapsed } = useSidebar();
-  return (
+
+  const content = (
     <Box
       onClick={onClick}
       sx={{
         display: "flex",
         alignItems: "center",
         justifyContent: isCollapsed ? "center" : "flex-start",
-        gap: isCollapsed ? 0 : 2,
+        gap: isCollapsed ? 0 : 1.5,
         px: isCollapsed ? 0 : 1.5,
-        width: isCollapsed ? 36 : "100%",
-        height: 36,
-        borderRadius: "8px",
+        width: "100%",
+        height: 40,
+        borderRadius: "10px",
         cursor: "pointer",
-        transition: "all 0.2s",
-        bgcolor: isActive ? "action.hover" : "transparent",
+        transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+        bgcolor: isActive ? "action.selected" : "transparent",
         color: isActive ? "text.primary" : "text.secondary",
-        fontSize: "13px",
+        fontSize: "13.5px",
         fontWeight: 500,
         overflow: "hidden",
+        position: "relative",
         "&:hover": {
           bgcolor: "action.hover",
           color: "text.primary",
+        },
+        "&:active": {
+          transform: "scale(0.98)",
         },
         ...sx,
       }}
@@ -818,6 +848,16 @@ export function SidebarMenuButton({
       {children}
     </Box>
   );
+
+  if (isCollapsed && tooltip) {
+    return (
+      <Tooltip title={tooltip} placement="right" arrow>
+        {content}
+      </Tooltip>
+    );
+  }
+
+  return content;
 }
 
 export function SidebarTrigger({ sx }: { sx?: CSSObject }) {
@@ -833,17 +873,44 @@ export function SidebarTrigger({ sx }: { sx?: CSSObject }) {
   };
 
   return (
-    <IconButton
-      onClick={handleClick}
-      size="small"
-      sx={{
-        color: "text.secondary",
-        "&:hover": { color: "text.primary", bgcolor: "action.hover" },
-        ...sx,
-      }}
+    <Tooltip
+      title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+      placement="right"
     >
-      <PanelLeft size={18} />
-    </IconButton>
+      <IconButton
+        onClick={handleClick}
+        size="small"
+        sx={{
+          color: "text.secondary",
+          width: 40,
+          height: 40,
+          borderRadius: "10px",
+          bgcolor: isCollapsed ? "action.hover" : "transparent",
+          transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+          "&:hover": {
+            color: "text.primary",
+            bgcolor: "action.selected",
+            transform: "scale(1.05)",
+          },
+          "&:active": {
+            transform: "scale(0.95)",
+          },
+          ...sx,
+        }}
+      >
+        <motion.div
+          animate={{ rotate: isCollapsed ? 180 : 0 }}
+          transition={{ type: "spring", stiffness: 200, damping: 20 }}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <PanelLeft size={20} />
+        </motion.div>
+      </IconButton>
+    </Tooltip>
   );
 }
 

@@ -1,23 +1,47 @@
-import { useSettingsStore } from "@/store/settingsStore";
-import { useThemeStore, ThemeMode } from "@/store/themeStore";
-import { SystemPrompt, useModelStore } from "@/store/modelStore";
-import { useToolStore, type ToolDefinition } from "@/store/toolStore";
-import { Modal } from "@/components/ui/modal";
-import { useState, useEffect } from "react";
-import { Settings, X, Sun, Moon, Monitor, Box as BoxIcon, Wrench, ScrollText, Plus, Trash2, Edit2, Check } from "lucide-react";
-import { ModelManagement } from "./ModelManagement";
+// Design: Quiet instrument panel — fixed-width shell, soft contrast, precise spacing.
 import {
-  Box,
-  Typography,
-  useTheme,
-  IconButton,
-  TextField,
-  Button,
+  APP_DIALOG_SIDEBAR_WIDTH,
+  AppDialogBody,
+  AppDialogFrame,
+  AppDialogHeader,
+  appFadeInSx,
+  appPanelSx,
+  appTextFieldSx,
+} from "@/components/ui/appDialog";
+import { useSettingsStore } from "@/store/settingsStore";
+import { SystemPrompt, useModelStore } from "@/store/modelStore";
+import { ThemeMode, useThemeStore } from "@/store/themeStore";
+import { useToolStore, type ToolDefinition } from "@/store/toolStore";
+import { useEffect, useState } from "react";
+import {
   Alert,
+  Box,
+  Button,
+  FormControl,
+  IconButton,
   MenuItem,
   Select,
-  FormControl,
+  Stack,
+  TextField,
+  Typography,
+  useTheme,
 } from "@mui/material";
+import {
+  Box as BoxIcon,
+  Check,
+  Edit2,
+  Monitor,
+  Moon,
+  Plus,
+  ScrollText,
+  Settings,
+  Sun,
+  Trash2,
+  Wrench,
+  Search,
+} from "lucide-react";
+import { ModelManagement } from "./ModelManagement";
+import { SettingCard, SectionHeader, Badge, EmptyState, selectSx } from "./SettingComponents";
 
 type SettingsModalProps = {
   isOpen: boolean;
@@ -29,7 +53,7 @@ const SIDEBAR_ITEMS = [
   { id: "models", label: "Models", icon: BoxIcon },
   { id: "tools", label: "Tools", icon: Wrench },
   { id: "prompts", label: "Prompt Library", icon: ScrollText },
-];
+] as const;
 
 const THEME_OPTIONS = [
   { id: "light", label: "Light", icon: Sun },
@@ -37,14 +61,10 @@ const THEME_OPTIONS = [
   { id: "system", label: "System", icon: Monitor },
 ] as const;
 
-/**
- * Settings modal overlay with ChatGPT-style sidebar navigation.
- */
-export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
-  const muiTheme = useTheme();
-  const [activeTab, setActiveTab] = useState("general");
+type SettingsTab = (typeof SIDEBAR_ITEMS)[number]["id"];
 
-  // --- General Settings State ---
+export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
+  const [activeTab, setActiveTab] = useState<SettingsTab>("general");
   const { ollamaConfig, actions: settingsActions } = useSettingsStore();
   const { mode, setMode } = useThemeStore();
   const [baseUrl, setBaseUrl] = useState(ollamaConfig.baseUrl);
@@ -55,9 +75,12 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     setBaseUrl(ollamaConfig.baseUrl);
   }, [ollamaConfig.baseUrl]);
 
+  const activeItem = SIDEBAR_ITEMS.find((item) => item.id === activeTab);
+
   const handleSaveBaseUrl = async () => {
     setIsSavingBaseUrl(true);
     setBaseUrlError(null);
+
     try {
       await settingsActions.setOllamaConfig({ baseUrl });
     } catch (err: any) {
@@ -67,332 +90,243 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     }
   };
 
-  const handleClose = () => {
-    onClose();
-  };
-
   return (
-    <Modal
+    <AppDialogFrame
       open={isOpen}
-      onOpenChange={(open) => !open && handleClose()}
-      maxWidth={800}
-      showCloseButton={false}
-      contentSx={{ p: 0, overflow: "hidden" }}
-      sx={{
-        "& .MuiPaper-root": {
-          borderRadius: "12px",
-          bgcolor: "background.sidebar",
-        },
-      }}
+      onOpenChange={(open) => !open && onClose()}
     >
       <Box
         sx={{
-          display: "flex",
-          flexDirection: "row",
-          height: "min(600px, 85vh)",
+          display: "grid",
+          gridTemplateColumns: { xs: "1fr", md: `${APP_DIALOG_SIDEBAR_WIDTH}px 1fr` },
           width: "100%",
-          overflow: "hidden",
+          height: "100%",
+          minWidth: 0,
         }}
       >
-        {/* Left Sidebar */}
         <Box
           component="aside"
           sx={{
             display: { xs: "none", md: "flex" },
-            width: 240,
-            flexShrink: 0,
             flexDirection: "column",
-            bgcolor: "background.sidebar",
-            px: 2,
-            py: 2,
+            minHeight: 0,
+            bgcolor: "transparent",
+            p: 2,
           }}
         >
-          <Box
-            component="nav"
-            sx={{ display: "flex", flexDirection: "column", gap: 0.5, mt: 4 }}
-          >
-            {SIDEBAR_ITEMS.map((item) => (
-              <Box
-                key={item.id}
-                onClick={() => {
-                  setActiveTab(item.id);
-                }}
-                component="button"
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 2,
-                  width: "100%",
-                  border: "none",
-                  borderRadius: "8px",
-                  px: 2,
-                  py: 1.5,
-                  cursor: "pointer",
-                  transition: "all 0.2s ease",
-                  background:
-                    activeTab === item.id
-                      ? muiTheme.palette.action.hover
-                      : "transparent",
-                  color:
-                    activeTab === item.id
-                      ? muiTheme.palette.text.primary
-                      : muiTheme.palette.text.secondary,
-                  "&:hover": {
-                    background: muiTheme.palette.action.hover,
-                    color: muiTheme.palette.text.primary,
-                  },
-                }}
-              >
-                <item.icon size={18} />
-                <Typography
-                  variant="body2"
-                  sx={{
-                    fontWeight: activeTab === item.id ? 600 : 500,
-                    fontSize: "14px",
-                  }}
-                >
-                  {item.label}
-                </Typography>
-              </Box>
-            ))}
-          </Box>
-        </Box>
-
-        {/* Main Content Area */}
-        <Box
-          sx={{
-            display: "flex",
-            height: "100%",
-            minWidth: 0,
-            flex: 1,
-            flexDirection: "column",
-            bgcolor: "background.default",
-            position: "relative",
-          }}
-        >
-          {/* Header */}
           <Box
             sx={{
               display: "flex",
               alignItems: "center",
-              justifyContent: "space-between",
-              px: 4,
-              pt: 3,
-              pb: 1,
+              gap: 1,
+              mb: 3,
+              px: 1.5,
+              py: 0.75,
+              borderRadius: "999px",
+              bgcolor: "action.hover",
+              color: "text.secondary",
             }}
           >
-            <Typography variant="h6" sx={{ fontWeight: 600, fontSize: "18px" }}>
-              Settings
-            </Typography>
-            <IconButton
-              size="small"
-              onClick={handleClose}
-              sx={{
-                color: "text.secondary",
-                "&:hover": { color: "text.primary" },
-              }}
-            >
-              <X size={20} />
-            </IconButton>
+            <Search size={14} />
+            <Typography sx={{ fontSize: 13, fontWeight: 500 }}>Search</Typography>
           </Box>
 
-          {/* Content */}
-          <Box
-            component="main"
-            sx={{
-              minHeight: 0,
-              flex: 1,
-              px: 4,
-              py: 2,
-              overflowY: "auto",
-              display: "flex",
-              justifyContent: "center",
-            }}
-          >
-            <Box sx={{ width: "100%", maxWidth: "600px" }}>
-              {activeTab === "general" && (
+          <Stack component="nav" spacing={0.5}>
+            {SIDEBAR_ITEMS.map((item) => {
+              const Icon = item.icon;
+              const isActive = activeTab === item.id;
+
+              return (
                 <Box
+                  key={item.id}
+                  component="button"
+                  onClick={() => setActiveTab(item.id)}
                   sx={{
-                    display: "flex",
                     width: "100%",
-                    flexDirection: "column",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1.5,
+                    px: 1.5,
+                    py: 0.85,
+                    borderRadius: "8px",
+                    cursor: "pointer",
+                    textAlign: "left",
+                    color: isActive ? "text.primary" : "text.secondary",
+                    bgcolor: isActive ? "action.hover" : "transparent",
+                    transition: "background 100ms ease, color 100ms ease",
+                    "&:hover": {
+                      bgcolor: "action.hover",
+                      color: "text.primary",
+                    },
                   }}
                 >
-                  {/* Theme Section */}
-                  <Box
-                    sx={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      py: 2,
-                      borderBottom: "1px solid",
-                      borderColor: "divider",
-                    }}
-                  >
-                    <Typography
-                      sx={{ fontSize: "14px", color: "text.primary" }}
-                    >
-                      Theme
-                    </Typography>
-                    <FormControl size="small" sx={{ minWidth: 120 }}>
-                      <Select
-                        value={mode}
-                        onChange={(e) => setMode(e.target.value as ThemeMode)}
-                        sx={{
-                          borderRadius: "8px",
-                          fontSize: "14px",
-                          bgcolor: "action.hover",
-                          "& .MuiOutlinedInput-notchedOutline": {
-                            border: "none",
-                          },
-                          "&:hover .MuiOutlinedInput-notchedOutline": {
-                            border: "none",
-                          },
-                          "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                            border: "none",
-                          },
-                        }}
-                      >
-                        {THEME_OPTIONS.map((option) => (
-                          <MenuItem
-                            key={option.id}
-                            value={option.id}
-                            sx={{ fontSize: "14px" }}
-                          >
-                            <Box
-                              sx={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 1,
-                              }}
-                            >
-                              <option.icon size={14} />
-                              {option.label}
-                            </Box>
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  </Box>
-
-                  {/* Ollama Base URL Section */}
-                  <Box
-                    sx={{
-                      display: "flex",
-                      flexDirection: "column",
-                      py: 2.5,
-                      borderBottom: "1px solid",
-                      borderColor: "divider",
-                      gap: 1.5,
-                    }}
-                  >
-                    <Box
-                      sx={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                      }}
-                    >
-                      <Typography
-                        sx={{ fontSize: "14px", color: "text.primary" }}
-                      >
-                        Ollama Base URL
-                      </Typography>
-                      <Button
-                        variant="text"
-                        size="small"
-                        onClick={handleSaveBaseUrl}
-                        disabled={
-                          isSavingBaseUrl || baseUrl === ollamaConfig.baseUrl
-                        }
-                        sx={{
-                          textTransform: "none",
-                          fontSize: "13px",
-                          fontWeight: 500,
-                          minWidth: 0,
-                          p: 0,
-                          "&:hover": {
-                            bgcolor: "transparent",
-                            textDecoration: "underline",
-                          },
-                        }}
-                      >
-                        {isSavingBaseUrl ? "Saving..." : "Save"}
-                      </Button>
-                    </Box>
-                    <TextField
-                      value={baseUrl}
-                      onChange={(e) => setBaseUrl(e.target.value)}
-                      placeholder="http://localhost:11434"
-                      fullWidth
-                      size="small"
-                      sx={{
-                        "& .MuiOutlinedInput-root": {
-                          borderRadius: "8px",
-                          bgcolor: "action.hover",
-                          fontSize: "14px",
-                          "& fieldset": { border: "none" },
-                        },
-                      }}
-                    />
-                    {baseUrlError && (
-                      <Alert
-                        severity="error"
-                        sx={{ borderRadius: "8px", py: 0 }}
-                      >
-                        {baseUrlError}
-                      </Alert>
-                    )}
-                  </Box>
-
-                  {/* About Section */}
-                  <Box sx={{ py: 2.5 }}>
-                    <Typography
-                      sx={{ fontSize: "14px", color: "text.primary", mb: 1 }}
-                    >
-                      About OpenBench
-                    </Typography>
-                    <Typography
-                      sx={{
-                        fontSize: "13px",
-                        color: "text.secondary",
-                        lineHeight: 1.5,
-                      }}
-                    >
-                      OpenBench is a local-first AI client for comparing and
-                      interacting with various models. All your data is stored
-                      locally in your machine.
-                    </Typography>
-                  </Box>
+                  <Icon size={16} />
+                  <Typography sx={{ fontSize: 13, fontWeight: isActive ? 600 : 500 }}>
+                    {item.label}
+                  </Typography>
                 </Box>
-              )}
+              );
+            })}
+          </Stack>
+        </Box>
 
-              {activeTab === "prompts" && <PromptLibraryTab />}
+        <Box sx={{ display: "flex", flexDirection: "column", minWidth: 0, minHeight: 0 }}>
+          <AppDialogHeader
+            title={activeItem?.label ?? "Settings"}
+            onClose={onClose}
+          />
 
-              {activeTab === "models" && (
-                <Box sx={{ py: 2 }}>
-                  <ModelManagement />
+          <Box
+            sx={{
+              display: { xs: "flex", md: "none" },
+              gap: 1,
+              px: 2.5,
+              py: 1.5,
+              overflowX: "auto",
+              borderBottom: "1px solid",
+              borderColor: "divider",
+            }}
+          >
+            {SIDEBAR_ITEMS.map((item) => {
+              const isActive = activeTab === item.id;
+              return (
+                <Box
+                  key={item.id}
+                  component="button"
+                  onClick={() => setActiveTab(item.id)}
+                  sx={{
+                    px: 1.25,
+                    py: 0.75,
+                    borderRadius: "8px",
+                    bgcolor: isActive ? "action.hover" : "transparent",
+                    color: isActive ? "text.primary" : "text.secondary",
+                    whiteSpace: "nowrap",
+                    fontSize: 13,
+                    fontWeight: 500,
+                    cursor: "pointer",
+                  }}
+                >
+                  {item.label}
                 </Box>
-              )}
-
-              {activeTab === "tools" && <ToolsTab />}
-            </Box>
+              );
+            })}
           </Box>
+
+          <AppDialogBody>
+            <Box key={activeTab} sx={appFadeInSx}>
+              {activeTab === "general" && (
+                <GeneralTab
+                  mode={mode}
+                  setMode={setMode}
+                  baseUrl={baseUrl}
+                  setBaseUrl={setBaseUrl}
+                  savedBaseUrl={ollamaConfig.baseUrl}
+                  isSavingBaseUrl={isSavingBaseUrl}
+                  baseUrlError={baseUrlError}
+                  onSaveBaseUrl={handleSaveBaseUrl}
+                />
+              )}
+              {activeTab === "models" && <ModelManagement />}
+              {activeTab === "tools" && <ToolsTab />}
+              {activeTab === "prompts" && <PromptLibraryTab />}
+            </Box>
+          </AppDialogBody>
         </Box>
       </Box>
-    </Modal>
+    </AppDialogFrame>
   );
 }
 
-// ---------------------------------------------------------------------------
-// Prompt Library Tab Component
-// ---------------------------------------------------------------------------
+function GeneralTab({
+  mode,
+  setMode,
+  baseUrl,
+  setBaseUrl,
+  savedBaseUrl,
+  isSavingBaseUrl,
+  baseUrlError,
+  onSaveBaseUrl,
+}: {
+  mode: ThemeMode;
+  setMode: (mode: ThemeMode) => void;
+  baseUrl: string;
+  setBaseUrl: (value: string) => void;
+  savedBaseUrl: string;
+  isSavingBaseUrl: boolean;
+  baseUrlError: string | null;
+  onSaveBaseUrl: () => void;
+}) {
+  return (
+    <Stack spacing={0}>
+      <SectionHeader title="General Settings" />
+      <SettingCard
+        title="Theme"
+        description="Choose how OpenBench should render the interface."
+        action={
+          <FormControl size="small" sx={{ minWidth: 150 }}>
+            <Select
+              value={mode}
+              onChange={(e) => setMode(e.target.value as ThemeMode)}
+              sx={selectSx}
+            >
+              {THEME_OPTIONS.map((option) => (
+                <MenuItem key={option.id} value={option.id}>
+                  <Stack direction="row" alignItems="center" spacing={1}>
+                    <option.icon size={14} />
+                    <span>{option.label}</span>
+                  </Stack>
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        }
+      />
+
+      <SettingCard
+        title="Ollama Base URL"
+        description="The local Ollama server endpoint used for model and chat requests."
+        action={
+          <Button
+            size="small"
+            variant="text"
+            onClick={onSaveBaseUrl}
+            disabled={isSavingBaseUrl || baseUrl === savedBaseUrl}
+            sx={{ textTransform: "none", fontWeight: 700 }}
+          >
+            {isSavingBaseUrl ? "Saving..." : "Save"}
+          </Button>
+        }
+      >
+        <TextField
+          value={baseUrl}
+          onChange={(e) => setBaseUrl(e.target.value)}
+          placeholder="http://localhost:11434"
+          fullWidth
+          size="small"
+          sx={appTextFieldSx}
+        />
+        {baseUrlError && (
+          <Alert severity="error" sx={{ mt: 1.5, borderRadius: "8px" }}>
+            {baseUrlError}
+          </Alert>
+        )}
+      </SettingCard>
+
+      <SettingCard title="About OpenBench">
+        <Typography sx={{ fontSize: 13, color: "text.secondary", lineHeight: 1.65 }}>
+          OpenBench is a local-first AI client for comparing and interacting with various models.
+          All your data is stored locally in your machine.
+        </Typography>
+      </SettingCard>
+    </Stack>
+  );
+}
 
 function PromptLibraryTab() {
+  const theme = useTheme();
   const { systemPrompts, activeSystemPromptId, actions } = useModelStore();
   const [editingPrompt, setEditingPrompt] = useState<SystemPrompt | null>(null);
   const [isAdding, setIsAdding] = useState(false);
-  const muiTheme = useTheme();
 
   const handleSave = (prompt: SystemPrompt) => {
     if (isAdding) {
@@ -405,13 +339,12 @@ function PromptLibraryTab() {
   };
 
   const handleAddNew = () => {
-    const newPrompt: SystemPrompt = {
+    setEditingPrompt({
       id: crypto.randomUUID(),
       name: "New Prompt",
       content: "",
       category: "General",
-    };
-    setEditingPrompt(newPrompt);
+    });
     setIsAdding(true);
   };
 
@@ -421,258 +354,218 @@ function PromptLibraryTab() {
     }
   };
 
-  const categories = Array.from(new Set(systemPrompts.map(p => p.category || "General")));
+  const categories = Array.from(new Set(systemPrompts.map((prompt) => prompt.category || "General")));
 
   return (
-    <Box sx={{ py: 2, display: "flex", flexDirection: "column", gap: 2 }}>
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <Typography sx={{ fontSize: "14px", fontWeight: 500 }}>System Prompts</Typography>
-        {!editingPrompt && (
-          <Button
-            size="small"
-            startIcon={<Plus size={16} />}
-            onClick={handleAddNew}
-            sx={{ textTransform: "none" }}
-          >
-            Add New
-          </Button>
-        )}
-      </Box>
+    <Stack spacing={0}>
+      <SectionHeader
+        title="System Prompts"
+        description="Choose, add, edit, or delete reusable system prompts."
+        action={
+          !editingPrompt ? (
+            <Button
+              size="small"
+              startIcon={<Plus size={16} />}
+              onClick={handleAddNew}
+              sx={{ textTransform: "none", fontWeight: 700 }}
+            >
+              Add New
+            </Button>
+          ) : null
+        }
+      />
 
       {editingPrompt ? (
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 2, bgcolor: "action.hover", p: 2, borderRadius: "8px" }}>
-          <Box sx={{ display: "flex", gap: 2 }}>
+        <Box sx={appPanelSx}>
+          <Stack spacing={2}>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+              <TextField
+                label="Name"
+                size="small"
+                fullWidth
+                value={editingPrompt.name}
+                onChange={(e) => setEditingPrompt({ ...editingPrompt, name: e.target.value })}
+                sx={appTextFieldSx}
+              />
+              <TextField
+                label="Category"
+                size="small"
+                fullWidth
+                value={editingPrompt.category || ""}
+                onChange={(e) => setEditingPrompt({ ...editingPrompt, category: e.target.value })}
+                placeholder="e.g. Coding, Creative, etc."
+                sx={appTextFieldSx}
+              />
+            </Stack>
             <TextField
-              label="Name"
-              size="small"
+              label="System Message"
+              multiline
+              minRows={8}
               fullWidth
-              value={editingPrompt.name}
-              onChange={(e) => setEditingPrompt({ ...editingPrompt, name: e.target.value })}
+              value={editingPrompt.content}
+              onChange={(e) => setEditingPrompt({ ...editingPrompt, content: e.target.value })}
+              sx={appTextFieldSx}
             />
-            <TextField
-              label="Category"
-              size="small"
-              fullWidth
-              value={editingPrompt.category || ""}
-              onChange={(e) => setEditingPrompt({ ...editingPrompt, category: e.target.value })}
-              placeholder="e.g. Coding, Creative, etc."
-            />
-          </Box>
-          <TextField
-            label="System Message"
-            multiline
-            minRows={8}
-            fullWidth
-            value={editingPrompt.content}
-            onChange={(e) => setEditingPrompt({ ...editingPrompt, content: e.target.value })}
-          />
-          <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1 }}>
-            <Button size="small" variant="text" onClick={() => { setEditingPrompt(null); setIsAdding(false); }}>Cancel</Button>
-            <Button size="small" variant="contained" onClick={() => handleSave(editingPrompt)}>Save</Button>
-          </Box>
+            <Stack direction="row" justifyContent="flex-end" spacing={1}>
+              <Button size="small" variant="text" onClick={() => { setEditingPrompt(null); setIsAdding(false); }}>
+                Cancel
+              </Button>
+              <Button size="small" variant="contained" disableElevation onClick={() => handleSave(editingPrompt)}>
+                Save
+              </Button>
+            </Stack>
+          </Stack>
         </Box>
       ) : (
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-          {categories.map(category => (
-            <Box key={category} sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-              <Typography variant="caption" sx={{ fontWeight: 700, color: "text.secondary", textTransform: "uppercase", letterSpacing: 0.5 }}>
+        <Stack spacing={2.5}>
+          {categories.map((category) => (
+            <Stack key={category} spacing={1}>
+              <Typography
+                sx={{
+                  fontSize: 11,
+                  fontWeight: 800,
+                  color: "text.secondary",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.12em",
+                }}
+              >
                 {category}
               </Typography>
-              <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                {systemPrompts.filter(p => (p.category || "General") === category).map(prompt => (
-                  <Box
-                    key={prompt.id}
-                    sx={{
-                      p: 1.5,
-                      borderRadius: "8px",
-                      bgcolor: "action.hover",
-                      border: "1px solid",
-                      borderColor: activeSystemPromptId === prompt.id ? "primary.main" : "transparent",
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      transition: "all 0.2s",
-                      "&:hover": { bgcolor: "action.selected" }
-                    }}
-                  >
-                    <Box sx={{ flex: 1, minWidth: 0, cursor: "pointer" }} onClick={() => actions.setSystemPrompt(prompt.id)}>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                        <Typography variant="body2" sx={{ fontWeight: activeSystemPromptId === prompt.id ? 600 : 500 }}>
-                          {prompt.name}
-                        </Typography>
-                        {activeSystemPromptId === prompt.id && (
-                          <Check size={14} style={{ color: muiTheme.palette.primary.main }} />
-                        )}
+              <Stack spacing={1}>
+                {systemPrompts
+                  .filter((prompt) => (prompt.category || "General") === category)
+                  .map((prompt) => {
+                    const isActive = activeSystemPromptId === prompt.id;
+
+                    return (
+                      <Box
+                        key={prompt.id}
+                        sx={{
+                          p: 1,
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 1,
+                        }}
+                      >
+                        <Stack direction="row" alignItems="center" spacing={1.5}>
+                          <Box
+                            onClick={() => actions.setSystemPrompt(prompt.id)}
+                            sx={{ flex: 1, minWidth: 0, cursor: "pointer" }}
+                          >
+                            <Stack direction="row" alignItems="center" spacing={1}>
+                              <Typography sx={{ fontSize: 14, fontWeight: isActive ? 800 : 700 }}>
+                                {prompt.name}
+                              </Typography>
+                              {isActive && <Check size={14} color={theme.palette.primary.main} />}
+                            </Stack>
+                            <Typography noWrap sx={{ display: "block", color: "text.secondary", fontSize: 12, mt: 0.25 }}>
+                              {prompt.content || "No content"}
+                            </Typography>
+                          </Box>
+                          <IconButton size="small" onClick={() => setEditingPrompt(prompt)} sx={{ borderRadius: "8px" }}>
+                            <Edit2 size={15} />
+                          </IconButton>
+                          <IconButton size="small" onClick={() => handleDelete(prompt.id)} disabled={prompt.id === "default"} sx={{ borderRadius: "8px" }}>
+                            <Trash2 size={15} />
+                          </IconButton>
+                        </Stack>
                       </Box>
-                      <Typography variant="caption" noWrap sx={{ display: "block", color: "text.secondary" }}>
-                        {prompt.content || "No content"}
-                      </Typography>
-                    </Box>
-                    <Box sx={{ display: "flex", gap: 0.5 }}>
-                      <IconButton size="small" onClick={() => setEditingPrompt(prompt)}>
-                        <Edit2 size={14} />
-                      </IconButton>
-                      <IconButton size="small" onClick={() => handleDelete(prompt.id)} disabled={prompt.id === "default"}>
-                        <Trash2 size={14} />
-                      </IconButton>
-                    </Box>
-                  </Box>
-                ))}
-              </Box>
-            </Box>
+                    );
+                  })}
+              </Stack>
+            </Stack>
           ))}
-        </Box>
+        </Stack>
       )}
-    </Box>
+    </Stack>
   );
 }
 
-// ---------------------------------------------------------------------------
-// Tools Tab Component
-// ---------------------------------------------------------------------------
-
 function ToolsTab() {
-  const muiTheme = useTheme();
-  const tools = useToolStore((s) => s.tools);
-  const isLoading = useToolStore((s) => s.isLoading);
-  const { loadTools, toggleTool } = useToolStore((s) => s.actions);
+  const theme = useTheme();
+  const tools = useToolStore((state) => state.tools);
+  const isLoading = useToolStore((state) => state.isLoading);
+  const { loadTools, toggleTool } = useToolStore((state) => state.actions);
 
   useEffect(() => {
     loadTools();
   }, [loadTools]);
 
   const sourceColors: Record<string, string> = {
-    builtin: muiTheme.palette.info.main,
-    python: muiTheme.palette.success.main,
-    mcp: muiTheme.palette.warning.main,
+    builtin: theme.palette.info.main,
+    python: theme.palette.success.main,
+    mcp: theme.palette.warning.main,
   };
 
   return (
-    <Box sx={{ py: 2, display: "flex", flexDirection: "column", gap: 1 }}>
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          mb: 1,
-        }}
-      >
-        <Box>
-          <Typography sx={{ fontSize: "14px", fontWeight: 500, color: "text.primary" }}>
-            Available Tools
-          </Typography>
-          <Typography sx={{ fontSize: "13px", color: "text.secondary", mt: 0.5 }}>
-            Tools are sent to the model so it can invoke them during conversations.
-          </Typography>
-        </Box>
-        <Button
-          variant="text"
-          size="small"
-          onClick={() => loadTools()}
-          disabled={isLoading}
-          sx={{
-            textTransform: "none",
-            fontSize: "13px",
-            fontWeight: 500,
-          }}
-        >
-          {isLoading ? "Loading..." : "Reload"}
-        </Button>
-      </Box>
+    <Stack spacing={0}>
+      <SectionHeader
+        title="Available Tools"
+        description="Tools are sent to the model so it can invoke them during conversations."
+        action={
+          <Button
+            variant="text"
+            size="small"
+            onClick={() => loadTools()}
+            disabled={isLoading}
+            sx={{ textTransform: "none", fontWeight: 700 }}
+          >
+            {isLoading ? "Loading..." : "Reload"}
+          </Button>
+        }
+      />
 
       {tools.length === 0 && !isLoading && (
-        <Typography sx={{ fontSize: "13px", color: "text.secondary", py: 4, textAlign: "center" }}>
-          No tools registered. Tools will appear here once the backend is running.
-        </Typography>
+        <EmptyState>No tools registered. Tools will appear here once the backend is running.</EmptyState>
       )}
 
-      {tools.map((tool: ToolDefinition) => (
-        <Box
-          key={tool.name}
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            py: 1.5,
-            px: 2,
-            borderRadius: "8px",
-            bgcolor: "action.hover",
-            opacity: tool.enabled ? 1 : 0.6,
-            transition: "opacity 0.2s ease",
-          }}
-        >
-          <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
-              <Typography
-                sx={{
-                  fontSize: "14px",
-                  fontWeight: 600,
-                  fontFamily: "monospace",
-                  color: "text.primary",
-                }}
-              >
-                {tool.name}
-              </Typography>
-              <Box
-                sx={{
-                  px: 1,
-                  py: 0.1,
-                  borderRadius: "4px",
-                  bgcolor: sourceColors[tool.source] + "22",
-                  border: `1px solid ${sourceColors[tool.source]}44`,
-                }}
-              >
-                <Typography sx={{ fontSize: "10px", fontWeight: 600, color: sourceColors[tool.source], textTransform: "uppercase" }}>
-                  {tool.source}
-                </Typography>
-              </Box>
-              {tool.requiresApproval && (
-                <Box
-                  sx={{
-                    px: 1,
-                    py: 0.1,
-                    borderRadius: "4px",
-                    bgcolor: muiTheme.palette.warning.main + "22",
-                    border: `1px solid ${muiTheme.palette.warning.main}44`,
-                  }}
-                >
-                  <Typography sx={{ fontSize: "10px", fontWeight: 600, color: muiTheme.palette.warning.main }}>
-                    APPROVAL
+      <Stack spacing={1}>
+        {tools.map((tool: ToolDefinition) => {
+          const sourceColor = sourceColors[tool.source] ?? theme.palette.text.secondary;
+
+          return (
+            <Box key={tool.name} sx={{ py: 1.5, opacity: tool.enabled ? 1 : 0.62, borderBottom: "1px solid", borderColor: "divider" }}>
+              <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
+                <Box sx={{ minWidth: 0, flex: 1 }}>
+                  <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
+                    <Typography
+                      sx={{
+                        fontSize: 14,
+                        fontWeight: 800,
+                        fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+                        color: "text.primary",
+                      }}
+                    >
+                      {tool.name}
+                    </Typography>
+                    <Badge label={tool.source} color={sourceColor} />
+                    {tool.requiresApproval && <Badge label="Approval" color={theme.palette.warning.main} />}
+                  </Stack>
+                  <Typography noWrap sx={{ fontSize: 12, color: "text.secondary" }}>
+                    {tool.description}
                   </Typography>
                 </Box>
-              )}
+                <Button
+                  variant={tool.enabled ? "outlined" : "text"}
+                  size="small"
+                  onClick={() => toggleTool(tool.name)}
+                  sx={{
+                    minWidth: 84,
+                    textTransform: "none",
+                    fontSize: 12,
+                    fontWeight: 800,
+                    borderColor: tool.enabled ? "divider" : "transparent",
+                  }}
+                >
+                  {tool.enabled ? "Enabled" : "Disabled"}
+                </Button>
+              </Stack>
             </Box>
-            <Typography
-              sx={{
-                fontSize: "12px",
-                color: "text.secondary",
-                lineHeight: 1.4,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {tool.description}
-            </Typography>
-          </Box>
-          <Button
-            variant={tool.enabled ? "outlined" : "text"}
-            size="small"
-            onClick={() => toggleTool(tool.name)}
-            sx={{
-              textTransform: "none",
-              fontSize: "12px",
-              fontWeight: 500,
-              minWidth: 70,
-              ml: 2,
-              borderColor: tool.enabled ? muiTheme.palette.divider : "transparent",
-              color: tool.enabled ? "text.primary" : "text.secondary",
-            }}
-          >
-            {tool.enabled ? "Enabled" : "Disabled"}
-          </Button>
-        </Box>
-      ))}
-    </Box>
+          );
+        })}
+      </Stack>
+    </Stack>
   );
 }
+
+

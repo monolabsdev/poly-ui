@@ -5,13 +5,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-/// # Tool System
-/// 
-/// This module implements a dynamic tool registry that allows the LLM to call
-/// Rust functions. It is designed to be extensible, supporting built-in tools,
-/// and potentially external tools (Python/MCP) in the future.
-/// 
-/// Tools are defined via the `Tool` trait and registered in the `SharedToolRegistry`.
+// Tool registry for LLM-callable Rust functions.
 
 /// Core trait that all tools must implement.
 /// The `#[derive(Tool)]` macro in `openbench-macros` provides a standard
@@ -170,7 +164,7 @@ impl RegistryInner {
             Ok(result) => (true, result),
             Err(e) => (false, e),
         };
-        
+
         let duration_ms = start.elapsed().as_millis() as u64;
 
         ToolResult {
@@ -219,13 +213,25 @@ impl SharedToolRegistry {
 
     /// Returns all registered tools, including disabled ones.
     pub async fn list_tools(&self) -> Vec<ToolDefinition> {
-        self.inner.read().await.list_tools().into_iter().cloned().collect()
+        self.inner
+            .read()
+            .await
+            .list_tools()
+            .into_iter()
+            .cloned()
+            .collect()
     }
 
     /// Returns only tools that are currently enabled.
     #[allow(dead_code)]
     pub async fn list_enabled_tools(&self) -> Vec<ToolDefinition> {
-        self.inner.read().await.list_enabled_tools().into_iter().cloned().collect()
+        self.inner
+            .read()
+            .await
+            .list_enabled_tools()
+            .into_iter()
+            .cloned()
+            .collect()
     }
 
     pub async fn toggle_tool(&self, name: &str) -> Option<bool> {

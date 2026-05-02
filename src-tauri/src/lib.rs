@@ -1,33 +1,31 @@
 mod auth;
+mod commands;
 mod db;
+mod repository;
+mod services;
 mod tools;
 
+use commands::user_commands::{create_user, delete_user, get_user, list_users, update_user};
 use ollama_rs::generation::chat::request::ChatMessageRequest;
 use ollama_rs::generation::chat::ChatMessage as OllamaChatMessage;
 use ollama_rs::generation::images::Image;
-use ollama_rs::generation::tools::{ToolInfo, ToolType, ToolFunctionInfo};
+use ollama_rs::generation::tools::{ToolFunctionInfo, ToolInfo, ToolType};
 use ollama_rs::Ollama;
 use schemars::Schema;
-use tauri::{AppHandle, Emitter};
+use sqlx::SqlitePool;
+use tauri::{AppHandle, Emitter, Manager};
 use tokio_stream::StreamExt;
 
+use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Mutex;
-use std::collections::HashMap;
 use tokio::sync::oneshot;
 
 use tools::{SharedToolRegistry, ToolApprovalResponse, ToolDefinition, ToolInvocationPayload};
 
-/// # OpenBench Backend Core
-///
-/// This module handles the main Tauri application logic, including model management,
-/// chat streaming, and tool execution orchestration.
-///
-/// The architecture follows these principles:
-/// 1. **Local-First**: Interactions are routed to a local Ollama instance by default.
-/// 2. **Streaming-Centric**: All model interactions use async streams to provide a snappy UI.
-/// 3. **Tool-Enabled**: Supports dynamic tool invocation via a Rust-based registry.
-
+// # OpenBench Backend Core
+//
+// This module handles model management, chat streaming, and tool execution.
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -48,7 +46,9 @@ struct OllamaConfig {
 }
 
 /// Global application state managed by Tauri.
-struct AppState {
+pub(crate) struct AppState {
+    /// Shared local SQLite pool. Commands borrow this from Tauri state.
+    pub(crate) db: SqlitePool,
     /// Monotonically increasing ID used to track the current generation.
     /// When a user cancels a chat, this is incremented, signaling in-flight
     /// streams to abort.
@@ -130,12 +130,10 @@ async fn get_local_models(state: tauri::State<'_, AppState>) -> Result<Vec<Model
 
     let details = models
         .into_iter()
-        .map(|m| {
-            ModelDetails {
-                name: m.name,
-                families: Vec::new(),
-                size: m.size,
-            }
+        .map(|m| ModelDetails {
+            name: m.name,
+            families: Vec::new(),
+            size: m.size,
         })
         .collect();
 
@@ -210,10 +208,7 @@ fn set_ollama_config(
         return Err("Ollama base URL cannot be empty".to_string());
     }
 
-    let mut config = state
-        .ollama_config
-        .lock()
-        .map_err(|e| e.to_string())?;
+    let mut config = state.ollama_config.lock().map_err(|e| e.to_string())?;
     config.base_url = normalized.to_string();
 
     Ok(())
@@ -434,8 +429,7 @@ async fn chat_stream(
             let response = match result {
                 Ok(response) => response,
                 Err(_) => {
-                    let err_msg =
-                        "\nError: Stream interrupted or failed in Ollama".to_string();
+                    let err_msg = "\nError: Stream interrupted or failed in Ollama".to_string();
                     let _ = app_handle.emit(
                         "chat-chunk",
                         StreamPayload {
@@ -550,11 +544,15 @@ async fn chat_stream(
             let approved = if needs_approval {
                 let (tx, rx) = oneshot::channel();
                 {
-                    let mut approvals = state.pending_approvals.lock().map_err(|e| e.to_string())?;
-                    approvals.insert(invocation_id.clone(), PendingApproval {
-                        sender: tx,
-                        tool_name: tool_name.clone(),
-                    });
+                    let mut approvals =
+                        state.pending_approvals.lock().map_err(|e| e.to_string())?;
+                    approvals.insert(
+                        invocation_id.clone(),
+                        PendingApproval {
+                            sender: tx,
+                            tool_name: tool_name.clone(),
+                        },
+                    );
                 }
 
                 let _ = app_handle.emit(
@@ -568,7 +566,8 @@ async fn chat_stream(
                     },
                 );
 
-                rx.await.map_err(|_| "Approval channel closed".to_string())?
+                rx.await
+                    .map_err(|_| "Approval channel closed".to_string())?
             } else {
                 let _ = app_handle.emit(
                     "tool-invocation",
@@ -584,14 +583,13 @@ async fn chat_stream(
             };
 
             if !approved {
-                history.push(OllamaChatMessage::tool("Tool invocation denied by user".to_string()));
+                history.push(OllamaChatMessage::tool(
+                    "Tool invocation denied by user".to_string(),
+                ));
                 continue;
             }
 
-            let result = state
-                .tool_registry
-                .execute(tool_name, tool_args)
-                .await;
+            let result = state.tool_registry.execute(tool_name, tool_args).await;
 
             history.push(OllamaChatMessage::tool(result.output));
         }
@@ -645,14 +643,22 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_sql::Builder::default().build())
         .plugin(tauri_plugin_opener::init())
-        .manage(AppState {
-            current_generation_id: AtomicUsize::new(0),
-            is_pull_cancelled: AtomicBool::new(false),
-            tool_registry: SharedToolRegistry::new(),
-            pending_approvals: Mutex::new(HashMap::new()),
-            ollama_config: Mutex::new(OllamaConfig {
-                base_url: "http://localhost:11434".to_string(),
-            }),
+        .setup(|app| {
+            let db = tauri::async_runtime::block_on(db::connection::init_db(app.handle()))
+                .map_err(std::io::Error::other)?;
+
+            app.manage(AppState {
+                db,
+                current_generation_id: AtomicUsize::new(0),
+                is_pull_cancelled: AtomicBool::new(false),
+                tool_registry: SharedToolRegistry::new(),
+                pending_approvals: Mutex::new(HashMap::new()),
+                ollama_config: Mutex::new(OllamaConfig {
+                    base_url: "http://localhost:11434".to_string(),
+                }),
+            });
+
+            Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             get_local_models,
@@ -666,6 +672,11 @@ pub fn run() {
             list_tools,
             toggle_tool,
             approve_tool,
+            create_user,
+            list_users,
+            get_user,
+            update_user,
+            delete_user,
             auth::auth_signup,
             auth::auth_login,
             auth::auth_logout,

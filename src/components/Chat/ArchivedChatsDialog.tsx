@@ -1,8 +1,13 @@
-import { Box, Typography, Stack, InputBase } from "@mui/material";
-import { Modal } from "@/components/ui/modal";
+// Design: Quiet instrument panel — fixed-width shell, soft contrast, precise spacing.
+import {
+  AppDialogBody,
+  AppDialogFrame,
+  AppDialogHeader,
+  appPanelSx,
+} from "@/components/ui/appDialog";
 import { useChatStore } from "@/store/chatStore";
-import { ArchiveRestore, Trash2, Search, MessageSquare } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Box, IconButton, InputBase, Stack, Tooltip, Typography } from "@mui/material";
+import { ArchiveRestore, MessageSquare, Search, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 interface ArchivedChatsDialogProps {
@@ -16,154 +21,213 @@ export function ArchivedChatsDialog({
 }: ArchivedChatsDialogProps) {
   const { conversations, actions } = useChatStore();
   const [searchQuery, setSearchQuery] = useState("");
-  
+
   const archivedConversations = conversations
-    .filter((c) => c.isArchived)
-    .filter((c) => 
-      (c.title || "Untitled").toLowerCase().includes(searchQuery.toLowerCase())
+    .filter((conversation) => conversation.isArchived)
+    .filter((conversation) =>
+      (conversation.title || "Untitled").toLowerCase().includes(searchQuery.toLowerCase())
     )
     .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 
   return (
-    <Modal 
-      open={open} 
-      onOpenChange={onOpenChange} 
-      title="Archived Chats"
-      maxWidth={450}
-      height={550}
-      contentSx={{ p: 0, display: "flex", flexDirection: "column" }}
-    >
-      <Box sx={{ px: 2, py: 1.5, borderBottom: "1px solid", borderColor: "divider" }}>
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            gap: 1,
-            px: 1.5,
-            height: 36,
-            borderRadius: "8px",
-            bgcolor: "action.hover",
-            color: "text.secondary",
-            border: "1px solid",
-            borderColor: "transparent",
-            "&:focus-within": {
-              borderColor: "primary.main",
-              bgcolor: "background.paper",
-            }
-          }}
-        >
-          <Search size={16} />
-          <InputBase
-            placeholder="Search archived chats..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            sx={{
-              flex: 1,
-              fontSize: "14px",
-              color: "text.primary",
-              "& .MuiInputBase-input::placeholder": {
-                color: "text.secondary",
-                opacity: 0.7,
-              }
-            }}
-          />
-        </Box>
-      </Box>
+    <AppDialogFrame open={open} onOpenChange={onOpenChange}>
+      <Box sx={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
+        <AppDialogHeader
+          title="Archived Chats"
+          onClose={() => onOpenChange(false)}
+        />
 
-      <Box sx={{ flex: 1, overflowY: "auto", p: 1 }}>
-        {archivedConversations.length === 0 ? (
-          <Stack sx={{ height: "100%", alignItems: "center", justifyContent: "center", color: "text.secondary", py: 8 }} spacing={1.5}>
-            <Box sx={{ 
-              width: 48, 
-              height: 48, 
-              borderRadius: "12px", 
-              bgcolor: "action.hover", 
-              display: "flex", 
-              alignItems: "center", 
-              justifyContent: "center",
-              mb: 1
-            }}>
-              <ArchiveRestore size={24} />
-            </Box>
-            <Typography variant="body2" sx={{ fontWeight: 500 }}>
-              {searchQuery ? "No matching chats" : "No archived chats"}
-            </Typography>
-            <Typography variant="caption" sx={{ opacity: 0.7 }}>
-              {searchQuery ? "Try a different search term" : "Your archived conversations will appear here"}
-            </Typography>
-          </Stack>
-        ) : (
-          <Stack spacing={0.5}>
-            {archivedConversations.map((conv) => (
-              <Box
-                key={conv.id}
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  p: 1.5,
-                  borderRadius: "8px",
-                  cursor: "default",
-                  transition: "all 0.2s",
-                  "&:hover": { bgcolor: "action.hover" },
-                  "&:hover .action-buttons": { opacity: 1 }
-                }}
-              >
-                <Box sx={{ display: "flex", alignItems: "center", flex: 1, minWidth: 0, mr: 2, gap: 1.5 }}>
-                  <Box sx={{ 
-                    color: "text.secondary", 
-                    display: "flex", 
-                    alignItems: "center", 
-                    justifyContent: "center",
-                    flexShrink: 0
-                  }}>
-                    <MessageSquare size={18} />
+        <AppDialogBody>
+          <Stack spacing={2}>
+            <SearchField value={searchQuery} onChange={setSearchQuery} />
+
+            {archivedConversations.length === 0 ? (
+              <EmptyArchivedState hasSearch={searchQuery.length > 0} />
+            ) : (
+              <Stack spacing={1}>
+                {archivedConversations.map((conversation) => (
+                  <Box key={conversation.id} sx={chatRowSx}>
+                    <Stack direction="row" alignItems="center" spacing={1.5} sx={{ minWidth: 0, flex: 1 }}>
+                      <Box sx={chatIconSx}>
+                        <MessageSquare size={17} />
+                      </Box>
+                      <Box sx={{ minWidth: 0, flex: 1 }}>
+                        <Typography
+                          sx={{
+                            fontSize: 14,
+                            fontWeight: 800,
+                            color: "text.primary",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {conversation.title || "Untitled"}
+                        </Typography>
+                        <Typography sx={{ mt: 0.35, color: "text.secondary", fontSize: 12 }}>
+                          Archived on{" "}
+                          {new Date(conversation.updatedAt).toLocaleDateString(undefined, {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          })}
+                        </Typography>
+                      </Box>
+                    </Stack>
+
+                    <Stack direction="row" spacing={0.5} sx={{ flexShrink: 0 }}>
+                      <Tooltip title="Restore">
+                        <IconButton
+                          size="small"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            actions.unarchiveConversation(conversation.id);
+                          }}
+                          sx={actionButtonSx}
+                        >
+                          <ArchiveRestore size={16} />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Delete">
+                        <IconButton
+                          size="small"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            actions.deleteConversation(conversation.id);
+                          }}
+                          sx={{
+                            ...actionButtonSx,
+                            "&:hover": { bgcolor: "error.main", color: "error.contrastText" },
+                          }}
+                        >
+                          <Trash2 size={16} />
+                        </IconButton>
+                      </Tooltip>
+                    </Stack>
                   </Box>
-                  <Box sx={{ flex: 1, minWidth: 0 }}>
-                    <Typography variant="body2" sx={{ fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "text.primary" }}>
-                      {conv.title || "Untitled"}
-                    </Typography>
-                    <Typography variant="caption" sx={{ color: "text.secondary", display: "block", mt: 0.25 }}>
-                      Archived on {new Date(conv.updatedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                    </Typography>
-                  </Box>
-                </Box>
-                <Stack 
-                  direction="row" 
-                  spacing={0.5} 
-                  className="action-buttons"
-                  sx={{ opacity: 0, transition: "opacity 0.2s" }}
-                >
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    sx={{ h: 32, w: 32, color: "text.secondary", "&:hover": { color: "primary.main", bgcolor: "primary.main", opacity: 0.1, "& .lucide": { color: "primary.main" } } }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      actions.unarchiveConversation(conv.id);
-                    }}
-                    title="Restore"
-                  >
-                    <ArchiveRestore size={16} />
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    sx={{ h: 32, w: 32, color: "text.secondary", "&:hover": { color: "error.main", bgcolor: "error.main", opacity: 0.1, "& .lucide": { color: "error.main" } } }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      actions.deleteConversation(conv.id);
-                    }}
-                    title="Delete"
-                  >
-                    <Trash2 size={16} />
-                  </Button>
-                </Stack>
-              </Box>
-            ))}
+                ))}
+              </Stack>
+            )}
           </Stack>
-        )}
+        </AppDialogBody>
       </Box>
-    </Modal>
+    </AppDialogFrame>
   );
 }
+
+function SearchField({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <Box sx={searchShellSx}>
+      <Search size={17} />
+      <InputBase
+        placeholder="Search archived chats..."
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        sx={{
+          flex: 1,
+          fontSize: 14,
+          color: "text.primary",
+          "& .MuiInputBase-input::placeholder": {
+            color: "text.secondary",
+            opacity: 0.7,
+          },
+        }}
+      />
+    </Box>
+  );
+}
+
+function EmptyArchivedState({ hasSearch }: { hasSearch: boolean }) {
+  return (
+    <Stack
+      spacing={1.25}
+      sx={{
+        ...appPanelSx,
+        minHeight: 240,
+        alignItems: "center",
+        justifyContent: "center",
+        textAlign: "center",
+      }}
+    >
+      <Box sx={emptyIconSx}>
+        <ArchiveRestore size={24} />
+      </Box>
+      <Typography sx={{ fontWeight: 800, color: "text.primary", fontSize: 14 }}>
+        {hasSearch ? "No matching chats" : "No archived chats"}
+      </Typography>
+      <Typography sx={{ fontSize: 12.5, color: "text.secondary" }}>
+        {hasSearch ? "Try a different search term" : "Your archived conversations will appear here"}
+      </Typography>
+    </Stack>
+  );
+}
+
+const searchShellSx = {
+  display: "flex",
+  alignItems: "center",
+  gap: 1,
+  px: 1.5,
+  height: 40,
+  bgcolor: "transparent",
+  color: "text.secondary",
+  border: "none",
+  borderBottom: "1px solid",
+  borderRadius: 0,
+  borderColor: "divider",
+  transition: "border-color 160ms ease",
+  "&:focus-within": {
+    borderColor: "text.secondary",
+  },
+} as const;
+
+const chatRowSx = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: 1.5,
+  p: 1.5,
+  borderBottom: "1px solid",
+  borderColor: "divider",
+  transition: "background 100ms ease",
+  "&:hover": {
+    bgcolor: "action.hover",
+  },
+} as const;
+
+const chatIconSx = {
+  width: 32,
+  height: 32,
+  borderRadius: "8px",
+  bgcolor: "transparent",
+  color: "text.secondary",
+  display: "grid",
+  placeItems: "center",
+  flexShrink: 0,
+} as const;
+
+const emptyIconSx = {
+  width: 48,
+  height: 48,
+  borderRadius: "8px",
+  bgcolor: "transparent",
+  display: "grid",
+  placeItems: "center",
+  color: "text.secondary",
+} as const;
+
+const actionButtonSx = {
+  width: 32,
+  height: 32,
+  borderRadius: "8px",
+  color: "text.secondary",
+  "&:hover": {
+    bgcolor: "primary.main",
+    color: "primary.contrastText",
+  },
+} as const;
