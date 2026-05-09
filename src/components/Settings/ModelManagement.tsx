@@ -11,12 +11,13 @@ import {
 import { Download, Trash2, RefreshCw, XCircle } from "lucide-react";
 import { appPanelSx, appTextFieldSx } from "@/components/ui/appDialog";
 import { SectionHeader, EmptyState } from "./SettingComponents";
-import { useModelStore, type OllamaModel, type PullProgress } from "@/store/modelStore";
+
+import { useOllama, type PullProgress } from "@/services/ollama";
 import { loggedInvoke, formatFileSize, cn } from "@/lib/utils";
 import { listen } from "@tauri-apps/api/event";
 
 export function ModelManagement() {
-  const { availableModels, setAvailableModels, pullingModel, setPullingModel, pullProgress, setPullProgress } = useModelStore();
+  const ollama = useOllama();
   const [newModelName, setNewModelName] = useState("");
   const [isPulling, setIsPulling] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -24,8 +25,7 @@ export function ModelManagement() {
   const refreshModels = async () => {
     setIsRefreshing(true);
     try {
-      const models = await loggedInvoke<OllamaModel[]>("get_local_models");
-      setAvailableModels({ ollama: models });
+      await ollama.refresh();
     } catch (error) {
       console.error("Failed to refresh models:", error);
     } finally {
@@ -38,9 +38,9 @@ export function ModelManagement() {
     if (!hasModelName) return;
 
     const modelToPull = newModelName.trim();
-    setPullingModel(modelToPull);
+    ollama.actions.setPullingModel(modelToPull);
     setIsPulling(true);
-    setPullProgress({ status: "Starting..." });
+    ollama.actions.setPullProgress({ status: "Starting..." });
 
     try {
       await loggedInvoke("pull_model", { model: modelToPull });
@@ -52,15 +52,15 @@ export function ModelManagement() {
         console.error("Failed to pull model:", error);
       }
     } finally {
-      setPullingModel(null);
-      setPullProgress(null);
+      ollama.actions.setPullingModel(null);
+      ollama.actions.setPullProgress(null);
       setIsPulling(false);
     }
   };
 
   const handleCancelPull = async () => {
     try {
-      await loggedInvoke("cancel_pull");
+      await ollama.cancelPull();
     } catch (error) {
       console.error("Failed to cancel pull:", error);
     }
@@ -71,7 +71,7 @@ export function ModelManagement() {
     if (!confirmed) return;
 
     try {
-      await loggedInvoke("delete_model", { model: modelName });
+      await ollama.deleteModel(modelName);
       refreshModels();
     } catch (error) {
       console.error("Failed to delete model:", error);
@@ -80,13 +80,13 @@ export function ModelManagement() {
 
   useEffect(() => {
     const unlistenPromise = listen<PullProgress>("pull-progress", (event) => {
-      setPullProgress(event.payload);
+      ollama.actions.setPullProgress(event.payload);
     });
 
     return () => {
       unlistenPromise.then(unlisten => unlisten());
     };
-  }, [setPullProgress]);
+  }, [ollama.actions]);
 
   return (
     <Stack spacing={3}>
@@ -131,26 +131,26 @@ export function ModelManagement() {
           </Button>
         </Box>
 
-        {isPulling && pullProgress ? (
+        {isPulling && ollama.pullProgress ? (
           <Box sx={appPanelSx}>
             <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1, alignItems: "center" }}>
               <Typography sx={{ fontWeight: 600, fontSize: 13, color: "text.primary" }}>
-                Pulling {pullingModel}...
+                Pulling {ollama.pullingModel}...
               </Typography>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 <Typography sx={{ color: "text.secondary", fontSize: 12 }}>
-                  {pullProgress.status}
+                  {ollama.pullProgress.status}
                 </Typography>
                 <IconButton size="small" onClick={handleCancelPull} title="Cancel Pull" sx={{ color: "error.main", p: 0.5, borderRadius: "8px" }}>
                   <XCircle size={14} />
                 </IconButton>
               </Box>
             </Box>
-            {pullProgress.total && pullProgress.completed ? (
+            {ollama.pullProgress.total && ollama.pullProgress.completed ? (
               <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
                 <LinearProgress
                   variant="determinate"
-                  value={(pullProgress.completed / pullProgress.total) * 100}
+                  value={(ollama.pullProgress.completed / ollama.pullProgress.total) * 100}
                   sx={{
                     flex: 1,
                     height: 6,
@@ -162,7 +162,7 @@ export function ModelManagement() {
                   }}
                 />
                 <Typography sx={{ minWidth: 35, fontSize: 12, fontWeight: 600, color: "text.primary" }}>
-                  {Math.round((pullProgress.completed / pullProgress.total) * 100)}%
+                  {Math.round((ollama.pullProgress.completed / ollama.pullProgress.total) * 100)}%
                 </Typography>
               </Box>
             ) : (
@@ -185,7 +185,7 @@ export function ModelManagement() {
         />
 
         <Stack spacing={1}>
-          {availableModels.ollama.map((model) => (
+          {ollama.models.map((model) => (
             <Box key={model.name} sx={{ ...appPanelSx, p: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <Box>
                 <Typography sx={{ fontSize: 13, fontWeight: 600, color: "text.primary" }}>
@@ -208,7 +208,7 @@ export function ModelManagement() {
               </IconButton>
             </Box>
           ))}
-          {availableModels.ollama.length === 0 && !isRefreshing ? (
+          {ollama.models.length === 0 && !isRefreshing ? (
             <EmptyState>No local models found.</EmptyState>
           ) : null}
         </Stack>

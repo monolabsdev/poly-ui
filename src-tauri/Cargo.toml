@@ -34,3 +34,4 @@ schemars = "1"
 sysinfo = "0.30"
 async-trait = "0.1"
 openbench-macros = { path = "openbench-macros" }
+futures = "0.3.32"

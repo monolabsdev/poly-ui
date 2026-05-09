@@ -24,6 +24,10 @@ import { isImageAttachment, createDataUrl, formatFileSize } from "@/lib/utils";
 import clsx from "clsx";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
+import { motion, AnimatePresence } from "motion/react";
+import { useTiming, ANIMATION_VARIANTS } from "@/lib/motion";
+import { useNotify } from "@/hooks/useNotify";
+import { PRETEXT_FONTS, PRETEXT_LINE_HEIGHTS, measureTextHeight } from "@/lib/pretext";
 
 export interface MessageProps {
   role: Role;
@@ -49,20 +53,29 @@ const CodeBlock = ({
 }) => {
   const [copied, setCopied] = useState(false);
 
+  const notify = useNotify();
+
   const handleCopy = () => {
     navigator.clipboard
       ?.writeText(value)
       .then(() => {
         setCopied(true);
+        notify.success("Copied to clipboard");
         setTimeout(() => setCopied(false), 2000);
       })
-      .catch(() => {});
+      .catch(() => {
+        notify.error("Failed to copy");
+      });
   };
 
   return (
     <Box sx={{ position: "relative", "&:hover .copy-button": { opacity: 1 } }}>
       <Tooltip title={copied ? "Copied!" : "Copy code"}>
         <IconButton
+          component={motion.button}
+          variants={ANIMATION_VARIANTS.interactive}
+          whileHover="hover"
+          whileTap="tap"
           className="copy-button"
           size="small"
           onClick={handleCopy}
@@ -85,7 +98,17 @@ const CodeBlock = ({
             },
           }}
         >
-          {copied ? <Check size={14} /> : <Copy size={14} />}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={copied ? "check" : "copy"}
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              transition={{ duration: 0.12 }}
+            >
+              {copied ? <Check size={14} /> : <Copy size={14} />}
+            </motion.div>
+          </AnimatePresence>
         </IconButton>
       </Tooltip>
       <SyntaxHighlighter
@@ -117,6 +140,23 @@ export const Message = memo(function Message({
   const [copied, setCopied] = useState(false);
   const [thinkingExpanded, setThinkingExpanded] = useState(isThinking || false);
   const isUser = role === "user";
+  const timing = useTiming();
+  const notify = useNotify();
+  const [minHeight, setMinHeight] = useState(0);
+
+  useEffect(() => {
+    if (isStreaming && content) {
+      // Assuming a standard width for the message bubble
+      // In a real app we'd measure the container width, but 600 is a safe estimate for 80% of 768px
+      const h = measureTextHeight(
+        content, 
+        PRETEXT_FONTS.message, 
+        600, 
+        PRETEXT_LINE_HEIGHTS.message
+      );
+      setMinHeight(h);
+    }
+  }, [isStreaming, content]);
 
   // Memoize processed content to avoid re-parsing markdown on every render
   const processedContent = useMemo(() => {
@@ -189,13 +229,22 @@ export const Message = memo(function Message({
       ?.writeText(content)
       .then(() => {
         setCopied(true);
+        notify.success("Copied to clipboard");
       })
-      .catch(() => {});
+      .catch(() => {
+        notify.error("Failed to copy");
+      });
   };
 
   if (isUser) {
     return (
       <Box
+        component={motion.div}
+        variants={ANIMATION_VARIANTS.messageTurn}
+        initial="initial"
+        animate="animate"
+        exit="exit"
+        transition={{ duration: timing.duration("base"), ease: timing.ease }}
         sx={{
           display: "flex",
           flexDirection: "column",
@@ -315,6 +364,12 @@ export const Message = memo(function Message({
 
   return (
     <Box
+      component={motion.div}
+      variants={ANIMATION_VARIANTS.messageTurn}
+      initial="initial"
+      animate="animate"
+      exit="exit"
+      transition={{ duration: timing.duration("base"), ease: timing.ease }}
       sx={{
         display: "flex",
         flexDirection: "column",
@@ -465,6 +520,8 @@ export const Message = memo(function Message({
                   wordBreak: "break-word",
                   lineHeight: 1.6,
                   fontSize: "15px",
+                  minHeight: isStreaming ? minHeight : 0,
+                  transition: "min-height 0.1s ease-out",
                 }}
               >
                 {content}
@@ -492,6 +549,10 @@ export const Message = memo(function Message({
         >
           <Tooltip title={copied ? "Copied" : "Copy"}>
             <IconButton
+              component={motion.button}
+              variants={ANIMATION_VARIANTS.interactive}
+              whileHover="hover"
+              whileTap="tap"
               size="small"
               onClick={handleCopy}
               sx={{
@@ -499,13 +560,27 @@ export const Message = memo(function Message({
                 "&:hover": { color: copied ? "success.main" : "text.primary", bgcolor: "action.hover" },
               }}
             >
-              {copied ? <Check size={14} /> : <Copy size={14} />}
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={copied ? "check" : "copy"}
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  transition={{ duration: 0.12 }}
+                >
+                  {copied ? <Check size={14} /> : <Copy size={14} />}
+                </motion.div>
+              </AnimatePresence>
             </IconButton>
           </Tooltip>
 
           {canRegenerate && (
             <Tooltip title="Regenerate">
               <IconButton
+                component={motion.button}
+                variants={ANIMATION_VARIANTS.interactive}
+                whileHover="hover"
+                whileTap="tap"
                 size="small"
                 onClick={() => onRegenerate(messageIndex)}
                 sx={{
@@ -519,8 +594,12 @@ export const Message = memo(function Message({
           )}
 
           <DropdownMenu>
-            <DropdownMenuTrigger>
+            <DropdownMenuTrigger asChild>
               <IconButton
+                component={motion.button}
+                variants={ANIMATION_VARIANTS.interactive}
+                whileHover="hover"
+                whileTap="tap"
                 size="small"
                 sx={{
                   color: "text.secondary",

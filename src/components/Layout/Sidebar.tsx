@@ -17,6 +17,9 @@ import {
   MoreHorizontal,
   Archive,
 } from "lucide-react";
+import { motion } from "motion/react";
+import { useTiming, ANIMATION_VARIANTS } from "@/lib/motion";
+import { useNotify } from "@/hooks/useNotify";
 import { Conversation, useChatStore } from "@/store/chatStore";
 import {
   DropdownMenu,
@@ -29,8 +32,6 @@ import { ProfileMenu } from "@/components/Profile/ProfileMenu";
 import { isToday, isYesterday, subDays, isAfter } from "date-fns";
 import { useElementBreakpoint, useResizeActivity } from "@/hooks/useResizePerformance";
 
-const interactiveTransformTransition =
-  "background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease, opacity 0.18s ease, transform 0.18s ease";
 interface SidebarContextValue {
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
@@ -277,6 +278,10 @@ export const Sidebar = React.memo(function Sidebar({
 }: SidebarProps) {
   const { isCollapsed, isMobile, openMobile, setOpenMobile } =
     useSidebar();
+  const theme = useTheme();
+  const timing = useTiming();
+  const notify = useNotify();
+
   const archiveConversation = useChatStore(
     (state) => state.actions.archiveConversation,
   );
@@ -292,9 +297,14 @@ export const Sidebar = React.memo(function Sidebar({
     setIsDeleteDialogOpen(true);
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (deleteId) {
-      onDeleteConversation(deleteId);
+      try {
+        await onDeleteConversation(deleteId);
+        notify.success("Conversation deleted");
+      } catch {
+        notify.error("Failed to delete conversation");
+      }
       setDeleteId(null);
       setDeleteTitle("");
     }
@@ -311,7 +321,12 @@ export const Sidebar = React.memo(function Sidebar({
     e.stopPropagation();
     e.preventDefault();
     if (editValue.trim()) {
-      await onRenameConversation(id, editValue.trim());
+      try {
+        await onRenameConversation(id, editValue.trim());
+        notify.success("Conversation renamed");
+      } catch {
+        notify.error("Failed to rename conversation");
+      }
     }
     setEditingId(null);
   };
@@ -323,7 +338,12 @@ export const Sidebar = React.memo(function Sidebar({
   };
 
   const handleArchive = async (id: string) => {
-    await archiveConversation(id);
+    try {
+      await archiveConversation(id);
+      notify.success("Conversation archived");
+    } catch {
+      notify.error("Failed to archive");
+    }
   };
 
   const groupedConversations = React.useMemo(() => {
@@ -499,41 +519,53 @@ export const Sidebar = React.memo(function Sidebar({
             overflow: "hidden",
           }}
         >
-            {groupedConversations.map((group) => (
-              <SidebarGroup key={group.id} sx={{ mb: 1 }}>
-                <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
-                <SidebarGroupContent sx={{ mt: 0.5 }}>
-                  <SidebarMenu>
-                    {group.items.map((conv) => (
-                      <SidebarMenuButton
-                        key={conv.id}
-                        isActive={activeConversationId === conv.id}
-                        tooltip={conv.title || "Untitled"}
-                        onClick={() => {
-                          onSelectConversation(conv.id);
-                          if (isMobile) setOpenMobile(false);
-                        }}
-                        sx={{
-                          "&:hover .conversation-actions": { opacity: 1 },
-                        }}
-                      >
-                        <ConversationItem
-                          conv={conv}
-                          activeConversationId={activeConversationId}
-                          editingId={editingId}
-                          editValue={editValue}
-                          setEditValue={setEditValue}
-                          handleConfirmRename={handleConfirmRename}
-                          handleCancelRename={handleCancelRename}
-                          handleStartRename={handleStartRename}
-                          handleArchive={handleArchive}
-                          handleStartDelete={handleStartDelete}
-                        />
-                      </SidebarMenuButton>
-                    ))}
-                  </SidebarMenu>
-                </SidebarGroupContent>
-              </SidebarGroup>
+            {groupedConversations.map((group, groupIndex) => (
+              <Box
+                key={group.id}
+                component={motion.div}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ 
+                  duration: timing.duration("base"), 
+                  delay: groupIndex * 0.05,
+                  ease: timing.ease 
+                }}
+              >
+                <SidebarGroup sx={{ mb: 1 }}>
+                  <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+                  <SidebarGroupContent sx={{ mt: 0.5 }}>
+                    <SidebarMenu>
+                      {group.items.map((conv) => (
+                        <SidebarMenuButton
+                          key={conv.id}
+                          isActive={activeConversationId === conv.id}
+                          tooltip={conv.title || "Untitled"}
+                          onClick={() => {
+                            onSelectConversation(conv.id);
+                            if (isMobile) setOpenMobile(false);
+                          }}
+                          sx={{
+                            "&:hover .conversation-actions": { opacity: 1 },
+                          }}
+                        >
+                          <ConversationItem
+                            conv={conv}
+                            activeConversationId={activeConversationId}
+                            editingId={editingId}
+                            editValue={editValue}
+                            setEditValue={setEditValue}
+                            handleConfirmRename={handleConfirmRename}
+                            handleCancelRename={handleCancelRename}
+                            handleStartRename={handleStartRename}
+                            handleArchive={handleArchive}
+                            handleStartDelete={handleStartDelete}
+                          />
+                        </SidebarMenuButton>
+                      ))}
+                    </SidebarMenu>
+                  </SidebarGroupContent>
+                </SidebarGroup>
+              </Box>
             ))}
           </Box>
       </SidebarContent>
@@ -571,11 +603,14 @@ export const Sidebar = React.memo(function Sidebar({
     );
   }
 
-  const theme = useTheme();
   const width = isCollapsed && collapsible === "icon" ? 60 : 260;
 
   return (
     <Box
+      component={motion.div}
+      initial={false}
+      animate={{ width }}
+      transition={{ duration: timing.duration("base"), ease: timing.ease }}
       style={{
         flexShrink: 0,
         height: "100%",
@@ -586,8 +621,6 @@ export const Sidebar = React.memo(function Sidebar({
         borderColor: theme.palette.divider,
         overflowX: "hidden",
         position: "relative",
-        width,
-        transition: "width 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
       }}
     >
       <Box
@@ -752,6 +785,10 @@ export function SidebarMenuButton({
 
   const content = (
     <Box
+      component={motion.div}
+      variants={ANIMATION_VARIANTS.interactive}
+      whileHover="hover"
+      whileTap="tap"
       onClick={onClick}
       sx={{
         display: "flex",
@@ -763,20 +800,16 @@ export function SidebarMenuButton({
         height: 40,
         borderRadius: "10px",
         cursor: "pointer",
-        transition: interactiveTransformTransition,
-        willChange: "transform",
         bgcolor: isActive ? "action.selected" : "transparent",
         color: isActive ? "text.primary" : "text.secondary",
         fontSize: "13.5px",
         fontWeight: 500,
         overflow: "hidden",
         position: "relative",
+        transition: "background-color 0.18s ease, color 0.18s ease",
         "&:hover": {
           bgcolor: "action.hover",
           color: "text.primary",
-        },
-        "&:active": {
-          transform: "scale(0.98)",
         },
         ...sx,
       }}
@@ -814,6 +847,9 @@ export function SidebarTrigger({ sx }: { sx?: CSSObject }) {
       placement="right"
     >
       <IconButton
+        component={motion.button}
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
         onClick={handleClick}
         size="small"
         sx={{
@@ -822,15 +858,10 @@ export function SidebarTrigger({ sx }: { sx?: CSSObject }) {
           height: 40,
           borderRadius: "10px",
           bgcolor: isCollapsed ? "action.hover" : "transparent",
-          transition: interactiveTransformTransition,
-          willChange: "transform",
+          transition: "background-color 0.18s ease, color 0.18s ease",
           "&:hover": {
             color: "text.primary",
             bgcolor: "action.selected",
-            transform: "scale(1.05)",
-          },
-          "&:active": {
-            transform: "scale(0.95)",
           },
           ...sx,
         }}

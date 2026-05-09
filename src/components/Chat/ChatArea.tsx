@@ -3,6 +3,8 @@ import type { ChatMessage } from "@/types/chat";
 import { Message } from "./Message";
 import { Box, CircularProgress, Typography } from "@mui/material";
 import { useChatStore } from "@/store/chatStore";
+import { motion, AnimatePresence } from "motion/react";
+import { useTiming, ANIMATION_VARIANTS } from "@/lib/motion";
 
 interface ChatAreaProps {
   messages: ChatMessage[];
@@ -34,6 +36,7 @@ export const ChatArea = memo(function ChatArea({
   const scrollFrameRef = useRef<number | null>(null);
   const viewportRef = useRef({ top: 0, height: 0 });
   const [viewport, setViewport] = useState({ top: 0, height: 0 });
+  const timing = useTiming();
 
   useEffect(() => {
     if (!hasMoreMessages) return;
@@ -222,13 +225,26 @@ export const ChatArea = memo(function ChatArea({
           <Box aria-hidden sx={{ height: virtualWindow.topSpacer, flexShrink: 0 }} />
         )}
 
+        <AnimatePresence initial={false}>
         {visibleTurns.map((turn, visibleTurnIndex) => {
           const turnIndex = virtualWindow.start + visibleTurnIndex;
+          const isNewest = visibleTurnIndex === visibleTurns.length - 1;
+          
           return (
-          <Box
-            key={turn.userMessage?.id || turn.assistantMessages[0]?.id || `turn-${turnIndex}`}
-            sx={{ display: "flex", flexDirection: "column", gap: 1 }}
-          >
+            <Box
+              component={motion.div}
+              variants={ANIMATION_VARIANTS.messageTurn}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              transition={{ 
+                duration: timing.duration("base"), 
+                ease: timing.ease,
+                delay: isNewest ? 0.05 : 0 
+              }}
+              key={turn.userMessage?.id || turn.assistantMessages[0]?.id || `turn-${turnIndex}`}
+              sx={{ display: "flex", flexDirection: "column", gap: 1 }}
+            >
             {turn.userMessage && (
               <Box sx={{ maxWidth: 768, mx: "auto", width: "100%" }}>
                 <Message
@@ -291,6 +307,7 @@ export const ChatArea = memo(function ChatArea({
           </Box>
         );
         })}
+        </AnimatePresence>
 
         {virtualWindow.bottomSpacer > 0 && (
           <Box aria-hidden sx={{ height: virtualWindow.bottomSpacer, flexShrink: 0 }} />

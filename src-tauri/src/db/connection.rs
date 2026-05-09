@@ -27,6 +27,38 @@ pub async fn init_db<R: Runtime>(app: &AppHandle<R>) -> Result<SqlitePool, Strin
     ensure_users_schema(&pool).await?;
     ensure_sessions_schema(&pool).await?;
 
+    // Proactive seeding for provider_configs if empty
+    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM provider_configs")
+        .fetch_one(&pool)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    println!("[Database] provider_configs row count: {}", count);
+
+    if count == 0 {
+        println!("[Database] Seeding default provider configs...");
+        sqlx::query(
+            r#"
+            INSERT OR IGNORE INTO provider_configs (provider_type, enabled, ollama_host, priority)
+            VALUES ('OllamaLocal', 1, 'http://127.0.0.1:11434', 0)
+            "#
+        )
+        .execute(&pool)
+        .await
+        .map_err(|e| e.to_string())?;
+
+        sqlx::query(
+            r#"
+            INSERT OR IGNORE INTO provider_configs (provider_type, enabled, priority)
+            VALUES ('OllamaAPI', 0, 1)
+            "#
+        )
+        .execute(&pool)
+        .await
+        .map_err(|e| e.to_string())?;
+    }
+
+    println!("[Database] Initialization complete.");
     Ok(pool)
 }
 
@@ -42,11 +74,12 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), String> {
                 return Err(message);
             }
 
-            // Dev repair: this branch exists because the first local migration was
-            // edited during refactor. Migration SQL is idempotent, so removing the
+            // Dev repair: this branch exists because migrations were edited 
+            // during development. Migration SQL is idempotent, so removing the
             // stale checksum lets sqlx record the current file and continue.
-            sqlx::query("DELETE FROM _sqlx_migrations WHERE version = ?")
+            sqlx::query("DELETE FROM _sqlx_migrations WHERE version IN (?, ?)")
                 .bind(20260501000000_i64)
+                .bind(20260509000000_i64)
                 .execute(pool)
                 .await
                 .map_err(|e| e.to_string())?;

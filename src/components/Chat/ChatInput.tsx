@@ -10,6 +10,9 @@ import {
 import { useChatStore } from "@/store/chatStore";
 import { Attachment } from "@/types/chat";
 import { isImageAttachment, createDataUrl } from "@/lib/utils";
+import { motion, AnimatePresence } from "motion/react";
+import { useTiming, ANIMATION_VARIANTS } from "@/lib/motion";
+import { PRETEXT_FONTS, PRETEXT_LINE_HEIGHTS, measureTextHeight } from "@/lib/pretext";
 
 // Perf stubs
 function measureAsyncInteraction<T>(
@@ -44,6 +47,7 @@ export const ChatInput = memo(function ChatInput({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [fileAccept, setFileAccept] = useState<string>("*");
   const [draft, setDraft] = useState("");
+  const timing = useTiming();
 
   const currentAttachments = useChatStore((state) => state.currentAttachments);
   const addCurrentAttachment = useChatStore(
@@ -173,12 +177,17 @@ export const ChatInput = memo(function ChatInput({
     const textarea = textareaRef.current;
     if (!textarea) return;
 
-    const adjustHeight = () => {
-      textarea.style.height = "auto";
-      textarea.style.height = `${Math.max(40, Math.min(textarea.scrollHeight, 200))}px`;
-    };
-
-    requestAnimationFrame(adjustHeight);
+    const width = textarea.clientWidth || 800; // fallback width
+    const height = measureTextHeight(
+      draft, 
+      PRETEXT_FONTS.composer, 
+      width, 
+      PRETEXT_LINE_HEIGHTS.composer
+    );
+    
+    // Add some buffer for padding/line-height adjustments
+    const finalHeight = Math.max(40, Math.min(height + 12, 200));
+    textarea.style.height = `${finalHeight}px`;
   }, [draft]);
 
   const canSubmit =
@@ -228,66 +237,81 @@ export const ChatInput = memo(function ChatInput({
             },
           }}
         >
-          {currentAttachments.length > 0 ? (
-            <Box
-              sx={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: 1.5,
-                px: 1.5,
-                pt: 1,
-                pb: 1,
-              }}
-            >
-              {currentAttachments.map((att) => (
-                <Box
-                  key={att.id}
-                  sx={{
-                    position: "relative",
-                    width: 64,
-                    height: 64,
-                    borderRadius: "12px",
-                    overflow: "hidden",
-                    border: "1px solid",
-                    borderColor: "divider",
-                    bgcolor: "action.hover",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  {att.type.startsWith("image/") ? (
-                    <img
-                      src={createDataUrl(att.type, att.content || "")}
-                      alt={att.name}
-                      style={{
-                        width: "100%",
-                        height: "100%",
-                        objectFit: "cover",
-                      }}
-                    />
-                  ) : (
-                    <Paperclip size={24} style={{ color: "text.secondary" }} />
-                  )}
-                  <IconButton
-                    size="small"
-                    onClick={() => removeCurrentAttachment(att.id)}
+          <AnimatePresence>
+            {currentAttachments.length > 0 ? (
+              <Box
+                component={motion.div}
+                initial={{ opacity: 0, height: 0, overflow: "hidden" }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: timing.duration("base"), ease: timing.ease }}
+                sx={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: 1.5,
+                  px: 1.5,
+                  pt: 1,
+                  pb: 1,
+                }}
+              >
+                <AnimatePresence>
+                {currentAttachments.map((att) => (
+                  <Box
+                    component={motion.div}
+                    layout
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    transition={{ duration: timing.duration("fast"), ease: timing.ease }}
+                    key={att.id}
                     sx={{
-                      position: "absolute",
-                      top: -4,
-                      right: -4,
-                      bgcolor: "background.paper",
-                      boxShadow: 1,
-                      p: 0.5,
-                      "&:hover": { bgcolor: "action.selected" },
+                      position: "relative",
+                      width: 64,
+                      height: 64,
+                      borderRadius: "12px",
+                      overflow: "hidden",
+                      border: "1px solid",
+                      borderColor: "divider",
+                      bgcolor: "action.hover",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
                     }}
                   >
-                    <X size={12} />
-                  </IconButton>
-                </Box>
-              ))}
-            </Box>
-          ) : null}
+                    {att.type.startsWith("image/") ? (
+                      <img
+                        src={createDataUrl(att.type, att.content || "")}
+                        alt={att.name}
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "cover",
+                        }}
+                      />
+                    ) : (
+                      <Paperclip size={24} style={{ color: "text.secondary" }} />
+                    )}
+                    <IconButton
+                      size="small"
+                      onClick={() => removeCurrentAttachment(att.id)}
+                      sx={{
+                        position: "absolute",
+                        top: -4,
+                        right: -4,
+                        bgcolor: "background.paper",
+                        boxShadow: 1,
+                        p: 0.5,
+                        "&:hover": { bgcolor: "action.selected" },
+                      }}
+                    >
+                      <X size={12} />
+                    </IconButton>
+                  </Box>
+                ))}
+                </AnimatePresence>
+              </Box>
+            ) : null}
+          </AnimatePresence>
 
           <InputBase
             multiline
@@ -358,35 +382,63 @@ export const ChatInput = memo(function ChatInput({
 
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               <IconButton
+                component={motion.button}
+                variants={ANIMATION_VARIANTS.interactive}
+                whileHover="hover"
+                whileTap="tap"
+                animate={{
+                  scale: canSubmit || isStreaming ? 1 : 0.95,
+                  opacity: canSubmit || isStreaming ? 1 : 0.3,
+                }}
+                transition={{ duration: timing.duration("fast"), ease: timing.ease }}
                 onClick={handleAction}
                 disabled={isStreaming ? false : !canSubmit || isInputDisabled}
                 sx={{
                   width: 32,
                   height: 32,
-                  bgcolor:
-                    canSubmit || isStreaming ? "primary.main" : "action.hover",
-                  color:
-                    canSubmit || isStreaming
-                      ? "primary.contrastText"
-                      : "text.secondary",
+                  p: 0,
+                  bgcolor: "white",
+                  color: "black",
+                  borderRadius: "50%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  mb: 0.5,
+                  mr: 0.5,
                   "&:hover": {
-                    bgcolor:
-                      canSubmit || isStreaming
-                        ? "primary.main"
-                        : "action.selected",
+                    bgcolor: "white",
                     opacity: 0.9,
                   },
                   "&.Mui-disabled": {
                     bgcolor: "action.hover",
-                    color: "border.main",
+                    color: "text.disabled",
+                    opacity: 0.3,
                   },
                 }}
               >
-                {isStreaming ? (
-                  <Square size={14} fill="currentColor" />
-                ) : (
-                  <ArrowUp size={20} strokeWidth={2.5} />
-                )}
+                <AnimatePresence mode="popLayout" initial={false}>
+                  {isStreaming ? (
+                    <motion.div
+                      key="stop"
+                      initial={{ scale: 0.5, opacity: 0, rotate: -45 }}
+                      animate={{ scale: 1, opacity: 1, rotate: 0 }}
+                      exit={{ scale: 0.5, opacity: 0, rotate: 45 }}
+                      transition={{ duration: timing.duration("fast"), ease: timing.ease }}
+                    >
+                      <Square size={14} fill="currentColor" />
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="send"
+                      initial={{ scale: 0.5, opacity: 0, y: 10 }}
+                      animate={{ scale: 1, opacity: 1, y: 0 }}
+                      exit={{ scale: 0.5, opacity: 0, y: -10 }}
+                      transition={{ duration: timing.duration("fast"), ease: timing.ease }}
+                    >
+                      <ArrowUp size={20} strokeWidth={2.5} />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </IconButton>
             </Box>
           </Box>

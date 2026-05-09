@@ -9,14 +9,16 @@ import {
 } from "react";
 import { Header } from "@/components/Chat/Header";
 import { useModelStore } from "@/store/modelStore";
+import { useOllama } from "@/services/ollama";
 import {
   Sidebar,
   SidebarInset,
   SidebarProvider,
 } from "@/components/Layout/Sidebar";
-import { Box, Snackbar, Alert } from "@mui/material";
+import { Box } from "@mui/material";
 import { useChatStore } from "@/store/chatStore";
 import { useAuthStore } from "@/store/authStore";
+import { useNotify } from "@/hooks/useNotify";
 import { useShallow } from "zustand/react/shallow";
 import "./App.css";
 
@@ -53,41 +55,34 @@ function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isInspectorOpen, setIsInspectorOpen] = useState(false);
   const stopStreamingRef = useRef<(() => void) | null>(null);
-  const [toast, setToast] = useState<{ open: boolean; message: string }>({
-    open: false,
-    message: "",
-  });
+  const notify = useNotify();
   const {
-    availableModels,
     selectedModels,
     updateSelectedModel,
     addSelectedModel,
     removeSelectedModel,
-    isLoading,
-    ollamaError,
-    pullingModel,
-    pullProgress,
     systemPrompts,
     activeSystemPromptId,
     setSystemPrompt,
     setDefaultModel,
+    setSelectedModel,
+    defaultModel,
   } = useModelStore(
     useShallow((state) => ({
-      availableModels: state.availableModels,
       selectedModels: state.selectedModels,
       updateSelectedModel: state.updateSelectedModel,
       addSelectedModel: state.addSelectedModel,
       removeSelectedModel: state.removeSelectedModel,
-      isLoading: state.isLoading,
-      ollamaError: state.ollamaError,
-      pullingModel: state.pullingModel,
-      pullProgress: state.pullProgress,
       systemPrompts: state.systemPrompts,
       activeSystemPromptId: state.activeSystemPromptId,
       setSystemPrompt: state.actions.setSystemPrompt,
       setDefaultModel: state.actions.setDefaultModel,
+      setSelectedModel: state.setSelectedModel,
+      defaultModel: state.defaultModel,
     })),
   );
+
+  const ollama = useOllama();
 
   const selectedModel = selectedModels[0] ?? "";
 
@@ -107,6 +102,17 @@ function App() {
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, []);
+
+  useEffect(() => {
+    if (ollama.online && ollama.models.length > 0 && selectedModels.length === 0) {
+      const modelNames = ollama.models.map((m) => m.name);
+      const preferredModel =
+        defaultModel && modelNames.includes(defaultModel)
+          ? defaultModel
+          : modelNames[0];
+      setSelectedModel("ollama", preferredModel);
+    }
+  }, [ollama.online, ollama.models, selectedModels.length, defaultModel, setSelectedModel]);
 
   const activeSystemPrompt = useMemo(
     () => systemPrompts.find((p) => p.id === activeSystemPromptId) ?? null,
@@ -171,12 +177,8 @@ function App() {
 
   const handleSetDefaultModel = useCallback((model: string) => {
     setDefaultModel(model);
-    setToast({ open: true, message: `${model} set as default` });
-  }, [setDefaultModel]);
-
-  const handleCloseToast = useCallback(() => {
-    setToast((current) => ({ ...current, open: false }));
-  }, []);
+    notify.success(`${model} set as default`);
+  }, [setDefaultModel, notify]);
 
   const isTemporary = Boolean(conversations.find((c) => c.id === activeConversationId)?.isTemporary);
 
@@ -194,8 +196,10 @@ function App() {
   }, [createConversation, isTemporary, setActiveConversationId]);
 
   const handleAddModel = useCallback(() => {
-    addSelectedModel("ollama", availableModels.ollama[0]?.name || "");
-  }, [addSelectedModel, availableModels.ollama]);
+    import("@/services/ollama").then(({ useOllamaStore }) => {
+      addSelectedModel("ollama", useOllamaStore.getState().models[0]?.name || "");
+    });
+  }, [addSelectedModel]);
 
   const handleToggleInspector = useCallback(() => {
     setIsInspectorOpen((v) => !v);
@@ -221,19 +225,14 @@ function App() {
       <SidebarInset>
         <Header
           selectedModels={selectedModels}
-          availableModels={availableModels}
           onModelChange={updateSelectedModel}
           onAddModel={handleAddModel}
           onRemoveModel={removeSelectedModel}
-          isLoading={isLoading}
-          ollamaError={ollamaError}
           onSetDefault={handleSetDefaultModel}
           onToggleInspector={handleToggleInspector}
           isInspectorOpen={isInspectorOpen}
           isTemporary={isTemporary}
           onToggleTemporaryChat={handleToggleTemporaryChat}
-          pullingModel={pullingModel}
-          pullProgress={pullProgress}
           systemPrompts={systemPrompts}
           activeSystemPromptId={activeSystemPromptId}
           onSystemPromptChange={setSystemPrompt}
@@ -275,27 +274,6 @@ function App() {
         <AuthModal />
         <ToolApproval />
       </Suspense>
-
-      <Snackbar
-        open={toast.open}
-        autoHideDuration={3000}
-        onClose={handleCloseToast}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-      >
-        <Alert
-          onClose={handleCloseToast}
-          severity="success"
-          sx={{
-            width: "100%",
-            bgcolor: "background.paper",
-            color: "text.primary",
-            border: (theme) => `1px solid ${theme.palette.border?.main}`,
-            "& .MuiAlert-icon": { color: "success.main" },
-          }}
-        >
-          {toast.message}
-        </Alert>
-      </Snackbar>
     </SidebarProvider>
   );
 }

@@ -1,0 +1,64 @@
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Clone)]
+pub struct StreamMetadata {
+    pub prompt_eval_count: Option<u64>,
+    pub eval_count: Option<u64>,
+    pub total_duration: Option<u64>,
+    pub load_duration: Option<u64>,
+    pub prompt_eval_duration: Option<u64>,
+    pub eval_duration: Option<u64>,
+    pub model: String,
+}
+
+#[derive(Serialize, Clone)]
+pub struct StreamPayload {
+    pub request_id: String,
+    pub content: String,
+    pub thinking: Option<String>,
+    pub tool_calls: Option<Vec<GenericToolCall>>,
+    pub done: bool,
+    pub metadata: Option<StreamMetadata>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct GenericToolCall {
+    pub name: String,
+    pub arguments: serde_json::Value,
+}
+
+#[derive(Serialize, Clone)]
+pub struct ThinkingPayload {
+    pub request_id: String,
+    pub thinking: String,
+    pub is_thinking: bool,
+}
+
+#[derive(Serialize, Clone)]
+pub struct PullProgressPayload {
+    pub status: String,
+    pub digest: Option<String>,
+    pub total: Option<u64>,
+    pub completed: Option<u64>,
+}
+
+#[derive(Serialize, Clone)]
+pub struct ModelDetails {
+    pub name: String,
+    pub families: Vec<String>,
+    pub size: u64,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ChatAttachment {
+    #[serde(rename = "type")]
+    pub content_type: String,
+    pub content: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ChatMessage {
+    pub role: String,
+    pub content: String,
+    pub attachments: Option<Vec<ChatAttachment>>,
+}

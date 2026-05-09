@@ -1,17 +1,8 @@
 import { create } from "zustand";
-import { loggedInvoke } from "@/lib/utils";
 
 export type ModelProvider = "ollama" | "anthropic" | "openai";
 
-export type OllamaModel = {
-  name: string;
-  families: string[];
-  size: number;
-  supports_vision?: boolean;
-};
-
 export type AvailableModels = {
-  ollama: OllamaModel[];
   anthropic: string[];
   openai: string[];
 };
@@ -26,12 +17,7 @@ export type SystemPrompt = {
   instantAnswers?: boolean;
 };
 
-export type PullProgress = {
-  status: string;
-  digest?: string;
-  total?: number;
-  completed?: number;
-};
+// PullProgress and OllamaModel moved to services/ollama/types.ts
 
 type ModelStore = {
   selectedModel: string;
@@ -39,11 +25,7 @@ type ModelStore = {
   selectedProvider: ModelProvider;
   selectedProviders: ModelProvider[];
   availableModels: AvailableModels;
-  isLoading: boolean;
-  ollamaError: string | null;
   defaultModel: string;
-  pullingModel: string | null;
-  pullProgress: PullProgress | null;
   systemPrompts: SystemPrompt[];
   activeSystemPromptId: string | null;
   setSelectedModel: (provider: ModelProvider, model: string) => void;
@@ -58,13 +40,8 @@ type ModelStore = {
     model: string,
   ) => void;
   setAvailableModels: (models: Partial<AvailableModels>) => void;
-  setIsLoading: (isLoading: boolean) => void;
-  setOllamaError: (error: string | null) => void;
-  setPullingModel: (model: string | null) => void;
-  setPullProgress: (progress: PullProgress | null) => void;
   actions: {
     setDefaultModel: (model: string) => void;
-    cancelPull: () => Promise<void>;
     /**
      * Set the active system prompt by id.
      * @param id - The prompt id to activate, or null to clear.
@@ -93,7 +70,6 @@ type ModelStore = {
 };
 
 const defaultAvailableModels: AvailableModels = {
-  ollama: [],
   anthropic: [],
   openai: [],
 };
@@ -110,10 +86,6 @@ export const useModelStore = create<ModelStore>((set) => ({
   selectedProvider: "ollama",
   selectedProviders: [],
   availableModels: defaultAvailableModels,
-  isLoading: false,
-  ollamaError: null,
-  pullingModel: null,
-  pullProgress: null,
   systemPrompts: [defaultSystemPrompt],
   activeSystemPromptId: defaultSystemPrompt.id,
   defaultModel: localStorage.getItem("default_model") || "",
@@ -163,30 +135,13 @@ export const useModelStore = create<ModelStore>((set) => ({
       };
     }),
   setAvailableModels: (models) =>
-    set((state) => {
-      const newState = {
-        availableModels: { ...state.availableModels, ...models },
-      };
-      // If we just loaded ollama models and our selected model isn't in the list,
-      // but we have some models, don't necessarily clear it if it was a custom one.
-      return newState;
-    }),
-  setIsLoading: (isLoading) => set({ isLoading }),
-  setOllamaError: (error) => set({ ollamaError: error }),
-  setPullingModel: (model) => set({ pullingModel: model }),
-  setPullProgress: (progress) => set({ pullProgress: progress }),
+    set((state) => ({
+      availableModels: { ...state.availableModels, ...models },
+    })),
   actions: {
     setDefaultModel: (model: string) => {
       localStorage.setItem("default_model", model);
       set({ defaultModel: model });
-    },
-    cancelPull: async () => {
-      try {
-        await loggedInvoke("cancel_pull");
-        set({ pullingModel: null, pullProgress: null });
-      } catch (err) {
-        console.error("Failed to cancel pull:", err);
-      }
     },
     setSystemPrompt: (id) => set({ activeSystemPromptId: id }),
     addSystemPrompt: (prompt) =>

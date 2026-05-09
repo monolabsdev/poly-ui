@@ -38,6 +38,9 @@ import {
   Sun,
   Trash2,
   Wrench,
+  Globe,
+  Lock,
+  RefreshCw,
 } from "lucide-react";
 import { ModelManagement } from "./ModelManagement";
 import {
@@ -47,6 +50,7 @@ import {
   EmptyState,
   selectSx,
 } from "./SettingComponents";
+import { useProviderStore, ProviderStatusResponse, ProviderStatus, ProviderConfig } from "@/services/providers";
 
 type SettingsModalProps = {
   isOpen: boolean;
@@ -55,6 +59,7 @@ type SettingsModalProps = {
 
 const SIDEBAR_ITEMS = [
   { id: "general", label: "General", icon: Settings },
+  { id: "providers", label: "Providers", icon: Globe },
   { id: "models", label: "Models", icon: BoxIcon },
   { id: "tools", label: "Tools", icon: Wrench },
   { id: "prompts", label: "Prompt Library", icon: ScrollText },
@@ -82,11 +87,20 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
   const activeItem = SIDEBAR_ITEMS.find((item) => item.id === activeTab);
 
+  const { providers, actions: providerActions } = useProviderStore();
+
   const handleSaveBaseUrl = async () => {
     setIsSavingBaseUrl(true);
     setBaseUrlError(null);
 
     try {
+      const ollamaLocal = providers.find(p => p.provider_type === "OllamaLocal");
+      if (ollamaLocal) {
+        await providerActions.updateConfig({
+          ...ollamaLocal.config,
+          ollama_host: baseUrl
+        });
+      }
       await settingsActions.setOllamaConfig({ baseUrl });
     } catch (err: any) {
       setBaseUrlError(err.message || "Failed to save settings");
@@ -223,6 +237,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   onSaveBaseUrl={handleSaveBaseUrl}
                 />
               )}
+              {activeTab === "providers" && <ProvidersTab />}
               {activeTab === "models" && <ModelManagement />}
               {activeTab === "tools" && <ToolsTab />}
               {activeTab === "prompts" && <PromptLibraryTab />}
@@ -657,3 +672,191 @@ function ToolsTab() {
     </Stack>
   );
 }
+
+function ProvidersTab() {
+  const theme = useTheme();
+  const { providers, loading, actions } = useProviderStore();
+
+  useEffect(() => {
+    actions.refresh();
+  }, [actions]);
+
+  const [editingConfigs, setEditingConfigs] = useState<Record<string, ProviderConfig>>({});
+
+  const handleToggle = (provider: ProviderStatusResponse) => {
+    actions.updateConfig({
+      ...provider.config,
+      enabled: !provider.config.enabled,
+    });
+  };
+
+  const handleFieldChange = (type: string, field: string, value: string) => {
+    const provider = providers.find((p) => p.provider_type === type);
+    if (!provider) return;
+
+    const currentConfig = editingConfigs[type] || provider.config;
+    setEditingConfigs({
+      ...editingConfigs,
+      [type]: {
+        ...currentConfig,
+        [field]: value,
+      },
+    });
+  };
+
+  const handleSaveConfig = async (type: string) => {
+    const config = editingConfigs[type];
+    if (config) {
+      await actions.updateConfig(config);
+      // Clear local edit state after save
+      const newEditing = { ...editingConfigs };
+      delete newEditing[type];
+      setEditingConfigs(newEditing);
+    }
+  };
+
+  const statusColors: Record<ProviderStatus, string> = {
+    Online: theme.palette.success.main,
+    Offline: theme.palette.error.main,
+    Reconnecting: theme.palette.warning.main,
+    Unavailable: theme.palette.text.disabled,
+  };
+
+  return (
+    <Stack spacing={0}>
+      <SectionHeader
+        title="LLM Providers"
+        description="Configure and manage connections to various LLM backends."
+        action={
+          <Button
+            size="small"
+            variant="text"
+            onClick={() => actions.refreshHealth()}
+            disabled={loading}
+            startIcon={<RefreshCw size={14} className={loading ? "animate-spin" : ""} />}
+            sx={{ textTransform: "none", fontWeight: 700 }}
+          >
+            {loading ? "Refreshing..." : "Refresh Status"}
+          </Button>
+        }
+      />
+
+      <Stack spacing={3} sx={{ mt: 2 }}>
+        {providers.map((p) => (
+          <Box
+            key={p.provider_type}
+            sx={{
+              p: 2,
+              borderRadius: "12px",
+              border: "1px solid",
+              borderColor: "divider",
+              bgcolor: "background.paper",
+              transition: "all 0.2s ease",
+            }}
+          >
+            <Stack spacing={2}>
+              <Stack direction="row" alignItems="center" justifyContent="space-between">
+                <Stack direction="row" alignItems="center" spacing={1.5}>
+                  <Box
+                    sx={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: "50%",
+                      bgcolor: statusColors[p.status],
+                      boxShadow: `0 0 8px ${statusColors[p.status]}44`,
+                    }}
+                  />
+                  <Typography sx={{ fontWeight: 800, fontSize: 14 }}>
+                    {p.provider_type === "OllamaLocal" ? "Ollama (Local)" :
+                     p.provider_type === "OllamaAPI" ? "Ollama (Remote API)" :
+                     p.provider_type}
+                  </Typography>
+                  <Badge 
+                    label={p.status} 
+                    color={statusColors[p.status]} 
+                  />
+                </Stack>
+                <Button
+                  size="small"
+                  variant={p.config.enabled ? "outlined" : "contained"}
+                  onClick={() => handleToggle(p)}
+                  sx={{ textTransform: "none", fontSize: 12, fontWeight: 700 }}
+                >
+                  {p.config.enabled ? "Disable" : "Enable"}
+                </Button>
+              </Stack>
+
+              {p.config.enabled && (
+                <Stack spacing={2} sx={appFadeInSx}>
+                  {p.provider_type === "OllamaLocal" && (
+                    <TextField
+                      label="Ollama Host"
+                      size="small"
+                      fullWidth
+                      value={(editingConfigs[p.provider_type]?.ollama_host) ?? (p.config.ollama_host || "")}
+                      onChange={(e) => handleFieldChange(p.provider_type, "ollama_host", e.target.value)}
+                      placeholder="http://localhost:11434"
+                      sx={appTextFieldSx}
+                    />
+                  )}
+
+                  {p.provider_type === "OllamaAPI" && (
+                    <>
+                      <TextField
+                        label="API Base URL"
+                        size="small"
+                        fullWidth
+                        value={(editingConfigs[p.provider_type]?.ollama_api_base_url) ?? (p.config.ollama_api_base_url || "")}
+                        onChange={(e) => handleFieldChange(p.provider_type, "ollama_api_base_url", e.target.value)}
+                        placeholder="https://api.ollama.com/v1"
+                        sx={appTextFieldSx}
+                      />
+                      <TextField
+                        label="API Key"
+                        size="small"
+                        fullWidth
+                        type="password"
+                        value={(editingConfigs[p.provider_type]?.ollama_api_key) ?? (p.config.ollama_api_key || "")}
+                        onChange={(e) => handleFieldChange(p.provider_type, "ollama_api_key", e.target.value)}
+                        placeholder="Enter your API key"
+                        sx={appTextFieldSx}
+                        InputProps={{
+                          startAdornment: (
+                            <Box sx={{ mr: 1, color: "text.secondary", display: "flex" }}>
+                              <Lock size={14} />
+                            </Box>
+                          ),
+                        }}
+                      />
+                    </>
+                  )}
+
+                  {editingConfigs[p.provider_type] && (
+                    <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+                      <Button
+                        size="small"
+                        variant="contained"
+                        disableElevation
+                        onClick={() => handleSaveConfig(p.provider_type)}
+                        sx={{ textTransform: "none", fontWeight: 700 }}
+                      >
+                        Save Changes
+                      </Button>
+                    </Box>
+                  )}
+
+                  {(p.provider_type === "Anthropic" || p.provider_type === "OpenAI") && (
+                    <Typography sx={{ fontSize: 12, color: "text.secondary", fontStyle: "italic" }}>
+                      Coming soon... This provider will allow you to use official cloud APIs.
+                    </Typography>
+                  )}
+                </Stack>
+              )}
+            </Stack>
+          </Box>
+        ))}
+      </Stack>
+    </Stack>
+  );
+}
+

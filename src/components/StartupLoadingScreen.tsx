@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useEffect } from "react";
 import { Box } from "@mui/material";
 import { motion } from "motion/react";
 
@@ -11,6 +11,14 @@ function StartupLoadingScreen({
   visible = true,
   onExited,
 }: StartupLoadingScreenProps) {
+  // Safety fallback: if motion fails to trigger onAnimationComplete,
+  // ensure we still exit after a reasonable delay when visible becomes false.
+  useEffect(() => {
+    if (visible || !onExited) return;
+    const timer = setTimeout(onExited, 1000);
+    return () => clearTimeout(timer);
+  }, [visible, onExited]);
+
   return (
     <Box
       component={motion.div}

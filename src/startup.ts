@@ -1,10 +1,10 @@
-import type { OllamaModel, SystemPrompt } from "@/store/modelStore";
+import type { SystemPrompt } from "@/store/modelStore";
 import { useAuthStore } from "@/store/authStore";
 import { useChatStore } from "@/store/chatStore";
 import { useModelStore } from "@/store/modelStore";
-import { useSettingsStore } from "@/store/settingsStore";
 import { useToolStore } from "@/store/toolStore";
-import { loggedInvoke } from "@/lib/utils";
+import { useOllamaStore } from "@/services/ollama/monitor";
+import { useProviderStore } from "@/services/providers";
 
 const SYSTEM_PROMPTS_STORAGE_KEY = "openbench.systemPrompts";
 
@@ -27,19 +27,6 @@ export function delay(ms: number) {
   });
 }
 
-function yieldToMain() {
-  const scheduler = (
-    window as Window & {
-      scheduler?: { yield?: () => Promise<void> };
-    }
-  ).scheduler;
-
-  if (scheduler?.yield) {
-    return scheduler.yield();
-  }
-
-  return new Promise<void>((resolve) => window.setTimeout(resolve, 0));
-}
 
 function restoreSystemPrompts() {
   try {
@@ -59,63 +46,30 @@ function restoreSystemPrompts() {
   }
 }
 
-async function loadOllamaModels() {
-  const {
-    setAvailableModels,
-    setSelectedModel,
-    setIsLoading,
-    setOllamaError,
-  } = useModelStore.getState();
-
-  setIsLoading(true);
-  setOllamaError(null);
-
-  try {
-    const models = await loggedInvoke<OllamaModel[]>("get_local_models");
-    const { selectedModel, defaultModel } = useModelStore.getState();
-
-    setAvailableModels({ ollama: models });
-
-    if (!selectedModel && models.length > 0) {
-      const modelNames = models.map((model) => model.name);
-      const preferredModel =
-        defaultModel && modelNames.includes(defaultModel)
-          ? defaultModel
-          : modelNames[0];
-      setSelectedModel("ollama", preferredModel);
-    }
-  } catch (error) {
-    console.error("Failed to load Ollama models:", error);
-    setOllamaError("Ollama unavailable");
-  } finally {
-    setIsLoading(false);
-  }
-}
-
+// Ollama loading is now handled by the monitor.
 function startSystemPromptPersistence() {
-  const existing = window.__openbenchSystemPromptUnsubscribe;
-  if (existing) return;
+  if (window.__openbenchSystemPromptUnsubscribe) return;
 
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
-  window.__openbenchSystemPromptUnsubscribe = useModelStore.subscribe((state) => {
-    if (timeoutId) {
-      clearTimeout(timeoutId);
-    }
+  window.__openbenchSystemPromptUnsubscribe = useModelStore.subscribe(
+    (state) => {
+      if (timeoutId) clearTimeout(timeoutId);
 
-    timeoutId = setTimeout(() => {
-      try {
-        localStorage.setItem(
-          SYSTEM_PROMPTS_STORAGE_KEY,
-          JSON.stringify({
-            systemPrompts: state.systemPrompts,
-            activeSystemPromptId: state.activeSystemPromptId,
-          }),
-        );
-      } catch {
-        // Ignore storage failures.
-      }
-    }, 300);
-  });
+      timeoutId = setTimeout(() => {
+        try {
+          localStorage.setItem(
+            SYSTEM_PROMPTS_STORAGE_KEY,
+            JSON.stringify({
+              systemPrompts: state.systemPrompts,
+              activeSystemPromptId: state.activeSystemPromptId,
+            }),
+          );
+        } catch {
+          // Ignore storage failures.
+        }
+      }, 300);
+    },
+  );
 }
 
 async function preloadVisibleAppChunks() {
@@ -128,28 +82,21 @@ async function preloadVisibleAppChunks() {
 }
 
 async function initializeStores() {
+  console.log("[Startup] Initializing stores...");
   restoreSystemPrompts();
   startSystemPromptPersistence();
-
-  await yieldToMain();
 
   const db = await import("@/lib/db");
   await db.initDB().catch(() => {});
 
-  await yieldToMain();
-
   await Promise.all([
-    Promise.race([
-      useSettingsStore.getState().actions.syncToBackend(),
-      delay(3000).then(() => {
-        throw new Error("Timeout syncing settings");
-      }),
-    ]).catch(() => {}),
+    useProviderStore.getState().actions.refresh().then(() => console.log("[Startup] Providers refreshed:", useProviderStore.getState().providers)).catch(err => console.error("[Startup] Provider refresh failed:", err)),
     useAuthStore.getState().actions.restoreSession().catch(() => {}),
     useChatStore.getState().actions.loadConversations().catch(() => {}),
     useToolStore.getState().actions.loadTools().catch(() => {}),
-    loadOllamaModels(),
-  ]);
+  ]).catch(() => {});
+
+  useOllamaStore.getState().actions.start();
 
   const { isLoading } = useAuthStore.getState();
   if (isLoading) {
@@ -158,6 +105,7 @@ async function initializeStores() {
 }
 
 export async function prepareAppStartup() {
+  console.log("[Startup] localStorage settings:", localStorage.getItem("settings-storage"));
   startupPromise ??= Promise.all([
     preloadVisibleAppChunks(),
     initializeStores(),
