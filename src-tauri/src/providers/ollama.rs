@@ -1,4 +1,4 @@
-use crate::models::chat::{ChatMessage, StreamPayload, StreamMetadata};
+use crate::models::chat::{ChatMessage, StreamMetadata, StreamPayload};
 use crate::providers::base::{LLMProvider, ProviderStatus, ProviderType};
 use async_trait::async_trait;
 use futures::Stream;
@@ -6,10 +6,10 @@ use ollama_rs::generation::chat::request::ChatMessageRequest;
 use ollama_rs::generation::chat::ChatMessage as OllamaChatMessage;
 use ollama_rs::generation::tools::{ToolFunctionInfo, ToolInfo, ToolType};
 use ollama_rs::Ollama;
+use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION};
 use schemars::Schema;
 use std::pin::Pin;
 use tokio_stream::StreamExt;
-use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION};
 
 pub struct OllamaProvider {
     client: Ollama,
@@ -36,15 +36,18 @@ impl OllamaProvider {
             .timeout(std::time::Duration::from_secs(5))
             .build()
             .unwrap_or_default();
-        
-        // Extract host and port for new_with_client
-        let url = reqwest::Url::parse(&host).unwrap_or_else(|_| reqwest::Url::parse("http://localhost:11434").unwrap());
+
+        let url = reqwest::Url::parse(&host)
+            .unwrap_or_else(|_| reqwest::Url::parse("http://localhost:11434").unwrap());
         let scheme = url.scheme();
         let host_only = url.host_str().unwrap_or("localhost");
         let host_with_scheme = format!("{}://{}", scheme, host_only);
         let port = url.port().unwrap_or(11434);
-        
-        println!("[OllamaProvider] Initializing with host: {}, port: {}", host_with_scheme, port);
+
+        println!(
+            "[OllamaProvider] Initializing with host: {}, port: {}",
+            host_with_scheme, port
+        );
 
         let client = Ollama::new_with_client(host_with_scheme, port, reqwest_client);
 
@@ -56,13 +59,56 @@ impl OllamaProvider {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Error normalization
+//
+// ollama_rs surfaces reqwest errors as opaque strings via `.to_string()`.
+// We inspect the message to produce something actionable for the frontend.
+// ---------------------------------------------------------------------------
+// Used for errors that implement Display (e.g. OllamaError returned from
+// top-level ollama_rs calls like send_chat_messages_stream, list_local_models).
+fn normalize_ollama_error(raw: impl std::fmt::Display) -> String {
+    let msg = raw.to_string().to_lowercase();
+    normalize_msg(&msg, raw.to_string())
+}
+
+// Used for errors that only implement Debug (e.g. the error type yielded by
+// individual stream items inside mapped_stream / pull mapped stream).
+fn normalize_ollama_stream_error(raw: impl std::fmt::Debug) -> String {
+    let debug = format!("{:?}", raw);
+    let msg = debug.to_lowercase();
+    normalize_msg(&msg, debug)
+}
+
+// Shared pattern-matching logic.
+fn normalize_msg(msg: &str, raw: String) -> String {
+    if msg.contains("connection refused") || msg.contains("connect error") {
+        return "Ollama is not running. Start Ollama and try again.".to_string();
+    }
+    if msg.contains("timed out") || msg.contains("timeout") {
+        return "Request timed out. Ollama may be overloaded or the model is too large."
+            .to_string();
+    }
+    if msg.contains("model") && (msg.contains("not found") || msg.contains("404")) {
+        return "Model not found. Run `ollama pull <model>` to download it.".to_string();
+    }
+    if msg.contains("reqwest") {
+        return format!("Network error reaching Ollama: {}", raw);
+    }
+    raw
+}
+
 #[async_trait]
 impl LLMProvider for OllamaProvider {
     async fn health_check(&self) -> ProviderStatus {
         match self.client.list_local_models().await {
             Ok(_) => ProviderStatus::Online,
             Err(e) => {
-                eprintln!("Ollama health check failed for {}: {}", self.client.url(), e);
+                eprintln!(
+                    "[OllamaProvider] Health check failed for {}: {}",
+                    self.client.url(),
+                    e
+                );
                 ProviderStatus::Offline
             }
         }
@@ -94,18 +140,21 @@ impl LLMProvider for OllamaProvider {
                 let images: Vec<ollama_rs::generation::images::Image> = attachments
                     .into_iter()
                     .filter(|a| a.content_type.starts_with("image/"))
-                    .filter_map(|a| a.content.map(|c| ollama_rs::generation::images::Image::from_base64(&c)))
+                    .filter_map(|a| {
+                        a.content
+                            .map(|c| ollama_rs::generation::images::Image::from_base64(&c))
+                    })
                     .collect();
                 if !images.is_empty() {
                     ollama_msg.images = Some(images);
                 }
             }
-            
+
             history.push(ollama_msg);
         }
 
         let mut request = ChatMessageRequest::new(model.clone(), history);
-        
+
         if let Some(tool_defs) = tools {
             let ollama_tools: Vec<ToolInfo> = tool_defs
                 .iter()
@@ -127,89 +176,104 @@ impl LLMProvider for OllamaProvider {
                 request.tools = ollama_tools;
             }
         }
-        
-        // Handling API variant with custom headers if needed.
-        // For simplicity, we use ollama_rs for both if possible.
-        // If the user specifically wants /api/generate for Ollama API, we should use reqwest.
-        
-        let stream = self.client
+
+        // Map the upstream error (which often contains a raw reqwest message)
+        // before it reaches the command layer.
+        let stream = self
+            .client
             .send_chat_messages_stream(request)
             .await
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| normalize_ollama_error(e))?;
 
         let model_clone = model.clone();
-        let mapped_stream = stream.map(move |result| {
-            match result {
-                Ok(response) => {
-                    let mut metadata = None;
-                    if let Some(fd) = response.final_data {
-                        metadata = Some(StreamMetadata {
-                            prompt_eval_count: Some(fd.prompt_eval_count),
-                            eval_count: Some(fd.eval_count),
-                            total_duration: Some(fd.total_duration),
-                            load_duration: Some(fd.load_duration),
-                            prompt_eval_duration: Some(fd.prompt_eval_duration),
-                            eval_duration: Some(fd.eval_duration),
-                            model: model_clone.clone(),
-                        });
-                    }
+        let mapped_stream = stream.map(move |result| match result {
+            Ok(response) => {
+                let mut metadata = None;
+                if let Some(fd) = response.final_data {
+                    metadata = Some(StreamMetadata {
+                        prompt_eval_count: Some(fd.prompt_eval_count),
+                        eval_count: Some(fd.eval_count),
+                        total_duration: Some(fd.total_duration),
+                        load_duration: Some(fd.load_duration),
+                        prompt_eval_duration: Some(fd.prompt_eval_duration),
+                        eval_duration: Some(fd.eval_duration),
+                        model: model_clone.clone(),
+                    });
+                }
 
-                    let tool_calls = if !response.message.tool_calls.is_empty() {
-                        Some(response.message.tool_calls.into_iter().map(|t| {
-                            crate::models::chat::GenericToolCall {
+                let tool_calls = if !response.message.tool_calls.is_empty() {
+                    Some(
+                        response
+                            .message
+                            .tool_calls
+                            .into_iter()
+                            .map(|t| crate::models::chat::GenericToolCall {
                                 name: t.function.name,
                                 arguments: t.function.arguments,
-                            }
-                        }).collect())
-                    } else {
-                        None
-                    };
+                            })
+                            .collect(),
+                    )
+                } else {
+                    None
+                };
 
-                    Ok(StreamPayload {
-                        request_id: String::new(),
-                        content: response.message.content,
-                        thinking: response.message.thinking,
-                        tool_calls,
-                        done: response.done,
-                        metadata,
-                    })
-                }
-                Err(_) => Err("Ollama stream error".to_string()),
+                Ok(StreamPayload {
+                    request_id: String::new(),
+                    content: response.message.content,
+                    thinking: response.message.thinking,
+                    tool_calls,
+                    done: response.done,
+                    metadata,
+                })
             }
+            // Stream item errors yield a type that is Debug but not Display,
+            // so use the Debug-aware helper here.
+            Err(e) => Err(normalize_ollama_stream_error(e)),
         });
 
         Ok(Box::pin(mapped_stream))
     }
 
     async fn get_available_models(&self) -> Result<Vec<crate::models::chat::ModelDetails>, String> {
-        let models = self.client
+        self.client
             .list_local_models()
             .await
-            .map_err(|e| e.to_string())?;
-        
-        Ok(models.into_iter().map(|m| crate::models::chat::ModelDetails {
-            name: m.name,
-            families: Vec::new(),
-            size: m.size,
-        }).collect())
+            .map_err(|e| normalize_ollama_error(e))
+            .map(|models| {
+                models
+                    .into_iter()
+                    .map(|m| crate::models::chat::ModelDetails {
+                        name: m.name,
+                        families: Vec::new(),
+                        size: m.size,
+                    })
+                    .collect()
+            })
     }
 
-    async fn pull_model(&self, model: String) -> Result<Pin<Box<dyn Stream<Item = Result<crate::models::chat::PullProgressPayload, String>> + Send>>, String> {
-        let stream = self.client
+    async fn pull_model(
+        &self,
+        model: String,
+    ) -> Result<
+        Pin<
+            Box<dyn Stream<Item = Result<crate::models::chat::PullProgressPayload, String>> + Send>,
+        >,
+        String,
+    > {
+        let stream = self
+            .client
             .pull_model_stream(model, false)
             .await
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| normalize_ollama_error(e))?;
 
-        let mapped = stream.map(|result| {
-            match result {
-                Ok(response) => Ok(crate::models::chat::PullProgressPayload {
-                    status: response.message,
-                    digest: response.digest,
-                    total: response.total,
-                    completed: response.completed,
-                }),
-                Err(_) => Err("Ollama pull error".to_string()),
-            }
+        let mapped = stream.map(|result| match result {
+            Ok(response) => Ok(crate::models::chat::PullProgressPayload {
+                status: response.message,
+                digest: response.digest,
+                total: response.total,
+                completed: response.completed,
+            }),
+            Err(e) => Err(normalize_ollama_stream_error(e)),
         });
 
         Ok(Box::pin(mapped))
@@ -219,8 +283,7 @@ impl LLMProvider for OllamaProvider {
         self.client
             .delete_model(model)
             .await
-            .map_err(|e| e.to_string())?;
-        Ok(())
+            .map_err(|e| normalize_ollama_error(e))
     }
 
     fn get_provider_name(&self) -> String {

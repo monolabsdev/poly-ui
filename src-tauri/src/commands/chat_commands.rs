@@ -1,11 +1,13 @@
-use crate::AppState;
-use crate::models::chat::{ChatMessage, StreamMetadata, StreamPayload, ThinkingPayload, GenericToolCall};
+use crate::models::chat::{
+    ChatMessage, GenericToolCall, StreamMetadata, StreamPayload, ThinkingPayload,
+};
 use crate::tools::ToolInvocationPayload;
+use crate::AppState;
+use crate::PendingApproval;
 use std::sync::atomic::Ordering;
 use tauri::{AppHandle, Emitter};
-use tokio_stream::StreamExt;
 use tokio::sync::oneshot;
-use crate::PendingApproval;
+use tokio_stream::StreamExt;
 
 #[tauri::command]
 pub async fn chat_stream(
@@ -25,8 +27,39 @@ pub async fn chat_stream(
         };
     }
 
+    // Emits a done:true sentinel so the frontend always sees a clean stream
+    // end regardless of whether we return Ok or Err.
+    //
+    // Call this before every early return that isn't a cancellation, then
+    // return Err with the message. The frontend .catch() will receive the
+    // error string; the sentinel is a no-op on the happy path because the
+    // normal loop emits its own done:true chunk.
+    macro_rules! emit_error_and_return {
+        ($msg:expr) => {{
+            // Emit a done chunk so the frontend settles the placeholder
+            // into "error" state cleanly rather than leaving it hanging.
+            let _ = app_handle.emit(
+                "chat-chunk",
+                StreamPayload {
+                    request_id: request_id.clone(),
+                    content: String::new(),
+                    thinking: None,
+                    tool_calls: None,
+                    done: true,
+                    metadata: None,
+                },
+            );
+            return Err($msg);
+        }};
+    }
+
     let mut history = messages.clone();
-    let provider = state.provider_selector.get_active_provider().await?;
+    let provider = state
+        .provider_selector
+        .get_active_provider()
+        .await
+        .map_err(|e| e.to_string())?;
+
     let max_iterations = max_tool_iterations.unwrap_or(5);
     let tool_defs = state.tool_registry.to_ollama_tool_json().await;
     let has_images = messages_contain_images(&messages);
@@ -42,9 +75,17 @@ pub async fn chat_stream(
             None
         };
 
-        let mut stream = provider
+        // chat_completion errors (e.g. connection refused, model not found)
+        // are already normalized by the provider layer. Surface them as Err
+        // so the frontend .catch() handles them — never emit them as chat
+        // content.
+        let mut stream = match provider
             .chat_completion(model.clone(), history.clone(), system_prompt.clone(), tools)
-            .await?;
+            .await
+        {
+            Ok(s) => s,
+            Err(e) => emit_error_and_return!(e),
+        };
 
         let mut content_acc = String::new();
         let mut thinking_acc = String::new();
@@ -57,23 +98,12 @@ pub async fn chat_stream(
                 return Ok(());
             }
 
+            // Stream item errors (e.g. mid-stream disconnect) are also
+            // normalized by the provider. Return Err — the frontend .catch()
+            // will attach the error to the placeholder message.
             let mut chunk = match result {
                 Ok(c) => c,
-                Err(e) => {
-                    let err_msg = format!("\nError: Provider error: {}", e);
-                    let _ = app_handle.emit(
-                        "chat-chunk",
-                        StreamPayload {
-                            request_id: request_id.clone(),
-                            content: err_msg.clone(),
-                            thinking: None,
-                            tool_calls: None,
-                            done: true,
-                            metadata: None,
-                        },
-                    );
-                    return Err(err_msg);
-                }
+                Err(e) => emit_error_and_return!(e),
             };
 
             stream_done = chunk.done;
@@ -115,6 +145,7 @@ pub async fn chat_stream(
         }
 
         if tool_calls.is_empty() {
+            // Flush any trailing thinking state before the done sentinel.
             if !thinking_acc.is_empty() && content_acc.is_empty() {
                 let _ = app_handle.emit(
                     "chat-thinking",
@@ -141,14 +172,13 @@ pub async fn chat_stream(
             return Ok(());
         }
 
-        // Add assistant message with tool calls to history
+        // Tool call path — add assistant turn to history.
         history.push(ChatMessage {
             role: "assistant".to_string(),
             content: content_acc.clone(),
             attachments: None,
         });
 
-        // Execute tool calls
         for tool_call in &tool_calls {
             let tool_name = &tool_call.name;
             let tool_args = tool_call.arguments.clone();
@@ -218,6 +248,7 @@ pub async fn chat_stream(
         tool_calls.clear();
     }
 
+    // Max iterations reached — emit a clean done sentinel.
     let _ = app_handle.emit(
         "chat-chunk",
         StreamPayload {
@@ -243,7 +274,7 @@ pub async fn chat(
     let mut stream = provider
         .chat_completion(model, messages, None, None)
         .await?;
-    
+
     let mut full_content = String::new();
     while let Some(result) = stream.next().await {
         let chunk = result.map_err(|e| e.to_string())?;
@@ -257,13 +288,12 @@ pub async fn chat(
 }
 
 fn messages_contain_images(messages: &[ChatMessage]) -> bool {
-    messages
-        .iter()
-        .any(|message| {
-            message.attachments
-                .as_deref()
-                .unwrap_or_default()
-                .iter()
-                .any(|a| a.content_type.starts_with("image/"))
-        })
+    messages.iter().any(|message| {
+        message
+            .attachments
+            .as_deref()
+            .unwrap_or_default()
+            .iter()
+            .any(|a| a.content_type.starts_with("image/"))
+    })
 }

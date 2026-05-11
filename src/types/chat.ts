@@ -29,6 +29,8 @@ export interface ChatMessage {
   thinkingDuration?: number;
   isThinking?: boolean;
   isStreaming?: boolean;
+  status?: "queued" | "streaming" | "complete" | "error" | "aborted";
+  errorMessage?: string;
 }
 
 export interface Message extends ChatMessage {}

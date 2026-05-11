@@ -13,6 +13,7 @@ type ChatStore = {
   activeConversationId: string | null;
   streamingConversationId: string | null;
   messages: Message[];
+  streamingMessages: Record<string, Message>;
   hasMoreMessages: boolean;
   currentAttachments: Attachment[];
   actions: {
@@ -20,6 +21,8 @@ type ChatStore = {
     setActiveConversationId: (id: string | null) => Promise<void>;
     setStreamingConversationId: (id: string | null) => void;
     setMessages: (messages: Message[]) => void;
+    setStreamingMessage: (id: string, message: Message | null) => void;
+    patchStreamingMessage: (id: string, update: Partial<Message>) => void;
     loadMoreMessages: () => Promise<void>;
     addMessage: (message: {
       conversationId: string;
@@ -32,6 +35,9 @@ type ChatStore = {
       thinking?: string;
       thinkingDuration?: number;
       isThinking?: boolean;
+      isStreaming?: boolean;
+      status?: Message["status"];
+      errorMessage?: string;
     }) => Promise<Message>;
     loadConversations: () => Promise<void>;
     deleteConversation: (id: string) => Promise<void>;
@@ -52,6 +58,7 @@ export const useChatStore = create<ChatStore>((set) => ({
   activeConversationId: null,
   streamingConversationId: null,
   messages: [],
+  streamingMessages: {},
   hasMoreMessages: false,
   currentAttachments: [],
   actions: {
@@ -68,6 +75,22 @@ export const useChatStore = create<ChatStore>((set) => ({
       set({ conversations });
     },
     setStreamingConversationId: (id) => set({ streamingConversationId: id }),
+    setStreamingMessage: (id, message) => set((state) => {
+      const next = { ...state.streamingMessages };
+      if (message) next[id] = message;
+      else delete next[id];
+      return { streamingMessages: next };
+    }),
+    patchStreamingMessage: (id, update) => set((state) => {
+      const existing = state.streamingMessages[id];
+      if (!existing) return state;
+      return {
+        streamingMessages: {
+          ...state.streamingMessages,
+          [id]: { ...existing, ...update }
+        }
+      };
+    }),
     // Create a new conversation
     createConversation: async (title = "New Chat", isTemporary = false) => {
       const id = crypto.randomUUID();
@@ -179,26 +202,36 @@ export const useChatStore = create<ChatStore>((set) => ({
         thinking: message.thinking,
         thinkingDuration: message.thinkingDuration,
         isThinking: message.isThinking,
+        isStreaming: false,
+        status: message.status,
+        errorMessage: message.errorMessage,
       };
 
       const { conversations } = useChatStore.getState();
       const conversation = conversations.find(c => c.id === message.conversationId);
-      const isTemporary = conversation?.isTemporary ?? true; // Default to true if not found (new unsaved chat)
+      const isTemporary = conversation?.isTemporary ?? true;
 
-      set((state) => ({
-        messages: [...state.messages, payload],
-        conversations: state.conversations.map((c) =>
-          c.id === payload.conversationId
-            ? { ...c, updatedAt: payload.createdAt }
-            : c,
-        ),
-      }));
-      perfLog("store", "chatStore.addMessage.optimistic", {
-        conversationId: payload.conversationId,
-        role: payload.role,
-        hasAttachments: (payload.attachments?.length ?? 0) > 0,
-        contentLength: payload.content.length,
+      set((state) => {
+        const exists = state.messages.some(m => m.id === payload.id);
+        const nextMessages = exists 
+          ? state.messages.map(m => m.id === payload.id ? payload : m)
+          : [...state.messages, payload];
+
+        return {
+          messages: nextMessages,
+          conversations: state.conversations.map((c) =>
+            c.id === payload.conversationId
+              ? { ...c, updatedAt: payload.createdAt }
+              : c,
+          ),
+        };
       });
+
+      perfLog("store", "chatStore.addMessage.optimistic", {
+        id: payload.id,
+        role: payload.role,
+      });
+
       if (!isTemporary) {
         try {
           await db.addMessage(payload);

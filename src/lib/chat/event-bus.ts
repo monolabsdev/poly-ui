@@ -28,23 +28,44 @@ export type ToolInvocationPayload = {
   requires_approval: boolean;
 };
 
-export class StreamEventBus {
-  private unlisteners: UnlistenFn[] = [];
+type Handlers = {
+  onChunk: (payload: ChunkPayload) => void;
+  onThinking: (payload: ThinkingPayload) => void;
+  onTool: (payload: ToolInvocationPayload) => void;
+};
 
-  async subscribe(handlers: {
-    onChunk: (payload: ChunkPayload) => void;
-    onThinking: (payload: ThinkingPayload) => void;
-    onTool: (payload: ToolInvocationPayload) => void;
-  }) {
-    this.unlisteners = await Promise.all([
-      listen<ChunkPayload>("chat-chunk", (e) => handlers.onChunk(e.payload)),
-      listen<ThinkingPayload>("chat-thinking", (e) => handlers.onThinking(e.payload)),
-      listen<ToolInvocationPayload>("tool-invocation", (e) => handlers.onTool(e.payload)),
-    ]);
+export class StreamEventBus {
+  private static instance: StreamEventBus;
+  private unlisteners: (UnlistenFn | Promise<UnlistenFn>)[] = [];
+  private handlers: Handlers | null = null;
+
+  static getInstance() {
+    if (!this.instance) this.instance = new StreamEventBus();
+    return this.instance;
   }
 
-  unsubscribe() {
-    this.unlisteners.forEach((u) => u());
+  async subscribe(handlers: Handlers) {
+    this.handlers = handlers;
+    if (this.unlisteners.length > 0) return;
+
+    this.unlisteners = [
+      listen<ChunkPayload>("chat-chunk", (e) => this.handlers?.onChunk(e.payload)),
+      listen<ThinkingPayload>("chat-thinking", (e) => this.handlers?.onThinking(e.payload)),
+      listen<ToolInvocationPayload>("tool-invocation", (e) => this.handlers?.onTool(e.payload)),
+    ];
+  }
+
+  async unsubscribe() {
+    const toUnsubscribe = [...this.unlisteners];
     this.unlisteners = [];
+    this.handlers = null;
+    
+    for (const u of toUnsubscribe) {
+      const fn = await u;
+      fn();
+    }
   }
 }
+
+export const streamEventBus = StreamEventBus.getInstance();
+

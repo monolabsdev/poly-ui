@@ -4,7 +4,6 @@ import {
   SystemPrompt,
 } from "@/store/modelStore";
 import { useOllama } from "@/services/ollama";
-import { useProviderStore } from "@/services/providers";
 import {
   Box,
   Select,
@@ -63,8 +62,6 @@ export const Header = memo(function Header({
   onSystemPromptChange,
 }: HeaderProps) {
   const ollama = useOllama();
-  const providers = useProviderStore((state) => state.providers);
-  const activeProvider = providers.find((p) => p.status === "Online") || providers.find(p => p.config.enabled);
 
   const hasAnyModels = ollama.models.length > 0;
   const isOllamaLoading = ollama.state === "loading" || ollama.state === "reconnecting";

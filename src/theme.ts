@@ -14,6 +14,12 @@ declare module "@mui/material/styles" {
       bubbleUser: string;
     };
   }
+  interface PaletteColor {
+    soft: string;
+  }
+  interface SimplePaletteColorOptions {
+    soft?: string;
+  }
   interface PaletteOptions {
     border?: {
       light?: string;
@@ -111,6 +117,11 @@ export const darkTheme = createTheme({
     },
     success: {
       main: "#4ade80",
+      soft: "rgba(74, 222, 128, 0.1)",
+    },
+    error: {
+      main: "#f87171",
+      soft: "rgba(248, 113, 113, 0.1)",
     },
   },
 });
@@ -148,6 +159,14 @@ export const lightTheme = createTheme({
     chat: {
       bubble: "#f3f3f3",
       bubbleUser: "#e5e5e5",
+    },
+    success: {
+      main: "#22c55e",
+      soft: "rgba(34, 197, 94, 0.1)",
+    },
+    error: {
+      main: "#ef4444",
+      soft: "rgba(239, 68, 68, 0.1)",
     },
   },
 });

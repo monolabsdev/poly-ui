@@ -296,6 +296,8 @@ export const ChatArea = memo(function ChatArea({
                         thinkingDuration={msg.thinkingDuration}
                         isThinking={msg.isThinking}
                         isStreaming={msg.isStreaming}
+                        status={msg.status}
+                        errorMessage={msg.errorMessage}
                         messageIndex={turn.startIndex + 1 + msgIndex}
                         onRegenerate={onRegenerate}
                       />

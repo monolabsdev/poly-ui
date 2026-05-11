@@ -5,6 +5,8 @@ import {
   RotateCcw,
   Check,
   Paperclip,
+  AlertCircle,
+  StopCircle,
 } from "lucide-react";
 import { memo, useState, useEffect, useMemo } from "react";
 import ReactMarkdown from "react-markdown";
@@ -27,7 +29,11 @@ import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { motion, AnimatePresence } from "motion/react";
 import { useTiming, ANIMATION_VARIANTS } from "@/lib/motion";
 import { useNotify } from "@/hooks/useNotify";
-import { PRETEXT_FONTS, PRETEXT_LINE_HEIGHTS, measureTextHeight } from "@/lib/pretext";
+import {
+  PRETEXT_FONTS,
+  PRETEXT_LINE_HEIGHTS,
+  measureTextHeight,
+} from "@/lib/pretext";
 
 export interface MessageProps {
   role: Role;
@@ -39,6 +45,8 @@ export interface MessageProps {
   thinkingDuration?: number;
   isThinking?: boolean;
   isStreaming?: boolean;
+  status?: "queued" | "streaming" | "complete" | "error" | "aborted";
+  errorMessage?: string;
   onRegenerate?: (messageIndex: number) => void;
 }
 
@@ -52,7 +60,6 @@ const CodeBlock = ({
   [key: string]: any;
 }) => {
   const [copied, setCopied] = useState(false);
-
   const notify = useNotify();
 
   const handleCopy = () => {
@@ -88,7 +95,8 @@ const CodeBlock = ({
             bgcolor: "rgba(30, 30, 30, 0.4)",
             backdropFilter: "blur(4px)",
             opacity: 0,
-            transition: "opacity 0.18s ease, background-color 0.18s ease, color 0.18s ease",
+            transition:
+              "opacity 0.18s ease, background-color 0.18s ease, color 0.18s ease",
             "&:hover": {
               color: "rgba(255, 255, 255, 0.9)",
               bgcolor: "rgba(30, 30, 30, 0.7)",
@@ -123,8 +131,6 @@ const CodeBlock = ({
   );
 };
 
-// markdownComponents moved inside Message component as useMemo
-
 export const Message = memo(function Message({
   role,
   content,
@@ -135,6 +141,8 @@ export const Message = memo(function Message({
   thinkingDuration,
   isThinking,
   isStreaming,
+  status,
+  errorMessage,
   onRegenerate,
 }: MessageProps) {
   const [copied, setCopied] = useState(false);
@@ -146,19 +154,16 @@ export const Message = memo(function Message({
 
   useEffect(() => {
     if (isStreaming && content) {
-      // Assuming a standard width for the message bubble
-      // In a real app we'd measure the container width, but 600 is a safe estimate for 80% of 768px
       const h = measureTextHeight(
-        content, 
-        PRETEXT_FONTS.message, 
-        600, 
-        PRETEXT_LINE_HEIGHTS.message
+        content,
+        PRETEXT_FONTS.message,
+        600,
+        PRETEXT_LINE_HEIGHTS.message,
       );
       setMinHeight(h);
     }
   }, [isStreaming, content]);
 
-  // Memoize processed content to avoid re-parsing markdown on every render
   const processedContent = useMemo(() => {
     if (!content) return "";
     return content
@@ -168,7 +173,6 @@ export const Message = memo(function Message({
       .replace(/\\\)/g, "$");
   }, [content]);
 
-  // Memoize processed thinking
   const processedThinking = useMemo(() => {
     if (!thinking) return "";
     return thinking
@@ -178,48 +182,46 @@ export const Message = memo(function Message({
       .replace(/\\\)/g, "$");
   }, [thinking]);
 
-  // Memoize markdown components to avoid recreating on every render
-  const markdownComponents = useMemo(() => ({
-    pre: ({ children }: any) => <>{children}</>,
-    code({ inline, className, children, ...props }: any) {
-      const match = /language-(\w+)/.exec(className || "");
-      if (!inline) {
+  const markdownComponents = useMemo(
+    () => ({
+      pre: ({ children }: any) => <>{children}</>,
+      code({ inline, className, children, ...props }: any) {
+        const match = /language-(\w+)/.exec(className || "");
+        if (!inline) {
+          return (
+            <CodeBlock
+              language={match ? match[1] : null}
+              value={String(children).replace(/\n$/, "")}
+              {...props}
+            />
+          );
+        }
         return (
-          <CodeBlock
-            language={match ? match[1] : null}
-            value={String(children).replace(/\n$/, "")}
-            {...props}
-          />
+          <code className={clsx(className, inline && "inline-code")} {...props}>
+            {children}
+          </code>
         );
-      }
-      return (
-        <code className={clsx(className, inline && "inline-code")} {...props}>
-          {children}
-        </code>
-      );
-    },
-  }), []);
+      },
+    }),
+    [],
+  );
 
   useEffect(() => {
     if (isThinking) {
       setThinkingExpanded(true);
       return;
     }
-
     if (thinking && !isThinking) {
       setThinkingExpanded(false);
     }
   }, [isThinking, Boolean(thinking)]);
+
   const canRegenerate =
     typeof messageIndex === "number" && typeof onRegenerate === "function";
 
   useEffect(() => {
     if (!copied) return;
-
-    const timeout = setTimeout(() => {
-      setCopied(false);
-    }, 2000);
-
+    const timeout = setTimeout(() => setCopied(false), 2000);
     return () => clearTimeout(timeout);
   }, [copied]);
 
@@ -279,7 +281,8 @@ export const Message = memo(function Message({
                   alignItems: "center",
                   p: isImageAttachment(att.type) ? 0 : 1.5,
                   gap: 1.5,
-                  transition: "background-color 0.18s ease, border-color 0.18s ease",
+                  transition:
+                    "background-color 0.18s ease, border-color 0.18s ease",
                 }}
               >
                 {isImageAttachment(att.type) ? (
@@ -407,8 +410,90 @@ export const Message = memo(function Message({
           </Typography>
         )}
 
+        {status === "error" && (
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1.5,
+              mb: 2,
+              p: 1.5,
+              borderRadius: "12px",
+              bgcolor: "error.soft",
+              border: "1px solid",
+              borderColor: "error.main",
+              color: "error.main",
+            }}
+          >
+            <AlertCircle size={18} />
+            <Box>
+              <Typography
+                variant="caption"
+                sx={{
+                  fontWeight: 700,
+                  display: "block",
+                  textTransform: "uppercase",
+                  fontSize: "10px",
+                }}
+              >
+                Generation Error
+              </Typography>
+              <Typography
+                variant="body2"
+                sx={{ fontSize: "13px", opacity: 0.9 }}
+              >
+                {errorMessage || "The provider encountered an issue."}
+              </Typography>
+              {onRegenerate && typeof messageIndex === "number" && (
+                <IconButton
+                  size="small"
+                  onClick={() => onRegenerate(messageIndex)}
+                  sx={{
+                    mt: 1,
+                    color: "error.main",
+                    bgcolor: "rgba(248, 113, 113, 0.1)",
+                    borderRadius: "8px",
+                    px: 2,
+                    py: 0.5,
+                    gap: 1,
+                    "&:hover": { bgcolor: "rgba(248, 113, 113, 0.2)" },
+                  }}
+                >
+                  <RotateCcw size={14} />
+                  <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                    Retry
+                  </Typography>
+                </IconButton>
+              )}
+            </Box>
+          </Box>
+        )}
+
+        {status === "aborted" && (
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+              mb: 1,
+              color: "text.secondary",
+              opacity: 0.7,
+            }}
+          >
+            <StopCircle size={14} />
+            <Typography
+              variant="caption"
+              sx={{ fontSize: "11px", fontWeight: 500 }}
+            >
+              Generation stopped by user
+            </Typography>
+          </Box>
+        )}
+
         {(thinking || isThinking) && (
-          <Box sx={{ mb: 2, maxWidth: isUser ? "100%" : { xs: "90%", sm: "80%" } }}>
+          <Box
+            sx={{ mb: 2, maxWidth: isUser ? "100%" : { xs: "90%", sm: "80%" } }}
+          >
             <Box onClick={() => setThinkingExpanded(!thinkingExpanded)}>
               <ThinkingIndicator
                 isActive={isThinking}
@@ -476,10 +561,7 @@ export const Message = memo(function Message({
                 fontSize: "15px",
               },
               "& pre": { mb: 2, p: 0, borderRadius: "8px", overflow: "hidden" },
-              "& code": {
-                fontFamily: "monospace",
-                fontSize: "0.9em",
-              },
+              "& code": { fontFamily: "monospace", fontSize: "0.9em" },
               "& code.inline-code": {
                 bgcolor: "action.hover",
                 px: 0.6,
@@ -540,12 +622,7 @@ export const Message = memo(function Message({
 
         <Box
           className="action-bar"
-          sx={{
-            mt: 1,
-            display: "flex",
-            alignItems: "center",
-            gap: 1,
-          }}
+          sx={{ mt: 1, display: "flex", alignItems: "center", gap: 1 }}
         >
           <Tooltip title={copied ? "Copied" : "Copy"}>
             <IconButton
@@ -557,7 +634,10 @@ export const Message = memo(function Message({
               onClick={handleCopy}
               sx={{
                 color: copied ? "success.main" : "text.secondary",
-                "&:hover": { color: copied ? "success.main" : "text.primary", bgcolor: "action.hover" },
+                "&:hover": {
+                  color: copied ? "success.main" : "text.primary",
+                  bgcolor: "action.hover",
+                },
               }}
             >
               <AnimatePresence mode="wait">
