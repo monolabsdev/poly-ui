@@ -1,86 +1,96 @@
-# Contributing to Openbench
+# Contributing to OpenBench
 
-Thank you for your interest in contributing to Openbench! We welcome contributions of all kinds, from bug fixes to new features and documentation improvements.
+Thank you for considering contributing to OpenBench! We welcome contributions from the community.
 
-## Development Environment
+## How to Contribute
 
-Openbench is a Tauri 2 application with a React frontend and a Rust backend.
+### Reporting Issues
+- Use the [GitHub Issues](https://github.com/tslater/openbench/issues) to report bugs or request features.
+- Please include:
+  - Clear description of the issue
+  - Steps to reproduce (for bugs)
+  - Expected vs actual behavior
+  - Screenshots or logs if applicable
+  - Environment details (OS, Tauri version, etc.)
 
-### Prerequisites
+### Suggesting Features
+- Open an issue with the feature request
+- Describe the use case and expected benefits
+- Consider providing mockups or examples if helpful
 
-- [Ollama](https://ollama.com/) installed and running
-- [Bun](https://bun.sh/) (preferred package manager)
-- [Rust toolchain](https://rustup.rs/)
+## Development Setup
 
-### Setup
-
-1. Clone the repository:
+1. Fork the repository
+2. Clone your fork:
    ```bash
    git clone https://github.com/your-username/openbench.git
-   cd openbench
    ```
-
-2. Install dependencies:
+3. Install dependencies:
    ```bash
    bun install
    ```
-
-3. Run in development mode:
+4. Ensure you have the Tauri prerequisites installed for your platform
+5. Start the development server:
    ```bash
    bun run tauri dev
    ```
 
-## Project Structure
+## Coding Standards
 
-- `src/`: React frontend code.
-  - `components/`: UI components (MUI + Tailwind).
-  - `store/`: Zustand state management.
-  - `hooks/`: Custom React hooks, including `useChatStream.ts` for core logic.
-  - `lib/`: Utility functions and database layer (`db.ts`).
-- `src-tauri/`: Rust backend code.
-  - `src/lib.rs`: Tauri commands and core logic.
-  - `src/auth.rs`: Authentication logic.
-  - `src/db.rs`: SQLx database connection.
+- Follow the existing code style in the repository
+- TypeScript Strict mode is enabled; ensure new code passes type checking
+- React components should be functional components with hooks
+- State management should use Zustand stores
+- Tailwind CSS classes should be used for styling; avoid inline styles
+- Commit messages should be clear and descriptive
+- Pull requests should target the `main` branch
 
-## Development Guidelines
+## Pull Request Process
 
-### Frontend
+1. Create a new branch for your feature or fix:
+   ```bash
+   git checkout -b feature/your-feature-name
+   ```
+2. Make your changes and commit with a clear message
+3. Push to your fork and open a pull request
+4. Ensure your PR includes:
+   - Description of changes
+   - Related issue number (if applicable)
+   - Screenshots or demo for UI changes
+   - Any necessary database migrations
+5. Maintainers will review and provide feedback
+6. Once approved, maintainers will merge the PR
 
-- **State Management:** Use Zustand stores in `src/store/`.
-- **Styling:** Use a mix of Tailwind CSS and MUI components. Follow existing patterns.
-- **Hooks:** Keep complex logic in custom hooks.
-- **Database:** All persistent data should go through `src/lib/db.ts`.
+## Testing Guidelines
 
-### Backend (Rust)
+- Test new features thoroughly before submitting
+- Ensure existing functionality is not broken
+- For UI changes, test on different screen sizes if applicable
+- Test both light and dark themes
+- Verify that authentication and session management work correctly
+- Test with different AI providers if your changes affect provider integration
 
-- **Commands:** Define new Tauri commands in `src-tauri/src/lib.rs`.
-- **Error Handling:** Use `Result<T, String>` for command return types to show errors in the frontend.
-- **Streaming:** Use `app_handle.emit()` to stream data back to the frontend.
+## Documentation
 
-### Thinking Blocks
+- Update the README.md if your changes affect usage or setup
+- Add JSDoc comments for new public functions and types
+- Update the CONTRIBUTING.md if you change the contribution process
 
-The app supports reasoning models that use `<think>` (Qwen/DeepSeek) or `<|channel>thought` (Gemma) tags. If you modify the message parsing logic, ensure these blocks are correctly extracted and displayed in the UI.
+## Database Migrations
 
-## Testing
+- If your changes require database schema changes, add a new migration file in `src-tauri/src/db/migrations/`
+- Follow the naming convention: `YYYYMMDDHHMMSS_description.sql`
+- Ensure migrations are backward compatible where possible
 
-Before submitting a PR, please ensure:
+## Reporting Security Issues
 
-1. The project builds correctly: `bun run build` and `bun run tauri build`.
-2. You've tested your changes with a live Ollama instance if possible.
-3. You can use `/dev on` in the chat input to test UI changes without Ollama.
+- Please do not report security vulnerabilities through public GitHub issues
+- Contact the maintainers directly through GitHub security advisories
 
-## Submitting Changes
+## Community
 
-1. Create a new branch for your feature or bug fix.
-2. Make your changes and commit them with descriptive messages.
-3. Push your branch and open a Pull Request.
+- Be respectful and constructive in all interactions
+- Follow the [Contributor Covenant](https://www.contributor-covenant.org/version/2/0/code_of_conduct/) Code of Conduct
+- Help others in the community when possible
 
-## Code Style
-
-- Follow the existing code style and formatting in the project.
-- Use TypeScript for all frontend code.
-- Add comments to explain complex logic, especially in the streaming and parsing code.
-
-## Questions?
-
-If you have any questions, feel free to open an issue or reach out to the maintainers.
+Thank you for contributing to OpenBench!
