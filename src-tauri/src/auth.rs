@@ -163,11 +163,18 @@ pub async fn auth_login(
 }
 
 #[command]
-pub async fn auth_logout() -> Result<(), String> {
-    // In a real app, we'd need the token to delete it.
-    // Since we don't have it here, we might need to pass it from frontend or
-    // manage it in app state.
-    // For now, let's assume the frontend will pass it or we'll just return OK.
+pub async fn auth_logout(
+    state: State<'_, AppState>,
+    token: String,
+) -> Result<(), String> {
+    let pool = &state.db;
+
+    sqlx::query("DELETE FROM sessions WHERE token = ?")
+        .bind(&token)
+        .execute(pool)
+        .await
+        .map_err(|e| e.to_string())?;
+
     Ok(())
 }
 

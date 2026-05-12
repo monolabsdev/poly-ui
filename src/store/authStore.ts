@@ -48,7 +48,10 @@ export const useAuthStore = create<AuthStore>((set) => ({
     logout: async () => {
       set({ isLoading: true });
       try {
-        await loggedInvoke("auth_logout");
+        const token = localStorage.getItem("session_token");
+        if (token) {
+          await loggedInvoke("auth_logout", { token });
+        }
         localStorage.removeItem("session_token");
         set({ user: null, isAuthenticated: false, isLoading: false });
       } catch (err) {
