@@ -26,15 +26,37 @@ pub async fn pull_model(
 ) -> Result<(), String> {
     state.is_pull_cancelled.store(false, Ordering::SeqCst);
     let provider = state.provider_selector.get_active_provider().await?;
-    let mut stream = provider.pull_model(model).await?;
 
+    let mut stream = provider.pull_model(model.clone()).await.map_err(|e| {
+        format!("Failed to start pull: {}", e)
+    })?;
+
+    let mut last_error = String::new();
     while let Some(result) = stream.next().await {
         if state.is_pull_cancelled.load(Ordering::SeqCst) {
             return Err("Pull cancelled by user".to_string());
         }
 
-        let payload = result.map_err(|e| e.to_string())?;
-        let _ = app_handle.emit("pull-progress", payload);
+        match result {
+            Ok(payload) => {
+                let _ = app_handle.emit("pull-progress", payload);
+            }
+            Err(e) => {
+                last_error = e;
+            }
+        }
+    }
+
+    if !last_error.is_empty() {
+        // Check if it's a parse error vs actual failure
+        let lower = last_error.to_lowercase();
+        if lower.contains("decode") {
+            return Err(format!(
+                "Failed to pull {}: Ollama returned an invalid response. The model may still have been downloaded - try refreshing the model list.",
+                model
+            ));
+        }
+        return Err(format!("Failed to pull {}: {}", model, last_error));
     }
 
     Ok(())

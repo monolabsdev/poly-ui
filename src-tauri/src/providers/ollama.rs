@@ -5,6 +5,7 @@ use futures::Stream;
 use ollama_rs::generation::chat::request::ChatMessageRequest;
 use ollama_rs::generation::chat::ChatMessage as OllamaChatMessage;
 use ollama_rs::generation::tools::{ToolFunctionInfo, ToolInfo, ToolType};
+use ollama_rs::models::ModelOptions;
 use ollama_rs::Ollama;
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION};
 use schemars::Schema;
@@ -19,10 +20,11 @@ pub struct OllamaProvider {
 
 impl OllamaProvider {
     pub fn new(base_url: String, provider_type: ProviderType, api_key: Option<String>) -> Self {
-        let mut host = base_url;
-        if !host.starts_with("http") {
-            host = format!("http://{}", host);
-        }
+        let host = if base_url.starts_with("http") {
+            base_url
+        } else {
+            format!("http://{base_url}")
+        };
 
         let mut headers = HeaderMap::new();
         if let Some(ref key) = api_key {
@@ -33,7 +35,7 @@ impl OllamaProvider {
 
         let reqwest_client = reqwest::Client::builder()
             .default_headers(headers)
-            .timeout(std::time::Duration::from_secs(5))
+            .timeout(std::time::Duration::from_secs(60))
             .build()
             .unwrap_or_default();
 
@@ -80,7 +82,6 @@ fn normalize_ollama_stream_error(raw: impl std::fmt::Debug) -> String {
     normalize_msg(&msg, debug)
 }
 
-// Shared pattern-matching logic.
 fn normalize_msg(msg: &str, raw: String) -> String {
     if msg.contains("connection refused") || msg.contains("connect error") {
         return "Ollama is not running. Start Ollama and try again.".to_string();
@@ -91,6 +92,12 @@ fn normalize_msg(msg: &str, raw: String) -> String {
     }
     if msg.contains("model") && (msg.contains("not found") || msg.contains("404")) {
         return "Model not found. Run `ollama pull <model>` to download it.".to_string();
+    }
+    if msg.contains("does not support tools") {
+        return "This model does not support tools. Retrying without tools.".to_string();
+    }
+    if msg.contains("internal server error") {
+        return "Ollama internal error. Try: 1) Pull the model again, 2) Restart Ollama, 3) Check `ollama logs` for details.".to_string();
     }
     if msg.contains("reqwest") {
         return format!("Network error reaching Ollama: {}", raw);
@@ -120,6 +127,7 @@ impl LLMProvider for OllamaProvider {
         messages: Vec<ChatMessage>,
         system_prompt: Option<String>,
         tools: Option<Vec<serde_json::Value>>,
+        options: Option<serde_json::Value>,
     ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamPayload, String>> + Send>>, String> {
         let mut history: Vec<OllamaChatMessage> = Vec::new();
 
@@ -154,6 +162,12 @@ impl LLMProvider for OllamaProvider {
         }
 
         let mut request = ChatMessageRequest::new(model.clone(), history);
+
+        if let Some(opt) = options {
+            if let Ok(model_opts) = serde_json::from_value::<ModelOptions>(opt) {
+                request.options = Some(model_opts);
+            }
+        }
 
         if let Some(tool_defs) = tools {
             let ollama_tools: Vec<ToolInfo> = tool_defs

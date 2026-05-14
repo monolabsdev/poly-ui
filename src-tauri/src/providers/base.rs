@@ -39,6 +39,7 @@ pub trait LLMProvider: Send + Sync {
         messages: Vec<ChatMessage>,
         system_prompt: Option<String>,
         tools: Option<Vec<serde_json::Value>>,
+        options: Option<serde_json::Value>,
     ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamPayload, String>> + Send>>, String>;
     async fn get_available_models(&self) -> Result<Vec<crate::models::chat::ModelDetails>, String>;
     async fn pull_model(&self, model: String) -> Result<Pin<Box<dyn Stream<Item = Result<crate::models::chat::PullProgressPayload, String>> + Send>>, String>;

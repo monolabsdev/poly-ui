@@ -1,7 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { invoke } from "@tauri-apps/api/core";
-import { useInspectorStore } from "@/store/inspectorStore";
 
 type InvokeArgs = Record<string, unknown>;
 
@@ -16,41 +15,19 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export async function loggedInvoke<T>(cmd: string, args: InvokeArgs = {}): Promise<T> {
-  const { addLog, updateLog } = useInspectorStore.getState().actions;
-  const requestId = crypto.randomUUID();
   const startTime = Date.now();
-
-  const request = {
-    url: `tauri://${cmd}`,
-    method: "POST" as const,
-    headers: {},
-    body: args,
-  };
   const payloadBytes = estimateJsonBytes(args);
-
-  addLog({
-    id: requestId,
-    model: "system",
-    request,
-    timing: { startTime },
-  });
-
-  const finishLog = (status: number, body: unknown) => {
-    const totalTime = Date.now() - startTime;
-    perfLog("tauri-invoke", cmd, { status, payloadBytes, responseBytes: estimateJsonBytes(body as InvokeArgs) }, totalTime);
-    updateLog(requestId, {
-      response: { status, headers: {}, body },
-      timing: { startTime, totalTime },
-    });
-  };
 
   try {
     const result = await invoke<T>(cmd, args);
-    finishLog(200, result ?? { success: true });
+    const responseBytes = estimateJsonBytes(result as InvokeArgs ?? {});
+    const totalTime = Date.now() - startTime;
+    perfLog("tauri-invoke", cmd, { status: 200, payloadBytes, responseBytes }, totalTime);
     return result;
   } catch (error: unknown) {
+    const totalTime = Date.now() - startTime;
     const errorMessage = error instanceof Error ? error.message : String(error ?? "Unknown error");
-    finishLog(500, { error: errorMessage });
+    perfLog("tauri-invoke", cmd, { status: 500, payloadBytes, error: errorMessage }, totalTime);
     throw error;
   }
 }

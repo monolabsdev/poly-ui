@@ -53,7 +53,6 @@ function measureSyncInteraction<T>(
 
 function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isInspectorOpen, setIsInspectorOpen] = useState(false);
   const stopStreamingRef = useRef<(() => void) | null>(null);
   const notify = useNotify();
   const {
@@ -201,14 +200,6 @@ function App() {
     });
   }, [addSelectedModel]);
 
-  const handleToggleInspector = useCallback(() => {
-    setIsInspectorOpen((v) => !v);
-  }, []);
-
-  const handleCloseInspector = useCallback(() => {
-    setIsInspectorOpen(false);
-  }, []);
-
   return (
     <SidebarProvider>
       <Sidebar
@@ -229,8 +220,6 @@ function App() {
           onAddModel={handleAddModel}
           onRemoveModel={removeSelectedModel}
           onSetDefault={handleSetDefaultModel}
-          onToggleInspector={handleToggleInspector}
-          isInspectorOpen={isInspectorOpen}
           isTemporary={isTemporary}
           onToggleTemporaryChat={handleToggleTemporaryChat}
           systemPrompts={systemPrompts}
@@ -257,8 +246,6 @@ function App() {
               systemPromptContent={systemPromptContent}
               userName={user?.fullName || user?.email}
               isTemporary={isTemporary}
-              isInspectorOpen={isInspectorOpen}
-              onCloseInspector={handleCloseInspector}
               onStopStreamingReady={handleStopStreamingReady}
             />
           </Suspense>

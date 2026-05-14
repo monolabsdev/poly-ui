@@ -50,7 +50,7 @@ export interface MessageProps {
   onRegenerate?: (messageIndex: number) => void;
 }
 
-const CodeBlock = ({
+const CodeBlock = memo(function CodeBlock({
   language,
   value,
   ...props
@@ -58,7 +58,7 @@ const CodeBlock = ({
   language: string | null;
   value: string;
   [key: string]: any;
-}) => {
+}) {
   const [copied, setCopied] = useState(false);
   const notify = useNotify();
 
@@ -129,7 +129,7 @@ const CodeBlock = ({
       </SyntaxHighlighter>
     </Box>
   );
-};
+});
 
 export const Message = memo(function Message({
   role,

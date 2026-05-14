@@ -4,7 +4,6 @@ import { useShallow } from "zustand/react/shallow";
 import { ChatArea } from "@/components/Chat/ChatArea";
 import { ChatInput } from "@/components/Chat/ChatInput";
 import { EmptyState } from "@/components/Chat/EmptyState";
-import { InspectorPanel } from "@/components/Inspector/InspectorPanel";
 import { useChatStream } from "@/hooks/useChatStream";
 import { useChatStore } from "@/store/chatStore";
 import type { ChatMessage } from "@/types/chat";
@@ -15,8 +14,6 @@ type ChatWorkspaceProps = {
   systemPromptContent: string;
   userName?: string;
   isTemporary: boolean;
-  isInspectorOpen: boolean;
-  onCloseInspector: () => void;
   onStopStreamingReady: (stopStreaming: (() => void) | null) => void;
 };
 
@@ -34,8 +31,6 @@ export default function ChatWorkspace({
   systemPromptContent,
   userName,
   isTemporary,
-  isInspectorOpen,
-  onCloseInspector,
   onStopStreamingReady,
 }: ChatWorkspaceProps) {
   const { messages, isStreaming, sendMessage, stopStreaming, bottomRef, hasMessages } =
@@ -127,12 +122,6 @@ export default function ChatWorkspace({
           flexDirection: "column",
           overflow: "hidden",
           justifyContent: "flex-start",
-          transition: (theme) =>
-            theme.transitions.create("margin", {
-              easing: theme.transitions.easing.sharp,
-              duration: theme.transitions.duration.leavingScreen,
-            }),
-          marginRight: isInspectorOpen ? "0px" : "-350px",
           width: "100%",
         }}
       >
@@ -171,7 +160,6 @@ export default function ChatWorkspace({
           />
         )}
       </Box>
-      <InspectorPanel open={isInspectorOpen} onClose={onCloseInspector} />
     </>
   );
 }

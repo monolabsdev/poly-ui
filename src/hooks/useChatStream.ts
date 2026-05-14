@@ -1,16 +1,15 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { useShallow } from "zustand/react/shallow";
 import type { ChatMessage, Attachment } from "@/types/chat";
 import { useChatStore } from "@/store/chatStore";
-import { useInspectorStore } from "@/store/inspectorStore";
-import { useToolStore } from "@/store/toolStore";
 import { loggedInvoke } from "@/lib/utils";
 import { useNotify } from "@/hooks/useNotify";
 import { useOllamaStore } from "@/services/ollama/monitor";
-import {
-  buildSystemPrompt,
-  processTemporalVariables,
-} from "@/lib/chat/prompts";
+import { buildSystemPrompt } from "@/lib/chat/prompts";
+import { defaultPreprocessor } from "@/lib/chat/message-preprocessor";
+import { toolApprovalHandler } from "@/lib/chat/tool-approval-handler";
+import { conversationNamer, shouldAutoName } from "@/lib/chat/conversation-namer";
 import {
   streamEventBus,
   type ChunkPayload,
@@ -35,9 +34,14 @@ import {
 // ---------------------------------------------------------------------------
 
 export function useChatStream(selectedModels: string[], systemPrompt = "") {
-  const messages = useChatStore((s) => s.messages);
-  const streamingMessages = useChatStore((s) => s.streamingMessages);
-  const activeConversationId = useChatStore((s) => s.activeConversationId);
+  // Use useShallow to prevent re-renders when other messages in the store change
+  const { messages, streamingMessages, activeConversationId } = useChatStore(
+    useShallow((s) => ({
+      messages: s.messages,
+      streamingMessages: s.streamingMessages,
+      activeConversationId: s.activeConversationId,
+    }))
+  );
 
   const {
     addMessage,
@@ -45,7 +49,6 @@ export function useChatStream(selectedModels: string[], systemPrompt = "") {
     setStreamingMessage,
     patchStreamingMessage,
   } = useChatStore((s) => s.actions);
-  const { addLog } = useInspectorStore((s) => s.actions);
   const notify = useNotify();
 
   const [isStreaming, setIsStreaming] = useState(false);
@@ -71,12 +74,10 @@ export function useChatStream(selectedModels: string[], systemPrompt = "") {
     activeConversationIdRef.current = activeConversationId;
   }, [activeConversationId]);
 
-  // Sync streaming conversation id into store.
   useEffect(() => {
     setStreamingConversationId(isStreaming ? activeConversationId : null);
   }, [isStreaming, activeConversationId, setStreamingConversationId]);
 
-  // Reset stream state whenever the active conversation changes.
   useEffect(() => {
     cancelRef.current = true;
     resetStreamState();
@@ -86,7 +87,6 @@ export function useChatStream(selectedModels: string[], systemPrompt = "") {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeConversationId]);
 
-  // Auto-scroll.
   useEffect(() => {
     requestAnimationFrame(() =>
       bottomRef.current?.scrollIntoView({ behavior: "auto", block: "end" }),
@@ -110,6 +110,11 @@ export function useChatStream(selectedModels: string[], systemPrompt = "") {
     Object.keys(requestIdToMessageIdRef.current).forEach((rid) => {
       const mid = requestIdToMessageIdRef.current[rid];
       if (current[mid]) setStreamingMessage(mid, null);
+      
+      // Cleanup pending token batches
+      const batch = pendingBatchesRef[rid];
+      if (batch?.timer) clearTimeout(batch.timer);
+      delete pendingBatchesRef[rid];
     });
     contentAccRef.current = {};
     thinkingAccRef.current = {};
@@ -122,6 +127,35 @@ export function useChatStream(selectedModels: string[], systemPrompt = "") {
     pendingStreamsRef.current = Math.max(0, pendingStreamsRef.current - 1);
     if (pendingStreamsRef.current === 0) setIsStreaming(false);
   }, []);
+
+  // Token batching: accumulate tokens, update state every ~16ms to reduce re-renders
+const pendingBatchesRef: Record<string, { content: string; timer: number | null }> = {};
+
+const flushTokenBatch = (requestId: string, messageId: string) => {
+  const batch = pendingBatchesRef[requestId];
+  if (!batch || !batch.content) return;
+  
+  const { patchStreamingMessage } = useChatStore.getState().actions;
+  patchStreamingMessage(messageId, { content: batch.content, status: "streaming" });
+  batch.content = "";
+  batch.timer = null;
+};
+
+const queueTokenBatch = (requestId: string, messageId: string, newContent: string) => {
+  let batch = pendingBatchesRef[requestId];
+  if (!batch) {
+    batch = { content: "", timer: null };
+    pendingBatchesRef[requestId] = batch;
+  }
+  
+  batch.content = newContent;
+  
+  if (!batch.timer) {
+    batch.timer = window.setTimeout(() => {
+      flushTokenBatch(requestId, messageId);
+    }, 16); // ~1 frame at 60fps
+  }
+};
 
   // -------------------------------------------------------------------------
   // Stream event handlers.
@@ -146,8 +180,16 @@ export function useChatStream(selectedModels: string[], systemPrompt = "") {
       contentAccRef.current[request_id] = acc;
 
       if (!done) {
-        patchStreamingMessage(messageId, { content: acc, status: "streaming" });
+        // Batch token updates to reduce re-renders
+        queueTokenBatch(request_id, messageId, acc);
         return;
+      }
+
+      // Flush any pending batch before finalizing
+      const batch = pendingBatchesRef[request_id];
+      if (batch?.timer) {
+        clearTimeout(batch.timer);
+        flushTokenBatch(request_id, messageId);
       }
 
       // Finalize: read model from store at call time, not from closure.
@@ -172,6 +214,13 @@ export function useChatStream(selectedModels: string[], systemPrompt = "") {
           model: existing?.model ?? "unknown",
           status: "complete",
         });
+
+        const needsNaming = await shouldAutoName(conversationId);
+        if (needsNaming) {
+          const allMessages = useChatStore.getState().messages;
+          const model = existing?.model;
+          if (model) conversationNamer.nameConversation(conversationId, allMessages, model);
+        }
       }
 
       setStreamingMessage(messageId, null);
@@ -205,17 +254,10 @@ export function useChatStream(selectedModels: string[], systemPrompt = "") {
 
   const handleTool = useCallback(
     (payload: ToolInvocationPayload) => {
-      const {
-        request_id,
-        tool_name,
-        tool_args,
-        requires_approval,
-        invocation_id,
-      } = payload;
+      const { request_id, tool_name } = payload;
       const messageId = requestIdToMessageIdRef.current[request_id];
       if (!messageId) return;
 
-      // Read current content from store at call time.
       const { streamingMessages: current } = useChatStore.getState();
       const existing = current[messageId];
       const label = `\n\nTool: **${tool_name}**`;
@@ -223,14 +265,7 @@ export function useChatStream(selectedModels: string[], systemPrompt = "") {
         patchStreamingMessage(messageId, { content: existing.content + label });
       }
 
-      if (requires_approval) {
-        useToolStore.getState().actions.setPendingApproval({
-          invocationId: invocation_id,
-          requestId: request_id,
-          toolName: tool_name,
-          toolArgs: tool_args,
-        });
-      }
+      toolApprovalHandler.handleToolInvocation(payload);
     },
     [patchStreamingMessage],
   );
@@ -289,7 +324,7 @@ export function useChatStream(selectedModels: string[], systemPrompt = "") {
       if (!conversationId) return;
 
       cancelRef.current = false;
-      const processed = processTemporalVariables(content.trim());
+      const processed = defaultPreprocessor.preprocess(content.trim());
       await addMessage({
         conversationId,
         role: "user",
@@ -328,23 +363,6 @@ export function useChatStream(selectedModels: string[], systemPrompt = "") {
           isStreaming: true,
         });
 
-        addLog({
-          id: rid,
-          model,
-          request: {
-            url: "tauri://chat_stream",
-            method: "POST",
-            headers: {},
-            body: {
-              requestId: rid,
-              model,
-              messages: history,
-              systemPrompt: system,
-            },
-          },
-          timing: { startTime: Date.now() },
-        });
-
         invoke("chat_stream", {
           requestId: rid,
           model,
@@ -376,7 +394,6 @@ export function useChatStream(selectedModels: string[], systemPrompt = "") {
       activeConversationId,
       systemPrompt,
       addMessage,
-      addLog,
       resetStreamState,
       settlePending,
       setStreamingMessage,

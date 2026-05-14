@@ -60,16 +60,21 @@ pub async fn chat_stream(
         .await
         .map_err(|e| e.to_string())?;
 
+    // Token batching: accumulate and emit every N chars
+    const TOKEN_BATCH_SIZE: usize = 15;
+    let mut pending_content = String::new();
+
     let max_iterations = max_tool_iterations.unwrap_or(5);
     let tool_defs = state.tool_registry.to_ollama_tool_json().await;
     let has_images = messages_contain_images(&messages);
+    let mut tools_skipped = false;
 
     for _iteration in 0..max_iterations {
         if is_cancelled!() {
             return Ok(());
         }
 
-        let tools = if !has_images && !tool_defs.is_empty() {
+        let tools = if !has_images && !tool_defs.is_empty() && !tools_skipped {
             Some(tool_defs.clone())
         } else {
             None
@@ -80,11 +85,18 @@ pub async fn chat_stream(
         // so the frontend .catch() handles them — never emit them as chat
         // content.
         let mut stream = match provider
-            .chat_completion(model.clone(), history.clone(), system_prompt.clone(), tools)
+            .chat_completion(model.clone(), history.clone(), system_prompt.clone(), tools, None)
             .await
         {
             Ok(s) => s,
-            Err(e) => emit_error_and_return!(e),
+            Err(e) => {
+                // If model doesn't support tools, retry without tools
+                if e.contains("does not support tools") && !tools_skipped {
+                    tools_skipped = true;
+                    continue;
+                }
+                emit_error_and_return!(e)
+            }
         };
 
         let mut content_acc = String::new();
@@ -130,14 +142,39 @@ pub async fn chat_stream(
 
             if !chunk.content.is_empty() {
                 content_acc.push_str(&chunk.content);
+                
                 if chunk.tool_calls.is_none() {
-                    let _ = app_handle.emit("chat-chunk", chunk.clone());
+                    pending_content.push_str(&chunk.content);
+                    if pending_content.len() >= TOKEN_BATCH_SIZE {
+                        let _ = app_handle.emit("chat-chunk", StreamPayload {
+                            request_id: request_id.clone(),
+                            content: pending_content.clone(),
+                            thinking: None,
+                            tool_calls: None,
+                            done: false,
+                            metadata: None,
+                        });
+                        pending_content.clear();
+                    }
                 }
             }
 
             if let Some(new_tool_calls) = chunk.tool_calls {
                 tool_calls.extend(new_tool_calls);
             }
+        }
+
+        // Flush remaining pending content
+        if !pending_content.is_empty() {
+            let _ = app_handle.emit("chat-chunk", StreamPayload {
+                request_id: request_id.clone(),
+                content: pending_content.clone(),
+                thinking: None,
+                tool_calls: None,
+                done: false,
+                metadata: None,
+            });
+            pending_content.clear();
         }
 
         if !stream_done {
@@ -269,10 +306,11 @@ pub async fn chat(
     state: tauri::State<'_, AppState>,
     model: String,
     messages: Vec<ChatMessage>,
+    options: Option<serde_json::Value>,
 ) -> Result<String, String> {
     let provider = state.provider_selector.get_active_provider().await?;
     let mut stream = provider
-        .chat_completion(model, messages, None, None)
+        .chat_completion(model, messages, None, None, options)
         .await?;
 
     let mut full_content = String::new();

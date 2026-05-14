@@ -21,14 +21,12 @@ import {
   ChevronDown,
   Eye,
   Plus,
-  Settings2,
   AlertCircle,
   ScrollText,
 } from "lucide-react";
 
 interface HeaderProps {
   selectedModels: string[];
-  // selectedProviders: ModelProvider[];
   onModelChange: (
     index: number,
     provider: ModelProvider,
@@ -37,8 +35,6 @@ interface HeaderProps {
   onAddModel: () => void;
   onRemoveModel: (index: number) => void;
   onSetDefault: (model: string) => void;
-  onToggleInspector: () => void;
-  isInspectorOpen: boolean;
   isTemporary?: boolean;
   onToggleTemporaryChat: () => void;
   systemPrompts: SystemPrompt[];
@@ -48,13 +44,10 @@ interface HeaderProps {
 
 export const Header = memo(function Header({
   selectedModels,
-  // selectedProviders,
   onModelChange,
   onAddModel,
   onRemoveModel,
   onSetDefault,
-  onToggleInspector,
-  isInspectorOpen,
   isTemporary,
   onToggleTemporaryChat,
   systemPrompts,
@@ -340,27 +333,6 @@ export const Header = memo(function Header({
                 strokeDasharray="2.5 3.5"
               ></path>
             </svg>
-          </IconButton>
-        </Tooltip>
-        <Tooltip title={isInspectorOpen ? "Close Inspector" : "Open Inspector"}>
-          <IconButton
-            onClick={onToggleInspector}
-            size="small"
-            sx={{
-              p: 0.75,
-              borderRadius: "6px",
-              cursor: "pointer",
-              color: isInspectorOpen ? "primary.main" : "text.secondary",
-              bgcolor: isInspectorOpen ? "action.selected" : "transparent",
-              "&:hover": {
-                bgcolor: "action.hover",
-                color: "text.primary",
-              },
-              transition:
-                "background-color 0.18s ease, color 0.18s ease, transform 0.18s ease",
-            }}
-          >
-            <Settings2 size={18} />
           </IconButton>
         </Tooltip>
 

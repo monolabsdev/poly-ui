@@ -1,0 +1,160 @@
+import Database from "@tauri-apps/plugin-sql";
+import { ConversationRepository, mapRowToConversation, mapRowToMessage } from "./types";
+import { Message, Conversation } from "@/types/chat";
+
+export type { ConversationRepository } from "./types";
+
+class SqliteConversationRepository implements ConversationRepository {
+  constructor(private db: Database) {}
+
+  async getConversations(): Promise<Conversation[]> {
+    const rows = await this.db.select<{ id: string; title: string; createdAt: string; updatedAt: string; isArchived: number }[]>(
+      "SELECT * FROM conversations ORDER BY updatedAt DESC"
+    );
+    return rows.map(mapRowToConversation);
+  }
+
+  async createConversation(id: string, title: string): Promise<void> {
+    const now = new Date().toISOString();
+    await this.db.execute(
+      "INSERT INTO conversations (id, title, createdAt, updatedAt, isArchived) VALUES (?, ?, ?, ?, 0)",
+      [id, title, now, now]
+    );
+  }
+
+  async updateConversation(id: string, updates: { title?: string; updatedAt?: string; isArchived?: boolean }): Promise<void> {
+    const clauses: string[] = [];
+    const vals: unknown[] = [];
+    if (updates.title !== undefined) { clauses.push("title = ?"); vals.push(updates.title); }
+    if (updates.updatedAt !== undefined) { clauses.push("updatedAt = ?"); vals.push(updates.updatedAt); }
+    if (updates.isArchived !== undefined) { clauses.push("isArchived = ?"); vals.push(updates.isArchived ? 1 : 0); }
+    if (clauses.length === 0) return;
+    vals.push(id);
+    await this.db.execute(`UPDATE conversations SET ${clauses.join(", ")} WHERE id = ?`, vals);
+  }
+
+  async deleteConversation(id: string): Promise<void> {
+    await this.db.execute("DELETE FROM messages WHERE conversationId = ?", [id]);
+    await this.db.execute("DELETE FROM conversations WHERE id = ?", [id]);
+  }
+
+  async getMessages(conversationId: string, limit: number, offset: number): Promise<Message[]> {
+    const rows = await this.db.select<{ id: string; conversationId: string; role: "user" | "assistant"; content: string; createdAt: string; attachments?: string; model?: string; thinking?: string; thinkingDuration?: number }[]>(
+      "SELECT * FROM messages WHERE conversationId = ? ORDER BY createdAt DESC LIMIT ? OFFSET ?",
+      [conversationId, limit, offset]
+    );
+    return rows.map(mapRowToMessage).reverse();
+  }
+
+  async addMessage(message: Message): Promise<void> {
+    await this.db.execute(
+      "INSERT INTO messages (id, conversationId, role, content, createdAt, attachments, model, thinking, thinkingDuration) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      [
+        message.id, message.conversationId, message.role, message.content, message.createdAt,
+        message.attachments ? JSON.stringify(message.attachments) : null,
+        message.model || null, message.thinking || null, message.thinkingDuration || null,
+      ]
+    );
+    await this.db.execute("UPDATE conversations SET updatedAt = ? WHERE id = ?", [message.createdAt, message.conversationId]);
+  }
+
+  async deleteMessagesAfter(conversationId: string, messageId: string): Promise<void> {
+    const target = await this.db.select<{ createdAt: string }[]>("SELECT createdAt FROM messages WHERE id = ?", [messageId]);
+    if (target.length === 0) return;
+    await this.db.execute("DELETE FROM messages WHERE conversationId = ? AND createdAt >= ?", [conversationId, target[0].createdAt]);
+  }
+}
+
+class InMemoryConversationRepository implements ConversationRepository {
+  private conversations: Record<string, { id: string; title: string; createdAt: string; updatedAt: string; isArchived: boolean }> = {};
+  private messages: Record<string, Message[]> = {};
+
+  async getConversations(): Promise<Conversation[]> {
+    return Object.values(this.conversations)
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  }
+
+  async createConversation(id: string, title: string): Promise<void> {
+    const now = new Date().toISOString();
+    this.conversations[id] = { id, title, createdAt: now, updatedAt: now, isArchived: false };
+    this.messages[id] = [];
+  }
+
+  async updateConversation(id: string, updates: { title?: string; updatedAt?: string; isArchived?: boolean }): Promise<void> {
+    const conv = this.conversations[id];
+    if (!conv) return;
+    if (updates.title !== undefined) conv.title = updates.title;
+    if (updates.updatedAt !== undefined) conv.updatedAt = updates.updatedAt;
+    if (updates.isArchived !== undefined) conv.isArchived = updates.isArchived;
+  }
+
+  async deleteConversation(id: string): Promise<void> {
+    delete this.conversations[id];
+    delete this.messages[id];
+  }
+
+  async getMessages(conversationId: string, limit: number, offset: number): Promise<Message[]> {
+    const all = [...(this.messages[conversationId] ?? [])];
+    all.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    return all.slice(offset, offset + limit).reverse();
+  }
+
+  async addMessage(message: Message): Promise<void> {
+    const list = this.messages[message.conversationId] ?? [];
+    this.messages[message.conversationId] = [...list, message];
+    if (this.conversations[message.conversationId]) {
+      this.conversations[message.conversationId].updatedAt = message.createdAt;
+    }
+  }
+
+  async deleteMessagesAfter(conversationId: string, messageId: string): Promise<void> {
+    const msgs = this.messages[conversationId] ?? [];
+    const idx = msgs.findIndex((m) => m.id === messageId);
+    if (idx !== -1) this.messages[conversationId] = msgs.slice(0, idx);
+  }
+}
+
+let repository: ConversationRepository | null = null;
+
+export async function initRepository(): Promise<ConversationRepository> {
+  if (repository) return repository;
+
+  try {
+    const db = await Database.load("sqlite:chat.db");
+    await db.execute("CREATE TABLE IF NOT EXISTS conversations (id TEXT PRIMARY KEY, title TEXT, createdAt TEXT, updatedAt TEXT, isArchived INTEGER DEFAULT 0)");
+    await db.execute("CREATE TABLE IF NOT EXISTS messages (id TEXT PRIMARY KEY, conversationId TEXT, role TEXT, content TEXT, createdAt TEXT, attachments TEXT, model TEXT, thinking TEXT, thinkingDuration REAL)");
+    
+    // Indexes for query optimization
+    await db.execute("CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversationId)");
+    await db.execute("CREATE INDEX IF NOT EXISTS idx_messages_created ON messages(createdAt)");
+    await db.execute("CREATE INDEX IF NOT EXISTS idx_conversations_updated ON conversations(updatedAt)");
+    await db.execute("CREATE INDEX IF NOT EXISTS idx_conversations_archived ON conversations(isArchived)");
+    
+    try {
+      const cols = await db.select<{ name: string }[]>("PRAGMA table_info(messages)");
+      const has = (n: string) => cols.some((c) => c.name === n);
+      if (!has("model")) await db.execute("ALTER TABLE messages ADD COLUMN model TEXT");
+      if (!has("thinking")) await db.execute("ALTER TABLE messages ADD COLUMN thinking TEXT");
+      if (!has("thinkingDuration")) await db.execute("ALTER TABLE messages ADD COLUMN thinkingDuration REAL");
+      if (!has("attachments")) await db.execute("ALTER TABLE messages ADD COLUMN attachments TEXT");
+    } catch { /* ignore */ }
+
+    try {
+      const cols = await db.select<{ name: string }[]>("PRAGMA table_info(conversations)");
+      if (!cols.some(c => c.name === "isArchived")) await db.execute("ALTER TABLE conversations ADD COLUMN isArchived INTEGER DEFAULT 0");
+    } catch { /* ignore */ }
+
+    repository = new SqliteConversationRepository(db);
+    if (DEV) console.log("[repo] SQLite repository active");
+  } catch (error) {
+    console.warn("[repo] Falling back to in-memory", error);
+    repository = new InMemoryConversationRepository();
+  }
+
+  return repository;
+}
+
+export function getRepository(): ConversationRepository {
+  if (!repository) throw new Error("Repository not initialized");
+  return repository;
+}

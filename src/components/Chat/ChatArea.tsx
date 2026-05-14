@@ -3,7 +3,7 @@ import type { ChatMessage } from "@/types/chat";
 import { Message } from "./Message";
 import { Box, CircularProgress, Typography } from "@mui/material";
 import { useChatStore } from "@/store/chatStore";
-import { motion, AnimatePresence } from "motion/react";
+import { motion } from "motion/react";
 import { useTiming, ANIMATION_VARIANTS } from "@/lib/motion";
 
 interface ChatAreaProps {
@@ -225,7 +225,6 @@ export const ChatArea = memo(function ChatArea({
           <Box aria-hidden sx={{ height: virtualWindow.topSpacer, flexShrink: 0 }} />
         )}
 
-        <AnimatePresence initial={false}>
         {visibleTurns.map((turn, visibleTurnIndex) => {
           const turnIndex = virtualWindow.start + visibleTurnIndex;
           const isNewest = visibleTurnIndex === visibleTurns.length - 1;
@@ -236,7 +235,6 @@ export const ChatArea = memo(function ChatArea({
               variants={ANIMATION_VARIANTS.messageTurn}
               initial="initial"
               animate="animate"
-              exit="exit"
               transition={{ 
                 duration: timing.duration("base"), 
                 ease: timing.ease,
@@ -309,7 +307,6 @@ export const ChatArea = memo(function ChatArea({
           </Box>
         );
         })}
-        </AnimatePresence>
 
         {virtualWindow.bottomSpacer > 0 && (
           <Box aria-hidden sx={{ height: virtualWindow.bottomSpacer, flexShrink: 0 }} />

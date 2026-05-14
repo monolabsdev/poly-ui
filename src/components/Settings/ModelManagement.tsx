@@ -45,7 +45,12 @@ export function ModelManagement() {
     try {
       await loggedInvoke("pull_model", { model: modelToPull });
       setNewModelName("");
-      refreshModels();
+      // Wait a moment for model to be fully registered, then refresh
+      await new Promise(r => setTimeout(r, 1000));
+      await refreshModels();
+      // Refresh again after a short delay to ensure we catch it
+      await new Promise(r => setTimeout(r, 500));
+      await refreshModels();
     } catch (error) {
       const isCancelled = error === "Pull cancelled by user";
       if (!isCancelled) {
@@ -90,7 +95,6 @@ export function ModelManagement() {
 
   return (
     <Stack spacing={3}>
-      {/* Pull Model Section */}
       <Stack spacing={1.5}>
         <SectionHeader 
           title="Pull New Model" 
@@ -172,7 +176,6 @@ export function ModelManagement() {
         ) : null}
       </Stack>
 
-      {/* Local Models Section */}
       <Stack spacing={1.5}>
         <SectionHeader 
           title="Local Models" 

@@ -288,9 +288,9 @@ export async function initDB() {
     await setupSchema(db);
     await runMigrations(db);
     activeAdapter = new SqliteAdapter(db);
-    console.log("[db] SQLite active");
+    if (DEV) console.log("[db] SQLite active");
   } catch (error) {
-    console.warn("[db] SQL plugin unavailable, falling back to in-memory.", error);
+    if (DEV) console.warn("[db] SQL plugin unavailable, falling back to in-memory.", error);
     activeAdapter = new InMemoryAdapter();
   }
 }

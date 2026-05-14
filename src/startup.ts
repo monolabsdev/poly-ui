@@ -21,13 +21,6 @@ export function loadAppModule() {
   return appImportPromise;
 }
 
-export function delay(ms: number) {
-  return new Promise<void>((resolve) => {
-    window.setTimeout(resolve, ms);
-  });
-}
-
-
 function restoreSystemPrompts() {
   try {
     const raw = localStorage.getItem(SYSTEM_PROMPTS_STORAGE_KEY);
@@ -41,12 +34,9 @@ function restoreSystemPrompts() {
       activeSystemPromptId:
         parsed.activeSystemPromptId ?? parsed.systemPrompts[0]?.id ?? null,
     });
-  } catch {
-    // Ignore persisted prompt parse errors.
-  }
+  } catch {}
 }
 
-// Ollama loading is now handled by the monitor.
 function startSystemPromptPersistence() {
   if (window.__openbenchSystemPromptUnsubscribe) return;
 
@@ -64,9 +54,7 @@ function startSystemPromptPersistence() {
               activeSystemPromptId: state.activeSystemPromptId,
             }),
           );
-        } catch {
-          // Ignore storage failures.
-        }
+        } catch {}
       }, 300);
     },
   );
@@ -82,15 +70,18 @@ async function preloadVisibleAppChunks() {
 }
 
 async function initializeStores() {
-  console.log("[Startup] Initializing stores...");
+  if (DEV) console.log("[Startup] Initializing stores...");
   restoreSystemPrompts();
   startSystemPromptPersistence();
 
   const db = await import("@/lib/db");
   await db.initDB().catch(() => {});
 
+  const repo = await import("@/lib/repositories");
+  await repo.initRepository().catch(() => {});
+
   await Promise.all([
-    useProviderStore.getState().actions.refresh().then(() => console.log("[Startup] Providers refreshed:", useProviderStore.getState().providers)).catch(err => console.error("[Startup] Provider refresh failed:", err)),
+    useProviderStore.getState().actions.refresh().then(() => { if (DEV) console.log("[Startup] Providers refreshed:", useProviderStore.getState().providers); }).catch(err => { if (DEV) console.error("[Startup] Provider refresh failed:", err); }),
     useAuthStore.getState().actions.restoreSession().catch(() => {}),
     useChatStore.getState().actions.loadConversations().catch(() => {}),
     useToolStore.getState().actions.loadTools().catch(() => {}),
@@ -105,7 +96,7 @@ async function initializeStores() {
 }
 
 export async function prepareAppStartup() {
-  console.log("[Startup] localStorage settings:", localStorage.getItem("settings-storage"));
+  if (DEV) console.log("[Startup] localStorage settings:", localStorage.getItem("settings-storage"));
   startupPromise ??= Promise.all([
     preloadVisibleAppChunks(),
     initializeStores(),
@@ -119,3 +110,5 @@ declare global {
     __openbenchSystemPromptUnsubscribe?: () => void;
   }
 }
+
+export {};
