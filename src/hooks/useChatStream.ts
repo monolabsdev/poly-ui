@@ -300,55 +300,8 @@ const queueTokenBatch = (requestId: string, messageId: string, newContent: strin
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // -------------------------------------------------------------------------
-  // sendMessage
+  // startStream — shared streaming logic, reused by sendMessage and regenerate
   // -------------------------------------------------------------------------
-  const sendMessage = useCallback(
-    async (content: string, attachments?: Attachment[]) => {
-      const models = selectedModels.filter(Boolean);
-      if (
-        (!content.trim() && !attachments?.length) ||
-        isStreaming ||
-        !models.length
-      )
-        return;
-
-      const { state } = useOllamaStore.getState();
-      if (state !== "online") {
-        notify.warn("Cannot send message", "Ollama is currently offline");
-        return;
-      }
-
-      // Always read the latest conversation id from the store, not the
-      // potentially-stale closure value.
-      const conversationId =
-        useChatStore.getState().activeConversationId ?? activeConversationId;
-      if (!conversationId) return;
-
-      cancelRef.current = false;
-      const processed = defaultPreprocessor.preprocess(content.trim());
-      await addMessage({
-        conversationId,
-        role: "user",
-        content: processed,
-        attachments,
-      });
-
-      startStream(conversationId, models);
-    },
-    [
-      selectedModels,
-      isStreaming,
-      activeConversationId,
-      systemPrompt,
-      addMessage,
-      resetStreamState,
-      settlePending,
-      setStreamingMessage,
-      patchStreamingMessage,
-      notify,
-    ],
-  );
-
   const startStream = useCallback(
     (conversationId: string, models: string[]) => {
       if (!conversationId || !models.length) return;
@@ -415,6 +368,43 @@ const queueTokenBatch = (requestId: string, messageId: string, newContent: strin
       patchStreamingMessage,
       notify,
     ],
+  );
+
+  // -------------------------------------------------------------------------
+  // sendMessage
+  // -------------------------------------------------------------------------
+  const sendMessage = useCallback(
+    async (content: string, attachments?: Attachment[]) => {
+      const models = selectedModels.filter(Boolean);
+      if (
+        (!content.trim() && !attachments?.length) ||
+        isStreaming ||
+        !models.length
+      )
+        return;
+
+      const { state } = useOllamaStore.getState();
+      if (state !== "online") {
+        notify.warn("Cannot send message", "Ollama is currently offline");
+        return;
+      }
+
+      const conversationId =
+        useChatStore.getState().activeConversationId ?? activeConversationId;
+      if (!conversationId) return;
+
+      cancelRef.current = false;
+      const processed = defaultPreprocessor.preprocess(content.trim());
+      await addMessage({
+        conversationId,
+        role: "user",
+        content: processed,
+        attachments,
+      });
+
+      startStream(conversationId, models);
+    },
+    [selectedModels, isStreaming, activeConversationId, addMessage, startStream],
   );
 
   // -------------------------------------------------------------------------

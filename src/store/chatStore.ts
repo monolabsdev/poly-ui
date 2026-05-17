@@ -290,14 +290,12 @@ export const useChatStore = create<ChatStore>((set) => ({
       const now = new Date().toISOString();
       const conversation = useChatStore.getState().conversations.find((c) => c.id === id);
 
-      // Optimistic update: update store immediately so UI shows the title right away
       set((state) => ({
         conversations: state.conversations.map((c) =>
           c.id === id ? { ...c, title: newTitle, updatedAt: now } : c,
         ),
       }));
 
-      // Then persist asynchronously in background
       if (conversation && !conversation.isTemporary) {
         try {
           const r = await getRepo();

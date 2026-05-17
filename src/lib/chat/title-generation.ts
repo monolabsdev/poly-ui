@@ -45,22 +45,9 @@ export function queueTitleGeneration({
   userName,
 }: GenerateTitleArgs): void {
   if (!model || !shouldGenerateTitle(conversationId)) return;
-
-  pendingTitleGenerations.add(conversationId);
-
-  window.setTimeout(() => {
-    void generateAndApplyTitle(conversationId, model, userName)
-      .catch((error) => {
-        console.warn("Title generation failed", error);
-      })
-      .finally(() => {
-        pendingTitleGenerations.delete(conversationId);
-      });
-  }, TITLE_GENERATION_DELAY_MS);
+  scheduleTitleGeneration(conversationId, model, userName);
 }
 
-/** Retry title generation for a conversation that still has "New Chat" as title.
- *  Called when navigating away from a conversation to catch any failed initial attempts. */
 export function retryTitleForConversation(conversationId: string): void {
   if (pendingTitleGenerations.has(conversationId)) return;
 
@@ -72,8 +59,8 @@ export function retryTitleForConversation(conversationId: string): void {
   const conversationMessages = messages.filter(
     (message) => message.conversationId === conversationId,
   );
-  const userCount = conversationMessages.filter((message) => message.role === "user").length;
-  if (userCount < 1) return;
+  const hasUserMessage = conversationMessages.some((message) => message.role === "user");
+  if (!hasUserMessage) return;
 
   const lastAssistant = [...conversationMessages]
     .reverse()
@@ -81,11 +68,20 @@ export function retryTitleForConversation(conversationId: string): void {
   const model = lastAssistant?.model ?? "";
   if (!model) return;
 
+  scheduleTitleGeneration(conversationId, model);
+}
+
+function scheduleTitleGeneration(
+  conversationId: string,
+  model: string,
+  userName?: string,
+): void {
   pendingTitleGenerations.add(conversationId);
+
   window.setTimeout(() => {
-    void generateAndApplyTitle(conversationId, model)
+    void generateAndApplyTitle(conversationId, model, userName)
       .catch((error) => {
-        console.warn("Title generation failed on retry", error);
+        console.warn("Title generation failed", error);
       })
       .finally(() => {
         pendingTitleGenerations.delete(conversationId);
