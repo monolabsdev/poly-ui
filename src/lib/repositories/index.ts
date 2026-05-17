@@ -7,18 +7,23 @@ export type { ConversationRepository } from "./types";
 class SqliteConversationRepository implements ConversationRepository {
   constructor(private db: Database) {}
 
-  async getConversations(): Promise<Conversation[]> {
+  async getConversations(userId?: string): Promise<Conversation[]> {
     const rows = await this.db.select<{ id: string; title: string; createdAt: string; updatedAt: string; isArchived: number }[]>(
-      "SELECT * FROM conversations ORDER BY updatedAt DESC"
+      userId
+        ? "SELECT * FROM conversations WHERE userId = ? ORDER BY updatedAt DESC"
+        : "SELECT * FROM conversations ORDER BY updatedAt DESC",
+      userId ? [userId] : []
     );
     return rows.map(mapRowToConversation);
   }
 
-  async createConversation(id: string, title: string): Promise<void> {
+  async createConversation(id: string, title: string, userId?: string): Promise<void> {
     const now = new Date().toISOString();
     await this.db.execute(
-      "INSERT INTO conversations (id, title, createdAt, updatedAt, isArchived) VALUES (?, ?, ?, ?, 0)",
-      [id, title, now, now]
+      userId
+        ? "INSERT INTO conversations (id, title, createdAt, updatedAt, isArchived, userId) VALUES (?, ?, ?, ?, 0, ?)"
+        : "INSERT INTO conversations (id, title, createdAt, updatedAt, isArchived) VALUES (?, ?, ?, ?, 0)",
+      userId ? [id, title, now, now, userId] : [id, title, now, now]
     );
   }
 
@@ -66,17 +71,18 @@ class SqliteConversationRepository implements ConversationRepository {
 }
 
 class InMemoryConversationRepository implements ConversationRepository {
-  private conversations: Record<string, { id: string; title: string; createdAt: string; updatedAt: string; isArchived: boolean }> = {};
+  private conversations: Record<string, { id: string; title: string; createdAt: string; updatedAt: string; isArchived: boolean; userId?: string }> = {};
   private messages: Record<string, Message[]> = {};
 
-  async getConversations(): Promise<Conversation[]> {
+  async getConversations(userId?: string): Promise<Conversation[]> {
     return Object.values(this.conversations)
+      .filter((c) => !userId || c.userId === userId)
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   }
 
-  async createConversation(id: string, title: string): Promise<void> {
+  async createConversation(id: string, title: string, userId?: string): Promise<void> {
     const now = new Date().toISOString();
-    this.conversations[id] = { id, title, createdAt: now, updatedAt: now, isArchived: false };
+    this.conversations[id] = { id, title, createdAt: now, updatedAt: now, isArchived: false, userId };
     this.messages[id] = [];
   }
 
@@ -142,7 +148,11 @@ export async function initRepository(): Promise<ConversationRepository> {
     try {
       const cols = await db.select<{ name: string }[]>("PRAGMA table_info(conversations)");
       if (!cols.some(c => c.name === "isArchived")) await db.execute("ALTER TABLE conversations ADD COLUMN isArchived INTEGER DEFAULT 0");
+      if (!cols.some(c => c.name === "userId")) await db.execute("ALTER TABLE conversations ADD COLUMN userId TEXT DEFAULT ''");
     } catch { /* ignore */ }
+
+    // Index for per-user conversation lookup
+    await db.execute("CREATE INDEX IF NOT EXISTS idx_conversations_user ON conversations(userId)");
 
     repository = new SqliteConversationRepository(db);
     if (DEV) console.log("[repo] SQLite repository active");

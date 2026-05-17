@@ -83,9 +83,11 @@ async function initializeStores() {
   await Promise.all([
     useProviderStore.getState().actions.refresh().then(() => { if (DEV) console.log("[Startup] Providers refreshed:", useProviderStore.getState().providers); }).catch(err => { if (DEV) console.error("[Startup] Provider refresh failed:", err); }),
     useAuthStore.getState().actions.restoreSession().catch(() => {}),
-    useChatStore.getState().actions.loadConversations().catch(() => {}),
     useToolStore.getState().actions.loadTools().catch(() => {}),
   ]).catch(() => {});
+
+  // Load conversations after session restore so userId is available for filtering
+  await useChatStore.getState().actions.loadConversations().catch(() => {});
 
   useOllamaStore.getState().actions.start();
 

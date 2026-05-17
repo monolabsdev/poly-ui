@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { getRepository } from "@/lib/repositories";
 import { Message, Conversation, Attachment } from "@/types/chat";
 import { startTransition } from "react";
+import { useAuthStore } from "@/store/authStore";
 
 async function getRepo() {
   return getRepository();
@@ -68,7 +69,8 @@ export const useChatStore = create<ChatStore>((set) => ({
   actions: {
     loadConversations: async () => {
       const r = await getRepo();
-      const conversations = await r.getConversations();
+      const userId = useAuthStore.getState().user?.id;
+      const conversations = await r.getConversations(userId);
       set({ conversations });
     },
     setStreamingConversationId: (id) => set({ streamingConversationId: id }),
@@ -114,7 +116,8 @@ export const useChatStore = create<ChatStore>((set) => ({
       if (!isTemporary) {
         try {
           const r = await getRepo();
-          await r.createConversation(id, title);
+          const userId = useAuthStore.getState().user?.id;
+          await r.createConversation(id, title, userId);
         } catch (error) {
           console.error("Failed to persist conversation:", error);
         }

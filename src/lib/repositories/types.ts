@@ -1,8 +1,8 @@
 import { Message, Conversation } from "@/types/chat";
 
 export interface ConversationRepository {
-  getConversations(): Promise<Conversation[]>;
-  createConversation(id: string, title: string): Promise<void>;
+  getConversations(userId?: string): Promise<Conversation[]>;
+  createConversation(id: string, title: string, userId?: string): Promise<void>;
   updateConversation(id: string, updates: { title?: string; updatedAt?: string; isArchived?: boolean }): Promise<void>;
   deleteConversation(id: string): Promise<void>;
   
