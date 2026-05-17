@@ -9,6 +9,7 @@ export interface ConversationRepository {
   getMessages(conversationId: string, limit: number, offset: number): Promise<Message[]>;
   addMessage(message: Message): Promise<void>;
   deleteMessagesAfter(conversationId: string, messageId: string): Promise<void>;
+  transferConversations(fromUserId: string, toUserId: string): Promise<void>;
 }
 
 export function mapRowToConversation(row: { id: string; title: string; createdAt: string; updatedAt: string; isArchived: number }): Conversation {

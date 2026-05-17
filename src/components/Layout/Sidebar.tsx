@@ -16,11 +16,13 @@ import {
   X,
   MoreHorizontal,
   Archive,
+  AlertTriangle,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useTiming, ANIMATION_VARIANTS } from "@/lib/motion";
 import { useNotify } from "@/hooks/useNotify";
 import { useDevStore } from "@/store/devStore";
+import { useAuthStore } from "@/store/authStore";
 import { Conversation, useChatStore } from "@/store/chatStore";
 import {
   DropdownMenu,
@@ -591,6 +593,7 @@ export const Sidebar = React.memo(function Sidebar({
       </SidebarContent>
 
       <SidebarFooter>
+        <GuestWarning />
         <ProfileMenu onOpenSettings={onOpenSettings} />
       </SidebarFooter>
 
@@ -897,6 +900,53 @@ export function SidebarTrigger({ sx }: { sx?: CSSObject }) {
         </Box>
       </IconButton>
     </Tooltip>
+  );
+}
+
+function GuestWarning() {
+  const { isGuest, guestWarningDismissed, actions } = useAuthStore();
+  const { isCollapsed } = useSidebar();
+  const [dismissed, setDismissed] = React.useState(guestWarningDismissed);
+
+  if (!isGuest || dismissed) return null;
+
+  return (
+    <Box
+      sx={{
+        display: isCollapsed ? "none" : "flex",
+        alignItems: "flex-start",
+        gap: 1,
+        px: 1,
+        py: 0.75,
+        mx: 0.5,
+        borderRadius: "8px",
+        bgcolor: "rgba(245, 158, 11, 0.1)",
+        border: "1px solid rgba(245, 158, 11, 0.2)",
+      }}
+    >
+      <AlertTriangle size={14} className="text-amber-500" style={{ marginTop: 1, flexShrink: 0 }} />
+      <Typography
+        variant="caption"
+        sx={{
+          color: "text.secondary",
+          fontSize: "0.7rem",
+          lineHeight: 1.4,
+          flex: 1,
+        }}
+      >
+        Chats won't be saved unless you sign up or log in.
+      </Typography>
+      <IconButton
+        size="small"
+        onClick={() => {
+          setDismissed(true);
+          actions.dismissGuestWarning();
+        }}
+        sx={{ p: 0.25, mt: -0.25, mr: -0.25, color: "text.secondary", opacity: 0.5, "&:hover": { opacity: 1 } }}
+      >
+        <X size={12} />
+      </IconButton>
+    </Box>
   );
 }
 

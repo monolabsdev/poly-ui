@@ -68,7 +68,8 @@ export const useChatStore = create<ChatStore>((set) => ({
   currentAttachments: [],
   actions: {
     loadConversations: async () => {
-      const userId = useAuthStore.getState().user?.id;
+      const auth = useAuthStore.getState();
+      const userId = auth.user?.id || auth.guestId;
       if (!userId) {
         set({ conversations: [], messages: [], hasMoreMessages: false, activeConversationId: null });
         return;
@@ -120,8 +121,9 @@ export const useChatStore = create<ChatStore>((set) => ({
       if (!isTemporary) {
         try {
           const r = await getRepo();
-          const userId = useAuthStore.getState().user?.id;
-          await r.createConversation(id, title, userId);
+          const auth = useAuthStore.getState();
+          const userId = auth.user?.id || auth.guestId;
+          await r.createConversation(id, title, userId || undefined);
         } catch (error) {
           console.error("Failed to persist conversation:", error);
         }

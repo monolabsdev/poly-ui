@@ -68,6 +68,10 @@ class SqliteConversationRepository implements ConversationRepository {
     if (target.length === 0) return;
     await this.db.execute("DELETE FROM messages WHERE conversationId = ? AND createdAt >= ?", [conversationId, target[0].createdAt]);
   }
+
+  async transferConversations(fromUserId: string, toUserId: string): Promise<void> {
+    await this.db.execute("UPDATE conversations SET userId = ? WHERE userId = ?", [toUserId, fromUserId]);
+  }
 }
 
 class InMemoryConversationRepository implements ConversationRepository {
@@ -117,6 +121,14 @@ class InMemoryConversationRepository implements ConversationRepository {
     const msgs = this.messages[conversationId] ?? [];
     const idx = msgs.findIndex((m) => m.id === messageId);
     if (idx !== -1) this.messages[conversationId] = msgs.slice(0, idx);
+  }
+
+  async transferConversations(fromUserId: string, toUserId: string): Promise<void> {
+    for (const [id, conv] of Object.entries(this.conversations)) {
+      if (conv.userId === fromUserId) {
+        this.conversations[id] = { ...conv, userId: toUserId };
+      }
+    }
   }
 }
 

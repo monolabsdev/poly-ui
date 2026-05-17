@@ -8,8 +8,8 @@ import { Label } from "@/components/ui/label";
 
 export const AuthModal: React.FC = () => {
   const theme = useTheme();
-  const { isAuthenticated, isLoading, error, actions } = useAuthStore();
-  console.log("[AuthModal] state:", { isAuthenticated, isLoading, hasError: !!error });
+  const { isAuthenticated, isLoading, isGuest, error, actions } = useAuthStore();
+  console.log("[AuthModal] state:", { isAuthenticated, isLoading, isGuest, hasError: !!error });
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -37,14 +37,9 @@ export const AuthModal: React.FC = () => {
     }
   };
 
-  const [skipAuth, setSkipAuth] = useState(false);
-  const isOpen = !isAuthenticated && !isLoading && !skipAuth;
+  const isOpen = !isAuthenticated && !isLoading && !isGuest;
 
   if (!isOpen) return null;
-
-  const handleSkip = () => {
-    setSkipAuth(true);
-  };
 
   const content = (
     <Fade in={isOpen} timeout={300}>
@@ -89,7 +84,7 @@ export const AuthModal: React.FC = () => {
               Sign in or create an account to continue.
             </Typography>
             <MuiButton
-              onClick={handleSkip}
+              onClick={actions.skipAuth}
               sx={{
                 mt: 1.5,
                 color: "text.secondary",

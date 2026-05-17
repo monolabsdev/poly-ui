@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Box, Typography, Button as MuiButton, Tooltip } from "@mui/material";
-import { Settings, Archive, LogOut } from "lucide-react";
+import { Settings, Archive, LogOut, LogIn } from "lucide-react";
 
 import { useSidebar } from "@/components/Layout/Sidebar";
 import { ArchivedChatsDialog } from "@/components/Chat/ArchivedChatsDialog";
@@ -24,7 +24,7 @@ interface ProfileMenuProps {
 export const ProfileMenu: React.FC<ProfileMenuProps> = ({
   onOpenSettings,
 }) => {
-  const { user, actions, isLoading } = useAuthStore();
+  const { user, isGuest, actions, isLoading } = useAuthStore();
   const { isCollapsed } = useSidebar();
   const [isArchivedOpen, setIsArchivedOpen] = React.useState(false);
 
@@ -58,6 +58,121 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
             )}
           </AnimatePresence>
         </MuiButton>
+      </Box>
+    );
+  }
+
+  if (isGuest) {
+    const guestButton = (
+      <MuiButton
+        fullWidth
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: isCollapsed ? "center" : "flex-start",
+          gap: isCollapsed ? 0 : 1.5,
+          p: 1,
+          px: isCollapsed ? 0 : 1,
+          borderRadius: "12px",
+          textTransform: "none",
+          color: "text.secondary",
+          textAlign: "left",
+          minWidth: 0,
+          "&:hover": { bgcolor: "action.hover" },
+        }}
+      >
+        <Box className="relative flex-shrink-0" sx={{ display: "flex" }}>
+          <Avatar sx={{ width: isCollapsed ? 28 : 36, height: isCollapsed ? 28 : 36 }}>
+            <AvatarFallback
+              sx={{
+                bgcolor: "action.selected",
+                color: "text.secondary",
+                fontSize: isCollapsed ? "0.65rem" : "0.75rem",
+              }}
+            >
+              ?
+            </AvatarFallback>
+          </Avatar>
+        </Box>
+        <AnimatePresence>
+          {!isCollapsed && (
+            <motion.div
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -10 }}
+              style={{ flex: 1, overflow: "hidden" }}
+            >
+              <Typography
+                variant="body2"
+                sx={{ fontWeight: 600, fontSize: "13.5px" }}
+                className="truncate"
+              >
+                Guest
+              </Typography>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                className="truncate"
+                sx={{ display: "block", mt: -0.2 }}
+              >
+                Signed out
+              </Typography>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </MuiButton>
+    );
+
+    return (
+      <Box className="w-full flex flex-col items-center">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            {isCollapsed ? (
+              <Tooltip title="Guest" placement="right" arrow>
+                {guestButton}
+              </Tooltip>
+            ) : (
+              guestButton
+            )}
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-64">
+            <DropdownMenuLabel>
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+                <Typography variant="body2" sx={{ fontWeight: 500, lineHeight: 1.2 }}>
+                  Guest
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.2 }}>
+                  Signed out
+                </Typography>
+              </Box>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem className="cursor-pointer" onClick={onOpenSettings}>
+              <Settings className="mr-2 h-4 w-4" />
+              <span>Settings</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="cursor-pointer"
+              onClick={() => setIsArchivedOpen(true)}
+            >
+              <Archive className="mr-2 h-4 w-4" />
+              <span>Archived Chats</span>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className="cursor-pointer"
+              onClick={() => actions.openAuth()}
+            >
+              <LogIn className="mr-2 h-4 w-4" />
+              <span>Log In</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <ArchivedChatsDialog
+          open={isArchivedOpen}
+          onOpenChange={setIsArchivedOpen}
+        />
       </Box>
     );
   }
