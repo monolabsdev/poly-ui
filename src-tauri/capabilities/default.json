@@ -7,6 +7,11 @@
   ],
   "permissions": [
     "core:default",
+    "http:default",
+    {
+      "identifier": "http:allow-fetch",
+      "allow": [{ "url": "http://localhost:11434/**" }]
+    },
     "opener:default",
     "sql:default",
     "sql:allow-execute",
