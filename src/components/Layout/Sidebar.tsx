@@ -904,16 +904,15 @@ export function SidebarTrigger({ sx }: { sx?: CSSObject }) {
 }
 
 function GuestWarning() {
-  const { isGuest, guestWarningDismissed, actions } = useAuthStore();
+  const isGuest = useAuthStore((s) => s.isGuest);
   const { isCollapsed } = useSidebar();
-  const [dismissed, setDismissed] = React.useState(guestWarningDismissed);
 
-  if (!isGuest || dismissed) return null;
+  if (!isGuest || isCollapsed) return null;
 
   return (
     <Box
       sx={{
-        display: isCollapsed ? "none" : "flex",
+        display: "flex",
         alignItems: "flex-start",
         gap: 1,
         px: 1,
@@ -936,16 +935,6 @@ function GuestWarning() {
       >
         Chats won't be saved unless you sign up or log in.
       </Typography>
-      <IconButton
-        size="small"
-        onClick={() => {
-          setDismissed(true);
-          actions.dismissGuestWarning();
-        }}
-        sx={{ p: 0.25, mt: -0.25, mr: -0.25, color: "text.secondary", opacity: 0.5, "&:hover": { opacity: 1 } }}
-      >
-        <X size={12} />
-      </IconButton>
     </Box>
   );
 }

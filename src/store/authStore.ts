@@ -5,7 +5,6 @@ import { useChatStore } from "@/store/chatStore";
 import { getRepository } from "@/lib/repositories";
 
 const GUEST_ID_KEY = "openbench.guestId";
-const GUEST_WARNING_KEY = "openbench.guestWarningDismissed";
 
 function loadGuestId(): string | null {
   try {
@@ -20,19 +19,6 @@ function saveGuestId(id: string | null) {
   } catch {}
 }
 
-function loadGuestWarningDismissed(): boolean {
-  try {
-    return localStorage.getItem(GUEST_WARNING_KEY) === "true";
-  } catch { return false; }
-}
-
-function saveGuestWarningDismissed(v: boolean) {
-  try {
-    if (v) localStorage.setItem(GUEST_WARNING_KEY, "true");
-    else localStorage.removeItem(GUEST_WARNING_KEY);
-  } catch {}
-}
-
 type AuthStore = {
   user: User | null;
   isAuthenticated: boolean;
@@ -40,7 +26,6 @@ type AuthStore = {
   error: string | null;
   isGuest: boolean;
   guestId: string | null;
-  guestWarningDismissed: boolean;
   actions: {
     login: (email: string, password: string) => Promise<void>;
     signup: (email: string, password: string, fullName?: string) => Promise<void>;
@@ -49,7 +34,6 @@ type AuthStore = {
     restoreSession: () => Promise<void>;
     clearError: () => void;
     skipAuth: () => void;
-    dismissGuestWarning: () => void;
     openAuth: () => void;
   };
 };
@@ -61,7 +45,6 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   error: null,
   isGuest: false,
   guestId: loadGuestId(),
-  guestWarningDismissed: loadGuestWarningDismissed(),
 
   actions: {
     skipAuth: () => {
@@ -69,11 +52,6 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       saveGuestId(id);
       set({ isGuest: true, guestId: id, isLoading: false });
       useChatStore.getState().actions.loadConversations();
-    },
-
-    dismissGuestWarning: () => {
-      saveGuestWarningDismissed(true);
-      set({ guestWarningDismissed: true });
     },
 
     login: async (email, password) => {
@@ -91,7 +69,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
           saveGuestId(null);
         }
 
-        set({ user: response.user, isAuthenticated: true, isGuest: false, guestId: null, isLoading: false, guestWarningDismissed: true });
+        set({ user: response.user, isAuthenticated: true, isGuest: false, guestId: null, isLoading: false });
         await useChatStore.getState().actions.loadConversations();
       } catch (err) {
         set({ error: err as string, isLoading: false });
@@ -113,7 +91,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
           saveGuestId(null);
         }
 
-        set({ user: response.user, isAuthenticated: true, isGuest: false, guestId: null, isLoading: false, guestWarningDismissed: true });
+        set({ user: response.user, isAuthenticated: true, isGuest: false, guestId: null, isLoading: false });
         await useChatStore.getState().actions.loadConversations();
       } catch (err) {
         set({ error: err as string, isLoading: false });
@@ -158,7 +136,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       set({ isLoading: true });
       try {
         const user = await loggedInvoke<User>("auth_get_current_user", { token });
-        set({ user, isAuthenticated: true, isLoading: false, guestWarningDismissed: true });
+        set({ user, isAuthenticated: true, isLoading: false });
       } catch {
         localStorage.removeItem("session_token");
         set({ user: null, isAuthenticated: false, isLoading: false });
