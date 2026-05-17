@@ -39,8 +39,6 @@ bun run preview
 - `src/store/authStore.ts` - User authentication state
 - `src/store/settingsStore.ts` - App settings
 - `src/store/themeStore.ts` - Light/dark mode
-- `src/store/inspectorStore.ts` - Request/response debugging logs
-
 **Key Hooks:**
 - `src/hooks/useChatStream.ts` - Core chat streaming logic. Listens to Tauri events (`chat-chunk`), manages streaming state, handles multi-model concurrent streaming, auto-renames conversations
 - `src/hooks/useModelPicker.ts` - Loads available Ollama models on mount
@@ -54,7 +52,6 @@ bun run preview
 **Types (`src/types/`):**
 - `chat.ts` - Message, Conversation, Attachment, StreamPayload types
 - `auth.ts` - User types
-- `inspector.ts` - Request/response log types
 
 ### Backend Structure (Rust)
 
@@ -124,7 +121,7 @@ The app supports streaming from multiple models simultaneously:
 
 **Layout:**
 - Collapsible sidebar with conversation list
-- Main chat area with Inspector panel slide-out
+- Main chat area
 - Settings modal (Cmd/Ctrl + ,)
 
 **Theming:**
@@ -149,5 +146,4 @@ The app supports streaming from multiple models simultaneously:
 
 - The app gracefully degrades to in-memory mode if SQLite unavailable
 - Use `/dev on` to test UI without Ollama running
-- Inspector panel (top-right bug icon) shows raw request/response logs
 - Build may fail if `OLLAMA_HOST` env var not set when running Tauri build in some environments

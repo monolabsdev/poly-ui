@@ -41,6 +41,9 @@ import {
   Globe,
   Lock,
   RefreshCw,
+  Terminal,
+  AlertTriangle,
+  Play,
 } from "lucide-react";
 import { ModelManagement } from "./ModelManagement";
 import {
@@ -51,6 +54,9 @@ import {
   selectSx,
 } from "./SettingComponents";
 import { useProviderStore, ProviderStatusResponse, ProviderStatus, ProviderConfig } from "@/services/providers";
+import { useDevStore } from "@/store/devStore";
+import { useNotify } from "@/hooks/useNotify";
+import { loggedInvoke } from "@/lib/utils";
 
 type SettingsModalProps = {
   isOpen: boolean;
@@ -71,7 +77,7 @@ const THEME_OPTIONS = [
   { id: "system", label: "System", icon: Monitor },
 ] as const;
 
-type SettingsTab = (typeof SIDEBAR_ITEMS)[number]["id"];
+type SettingsTab = (typeof SIDEBAR_ITEMS)[number]["id"] | "developer";
 
 export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>("general");
@@ -85,7 +91,12 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     setBaseUrl(ollamaConfig.baseUrl);
   }, [ollamaConfig.baseUrl]);
 
-  const activeItem = SIDEBAR_ITEMS.find((item) => item.id === activeTab);
+  const devMode = useDevStore((s) => s.devMode);
+  const sidebarItems = devMode
+    ? [...SIDEBAR_ITEMS, { id: "developer" as const, label: "Developer", icon: Terminal }]
+    : SIDEBAR_ITEMS;
+
+  const activeItem = sidebarItems.find((item) => item.id === activeTab);
 
   const { providers, actions: providerActions } = useProviderStore();
 
@@ -134,7 +145,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           }}
         >
           <Stack component="nav" spacing={0.5}>
-            {SIDEBAR_ITEMS.map((item) => {
+            {sidebarItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
 
@@ -198,7 +209,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               borderColor: "divider",
             }}
           >
-            {SIDEBAR_ITEMS.map((item) => {
+            {sidebarItems.map((item) => {
               const isActive = activeTab === item.id;
               return (
                 <Box
@@ -241,6 +252,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               {activeTab === "models" && <ModelManagement />}
               {activeTab === "tools" && <ToolsTab />}
               {activeTab === "prompts" && <PromptLibraryTab />}
+              {activeTab === "developer" && <DeveloperTab />}
             </Box>
           </AppDialogBody>
         </Box>
@@ -669,6 +681,172 @@ function ToolsTab() {
           );
         })}
       </Stack>
+    </Stack>
+  );
+}
+
+function DeveloperTab() {
+  const notify = useNotify();
+  const [clearing, setClearing] = useState(false);
+  const [sql, setSql] = useState("");
+  const [executing, setExecuting] = useState(false);
+  const [result, setResult] = useState<{ columns: string[]; rows: string[][] } | null>(null);
+
+  const handleClearDb = async () => {
+    if (!confirm("This will DELETE ALL conversations, messages, users, and sessions. Continue?")) return;
+    setClearing(true);
+    try {
+      const res = await loggedInvoke<{ success: boolean; message: string }>("clear_database");
+      if (res.success) {
+        notify.success(res.message);
+      }
+    } catch (err) {
+      notify.error("Failed to clear database", err as string);
+    } finally {
+      setClearing(false);
+    }
+  };
+
+  const handleExecuteSql = async () => {
+    if (!sql.trim()) return;
+    setExecuting(true);
+    setResult(null);
+    try {
+      const res = await loggedInvoke<{
+        success: boolean;
+        message: string;
+        rows_affected?: number;
+        columns?: string[];
+        rows?: unknown[][];
+      }>("execute_sql", { sql });
+      if (res.success) {
+        notify.success(res.message);
+        if (res.rows_affected !== undefined) {
+          setResult({ columns: [], rows: [[`${res.rows_affected} row(s) affected`]] });
+        } else if (res.columns && res.rows) {
+          setResult({
+            columns: res.columns,
+            rows: res.rows.map((r: unknown[]) => r.map((v) => String(v ?? "NULL"))),
+          });
+        }
+      }
+    } catch (err) {
+      notify.error("SQL error", err as string);
+    } finally {
+      setExecuting(false);
+    }
+  };
+
+  return (
+    <Stack spacing={0}>
+      <SectionHeader title="Developer Tools" description="⚠️ Dangerous operations. These cannot be undone." />
+
+      <SettingCard
+        title="Clear Database"
+        description="Delete all conversations, messages, users, and sessions. Provider configs are preserved."
+        action={
+          <Button
+            size="small"
+            variant="outlined"
+            color="error"
+            onClick={handleClearDb}
+            disabled={clearing}
+            startIcon={<AlertTriangle size={14} />}
+            sx={{ textTransform: "none", fontWeight: 700 }}
+          >
+            {clearing ? "Clearing..." : "Clear All Data"}
+          </Button>
+        }
+      />
+
+      <SectionHeader
+        title="SQL Runner"
+        description="Execute arbitrary SQL against the database. SELECT and PRAGMA return results; write queries return row count."
+        action={
+          <Button
+            size="small"
+            variant="contained"
+            disableElevation
+            onClick={handleExecuteSql}
+            disabled={executing || !sql.trim()}
+            startIcon={<Play size={14} />}
+            sx={{ textTransform: "none", fontWeight: 700 }}
+          >
+            {executing ? "Running..." : "Execute"}
+          </Button>
+        }
+      />
+
+      <Box sx={{ px: 2.5, pb: 2 }}>
+        <TextField
+          value={sql}
+          onChange={(e) => setSql(e.target.value)}
+          placeholder="SELECT * FROM conversations;"
+          multiline
+          minRows={4}
+          maxRows={12}
+          fullWidth
+          size="small"
+          sx={{
+            ...appTextFieldSx,
+            "& .MuiInputBase-root": { fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 13 },
+          }}
+        />
+      </Box>
+
+      {result && (
+        <Box sx={{ px: 2.5, pb: 2 }}>
+          <Box
+            sx={{
+              p: 1.5,
+              borderRadius: "8px",
+              border: "1px solid",
+              borderColor: "divider",
+              bgcolor: "background.paper",
+              overflow: "auto",
+              maxHeight: 400,
+            }}
+          >
+            {result.columns.length > 0 ? (
+              <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 12, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>
+                <thead>
+                  <tr>
+                    {result.columns.map((col, i) => (
+                      <th key={i} style={{ textAlign: "left", padding: "4px 8px", borderBottom: "2px solid #ccc", fontWeight: 700 }}>{col}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {result.rows.map((row, i) => (
+                    <tr key={i}>
+                      {row.map((cell, j) => (
+                        <td key={j} style={{ padding: "4px 8px", borderBottom: "1px solid #eee", whiteSpace: "pre-wrap" }}>{cell}</td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              result.rows.map((row, i) => (
+                <Typography key={i} sx={{ fontSize: 13, fontFamily: "monospace", color: "text.secondary" }}>
+                  {row[0]}
+                </Typography>
+              ))
+            )}
+          </Box>
+        </Box>
+      )}
+
+      <SettingCard title="Deactivate Dev Mode">
+        <Button
+          size="small"
+          variant="text"
+          onClick={() => useDevStore.getState().actions.setDevMode(false)}
+          sx={{ textTransform: "none", fontWeight: 700 }}
+        >
+          Exit Dev Mode
+        </Button>
+      </SettingCard>
     </Stack>
   );
 }

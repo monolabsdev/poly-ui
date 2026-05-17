@@ -68,8 +68,12 @@ export const useChatStore = create<ChatStore>((set) => ({
   currentAttachments: [],
   actions: {
     loadConversations: async () => {
-      const r = await getRepo();
       const userId = useAuthStore.getState().user?.id;
+      if (!userId) {
+        set({ conversations: [], messages: [], hasMoreMessages: false, activeConversationId: null });
+        return;
+      }
+      const r = await getRepo();
       const conversations = await r.getConversations(userId);
       set({ conversations });
     },

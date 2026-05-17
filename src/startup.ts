@@ -69,13 +69,17 @@ async function preloadVisibleAppChunks() {
   ]);
 }
 
+/*
+ * Database architecture:
+ * - Frontend conversations/messages: tauri-plugin-sql via repositories/index.ts
+ * - Backend users/sessions/provider_configs: sqlx via Rust connection.rs
+ * - Both hit the same chat.db file (Windows app_data_dir == app_config_dir).
+ * - See connection.rs for backend schema, repositories/index.ts for frontend.
+ */
 async function initializeStores() {
   if (DEV) console.log("[Startup] Initializing stores...");
   restoreSystemPrompts();
   startSystemPromptPersistence();
-
-  const db = await import("@/lib/db");
-  await db.initDB().catch(() => {});
 
   const repo = await import("@/lib/repositories");
   await repo.initRepository().catch(() => {});

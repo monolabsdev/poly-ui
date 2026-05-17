@@ -20,6 +20,7 @@ import {
 import { motion } from "motion/react";
 import { useTiming, ANIMATION_VARIANTS } from "@/lib/motion";
 import { useNotify } from "@/hooks/useNotify";
+import { useDevStore } from "@/store/devStore";
 import { Conversation, useChatStore } from "@/store/chatStore";
 import {
   DropdownMenu,
@@ -290,6 +291,22 @@ export const Sidebar = React.memo(function Sidebar({
   const [deleteId, setDeleteId] = React.useState<string | null>(null);
   const [deleteTitle, setDeleteTitle] = React.useState("");
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
+  const devTapCount = React.useRef(0);
+  const setDevMode = useDevStore((s) => s.actions.setDevMode);
+
+  const handleDevTap = React.useCallback(() => {
+    devTapCount.current += 1;
+    if (devTapCount.current >= 10) {
+      devTapCount.current = 0;
+      setDevMode(true);
+      notify.success("Dev mode activated", "Tap the OpenBench logo 10 more times to deactivate.");
+    } else if (devTapCount.current === 1 && useDevStore.getState().devMode) {
+      // First tap while already in dev mode — deactivate
+      devTapCount.current = 0;
+      setDevMode(false);
+      notify.info("Dev mode deactivated");
+    }
+  }, [setDevMode, notify]);
 
   const handleStartDelete = (conv: Conversation) => {
     setDeleteId(conv.id);
@@ -406,12 +423,15 @@ export const Sidebar = React.memo(function Sidebar({
           >
             <Typography
               variant="subtitle2"
+              onClick={handleDevTap}
               sx={{
                 fontWeight: 700,
                 color: "primary.main",
                 letterSpacing: "-0.01em",
                 fontSize: "15px",
                 whiteSpace: "nowrap",
+                cursor: "pointer",
+                userSelect: "none",
               }}
             >
               OpenBench

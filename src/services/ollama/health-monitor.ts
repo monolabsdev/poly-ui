@@ -6,7 +6,9 @@ type StateChangeCallback = (state: OllamaState, models?: OllamaModel[], error?: 
 
 let pollTimer: number | null = null;
 let currentBackoff = 2000;
+let checkSeq = 0;
 const MAX_BACKOFF = 30000;
+const ONLINE_INTERVAL = 10000;
 
 interface HealthMonitorDeps {
   getLocalModels: typeof ollamaClient.getLocalModels;
@@ -25,9 +27,23 @@ function createHealthMonitor(deps: HealthMonitorDeps) {
     callbacks.forEach((cb) => cb(state, models, error));
   };
 
+  const scheduleNext = () => {
+    const interval = currentState === "online" ? ONLINE_INTERVAL : currentBackoff;
+    pollTimer = window.setTimeout(checkHealth, interval);
+  };
+
   const checkHealth = async () => {
+    const seq = ++checkSeq;
+
+    if (pollTimer !== null) {
+      clearTimeout(pollTimer);
+      pollTimer = null;
+    }
+
     try {
       await deps.refreshProviders();
+      if (seq !== checkSeq) return;
+
       const providers = deps.getProviderState().providers;
       const activeProvider = providers.find((p) => p.status === "Online");
 
@@ -37,6 +53,7 @@ function createHealthMonitor(deps: HealthMonitorDeps) {
       }
 
       const models = await deps.getLocalModels();
+      if (seq !== checkSeq) return;
 
       if (currentState !== "online") {
         deps.onOnline?.();
@@ -44,7 +61,6 @@ function createHealthMonitor(deps: HealthMonitorDeps) {
       }
 
       notify("online", models);
-      return { models };
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
       const isProviderError =
@@ -66,12 +82,18 @@ function createHealthMonitor(deps: HealthMonitorDeps) {
         : Math.min(currentBackoff * 1.5, MAX_BACKOFF);
     }
 
-    if (pollTimer !== null) {
-      pollTimer = window.setTimeout(
-        checkHealth,
-        currentState === "online" ? 10000 : currentBackoff,
-      );
+    if (seq !== checkSeq) return;
+    scheduleNext();
+  };
+
+  const onVisibilityChange = () => {
+    if (document.visibilityState === "visible") {
+      void checkHealth();
     }
+  };
+
+  const onWindowFocus = () => {
+    void checkHealth();
   };
 
   return {
@@ -84,6 +106,8 @@ function createHealthMonitor(deps: HealthMonitorDeps) {
 
     start() {
       if (pollTimer !== null) return;
+      document.addEventListener("visibilitychange", onVisibilityChange);
+      window.addEventListener("focus", onWindowFocus);
       pollTimer = 1;
       void checkHealth();
     },
@@ -93,6 +117,8 @@ function createHealthMonitor(deps: HealthMonitorDeps) {
         clearTimeout(pollTimer);
         pollTimer = null;
       }
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("focus", onWindowFocus);
     },
 
     async refresh() {

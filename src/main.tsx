@@ -8,6 +8,7 @@ import { darkTheme, lightTheme } from "./theme";
 import { useThemeStore } from "./store/themeStore";
 import { NotificationProvider } from "./components/ui/Toast/NotificationProvider";
 import StartupLoadingScreen from "./components/StartupLoadingScreen";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { loadAppModule, prepareAppStartup } from "./startup";
 import "@fontsource-variable/geist";
 
@@ -52,28 +53,45 @@ function Root() {
     }
   }, [isAppReady]);
 
+  useEffect(() => {
+    const onError = (event: ErrorEvent) => {
+      console.error("[Global]", event.error ?? event.message);
+    };
+    const onRejection = (event: PromiseRejectionEvent) => {
+      console.error("[Global] Unhandled rejection:", event.reason);
+    };
+    window.addEventListener("error", onError);
+    window.addEventListener("unhandledrejection", onRejection);
+    return () => {
+      window.removeEventListener("error", onError);
+      window.removeEventListener("unhandledrejection", onRejection);
+    };
+  }, []);
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <NotificationProvider>
-        {isAppReady && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.24, ease: "easeOut" }}
-            style={{ height: "100vh", overflow: "hidden" }}
-          >
-            <Suspense fallback={null}>
-              <App />
-            </Suspense>
-          </motion.div>
-        )}
-        {showStartupScreen && (
-          <StartupLoadingScreen
-            visible={isStartupScreenVisible}
-            onExited={() => setShowStartupScreen(false)}
-          />
-        )}
+        <ErrorBoundary>
+          {isAppReady && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.24, ease: "easeOut" }}
+              style={{ height: "100vh", overflow: "hidden" }}
+            >
+              <Suspense fallback={null}>
+                <App />
+              </Suspense>
+            </motion.div>
+          )}
+          {showStartupScreen && (
+            <StartupLoadingScreen
+              visible={isStartupScreenVisible}
+              onExited={() => setShowStartupScreen(false)}
+            />
+          )}
+        </ErrorBoundary>
       </NotificationProvider>
     </ThemeProvider>
   );

@@ -37,9 +37,14 @@ export const AuthModal: React.FC = () => {
     }
   };
 
-  const isOpen = !isAuthenticated && !isLoading;
+  const [skipAuth, setSkipAuth] = useState(false);
+  const isOpen = !isAuthenticated && !isLoading && !skipAuth;
 
   if (!isOpen) return null;
+
+  const handleSkip = () => {
+    setSkipAuth(true);
+  };
 
   const content = (
     <Fade in={isOpen} timeout={300}>
@@ -83,6 +88,18 @@ export const AuthModal: React.FC = () => {
             <Typography variant="body2" sx={{ color: "text.secondary", mt: 0.5 }}>
               Sign in or create an account to continue.
             </Typography>
+            <MuiButton
+              onClick={handleSkip}
+              sx={{
+                mt: 1.5,
+                color: "text.secondary",
+                fontWeight: 400,
+                fontSize: "0.8125rem",
+                "&:hover": { backgroundColor: "transparent", color: "text.primary" },
+              }}
+            >
+              Skip for now
+            </MuiButton>
           </Box>
 
           {/* Tabs Navigation */}

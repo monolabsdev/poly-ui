@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { User, AuthResponse } from "@/types/auth";
 import { loggedInvoke } from "@/lib/utils";
+import { useChatStore } from "@/store/chatStore";
 
 type AuthStore = {
   user: User | null;
@@ -29,6 +30,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
         const response = await loggedInvoke<AuthResponse>("auth_login", { email, password });
         localStorage.setItem("session_token", response.token);
         set({ user: response.user, isAuthenticated: true, isLoading: false });
+        await useChatStore.getState().actions.loadConversations();
       } catch (err) {
         set({ error: err as string, isLoading: false });
         throw err;
@@ -40,6 +42,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
         const response = await loggedInvoke<AuthResponse>("auth_signup", { email, password, fullName });
         localStorage.setItem("session_token", response.token);
         set({ user: response.user, isAuthenticated: true, isLoading: false });
+        await useChatStore.getState().actions.loadConversations();
       } catch (err) {
         set({ error: err as string, isLoading: false });
         throw err;
@@ -54,11 +57,13 @@ export const useAuthStore = create<AuthStore>((set) => ({
         }
         localStorage.removeItem("session_token");
         set({ user: null, isAuthenticated: false, isLoading: false });
+        await useChatStore.getState().actions.loadConversations();
       } catch (err) {
         console.error("Logout error:", err);
         // Still clear local state
         localStorage.removeItem("session_token");
         set({ user: null, isAuthenticated: false, isLoading: false });
+        await useChatStore.getState().actions.loadConversations();
       }
     },
     updateStatus: async (status) => {

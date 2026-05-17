@@ -2,8 +2,6 @@ mod auth;
 mod commands;
 mod db;
 mod models;
-mod repository;
-mod services;
 mod tools;
 mod providers;
 
@@ -11,7 +9,7 @@ use crate::commands::chat_commands::{chat, chat_stream};
 use crate::commands::config_commands::cancel_chat;
 use crate::commands::model_commands::{cancel_pull, delete_model, get_local_models, pull_model};
 use crate::commands::tool_commands::{approve_tool, list_tools, toggle_tool};
-use crate::commands::user_commands::{create_user, delete_user, get_user, list_users, update_user};
+use crate::commands::db_commands::{clear_database, execute_sql};
 
 use ollama_rs::Ollama;
 use sqlx::SqlitePool;
@@ -44,7 +42,7 @@ pub fn ollama_client(state: &tauri::State<'_, AppState>) -> Result<Ollama, Strin
     // This helper is now deprecated, but we keep it for backward compatibility
     // with commands that haven't been refactored yet (like model management).
     // It will return a client for the first enabled Ollama provider.
-    
+
     let selector = &state.provider_selector;
     let configs = tauri::async_runtime::block_on(selector.get_provider_configs())?;
     let ollama_config = configs.into_iter()
@@ -66,6 +64,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_sql::Builder::default().build())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_window_state::Builder::default().build())
         .setup(|app| {
             let db = tauri::async_runtime::block_on(db::connection::init_db(app.handle()))
                 .map_err(std::io::Error::other)?;
@@ -92,11 +91,6 @@ pub fn run() {
             list_tools,
             toggle_tool,
             approve_tool,
-            create_user,
-            list_users,
-            get_user,
-            update_user,
-            delete_user,
             auth::auth_signup,
             auth::auth_login,
             auth::auth_logout,
@@ -105,6 +99,8 @@ pub fn run() {
             commands::provider_commands::get_providers,
             commands::provider_commands::update_provider_config,
             commands::provider_commands::refresh_provider_health,
+            clear_database,
+            execute_sql,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
