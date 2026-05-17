@@ -21,23 +21,32 @@ pub async fn chat_stream(
 ) -> Result<(), String> {
     let my_generation_id = state.current_generation_id.load(Ordering::SeqCst);
 
+    // Token batching: accumulate and emit every N chars
+    const TOKEN_BATCH_SIZE: usize = 15;
+    let mut pending_content = String::new();
+
     macro_rules! is_cancelled {
         () => {
             state.current_generation_id.load(Ordering::SeqCst) != my_generation_id
         };
     }
 
-    // Emits a done:true sentinel so the frontend always sees a clean stream
-    // end regardless of whether we return Ok or Err.
-    //
-    // Call this before every early return that isn't a cancellation, then
-    // return Err with the message. The frontend .catch() will receive the
-    // error string; the sentinel is a no-op on the happy path because the
-    // normal loop emits its own done:true chunk.
+    // Flush pending batched content to the frontend.
+    // Emits a done:true sentinel so the placeholder settles.
+    // Then returns Err to trigger the frontend .catch() error path.
     macro_rules! emit_error_and_return {
         ($msg:expr) => {{
-            // Emit a done chunk so the frontend settles the placeholder
-            // into "error" state cleanly rather than leaving it hanging.
+            if !pending_content.is_empty() {
+                let _ = app_handle.emit("chat-chunk", StreamPayload {
+                    request_id: request_id.clone(),
+                    content: pending_content.clone(),
+                    thinking: None,
+                    tool_calls: None,
+                    done: false,
+                    metadata: None,
+                });
+                pending_content.clear();
+            }
             let _ = app_handle.emit(
                 "chat-chunk",
                 StreamPayload {
@@ -59,10 +68,6 @@ pub async fn chat_stream(
         .get_active_provider()
         .await
         .map_err(|e| e.to_string())?;
-
-    // Token batching: accumulate and emit every N chars
-    const TOKEN_BATCH_SIZE: usize = 15;
-    let mut pending_content = String::new();
 
     let max_iterations = max_tool_iterations.unwrap_or(5);
     let tool_defs = state.tool_registry.to_ollama_tool_json().await;

@@ -4,6 +4,7 @@ export type ChunkPayload = {
   request_id: string;
   content: string;
   done: boolean;
+  thinking?: string;
   metadata?: {
     prompt_eval_count?: number;
     eval_count?: number;

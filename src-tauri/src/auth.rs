@@ -33,7 +33,6 @@ pub enum AuthError {
     UserExists,
     InvalidCredentials,
     SessionExpired,
-    UserNotFound,
     DbError(String),
 }
 
@@ -49,7 +48,10 @@ impl From<bcrypt::BcryptError> for AuthError {
     }
 }
 
-async fn create_session(pool: &SqlitePool, user_id: i64) -> Result<(String, String), AuthError> {
+async fn create_session(
+    executor: impl sqlx::Executor<'_, Database = sqlx::Sqlite>,
+    user_id: i64,
+) -> Result<(String, String), AuthError> {
     let session_id = Uuid::new_v4().to_string();
     let token = Uuid::new_v4().to_string();
     let now = Utc::now().to_rfc3339();
@@ -63,7 +65,7 @@ async fn create_session(pool: &SqlitePool, user_id: i64) -> Result<(String, Stri
     .bind(&token)
     .bind(&expires_at)
     .bind(&now)
-    .execute(pool)
+    .execute(executor)
     .await?;
 
     Ok((token, expires_at))
@@ -116,7 +118,7 @@ pub async fn signup(
         updated_at: now.clone(),
     };
 
-    let (token, _) = create_session(pool, user_id).await?;
+    let (token, _) = create_session(&mut *tx, user_id).await?;
 
     tx.commit().await?;
 
@@ -236,7 +238,6 @@ pub async fn auth_signup(
             AuthError::UserExists => "User already exists".to_string(),
             AuthError::InvalidCredentials => "Invalid credentials".to_string(),
             AuthError::SessionExpired => "Session expired".to_string(),
-            AuthError::UserNotFound => "User not found".to_string(),
             AuthError::DbError(msg) => msg,
         })
 }
@@ -253,7 +254,6 @@ pub async fn auth_login(
             AuthError::UserExists => "User already exists".to_string(),
             AuthError::InvalidCredentials => "Invalid email or password".to_string(),
             AuthError::SessionExpired => "Session expired".to_string(),
-            AuthError::UserNotFound => "User not found".to_string(),
             AuthError::DbError(msg) => msg,
         })
 }

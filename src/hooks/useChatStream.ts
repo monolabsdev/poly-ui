@@ -43,12 +43,10 @@ export function useChatStream(selectedModels: string[], systemPrompt = "") {
     }))
   );
 
-  const {
-    addMessage,
-    setStreamingConversationId,
-    setStreamingMessage,
-    patchStreamingMessage,
-  } = useChatStore((s) => s.actions);
+  const addMessage = useChatStore((s) => s.actions.addMessage);
+  const setStreamingConversationId = useChatStore((s) => s.actions.setStreamingConversationId);
+  const setStreamingMessage = useChatStore((s) => s.actions.setStreamingMessage);
+  const patchStreamingMessage = useChatStore((s) => s.actions.patchStreamingMessage);
   const notify = useNotify();
 
   const [isStreaming, setIsStreaming] = useState(false);
@@ -112,9 +110,9 @@ export function useChatStream(selectedModels: string[], systemPrompt = "") {
       if (current[mid]) setStreamingMessage(mid, null);
       
       // Cleanup pending token batches
-      const batch = pendingBatchesRef[rid];
+      const batch = pendingBatchesRef.current[rid];
       if (batch?.timer) clearTimeout(batch.timer);
-      delete pendingBatchesRef[rid];
+      delete pendingBatchesRef.current[rid];
     });
     contentAccRef.current = {};
     thinkingAccRef.current = {};
@@ -129,10 +127,10 @@ export function useChatStream(selectedModels: string[], systemPrompt = "") {
   }, []);
 
   // Token batching: accumulate tokens, update state every ~16ms to reduce re-renders
-const pendingBatchesRef: Record<string, { content: string; timer: number | null }> = {};
+const pendingBatchesRef = useRef<Record<string, { content: string; timer: number | null }>>({});
 
 const flushTokenBatch = (requestId: string, messageId: string) => {
-  const batch = pendingBatchesRef[requestId];
+  const batch = pendingBatchesRef.current[requestId];
   if (!batch || !batch.content) return;
   
   const { patchStreamingMessage } = useChatStore.getState().actions;
@@ -142,10 +140,10 @@ const flushTokenBatch = (requestId: string, messageId: string) => {
 };
 
 const queueTokenBatch = (requestId: string, messageId: string, newContent: string) => {
-  let batch = pendingBatchesRef[requestId];
+  let batch = pendingBatchesRef.current[requestId];
   if (!batch) {
     batch = { content: "", timer: null };
-    pendingBatchesRef[requestId] = batch;
+    pendingBatchesRef.current[requestId] = batch;
   }
   
   batch.content = newContent;
@@ -186,7 +184,7 @@ const queueTokenBatch = (requestId: string, messageId: string, newContent: strin
       }
 
       // Flush any pending batch before finalizing
-      const batch = pendingBatchesRef[request_id];
+      const batch = pendingBatchesRef.current[request_id];
       if (batch?.timer) {
         clearTimeout(batch.timer);
         flushTokenBatch(request_id, messageId);
@@ -217,6 +215,9 @@ const queueTokenBatch = (requestId: string, messageId: string, newContent: strin
 
         const needsNaming = await shouldAutoName(conversationId);
         if (needsNaming) {
+          const alreadyNamed = useChatStore.getState().conversations
+            .find(c => c.id === conversationId)?.title;
+          if (alreadyNamed && alreadyNamed !== "New Chat") return;
           const allMessages = useChatStore.getState().messages;
           const model = existing?.model;
           if (model) conversationNamer.nameConversation(conversationId, allMessages, model);

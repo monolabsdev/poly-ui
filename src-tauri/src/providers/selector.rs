@@ -144,4 +144,10 @@ impl ProviderSelector {
     pub async fn get_active_provider_type(&self) -> Option<ProviderType> {
         *self.active_provider.lock().await
     }
+
+    /// Bypass the 30-second health check cache and re-check every provider.
+    pub async fn force_check_all_providers(&self) -> HashMap<ProviderType, ProviderStatus> {
+        self.health_cache.lock().await.clear();
+        self.check_all_providers().await
+    }
 }

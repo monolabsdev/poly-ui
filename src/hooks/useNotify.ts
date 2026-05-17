@@ -2,7 +2,9 @@ import { useNotificationStore, type ToastType } from "@/store/notificationStore"
 import { useCallback } from "react";
 
 export function useNotify() {
-  const { add, remove, update } = useNotificationStore((s) => s.actions);
+  const add = useNotificationStore((s) => s.actions.add);
+  const remove = useNotificationStore((s) => s.actions.remove);
+  const update = useNotificationStore((s) => s.actions.update);
 
   const notify = useCallback(
     (message: string, type: ToastType = "info", options?: { description?: string; duration?: number }) => {

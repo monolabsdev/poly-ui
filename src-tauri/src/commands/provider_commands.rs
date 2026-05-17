@@ -61,7 +61,5 @@ pub async fn update_provider_config(
 pub async fn refresh_provider_health(
     state: tauri::State<'_, AppState>,
 ) -> Result<HashMap<ProviderType, ProviderStatus>, String> {
-    // Force a fresh check by waiting for a bit or just letting the selector do its thing
-    // The selector has a 30s cache. We could clear it, but for now we just call it.
-    Ok(state.provider_selector.check_all_providers().await)
+    Ok(state.provider_selector.force_check_all_providers().await)
 }

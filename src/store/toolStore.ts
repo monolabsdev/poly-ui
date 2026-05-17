@@ -37,8 +37,8 @@ type ToolStore = {
   actions: {
     loadTools: () => Promise<void>;
     toggleTool: (name: string) => Promise<void>;
-    approveToolCall: (invocationId: string, alwaysAllow?: boolean) => void;
-    denyToolCall: (invocationId: string) => void;
+    approveToolCall: (invocationId: string, alwaysAllow?: boolean) => Promise<void>;
+    denyToolCall: (invocationId: string) => Promise<void>;
     setPendingApproval: (pending: PendingToolCall | null) => void;
   };
 };
@@ -76,25 +76,33 @@ export const useToolStore = create<ToolStore>((set) => ({
       }
     },
 
-    approveToolCall: (invocationId: string, alwaysAllow = false) => {
-      loggedInvoke("approve_tool", {
-        response: {
-          invocationId,
-          approved: true,
-          alwaysAllow,
-        },
-      }).catch(console.error);
+    approveToolCall: async (invocationId: string, alwaysAllow = false) => {
+      try {
+        await loggedInvoke("approve_tool", {
+          response: {
+            invocationId,
+            approved: true,
+            alwaysAllow,
+          },
+        });
+      } catch (err) {
+        console.error("Failed to approve tool:", err);
+      }
       set({ pendingApproval: null });
     },
 
-    denyToolCall: (invocationId: string) => {
-      loggedInvoke("approve_tool", {
-        response: {
-          invocationId,
-          approved: false,
-          alwaysAllow: false,
-        },
-      }).catch(console.error);
+    denyToolCall: async (invocationId: string) => {
+      try {
+        await loggedInvoke("approve_tool", {
+          response: {
+            invocationId,
+            approved: false,
+            alwaysAllow: false,
+          },
+        });
+      } catch (err) {
+        console.error("Failed to deny tool:", err);
+      }
       set({ pendingApproval: null });
     },
 
