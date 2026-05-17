@@ -4,6 +4,7 @@ use async_trait::async_trait;
 use futures::Stream;
 use ollama_rs::generation::chat::request::ChatMessageRequest;
 use ollama_rs::generation::chat::ChatMessage as OllamaChatMessage;
+use ollama_rs::generation::parameters::FormatType;
 use ollama_rs::generation::tools::{ToolFunctionInfo, ToolInfo, ToolType};
 use ollama_rs::models::ModelOptions;
 use ollama_rs::Ollama;
@@ -163,7 +164,18 @@ impl LLMProvider for OllamaProvider {
 
         let mut request = ChatMessageRequest::new(model.clone(), history);
 
-        if let Some(opt) = options {
+        if let Some(mut opt) = options {
+            if opt
+                .get("format")
+                .and_then(|value| value.as_str())
+                .is_some_and(|value| value == "json")
+            {
+                request.format = Some(FormatType::Json);
+                if let Some(object) = opt.as_object_mut() {
+                    object.remove("format");
+                }
+            }
+
             if let Ok(model_opts) = serde_json::from_value::<ModelOptions>(opt) {
                 request.options = Some(model_opts);
             }

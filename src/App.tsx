@@ -20,6 +20,7 @@ import { useChatStore } from "@/store/chatStore";
 import { useAuthStore } from "@/store/authStore";
 import { useNotify } from "@/hooks/useNotify";
 import { useShallow } from "zustand/react/shallow";
+import { retryTitleForConversation } from "@/lib/chat/title-generation";
 import "./App.css";
 
 const AuthModal = lazy(() =>
@@ -148,6 +149,13 @@ function App() {
 
   const handleSelectConversation = useCallback((id: string) => {
     measureSyncInteraction("app.handleSelectConversation", { id }, () => {
+      // Before switching, retry title generation for the current conversation
+      // if it still has the default title and any title attempt may have failed
+      const currentId = useChatStore.getState().activeConversationId;
+      if (currentId && currentId !== id) {
+        retryTitleForConversation(currentId);
+      }
+
       stopStreamingRef.current?.();
       setActiveConversationId(id);
     });

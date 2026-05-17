@@ -54,16 +54,19 @@ export function createConversationNamer(deps: NameConversationDeps) {
             temperature: 0,
             top_p: 0.1,
             repeat_penalty: 1.4,
-            num_predict: 4,
-            stop: ["\n"],
+            num_predict: 300,
           },
         });
 
         const cleaned = cleanTitle(title);
+        if (cleaned === "New Chat") {
+          console.warn("Title gen returned unparsable response:", JSON.stringify(title));
+          return "New Chat";
+        }
         await deps.renameConversation(conversationId, cleaned);
         return cleaned;
       } catch (error) {
-        console.error("Failed to generate title:", error);
+        console.error("Title gen failed:", error);
         return "New Chat";
       }
     },

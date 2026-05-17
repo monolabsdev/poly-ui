@@ -5,7 +5,7 @@ mod models;
 mod tools;
 mod providers;
 
-use crate::commands::chat_commands::{chat, chat_stream};
+use crate::commands::chat_commands::{chat, chat_stream, generate_chat_title};
 use crate::commands::config_commands::cancel_chat;
 use crate::commands::model_commands::{cancel_pull, delete_model, get_local_models, pull_model};
 use crate::commands::tool_commands::{approve_tool, list_tools, toggle_tool};
@@ -87,6 +87,7 @@ pub fn run() {
             delete_model,
             chat_stream,
             chat,
+            generate_chat_title,
             cancel_chat,
             cancel_pull,
             list_tools,

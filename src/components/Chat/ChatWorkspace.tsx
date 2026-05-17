@@ -6,7 +6,6 @@ import { ChatInput } from "@/components/Chat/ChatInput";
 import { EmptyState } from "@/components/Chat/EmptyState";
 import { useChatStream } from "@/hooks/useChatStream";
 import { useChatStore } from "@/store/chatStore";
-import type { ChatMessage } from "@/types/chat";
 
 type ChatWorkspaceProps = {
   selectedModels: string[];
@@ -33,8 +32,8 @@ export default function ChatWorkspace({
   isTemporary,
   onStopStreamingReady,
 }: ChatWorkspaceProps) {
-  const { messages, isStreaming, sendMessage, stopStreaming, bottomRef, hasMessages } =
-    useChatStream(selectedModels, systemPromptContent);
+  const { messages, isStreaming, sendMessage, regenerateMessage, stopStreaming, bottomRef, hasMessages } =
+    useChatStream(selectedModels, systemPromptContent, userName);
   const deferredMessages = useDeferredValue(messages);
 
   const { activeConversationId, currentAttachments } = useChatStore(
@@ -89,18 +88,8 @@ export default function ChatWorkspace({
           const targetMessage = messages[messageIndex];
           if (targetMessage?.role !== "assistant") return;
 
-          let previousUserMessage: ChatMessage | null = null;
-          for (let i = messageIndex - 1; i >= 0; i--) {
-            if (messages[i]?.role === "user") {
-              previousUserMessage = messages[i];
-              break;
-            }
-          }
-
-          if (!previousUserMessage) return;
-
           await deleteMessagesAfter(activeConversationId, targetMessage.id);
-          sendMessage(previousUserMessage.content);
+          regenerateMessage(activeConversationId);
         },
       );
     },
@@ -109,7 +98,7 @@ export default function ChatWorkspace({
       deleteMessagesAfter,
       isStreaming,
       messages,
-      sendMessage,
+      regenerateMessage,
     ],
   );
 

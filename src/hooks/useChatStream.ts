@@ -9,7 +9,7 @@ import { useOllamaStore } from "@/services/ollama/monitor";
 import { buildSystemPrompt } from "@/lib/chat/prompts";
 import { defaultPreprocessor } from "@/lib/chat/message-preprocessor";
 import { toolApprovalHandler } from "@/lib/chat/tool-approval-handler";
-import { conversationNamer, shouldAutoName } from "@/lib/chat/conversation-namer";
+import { queueTitleGeneration } from "@/lib/chat/title-generation";
 import {
   streamEventBus,
   type ChunkPayload,
@@ -33,7 +33,7 @@ import {
 // reactive values.
 // ---------------------------------------------------------------------------
 
-export function useChatStream(selectedModels: string[], systemPrompt = "") {
+export function useChatStream(selectedModels: string[], systemPrompt = "", userName?: string) {
   // Use useShallow to prevent re-renders when other messages in the store change
   const { messages, streamingMessages, activeConversationId } = useChatStore(
     useShallow((s) => ({
@@ -194,6 +194,8 @@ const queueTokenBatch = (requestId: string, messageId: string, newContent: strin
       const { streamingMessages: current } = useChatStore.getState();
       const existing = current[messageId];
       const thinking = thinkingAccRef.current[request_id];
+      const completedModel = existing?.model ?? "";
+      const shouldStartTitleGeneration = pendingStreamsRef.current <= 1;
 
       if (acc.trim() || thinking?.trim()) {
         const startTime = thinkingStartTimeRef.current[request_id];
@@ -209,25 +211,23 @@ const queueTokenBatch = (requestId: string, messageId: string, newContent: strin
           thinkingDuration,
           isThinking: false,
           createdAt: new Date().toISOString(),
-          model: existing?.model ?? "unknown",
+          model: completedModel || "unknown",
           status: "complete",
         });
-
-        const needsNaming = await shouldAutoName(conversationId);
-        if (needsNaming) {
-          const alreadyNamed = useChatStore.getState().conversations
-            .find(c => c.id === conversationId)?.title;
-          if (alreadyNamed && alreadyNamed !== "New Chat") return;
-          const allMessages = useChatStore.getState().messages;
-          const model = existing?.model;
-          if (model) conversationNamer.nameConversation(conversationId, allMessages, model);
-        }
       }
 
       setStreamingMessage(messageId, null);
       settlePending();
+
+      if (shouldStartTitleGeneration) {
+        queueTitleGeneration({
+          conversationId,
+          model: completedModel,
+          userName,
+        });
+      }
     },
-    [addMessage, settlePending, patchStreamingMessage, setStreamingMessage],
+    [addMessage, settlePending, setStreamingMessage, userName],
     // NOTE: streamingMessages intentionally excluded. We use getState() above.
   );
 
@@ -333,12 +333,34 @@ const queueTokenBatch = (requestId: string, messageId: string, newContent: strin
         attachments,
       });
 
-      // Read history after the user message has been committed.
-      const history = useChatStore.getState().messages.map((m) => ({
-        role: m.role,
-        content: m.content,
-        attachments: m.attachments ?? [],
-      }));
+      startStream(conversationId, models);
+    },
+    [
+      selectedModels,
+      isStreaming,
+      activeConversationId,
+      systemPrompt,
+      addMessage,
+      resetStreamState,
+      settlePending,
+      setStreamingMessage,
+      patchStreamingMessage,
+      notify,
+    ],
+  );
+
+  const startStream = useCallback(
+    (conversationId: string, models: string[]) => {
+      if (!conversationId || !models.length) return;
+
+      // Read current conversation history from the store
+      const history = useChatStore.getState().messages
+        .filter((m) => m.conversationId === conversationId)
+        .map((m) => ({
+          role: m.role,
+          content: m.content,
+          attachments: m.attachments ?? [],
+        }));
 
       setIsStreaming(true);
       resetStreamState();
@@ -351,8 +373,6 @@ const queueTokenBatch = (requestId: string, messageId: string, newContent: strin
         const mid = crypto.randomUUID();
         requestIdToMessageIdRef.current[rid] = mid;
 
-        // Create the placeholder once. All subsequent updates go through
-        // patchStreamingMessage so there is never a second placeholder.
         setStreamingMessage(mid, {
           id: mid,
           conversationId,
@@ -377,8 +397,6 @@ const queueTokenBatch = (requestId: string, messageId: string, newContent: strin
               ? err
               : (err as Error).message || "Unknown error";
 
-          // Attach the error to the existing placeholder message rather than
-          // creating a new assistant message for the error text.
           patchStreamingMessage(mid, {
             status: "error",
             errorMessage: errMsg,
@@ -390,11 +408,7 @@ const queueTokenBatch = (requestId: string, messageId: string, newContent: strin
       }
     },
     [
-      selectedModels,
-      isStreaming,
-      activeConversationId,
       systemPrompt,
-      addMessage,
       resetStreamState,
       settlePending,
       setStreamingMessage,
@@ -444,10 +458,20 @@ const queueTokenBatch = (requestId: string, messageId: string, newContent: strin
   }, [isStreaming, addMessage, setStreamingMessage]);
   // NOTE: streamingMessages removed from deps; we use getState() above.
 
+  const regenerateMessage = useCallback(
+    (conversationId: string) => {
+      const models = selectedModels.filter(Boolean);
+      if (isStreaming || !models.length || !conversationId) return;
+      startStream(conversationId, models);
+    },
+    [selectedModels, isStreaming, startStream],
+  );
+
   return {
     messages: displayMessages,
     isStreaming,
     sendMessage,
+    regenerateMessage,
     stopStreaming,
     bottomRef,
     hasMessages: displayMessages.length > 0,

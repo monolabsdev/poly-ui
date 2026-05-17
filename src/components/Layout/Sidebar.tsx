@@ -538,7 +538,8 @@ export const Sidebar = React.memo(function Sidebar({
             transition: "opacity 0.18s ease",
             willChange: "opacity, transform",
             height: isCollapsed ? 0 : "auto",
-            overflow: "hidden",
+            overflowY: "auto",
+            overflowX: "hidden",
           }}
         >
             {groupedConversations.map((group, groupIndex) => (
