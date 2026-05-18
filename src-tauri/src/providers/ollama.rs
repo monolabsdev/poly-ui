@@ -5,11 +5,9 @@ use futures::Stream;
 use ollama_rs::generation::chat::request::ChatMessageRequest;
 use ollama_rs::generation::chat::ChatMessage as OllamaChatMessage;
 use ollama_rs::generation::parameters::FormatType;
-use ollama_rs::generation::tools::{ToolFunctionInfo, ToolInfo, ToolType};
 use ollama_rs::models::ModelOptions;
 use ollama_rs::Ollama;
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION};
-use schemars::Schema;
 use std::pin::Pin;
 use tokio_stream::StreamExt;
 
@@ -47,10 +45,12 @@ impl OllamaProvider {
         let host_with_scheme = format!("{}://{}", scheme, host_only);
         let port = url.port().unwrap_or(11434);
 
-        println!(
-            "[OllamaProvider] Initializing with host: {}, port: {}",
-            host_with_scheme, port
-        );
+        if cfg!(debug_assertions) {
+            println!(
+                "[OllamaProvider] Initializing with host: {}, port: {}",
+                host_with_scheme, port
+            );
+        }
 
         let client = Ollama::new_with_client(host_with_scheme, port, reqwest_client);
 
@@ -62,21 +62,11 @@ impl OllamaProvider {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Error normalization
-//
-// ollama_rs surfaces reqwest errors as opaque strings via `.to_string()`.
-// We inspect the message to produce something actionable for the frontend.
-// ---------------------------------------------------------------------------
-// Used for errors that implement Display (e.g. OllamaError returned from
-// top-level ollama_rs calls like send_chat_messages_stream, list_local_models).
 fn normalize_ollama_error(raw: impl std::fmt::Display) -> String {
     let msg = raw.to_string().to_lowercase();
     normalize_msg(&msg, raw.to_string())
 }
 
-// Used for errors that only implement Debug (e.g. the error type yielded by
-// individual stream items inside mapped_stream / pull mapped stream).
 fn normalize_ollama_stream_error(raw: impl std::fmt::Debug) -> String {
     let debug = format!("{:?}", raw);
     let msg = debug.to_lowercase();
@@ -93,9 +83,6 @@ fn normalize_msg(msg: &str, raw: String) -> String {
     }
     if msg.contains("model") && (msg.contains("not found") || msg.contains("404")) {
         return "Model not found. Run `ollama pull <model>` to download it.".to_string();
-    }
-    if msg.contains("does not support tools") {
-        return "This model does not support tools. Retrying without tools.".to_string();
     }
     if msg.contains("internal server error") {
         return "Ollama internal error. Try: 1) Pull the model again, 2) Restart Ollama, 3) Check `ollama logs` for details.".to_string();
@@ -127,7 +114,6 @@ impl LLMProvider for OllamaProvider {
         model: String,
         messages: Vec<ChatMessage>,
         system_prompt: Option<String>,
-        tools: Option<Vec<serde_json::Value>>,
         options: Option<serde_json::Value>,
     ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamPayload, String>> + Send>>, String> {
         let mut history: Vec<OllamaChatMessage> = Vec::new();
@@ -181,30 +167,6 @@ impl LLMProvider for OllamaProvider {
             }
         }
 
-        if let Some(tool_defs) = tools {
-            let ollama_tools: Vec<ToolInfo> = tool_defs
-                .iter()
-                .filter_map(|t| {
-                    let func = t.get("function")?;
-                    let params_value = func.get("parameters")?.clone();
-                    let schema: Schema = serde_json::from_value(params_value).ok()?;
-                    Some(ToolInfo {
-                        tool_type: ToolType::Function,
-                        function: ToolFunctionInfo {
-                            name: func.get("name")?.as_str()?.to_string(),
-                            description: func.get("description")?.as_str()?.to_string(),
-                            parameters: schema,
-                        },
-                    })
-                })
-                .collect();
-            if !ollama_tools.is_empty() {
-                request.tools = ollama_tools;
-            }
-        }
-
-        // Map the upstream error (which often contains a raw reqwest message)
-        // before it reaches the command layer.
         let stream = self
             .client
             .send_chat_messages_stream(request)
@@ -227,33 +189,14 @@ impl LLMProvider for OllamaProvider {
                     });
                 }
 
-                let tool_calls = if !response.message.tool_calls.is_empty() {
-                    Some(
-                        response
-                            .message
-                            .tool_calls
-                            .into_iter()
-                            .map(|t| crate::models::chat::GenericToolCall {
-                                name: t.function.name,
-                                arguments: t.function.arguments,
-                            })
-                            .collect(),
-                    )
-                } else {
-                    None
-                };
-
                 Ok(StreamPayload {
                     request_id: String::new(),
                     content: response.message.content,
                     thinking: response.message.thinking,
-                    tool_calls,
                     done: response.done,
                     metadata,
                 })
             }
-            // Stream item errors yield a type that is Debug but not Display,
-            // so use the Debug-aware helper here.
             Err(e) => Err(normalize_ollama_stream_error(e)),
         });
 
@@ -313,11 +256,7 @@ impl LLMProvider for OllamaProvider {
     }
 
     fn get_provider_name(&self) -> String {
-        match self.provider_type {
-            ProviderType::OllamaLocal => "Ollama (Local)".to_string(),
-            ProviderType::OllamaAPI => "Ollama (API)".to_string(),
-            _ => "Ollama".to_string(),
-        }
+        "Ollama".to_string()
     }
 
     fn get_provider_type(&self) -> ProviderType {

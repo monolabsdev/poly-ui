@@ -1,83 +1,10 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-@layer base {
-  :root {
-    /* Core palette: Zinc-based neutral dark mode */
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 240 10% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 240 5.9% 10%;
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 240 4.9% 83.9%;
-    --radius: 0.75rem;
-
-    /* Sidebar specific */
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
-
-    /* Premium Motion Tokens */
-    --ease-premium: cubic-bezier(0.2, 0.8, 0.2, 1);
-    --duration-fast: 120ms;
-    --duration-base: 180ms;
-    --duration-slow: 280ms;
-  }
-
-  .dark {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
-    /* ... rest remains same for now as we focus on dark-first modern look */
-  }
+/* CSS reset for elements used with Box component="button" et al */
+button {
+  all: unset;
 }
 
-@layer base {
-  * {
-    @apply border-border;
-  }
-  body {
-    @apply bg-background text-foreground antialiased selection:bg-primary/10 selection:text-primary;
-    font-feature-settings: "rlig" 1, "calt" 1;
-  }
-}
-
-@layer components {
-  /* Glassmorphism primitives */
-  .glass {
-    @apply bg-background/60 backdrop-blur-md border border-white/5;
-  }
-
-  .glass-card {
-    @apply bg-secondary/30 backdrop-blur-sm border border-white/5 shadow-xl;
-  }
-
-  /* Chat Bubble aesthetics */
-  .chat-bubble-user {
-    @apply bg-zinc-800 text-zinc-100 rounded-2xl px-4 py-2 shadow-sm border border-zinc-700/50;
-  }
-
-  .chat-bubble-assistant {
-    @apply bg-transparent text-zinc-100 rounded-2xl px-0 py-2;
-  }
+*, *::before, *::after {
+  box-sizing: border-box;
 }
 
 /* Custom Scrollbar */
@@ -87,24 +14,76 @@
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-transparent;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-zinc-800 rounded-full hover:bg-zinc-700 transition-colors;
+  background: #27272a;
+  border-radius: 9999px;
 }
 
-/* Syntax Highlighting overrides for refined look */
+::-webkit-scrollbar-thumb:hover {
+  background: #3f3f46;
+}
+
+/* Syntax Highlighting overrides */
 pre {
-  @apply !bg-zinc-950/50 !border !border-white/5 !rounded-xl !p-4 !my-4;
+  background: rgba(9, 9, 11, 0.5) !important;
+  border: 1px solid rgba(255, 255, 255, 0.05) !important;
+  border-radius: 12px !important;
+  padding: 16px !important;
+  margin: 16px 0 !important;
 }
 
 code {
-  @apply font-mono text-[0.9em];
+  font-family: monospace;
+  font-size: 0.9em;
 }
 
 .inline-code {
-  @apply bg-zinc-800/50 px-1.5 py-0.5 rounded-md text-zinc-200 border border-white/5;
+  background: rgba(39, 39, 42, 0.5);
+  padding: 1.5px 6px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Hover visibility for copy button */
+.copy-button {
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+
+*:hover > .copy-button {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .copy-button {
+    opacity: 1;
+  }
+}
+
+/* Action bar visibility */
+.action-bar {
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+*:hover > .action-bar,
+*:focus-within > .action-bar {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .action-bar {
+    opacity: 1;
+  }
+}
+
+/* Spin animation for refresh icon */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 /* Utility Animations */
@@ -114,5 +93,22 @@ code {
 }
 
 .animate-premium-in {
-  animation: premium-in var(--duration-base) var(--ease-premium) forwards;
+  animation: premium-in var(--duration-base, 180ms) var(--ease-premium, cubic-bezier(0.2, 0.8, 0.2, 1)) forwards;
+}
+
+/* Conversation actions in sidebar */
+.conversation-actions {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+*:hover > .conversation-actions,
+*:focus-within > .conversation-actions {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .conversation-actions {
+    opacity: 1;
+  }
 }

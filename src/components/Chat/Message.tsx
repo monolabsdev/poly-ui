@@ -23,7 +23,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { isImageAttachment, createDataUrl, formatFileSize } from "@/lib/utils";
-import clsx from "clsx";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { motion, AnimatePresence } from "motion/react";
@@ -197,7 +196,7 @@ export const Message = memo(function Message({
           );
         }
         return (
-          <code className={clsx(className, inline && "inline-code")} {...props}>
+           <code className={className} {...props}>
             {children}
           </code>
         );
@@ -622,7 +621,6 @@ export const Message = memo(function Message({
 
         <Box
           className="action-bar"
-          sx={{ mt: 1, display: "flex", alignItems: "center", gap: 1 }}
         >
           <Tooltip title={copied ? "Copied" : "Copy"}>
             <IconButton
@@ -690,8 +688,24 @@ export const Message = memo(function Message({
               </IconButton>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => {}}>
-                More options soon
+              <DropdownMenuItem
+                onClick={handleCopy}
+                sx={{ gap: 2 }}
+              >
+                <Copy size={14} />
+                Copy message
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  const plain = content.replace(/[#*`~\[\]()>|\\]/g, "").replace(/\n{3,}/g, "\n\n");
+                  navigator.clipboard.writeText(plain).then(() => {
+                    notify.success("Copied as plain text");
+                  });
+                }}
+                sx={{ gap: 2 }}
+              >
+                <Copy size={14} />
+                Copy as plain text
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

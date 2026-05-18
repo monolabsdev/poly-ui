@@ -1,35 +1,9 @@
-import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
 import { invoke } from "@tauri-apps/api/core";
 
 type InvokeArgs = Record<string, unknown>;
 
-function estimateJsonBytes(_args: InvokeArgs): number {
-  return 0;
-}
-
-function perfLog(..._args: unknown[]): void {}
-
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
-
 export async function loggedInvoke<T>(cmd: string, args: InvokeArgs = {}): Promise<T> {
-  const startTime = Date.now();
-  const payloadBytes = estimateJsonBytes(args);
-
-  try {
-    const result = await invoke<T>(cmd, args);
-    const responseBytes = estimateJsonBytes(result as InvokeArgs ?? {});
-    const totalTime = Date.now() - startTime;
-    perfLog("tauri-invoke", cmd, { status: 200, payloadBytes, responseBytes }, totalTime);
-    return result;
-  } catch (error: unknown) {
-    const totalTime = Date.now() - startTime;
-    const errorMessage = error instanceof Error ? error.message : String(error ?? "Unknown error");
-    perfLog("tauri-invoke", cmd, { status: 500, payloadBytes, error: errorMessage }, totalTime);
-    throw error;
-  }
+  return invoke<T>(cmd, args);
 }
 
 export function isImageAttachment(type: string): boolean {

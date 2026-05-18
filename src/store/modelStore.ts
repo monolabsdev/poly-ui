@@ -1,11 +1,8 @@
 import { create } from "zustand";
 
-export type ModelProvider = "ollama" | "anthropic" | "openai";
+export type ModelProvider = "ollama";
 
-export type AvailableModels = {
-  anthropic: string[];
-  openai: string[];
-};
+export type AvailableModels = Record<string, string[]>;
 
 export type SystemPrompt = {
   id: string;
@@ -69,10 +66,7 @@ type ModelStore = {
   };
 };
 
-const defaultAvailableModels: AvailableModels = {
-  anthropic: [],
-  openai: [],
-};
+const defaultAvailableModels: AvailableModels = {};
 
 const defaultSystemPrompt: SystemPrompt = {
   id: "default",
@@ -135,9 +129,9 @@ export const useModelStore = create<ModelStore>((set) => ({
       };
     }),
   setAvailableModels: (models) =>
-    set((state) => ({
-      availableModels: { ...state.availableModels, ...models },
-    })),
+    set({
+      availableModels: models as AvailableModels,
+    }),
   actions: {
     setDefaultModel: (model: string) => {
       localStorage.setItem("default_model", model);
@@ -174,6 +168,4 @@ export const useModelStore = create<ModelStore>((set) => ({
 
 export const providerLabels: Record<ModelProvider, string> = {
   ollama: "Ollama",
-  anthropic: "Anthropic",
-  openai: "OpenAI",
 };

@@ -9,7 +9,6 @@ import { Label } from "@/components/ui/label";
 export const AuthModal: React.FC = () => {
   const theme = useTheme();
   const { isAuthenticated, isLoading, isGuest, error, actions } = useAuthStore();
-  console.log("[AuthModal] state:", { isAuthenticated, isLoading, isGuest, hasError: !!error });
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");

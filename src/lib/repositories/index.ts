@@ -43,6 +43,11 @@ class SqliteConversationRepository implements ConversationRepository {
     await this.db.execute("DELETE FROM conversations WHERE id = ?", [id]);
   }
 
+  async deleteAllConversations(userId: string): Promise<void> {
+    await this.db.execute("DELETE FROM messages WHERE conversationId IN (SELECT id FROM conversations WHERE userId = ?)", [userId]);
+    await this.db.execute("DELETE FROM conversations WHERE userId = ?", [userId]);
+  }
+
   async getMessages(conversationId: string, limit: number, offset: number): Promise<Message[]> {
     const rows = await this.db.select<{ id: string; conversationId: string; role: "user" | "assistant"; content: string; createdAt: string; attachments?: string; model?: string; thinking?: string; thinkingDuration?: number }[]>(
       "SELECT * FROM messages WHERE conversationId = ? ORDER BY createdAt DESC LIMIT ? OFFSET ?",
@@ -103,6 +108,15 @@ class InMemoryConversationRepository implements ConversationRepository {
     delete this.messages[id];
   }
 
+  async deleteAllConversations(userId: string): Promise<void> {
+    for (const [id, conv] of Object.entries(this.conversations)) {
+      if (conv.userId === userId) {
+        delete this.conversations[id];
+        delete this.messages[id];
+      }
+    }
+  }
+
   async getMessages(conversationId: string, limit: number, offset: number): Promise<Message[]> {
     const all = [...(this.messages[conversationId] ?? [])];
     all.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
@@ -139,33 +153,6 @@ export async function initRepository(): Promise<ConversationRepository> {
 
   try {
     const db = await Database.load("sqlite:chat.db");
-    await db.execute("CREATE TABLE IF NOT EXISTS conversations (id TEXT PRIMARY KEY, title TEXT, createdAt TEXT, updatedAt TEXT, isArchived INTEGER DEFAULT 0)");
-    await db.execute("CREATE TABLE IF NOT EXISTS messages (id TEXT PRIMARY KEY, conversationId TEXT, role TEXT, content TEXT, createdAt TEXT, attachments TEXT, model TEXT, thinking TEXT, thinkingDuration REAL)");
-    
-    // Indexes for query optimization
-    await db.execute("CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversationId)");
-    await db.execute("CREATE INDEX IF NOT EXISTS idx_messages_created ON messages(createdAt)");
-    await db.execute("CREATE INDEX IF NOT EXISTS idx_conversations_updated ON conversations(updatedAt)");
-    await db.execute("CREATE INDEX IF NOT EXISTS idx_conversations_archived ON conversations(isArchived)");
-    
-    try {
-      const cols = await db.select<{ name: string }[]>("PRAGMA table_info(messages)");
-      const has = (n: string) => cols.some((c) => c.name === n);
-      if (!has("model")) await db.execute("ALTER TABLE messages ADD COLUMN model TEXT");
-      if (!has("thinking")) await db.execute("ALTER TABLE messages ADD COLUMN thinking TEXT");
-      if (!has("thinkingDuration")) await db.execute("ALTER TABLE messages ADD COLUMN thinkingDuration REAL");
-      if (!has("attachments")) await db.execute("ALTER TABLE messages ADD COLUMN attachments TEXT");
-    } catch { /* ignore */ }
-
-    try {
-      const cols = await db.select<{ name: string }[]>("PRAGMA table_info(conversations)");
-      if (!cols.some(c => c.name === "isArchived")) await db.execute("ALTER TABLE conversations ADD COLUMN isArchived INTEGER DEFAULT 0");
-      if (!cols.some(c => c.name === "userId")) await db.execute("ALTER TABLE conversations ADD COLUMN userId TEXT DEFAULT ''");
-    } catch { /* ignore */ }
-
-    // Index for per-user conversation lookup
-    await db.execute("CREATE INDEX IF NOT EXISTS idx_conversations_user ON conversations(userId)");
-
     repository = new SqliteConversationRepository(db);
     if (DEV) console.log("[repo] SQLite repository active");
   } catch (error) {

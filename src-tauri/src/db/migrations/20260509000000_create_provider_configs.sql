@@ -19,6 +19,4 @@ UPDATE provider_configs
 SET ollama_host = 'http://127.0.0.1:11434' 
 WHERE provider_type = 'OllamaLocal' AND ollama_host = 'http://localhost:11434';
 
--- Insert default Ollama API config (disabled by default)
-INSERT OR IGNORE INTO provider_configs (provider_type, enabled, priority)
-VALUES ('OllamaAPI', 0, 1);
+

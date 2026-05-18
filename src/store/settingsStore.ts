@@ -1,36 +1,68 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import type { PromptPresetId } from "@/constants/promptPresets";
 
-export type OllamaConfig = {
-  baseUrl: string;
+export type Gender = "male" | "female" | "other" | "prefer-not-to-say";
+
+export type AccountSettings = {
+  name: string;
+  bio: string;
+  gender: Gender;
+  birthDate: string;
+};
+
+export type GeneralSettings = {
+  language: string;
+  notifications: boolean;
+  systemPrompt: string;
 };
 
 type SettingsState = {
-  ollamaConfig: OllamaConfig;
+  general: GeneralSettings;
+  account: AccountSettings;
+  selectedPromptPreset: PromptPresetId;
   actions: {
-    setOllamaConfig: (config: OllamaConfig) => Promise<void>;
+    updateGeneral: (update: Partial<GeneralSettings>) => void;
+    updateAccount: (update: Partial<AccountSettings>) => void;
+    resetAccount: () => void;
+    setPromptPreset: (id: PromptPresetId) => void;
   };
 };
 
-const DEFAULT_OLLAMA_CONFIG: OllamaConfig = {
-  baseUrl: "http://localhost:11434",
+const defaultAccount: AccountSettings = {
+  name: "",
+  bio: "",
+  gender: "prefer-not-to-say",
+  birthDate: "",
 };
 
 export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
-      ollamaConfig: DEFAULT_OLLAMA_CONFIG,
+      general: {
+        language: "en",
+        notifications: true,
+        systemPrompt: "",
+      },
+      account: { ...defaultAccount },
+      selectedPromptPreset: "default" as PromptPresetId,
       actions: {
-        setOllamaConfig: async (config) => {
-          set({ ollamaConfig: config });
-        },
+        updateGeneral: (update) =>
+          set((s) => ({ general: { ...s.general, ...update } })),
+
+        updateAccount: (update) =>
+          set((s) => ({ account: { ...s.account, ...update } })),
+        resetAccount: () => set({ account: { ...defaultAccount } }),
+        setPromptPreset: (id) => set({ selectedPromptPreset: id }),
       },
     }),
     {
-      name: "settings-storage",
+      name: "openbench:settings",
       partialize: (state) => ({
-        ollamaConfig: state.ollamaConfig,
+        general: state.general,
+        account: state.account,
+        selectedPromptPreset: state.selectedPromptPreset,
       }),
-    }
-  )
+    },
+  ),
 );

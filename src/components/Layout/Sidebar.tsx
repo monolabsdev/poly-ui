@@ -220,8 +220,6 @@ const ConversationItem = React.memo(function ConversationItem({
               sx={{
                 display: "flex",
                 gap: 0,
-                opacity: isCollapsed ? 0 : 0, // It is 0 by default, shown on hover
-                transition: "opacity 0.2s",
                 mr: -0.5,
                 visibility: isCollapsed ? "hidden" : "visible",
               }}
@@ -924,7 +922,9 @@ function GuestWarning() {
         border: "1px solid rgba(245, 158, 11, 0.2)",
       }}
     >
-      <AlertTriangle size={14} className="text-amber-500" style={{ marginTop: 1, flexShrink: 0 }} />
+      <Box component="span" sx={{ color: "warning.main", mt: 0.5, flexShrink: 0, display: "flex" }}>
+        <AlertTriangle size={14} />
+      </Box>
       <Typography
         variant="caption"
         sx={{

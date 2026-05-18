@@ -20,13 +20,17 @@ type GenerateTitleArgs = {
 const pendingTitleGenerations = new Set<string>();
 const TITLE_GENERATION_DELAY_MS = 250;
 
+function hasCustomTitle(conversation: { title: string }): boolean {
+  return Boolean(conversation.title) && conversation.title !== "New Chat";
+}
+
 export function shouldGenerateTitle(conversationId: string): boolean {
   if (pendingTitleGenerations.has(conversationId)) return false;
 
   const { conversations, messages } = useChatStore.getState();
   const conversation = conversations.find((c) => c.id === conversationId);
   if (!conversation || conversation.isTemporary) return false;
-  if ((conversation.title || "New Chat") !== "New Chat") return false;
+  if (hasCustomTitle(conversation)) return false;
 
   const conversationMessages = messages.filter(
     (message) => message.conversationId === conversationId,
@@ -54,7 +58,7 @@ export function retryTitleForConversation(conversationId: string): void {
   const { conversations, messages } = useChatStore.getState();
   const conversation = conversations.find((c) => c.id === conversationId);
   if (!conversation || conversation.isTemporary) return;
-  if ((conversation.title || "New Chat") !== "New Chat") return;
+  if (hasCustomTitle(conversation)) return;
 
   const conversationMessages = messages.filter(
     (message) => message.conversationId === conversationId,
@@ -99,34 +103,19 @@ async function generateAndApplyTitle(
     .filter((message) => message.conversationId === conversationId)
     .slice(-2);
 
-  let title = await loggedInvoke<string | null>("generate_chat_title", {
+  const title = await loggedInvoke<string | null>("generate_chat_title", {
     model,
     messages: conversationMessages.map(toBackendMessage),
     userName,
   });
 
-  // Fallback: if backend returned nothing, use first user message as title
-  if (!title?.trim()) {
-    const firstUser = conversationMessages.find((m) => m.role === "user");
-    if (firstUser?.content?.trim()) {
-      title = makeFallbackTitle(firstUser.content);
-    }
-  }
-
   if (!title?.trim()) return;
 
   const { conversations, actions } = useChatStore.getState();
   const conversation = conversations.find((c) => c.id === conversationId);
-  if (!conversation || (conversation.title || "New Chat") !== "New Chat") return;
+  if (!conversation || hasCustomTitle(conversation)) return;
 
   await actions.renameConversation(conversationId, title.trim());
-}
-
-function makeFallbackTitle(content: string): string {
-  const cleaned = content.replace(/\s+/g, " ").trim();
-  const words = cleaned.split(" ").filter(Boolean);
-  const truncated = words.slice(0, 8).join(" ");
-  return truncated.length > 80 ? truncated.slice(0, 80) : truncated;
 }
 
 function toBackendMessage(message: ChatMessage): BackendChatMessage {

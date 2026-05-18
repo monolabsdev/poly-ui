@@ -16,14 +16,6 @@ type ChatWorkspaceProps = {
   onStopStreamingReady: (stopStreaming: (() => void) | null) => void;
 };
 
-function measureAsyncInteraction<T>(
-  _name: string,
-  _metadata: Record<string, unknown> | undefined,
-  fn: () => T | Promise<T>,
-): Promise<T> {
-  return Promise.resolve(fn());
-}
-
 export default function ChatWorkspace({
   selectedModels,
   selectedModel,
@@ -79,19 +71,13 @@ export default function ChatWorkspace({
 
   const handleRegenerate = useCallback(
     async (messageIndex: number) => {
-      await measureAsyncInteraction(
-        "app.handleRegenerate",
-        { messageIndex },
-        async () => {
-          if (isStreaming || !activeConversationId) return;
+      if (isStreaming || !activeConversationId) return;
 
-          const targetMessage = messages[messageIndex];
-          if (targetMessage?.role !== "assistant") return;
+      const targetMessage = messages[messageIndex];
+      if (targetMessage?.role !== "assistant") return;
 
-          await deleteMessagesAfter(activeConversationId, targetMessage.id);
-          regenerateMessage(activeConversationId);
-        },
-      );
+      await deleteMessagesAfter(activeConversationId, targetMessage.id);
+      regenerateMessage(activeConversationId);
     },
     [
       activeConversationId,

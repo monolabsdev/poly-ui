@@ -28,30 +28,17 @@ impl ProviderSelector {
     }
 
     pub async fn get_provider_configs(&self) -> Result<Vec<ProviderConfig>, String> {
-        use std::io::Write;
-        eprintln!("[Selector] Acquiring DB connection...");
-        std::io::stdout().flush().unwrap();
-        
         let mut conn = self.pool.acquire().await.map_err(|e| {
-            eprintln!("[Selector] Pool acquisition error: {}", e);
             e.to_string()
         })?;
-        
-        eprintln!("[Selector] DB connection acquired. Executing query...");
-        std::io::stdout().flush().unwrap();
 
         let configs = sqlx::query_as::<_, ProviderConfig>(
             "SELECT provider_type, enabled, ollama_host, ollama_api_key, ollama_api_base_url, priority FROM provider_configs ORDER BY priority ASC"
         )
         .fetch_all(&mut *conn)
         .await
-        .map_err(|e| {
-            eprintln!("[Selector] Query execution error: {}", e);
-            e.to_string()
-        })?;
+        .map_err(|e| e.to_string())?;
 
-        eprintln!("[Selector] Found {} provider configs", configs.len());
-        std::io::stdout().flush().unwrap();
         Ok(configs)
     }
 
@@ -110,8 +97,6 @@ impl ProviderSelector {
                     });
                     results.insert(p_type, status);
                 }
-            } else {
-                eprintln!("[Selector] Global health check timeout reached!");
             }
         }
 

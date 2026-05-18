@@ -1,7 +1,6 @@
 import { memo } from "react";
 import {
   ModelProvider,
-  SystemPrompt,
 } from "@/store/modelStore";
 import { useOllama } from "@/services/ollama";
 import {
@@ -24,6 +23,8 @@ import {
   AlertCircle,
   ScrollText,
 } from "lucide-react";
+import { PROMPT_PRESETS } from "@/constants/promptPresets";
+import { useSettingsStore } from "@/store/settingsStore";
 
 interface HeaderProps {
   selectedModels: string[];
@@ -37,9 +38,6 @@ interface HeaderProps {
   onSetDefault: (model: string) => void;
   isTemporary?: boolean;
   onToggleTemporaryChat: () => void;
-  systemPrompts: SystemPrompt[];
-  activeSystemPromptId: string | null;
-  onSystemPromptChange: (id: string | null) => void;
 }
 
 export const Header = memo(function Header({
@@ -50,10 +48,8 @@ export const Header = memo(function Header({
   onSetDefault,
   isTemporary,
   onToggleTemporaryChat,
-  systemPrompts,
-  activeSystemPromptId,
-  onSystemPromptChange,
 }: HeaderProps) {
+  const { selectedPromptPreset, actions } = useSettingsStore();
   const ollama = useOllama();
 
   const hasAnyModels = ollama.models.length > 0;
@@ -280,7 +276,9 @@ export const Header = memo(function Header({
               {ollama.state === "reconnecting" ? (
                 <CircularProgress size={12} color="inherit" sx={{ opacity: 0.5 }} />
               ) : (
-                <AlertCircle size={14} className="text-red-500" />
+                <Box component="span" sx={{ color: "error.main", display: "flex" }}>
+                  <AlertCircle size={14} />
+                </Box>
               )}
               <Typography variant="caption" sx={{ color: ollama.state === "reconnecting" ? "text.secondary" : "error.main", fontSize: "11px", fontWeight: 500 }}>
                 {ollama.state === "reconnecting" ? "Reconnecting" : "Offline"}
@@ -336,14 +334,13 @@ export const Header = memo(function Header({
           </IconButton>
         </Tooltip>
 
-        <Tooltip title="Switch System Prompt">
+        <Tooltip title="Switch Prompt Preset">
           <FormControl size="small" sx={{ m: 0 }}>
             <Select
-              value={activeSystemPromptId || ""}
+              value={selectedPromptPreset}
               onChange={(e) =>
-                onSystemPromptChange((e.target.value as string) || null)
+                actions.setPromptPreset(e.target.value as "default" | "technical" | "creative" | "concise")
               }
-              displayEmpty
               IconComponent={() => null}
               sx={{
                 bgcolor: "transparent",
@@ -357,11 +354,11 @@ export const Header = memo(function Header({
                   borderRadius: "6px",
                   cursor: "pointer",
                   color:
-                    activeSystemPromptId && activeSystemPromptId !== "default"
+                    selectedPromptPreset !== "default"
                       ? "primary.main"
                       : "text.secondary",
                   bgcolor:
-                    activeSystemPromptId && activeSystemPromptId !== "default"
+                    selectedPromptPreset !== "default"
                       ? "action.selected"
                       : "transparent",
                   "&:hover": {
@@ -393,13 +390,13 @@ export const Header = memo(function Header({
                 },
               }}
             >
-              {systemPrompts.map((prompt) => (
-                <MenuItem key={prompt.id} value={prompt.id}>
+              {PROMPT_PRESETS.map((preset) => (
+                <MenuItem key={preset.id} value={preset.id}>
                   <Box
                     sx={{ display: "flex", flexDirection: "column", gap: 0.25 }}
                   >
                     <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                      {prompt.name}
+                      {preset.name}
                     </Typography>
                     <Typography
                       variant="caption"
@@ -407,7 +404,7 @@ export const Header = memo(function Header({
                       noWrap
                       sx={{ maxWidth: 250 }}
                     >
-                      {prompt.content || "Empty prompt"}
+                      {preset.content}
                     </Typography>
                   </Box>
                 </MenuItem>

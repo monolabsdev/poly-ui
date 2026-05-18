@@ -22,21 +22,18 @@ pub async fn init_db<R: Runtime>(app: &AppHandle<R>) -> Result<SqlitePool, Strin
         .await
         .map_err(|e| e.to_string())?;
 
+    ensure_conversations_schema(&pool).await?;
     run_migrations(&pool).await?;
 
     ensure_users_schema(&pool).await?;
     ensure_sessions_schema(&pool).await?;
 
-    // Proactive seeding for provider_configs if empty
     let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM provider_configs")
         .fetch_one(&pool)
         .await
         .map_err(|e| e.to_string())?;
 
-    println!("[Database] provider_configs row count: {}", count);
-
     if count == 0 {
-        println!("[Database] Seeding default provider configs...");
         sqlx::query(
             r#"
             INSERT OR IGNORE INTO provider_configs (provider_type, enabled, ollama_host, priority)
@@ -47,45 +44,94 @@ pub async fn init_db<R: Runtime>(app: &AppHandle<R>) -> Result<SqlitePool, Strin
         .await
         .map_err(|e| e.to_string())?;
 
-        sqlx::query(
-            r#"
-            INSERT OR IGNORE INTO provider_configs (provider_type, enabled, priority)
-            VALUES ('OllamaAPI', 0, 1)
-            "#
-        )
-        .execute(&pool)
+    }
+    Ok(pool)
+}
+
+async fn ensure_conversations_schema(pool: &SqlitePool) -> Result<(), String> {
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS conversations (
+            id TEXT PRIMARY KEY,
+            title TEXT,
+            createdAt TEXT,
+            updatedAt TEXT,
+            isArchived INTEGER DEFAULT 0,
+            userId TEXT DEFAULT ''
+        )"
+    )
+    .execute(pool)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS messages (
+            id TEXT PRIMARY KEY,
+            conversationId TEXT,
+            role TEXT,
+            content TEXT,
+            createdAt TEXT,
+            attachments TEXT,
+            model TEXT,
+            thinking TEXT,
+            thinkingDuration REAL
+        )"
+    )
+    .execute(pool)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    sqlx::query("CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversationId)")
+        .execute(pool)
         .await
         .map_err(|e| e.to_string())?;
-    }
 
-    println!("[Database] Initialization complete.");
-    Ok(pool)
+    sqlx::query("CREATE INDEX IF NOT EXISTS idx_messages_created ON messages(createdAt)")
+        .execute(pool)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    sqlx::query("CREATE INDEX IF NOT EXISTS idx_conversations_updated ON conversations(updatedAt)")
+        .execute(pool)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    sqlx::query("CREATE INDEX IF NOT EXISTS idx_conversations_archived ON conversations(isArchived)")
+        .execute(pool)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    sqlx::query("CREATE INDEX IF NOT EXISTS idx_conversations_user ON conversations(userId)")
+        .execute(pool)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(())
 }
 
 async fn run_migrations(pool: &SqlitePool) -> Result<(), String> {
     let migrator = sqlx::migrate!("./src/db/migrations");
 
-    match migrator.run(pool).await {
-        Ok(()) => Ok(()),
-        Err(error) => {
-            let message = error.to_string();
+    if let Err(error) = migrator.run(pool).await {
+        let message = error.to_string();
 
-            if !message.contains("previously applied but has been modified") {
-                return Err(message);
-            }
-
-            // Dev repair: this branch exists because migrations were edited 
-            // during development. Migration SQL is idempotent, so removing the
-            // stale checksum lets sqlx record the current file and continue.
-            sqlx::query("DELETE FROM _sqlx_migrations WHERE version IN (?, ?)")
-                .bind(20260501000000_i64)
-                .bind(20260509000000_i64)
-                .execute(pool)
-                .await
-                .map_err(|e| e.to_string())?;
-
-            migrator.run(pool).await.map_err(|e| e.to_string())
+        if !message.contains("previously applied but has been modified") {
+            return Err(message);
         }
+
+        // Dev repair: this branch exists because migrations were edited 
+        // during development. Migration SQL is idempotent, so removing the
+        // stale checksum lets sqlx record the current file and continue.
+        sqlx::query("DELETE FROM _sqlx_migrations WHERE version IN (?, ?, ?)")
+            .bind(20260501000000_i64)
+            .bind(20260509000000_i64)
+            .bind(20260510000000_i64)
+            .execute(pool)
+            .await
+            .map_err(|e| e.to_string())?;
+
+        migrator.run(pool).await.map_err(|e| e.to_string())
+    } else {
+        Ok(())
     }
 }
 
@@ -95,27 +141,20 @@ async fn ensure_users_schema(pool: &SqlitePool) -> Result<(), String> {
         .await
         .map_err(|e| e.to_string())?;
 
-    let mut has_integer_id = false;
-    let mut has_name = false;
-
-    for column in columns {
+    let has_integer_id = columns.iter().any(|column| {
         let name: String = column.get("name");
         let column_type: String = column.get("type");
-
-        if name == "id" && column_type.eq_ignore_ascii_case("INTEGER") {
-            has_integer_id = true;
-        }
-
-        if name == "name" {
-            has_name = true;
-        }
-    }
+        name == "id" && column_type.eq_ignore_ascii_case("INTEGER")
+    });
+    let has_name = columns.iter().any(|column| {
+        let name: String = column.get("name");
+        name == "name"
+    });
 
     if has_integer_id && has_name {
         return Ok(());
     }
 
-    // Upgrade older auth table shape into required local users table.
     sqlx::query("ALTER TABLE users RENAME TO users_legacy")
         .execute(pool)
         .await
@@ -177,15 +216,11 @@ async fn ensure_sessions_schema(pool: &SqlitePool) -> Result<(), String> {
         return Ok(());
     }
 
-    let mut has_integer_user_id = false;
-    for column in columns {
+    let has_integer_user_id = columns.iter().any(|column| {
         let name: String = column.get("name");
         let column_type: String = column.get("type");
-
-        if name == "userId" && column_type.eq_ignore_ascii_case("INTEGER") {
-            has_integer_user_id = true;
-        }
-    }
+        name == "userId" && column_type.eq_ignore_ascii_case("INTEGER")
+    });
 
     if !has_integer_user_id {
         recreate_sessions_table(pool).await?;

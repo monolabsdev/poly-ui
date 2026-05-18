@@ -8,13 +8,11 @@ import { useNotify } from "@/hooks/useNotify";
 import { useOllamaStore } from "@/services/ollama/monitor";
 import { buildSystemPrompt } from "@/lib/chat/prompts";
 import { defaultPreprocessor } from "@/lib/chat/message-preprocessor";
-import { toolApprovalHandler } from "@/lib/chat/tool-approval-handler";
 import { queueTitleGeneration } from "@/lib/chat/title-generation";
 import {
   streamEventBus,
   type ChunkPayload,
   type ThinkingPayload,
-  type ToolInvocationPayload,
 } from "@/lib/chat/event-bus";
 
 // ---------------------------------------------------------------------------
@@ -65,7 +63,6 @@ export function useChatStream(selectedModels: string[], systemPrompt = "", userN
   // re-run. Updated on every render via the layout effect below.
   const handleChunkRef = useRef<(p: ChunkPayload) => void>(() => {});
   const handleThinkingRef = useRef<(p: ThinkingPayload) => void>(() => {});
-  const handleToolRef = useRef<(p: ToolInvocationPayload) => void>(() => {});
 
   // Keep activeConversationIdRef in sync.
   useEffect(() => {
@@ -253,24 +250,6 @@ const queueTokenBatch = (requestId: string, messageId: string, newContent: strin
     [patchStreamingMessage],
   );
 
-  const handleTool = useCallback(
-    (payload: ToolInvocationPayload) => {
-      const { request_id, tool_name } = payload;
-      const messageId = requestIdToMessageIdRef.current[request_id];
-      if (!messageId) return;
-
-      const { streamingMessages: current } = useChatStore.getState();
-      const existing = current[messageId];
-      const label = `\n\nTool: **${tool_name}**`;
-      if (existing && !existing.content.includes(label)) {
-        patchStreamingMessage(messageId, { content: existing.content + label });
-      }
-
-      toolApprovalHandler.handleToolInvocation(payload);
-    },
-    [patchStreamingMessage],
-  );
-
   // Keep stable handler refs up to date on every render.
   // Using useLayoutEffect ensures refs are updated before any paint-driven
   // callbacks fire, but a plain useEffect would also be correct here since
@@ -278,7 +257,6 @@ const queueTokenBatch = (requestId: string, messageId: string, newContent: strin
   useEffect(() => {
     handleChunkRef.current = handleChunk;
     handleThinkingRef.current = handleThinking;
-    handleToolRef.current = handleTool;
   });
 
   // -------------------------------------------------------------------------
@@ -292,7 +270,6 @@ const queueTokenBatch = (requestId: string, messageId: string, newContent: strin
     streamEventBus.subscribe({
       onChunk: (p) => handleChunkRef.current(p),
       onThinking: (p) => handleThinkingRef.current(p),
-      onTool: (p) => handleToolRef.current(p),
     });
     return () => {
       streamEventBus.unsubscribe();

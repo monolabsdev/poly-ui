@@ -8,7 +8,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Box, Typography, Button as MuiButton, Tooltip } from "@mui/material";
 import { Settings, Archive, LogOut, LogIn } from "lucide-react";
 
@@ -30,7 +30,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
 
   if (isLoading) {
     return (
-      <Box className="w-full flex flex-col items-center" sx={{ opacity: 0.5 }}>
+      <Box sx={{ width: "100%", display: "flex", flexDirection: "column", alignItems: "center", opacity: 0.5 }}>
         <MuiButton
           fullWidth
           disabled
@@ -81,7 +81,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
           "&:hover": { bgcolor: "action.hover" },
         }}
       >
-        <Box className="relative flex-shrink-0" sx={{ display: "flex" }}>
+        <Box sx={{ display: "flex", flexShrink: 0, position: "relative" }}>
           <Avatar sx={{ width: isCollapsed ? 28 : 36, height: isCollapsed ? 28 : 36 }}>
             <AvatarFallback
               sx={{
@@ -104,16 +104,14 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
             >
               <Typography
                 variant="body2"
-                sx={{ fontWeight: 600, fontSize: "13.5px" }}
-                className="truncate"
+                sx={{ fontWeight: 600, fontSize: "13.5px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
               >
                 Guest
               </Typography>
               <Typography
                 variant="caption"
                 color="text.secondary"
-                className="truncate"
-                sx={{ display: "block", mt: -0.2 }}
+                sx={{ display: "block", mt: -0.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
               >
                 Signed out
               </Typography>
@@ -124,7 +122,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
     );
 
     return (
-      <Box className="w-full flex flex-col items-center">
+      <Box sx={{ width: "100%", display: "flex", flexDirection: "column", alignItems: "center" }}>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             {isCollapsed ? (
@@ -135,7 +133,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
               guestButton
             )}
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-64">
+          <DropdownMenuContent align="end" sx={{ width: 256 }}>
             <DropdownMenuLabel>
               <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
                 <Typography variant="body2" sx={{ fontWeight: 500, lineHeight: 1.2 }}>
@@ -147,23 +145,17 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
               </Box>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="cursor-pointer" onClick={onOpenSettings}>
-              <Settings className="mr-2 h-4 w-4" />
+            <DropdownMenuItem onClick={onOpenSettings} sx={{ gap: 2 }}>
+              <Settings size={16} />
               <span>Settings</span>
             </DropdownMenuItem>
-            <DropdownMenuItem
-              className="cursor-pointer"
-              onClick={() => setIsArchivedOpen(true)}
-            >
-              <Archive className="mr-2 h-4 w-4" />
+            <DropdownMenuItem onClick={() => setIsArchivedOpen(true)} sx={{ gap: 2 }}>
+              <Archive size={16} />
               <span>Archived Chats</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem
-              className="cursor-pointer"
-              onClick={() => actions.openAuth()}
-            >
-              <LogIn className="mr-2 h-4 w-4" />
+            <DropdownMenuItem onClick={() => actions.openAuth()} sx={{ gap: 2 }}>
+              <LogIn size={16} />
               <span>Log In</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -207,14 +199,9 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
         },
       }}
     >
-      <Box className="relative flex-shrink-0" sx={{ display: "flex" }}>
+      <Box sx={{ display: "flex", flexShrink: 0, position: "relative" }}>
         <Avatar sx={{ width: isCollapsed ? 28 : 36, height: isCollapsed ? 28 : 36 }}>
-          {user.avatarUrl && (
-            <AvatarImage
-              src={user.avatarUrl}
-              alt={user.fullName || user.email}
-            />
-          )}
+
           <AvatarFallback
             sx={{
               bgcolor: "action.selected",
@@ -251,18 +238,16 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
           >
             <Typography
               variant="body2"
-              sx={{ fontWeight: 600, fontSize: "13.5px" }}
-              className="truncate"
+              sx={{ fontWeight: 600, fontSize: "13.5px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
             >
               {user.fullName || "User"}
             </Typography>
             <Typography
               variant="caption"
               color="text.secondary"
-              className="truncate"
-              sx={{ display: "block", mt: -0.2 }}
+              sx={{ display: "block", mt: -0.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
             >
-              {user.status}
+              Active
             </Typography>
           </motion.div>
         )}
@@ -271,7 +256,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
   );
 
   return (
-    <Box className="w-full flex flex-col items-center">
+    <Box sx={{ width: "100%", display: "flex", flexDirection: "column", alignItems: "center" }}>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           {isCollapsed ? (
@@ -282,7 +267,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
             button
           )}
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-64">
+        <DropdownMenuContent align="end" sx={{ width: 256 }}>
           <DropdownMenuLabel>
             <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
               <Typography
@@ -302,24 +287,20 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
           </DropdownMenuLabel>
 
           <DropdownMenuSeparator />
-          <DropdownMenuItem className="cursor-pointer" onClick={onOpenSettings}>
-            <Settings className="mr-2 h-4 w-4" />
+          <DropdownMenuItem onClick={onOpenSettings} sx={{ gap: 2 }}>
+            <Settings size={16} />
             <span>Settings</span>
           </DropdownMenuItem>
-          <DropdownMenuItem
-            className="cursor-pointer"
-            onClick={() => setIsArchivedOpen(true)}
-          >
-            <Archive className="mr-2 h-4 w-4" />
+          <DropdownMenuItem onClick={() => setIsArchivedOpen(true)} sx={{ gap: 2 }}>
+            <Archive size={16} />
             <span>Archived Chats</span>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
-            className="cursor-pointer"
-            sx={{ color: "error.main", "&:focus": { color: "error.main" } }}
+            sx={{ color: "error.main", "&:focus": { color: "error.main" }, gap: 2 }}
             onClick={() => actions.logout()}
           >
-            <LogOut className="mr-2 h-4 w-4" />
+            <LogOut size={16} />
             <span>Sign Out</span>
           </DropdownMenuItem>
         </DropdownMenuContent>

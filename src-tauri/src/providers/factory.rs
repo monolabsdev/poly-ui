@@ -12,13 +12,9 @@ impl ProviderFactory {
         match config.provider_type {
             ProviderType::OllamaLocal => {
                 let host = config.ollama_host.unwrap_or_else(|| "http://localhost:11434".to_string());
-                Some(Box::new(OllamaProvider::new(host, ProviderType::OllamaLocal, None)))
+                let api_key = config.ollama_api_key.clone();
+                Some(Box::new(OllamaProvider::new(host, ProviderType::OllamaLocal, api_key)))
             }
-            ProviderType::OllamaAPI => {
-                let host = config.ollama_api_base_url?;
-                Some(Box::new(OllamaProvider::new(host, ProviderType::OllamaAPI, config.ollama_api_key)))
-            }
-            _ => None, // Anthropic and OpenAI not implemented yet
         }
     }
 }

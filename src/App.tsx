@@ -9,6 +9,8 @@ import {
 } from "react";
 import { Header } from "@/components/Chat/Header";
 import { useModelStore } from "@/store/modelStore";
+import { useSettingsStore } from "@/store/settingsStore";
+import { getPresetContent } from "@/constants/promptPresets";
 import { useOllama } from "@/services/ollama";
 import {
   Sidebar,
@@ -34,24 +36,6 @@ const SettingsModal = lazy(() =>
     default: module.SettingsModal,
   })),
 );
-const ToolApproval = lazy(() => import("@/components/Chat/ToolApproval"));
-
-function measureAsyncInteraction<T>(
-  _name: string,
-  _metadata: Record<string, unknown> | undefined,
-  fn: () => T | Promise<T>,
-): Promise<T> {
-  return Promise.resolve(fn());
-}
-
-function measureSyncInteraction<T>(
-  _name: string,
-  _metadata: Record<string, unknown> | undefined,
-  fn: () => T,
-): T {
-  return fn();
-}
-
 function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const stopStreamingRef = useRef<(() => void) | null>(null);
@@ -61,9 +45,6 @@ function App() {
     updateSelectedModel,
     addSelectedModel,
     removeSelectedModel,
-    systemPrompts,
-    activeSystemPromptId,
-    setSystemPrompt,
     setDefaultModel,
     setSelectedModel,
     defaultModel,
@@ -73,9 +54,6 @@ function App() {
       updateSelectedModel: state.updateSelectedModel,
       addSelectedModel: state.addSelectedModel,
       removeSelectedModel: state.removeSelectedModel,
-      systemPrompts: state.systemPrompts,
-      activeSystemPromptId: state.activeSystemPromptId,
-      setSystemPrompt: state.actions.setSystemPrompt,
       setDefaultModel: state.actions.setDefaultModel,
       setSelectedModel: state.setSelectedModel,
       defaultModel: state.defaultModel,
@@ -114,12 +92,19 @@ function App() {
     }
   }, [ollama.online, ollama.models, selectedModels.length, defaultModel, setSelectedModel]);
 
-  const activeSystemPrompt = useMemo(
-    () => systemPrompts.find((p) => p.id === activeSystemPromptId) ?? null,
-    [systemPrompts, activeSystemPromptId],
+  const { selectedPromptPreset, general } = useSettingsStore(
+    useShallow((s) => ({
+      selectedPromptPreset: s.selectedPromptPreset,
+      general: s.general,
+    })),
   );
 
-  const systemPromptContent = activeSystemPrompt?.content ?? "";
+  const systemPromptContent = useMemo(() => {
+    const preset = getPresetContent(selectedPromptPreset);
+    return general.systemPrompt
+      ? `${preset}\n${general.systemPrompt}`
+      : preset;
+  }, [selectedPromptPreset, general.systemPrompt]);
   const { conversations, activeConversationId } = useChatStore(
     useShallow((state) => ({
       conversations: state.conversations,
@@ -135,51 +120,33 @@ function App() {
   } = useChatStore((state) => state.actions);
 
   const handleNewChat = useCallback((isTemporary = false) => {
-    measureSyncInteraction("app.handleNewChat", { isTemporary }, () => {
-      stopStreamingRef.current?.();
+    stopStreamingRef.current?.();
 
-      if (isTemporary) {
-        void createConversation("Temporary Chat", true);
-        return;
-      }
+    if (isTemporary) {
+      void createConversation("Temporary Chat", true);
+      return;
+    }
 
-      setActiveConversationId(null);
-    });
+    setActiveConversationId(null);
   }, [createConversation, setActiveConversationId]);
 
   const handleSelectConversation = useCallback((id: string) => {
-    measureSyncInteraction("app.handleSelectConversation", { id }, () => {
-      // Before switching, retry title generation for the current conversation
-      // if it still has the default title and any title attempt may have failed
-      const currentId = useChatStore.getState().activeConversationId;
-      if (currentId && currentId !== id) {
-        retryTitleForConversation(currentId);
-      }
+    const currentId = useChatStore.getState().activeConversationId;
+    if (currentId && currentId !== id) {
+      retryTitleForConversation(currentId);
+    }
 
-      stopStreamingRef.current?.();
-      setActiveConversationId(id);
-    });
+    stopStreamingRef.current?.();
+    setActiveConversationId(id);
   }, [setActiveConversationId]);
 
   const handleDeleteConversation = useCallback(async (id: string) => {
-    await measureAsyncInteraction(
-      "app.handleDeleteConversation",
-      { id },
-      async () => {
-        stopStreamingRef.current?.();
-        await deleteConversation(id);
-      },
-    );
+    stopStreamingRef.current?.();
+    await deleteConversation(id);
   }, [deleteConversation]);
 
   const handleRenameConversation = useCallback(async (id: string, newTitle: string) => {
-    await measureAsyncInteraction(
-      "app.handleRenameConversation",
-      { id, titleLength: newTitle.length },
-      async () => {
-        await renameConversation(id, newTitle);
-      },
-    );
+    await renameConversation(id, newTitle);
   }, [renameConversation]);
 
   const handleSetDefaultModel = useCallback((model: string) => {
@@ -190,16 +157,14 @@ function App() {
   const isTemporary = Boolean(conversations.find((c) => c.id === activeConversationId)?.isTemporary);
 
   const handleToggleTemporaryChat = useCallback(async () => {
-    await measureAsyncInteraction("app.handleToggleTemporaryChat", { isTemporary }, async () => {
-      stopStreamingRef.current?.();
+    stopStreamingRef.current?.();
 
-      if (isTemporary) {
-        setActiveConversationId(null);
-        return;
-      }
+    if (isTemporary) {
+      setActiveConversationId(null);
+      return;
+    }
 
-      await createConversation("Temporary Chat", true);
-    });
+    await createConversation("Temporary Chat", true);
   }, [createConversation, isTemporary, setActiveConversationId]);
 
   const handleAddModel = useCallback(() => {
@@ -230,9 +195,6 @@ function App() {
           onSetDefault={handleSetDefaultModel}
           isTemporary={isTemporary}
           onToggleTemporaryChat={handleToggleTemporaryChat}
-          systemPrompts={systemPrompts}
-          activeSystemPromptId={activeSystemPromptId}
-          onSystemPromptChange={setSystemPrompt}
         />
 
         <Box
@@ -267,7 +229,6 @@ function App() {
       )}
       <Suspense fallback={null}>
         <AuthModal />
-        <ToolApproval />
       </Suspense>
     </SidebarProvider>
   );

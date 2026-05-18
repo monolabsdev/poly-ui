@@ -2,7 +2,6 @@ import type { SystemPrompt } from "@/store/modelStore";
 import { useAuthStore } from "@/store/authStore";
 import { useChatStore } from "@/store/chatStore";
 import { useModelStore } from "@/store/modelStore";
-import { useToolStore } from "@/store/toolStore";
 import { useOllamaStore } from "@/services/ollama/monitor";
 import { useProviderStore } from "@/services/providers";
 
@@ -65,7 +64,6 @@ async function preloadVisibleAppChunks() {
     loadAppModule(),
     import("@/components/Chat/ChatWorkspace"),
     import("@/components/Auth/AuthModal"),
-    import("@/components/Chat/ToolApproval"),
   ]);
 }
 
@@ -87,7 +85,6 @@ async function initializeStores() {
   await Promise.all([
     useProviderStore.getState().actions.refresh().then(() => { if (DEV) console.log("[Startup] Providers refreshed:", useProviderStore.getState().providers); }).catch(err => { if (DEV) console.error("[Startup] Provider refresh failed:", err); }),
     useAuthStore.getState().actions.restoreSession().catch(() => {}),
-    useToolStore.getState().actions.loadTools().catch(() => {}),
   ]).catch(() => {});
 
   // Load conversations after session restore so userId is available for filtering

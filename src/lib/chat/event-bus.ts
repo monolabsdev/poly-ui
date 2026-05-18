@@ -21,18 +21,9 @@ export type ThinkingPayload = {
   is_thinking: boolean;
 };
 
-export type ToolInvocationPayload = {
-  invocation_id: string;
-  request_id: string;
-  tool_name: string;
-  tool_args: Record<string, unknown>;
-  requires_approval: boolean;
-};
-
 type Handlers = {
   onChunk: (payload: ChunkPayload) => void;
   onThinking: (payload: ThinkingPayload) => void;
-  onTool: (payload: ToolInvocationPayload) => void;
 };
 
 export class StreamEventBus {
@@ -52,7 +43,6 @@ export class StreamEventBus {
     this.unlisteners = [
       listen<ChunkPayload>("chat-chunk", (e) => this.handlers?.onChunk(e.payload)),
       listen<ThinkingPayload>("chat-thinking", (e) => this.handlers?.onThinking(e.payload)),
-      listen<ToolInvocationPayload>("tool-invocation", (e) => this.handlers?.onTool(e.payload)),
     ];
   }
 

@@ -14,15 +14,6 @@ import { motion, AnimatePresence } from "motion/react";
 import { useTiming, ANIMATION_VARIANTS } from "@/lib/motion";
 import { PRETEXT_FONTS, PRETEXT_LINE_HEIGHTS, measureTextHeight } from "@/lib/pretext";
 
-// Perf stubs
-function measureAsyncInteraction<T>(
-  _name: string,
-  _metadata: Record<string, unknown> | undefined,
-  fn: () => T | Promise<T>,
-): Promise<T> {
-  return Promise.resolve(fn());
-}
-
 interface ChatInputProps {
   onSubmit: (value: string) => void | Promise<void>;
   onStop: () => void;
@@ -93,38 +84,29 @@ export const ChatInput = memo(function ChatInput({
 
   const processFiles = useCallback(
     async (files: FileList | File[]) => {
-      await measureAsyncInteraction(
-        "input.processFiles",
-        {
-          fileCount: files.length,
-          totalBytes: Array.from(files).reduce((sum, file) => sum + file.size, 0),
-        },
-        async () => {
-          for (const file of Array.from(files)) {
-            const reader = new FileReader();
+      for (const file of Array.from(files)) {
+        const reader = new FileReader();
 
-            const attachment: Attachment = {
-              id: crypto.randomUUID(),
-              name: file.name,
-              type: file.type,
-              size: file.size,
-            };
+        const attachment: Attachment = {
+          id: crypto.randomUUID(),
+          name: file.name,
+          type: file.type,
+          size: file.size,
+        };
 
-            const isImage = isImageAttachment(file.type);
-            reader.onload = (e) => {
-              const result = e.target?.result as string;
-              attachment.content = isImage ? result.split(",")[1] : result;
-              addCurrentAttachment(attachment);
-            };
+        const isImage = isImageAttachment(file.type);
+        reader.onload = (e) => {
+          const result = e.target?.result as string;
+          attachment.content = isImage ? result.split(",")[1] : result;
+          addCurrentAttachment(attachment);
+        };
 
-            if (isImage) {
-              reader.readAsDataURL(file);
-            } else {
-              reader.readAsText(file);
-            }
-          }
-        },
-      );
+        if (isImage) {
+          reader.readAsDataURL(file);
+        } else {
+          reader.readAsText(file);
+        }
+      }
     },
     [addCurrentAttachment],
   );
@@ -363,7 +345,7 @@ export const ChatInput = memo(function ChatInput({
                   {canUploadImages ? (
                     <DropdownMenuItem
                       onClick={() => handleFileClick("image/*")}
-                      className="flex items-center gap-2"
+                      sx={{ display: "flex", alignItems: "center", gap: 2 }}
                     >
                       <ImageIcon size={16} />
                       <Typography variant="body2">Upload images</Typography>
@@ -371,7 +353,7 @@ export const ChatInput = memo(function ChatInput({
                   ) : null}
                   <DropdownMenuItem
                     onClick={() => handleFileClick("*")}
-                    className="flex items-center gap-2"
+                    sx={{ display: "flex", alignItems: "center", gap: 2 }}
                   >
                     <Paperclip size={16} />
                     <Typography variant="body2">Upload files</Typography>

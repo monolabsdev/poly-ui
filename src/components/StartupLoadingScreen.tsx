@@ -1,6 +1,8 @@
 import { memo, useEffect } from "react";
-import { Box } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 import { motion } from "motion/react";
+import { Ring2 } from "ldrs/react";
+import "ldrs/react/Ring2.css";
 
 type StartupLoadingScreenProps = {
   visible?: boolean;
@@ -11,8 +13,6 @@ function StartupLoadingScreen({
   visible = true,
   onExited,
 }: StartupLoadingScreenProps) {
-  // Safety fallback: if motion fails to trigger onAnimationComplete,
-  // ensure we still exit after a reasonable delay when visible becomes false.
   useEffect(() => {
     if (visible || !onExited) return;
     const timer = setTimeout(onExited, 1000);
@@ -34,8 +34,32 @@ function StartupLoadingScreen({
         zIndex: 2147483647,
         bgcolor: "background.default",
         pointerEvents: visible ? "auto" : "none",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 2,
       }}
-    />
+    >
+      <Typography
+        sx={{
+          fontSize: 28,
+          fontWeight: 700,
+          letterSpacing: "-0.03em",
+          color: "text.primary",
+        }}
+      >
+        OpenBench
+      </Typography>
+      <Ring2
+        size="28"
+        stroke="5"
+        strokeLength="0.25"
+        bgOpacity="0.1"
+        speed="0.8"
+        color="currentColor"
+      />
+    </Box>
   );
 }
 

@@ -1,40 +1,31 @@
 import React, { useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Box, Typography, IconButton } from "@mui/material";
+import { Box, Typography, IconButton, useTheme, alpha } from "@mui/material";
 import { CheckCircle2, AlertCircle, Info, AlertTriangle, X, Loader2 } from "lucide-react";
 import { useNotificationStore, type Toast as ToastType } from "@/store/notificationStore";
 
-const TYPE_STYLES = {
-  success: {
-    bg: "rgba(2, 44, 34, 0.95)",
-    border: "rgba(16, 185, 129, 0.2)",
-    icon: <CheckCircle2 size={18} className="text-emerald-400" />,
-  },
-  error: {
-    bg: "rgba(69, 10, 10, 0.95)",
-    border: "rgba(239, 68, 68, 0.2)",
-    icon: <AlertCircle size={18} className="text-red-400" />,
-  },
-  warning: {
-    bg: "rgba(69, 26, 3, 0.95)",
-    border: "rgba(245, 158, 11, 0.2)",
-    icon: <AlertTriangle size={18} className="text-amber-400" />,
-  },
-  info: {
-    bg: "rgba(23, 23, 23, 0.95)",
-    border: "rgba(255, 255, 255, 0.1)",
-    icon: <Info size={18} className="text-zinc-400" />,
-  },
-  loading: {
-    bg: "rgba(9, 9, 11, 0.95)",
-    border: "rgba(255, 255, 255, 0.1)",
-    icon: <Loader2 size={18} className="animate-spin text-zinc-500" />,
-  },
+const typeIcon = {
+  success: CheckCircle2,
+  error: AlertCircle,
+  warning: AlertTriangle,
+  info: Info,
+  loading: Loader2,
 };
 
 const ToastItem = ({ toast }: { toast: ToastType }) => {
   const remove = useNotificationStore((s) => s.actions.remove);
-  const style = TYPE_STYLES[toast.type] || TYPE_STYLES.info;
+  const theme = useTheme();
+
+  const getColor = () => {
+    switch (toast.type) {
+      case "success": return theme.palette.success.main;
+      case "error": return theme.palette.error.main;
+      case "warning": return theme.palette.warning.main;
+      default: return theme.palette.text.secondary;
+    }
+  };
+
+  const Icon = typeIcon[toast.type] || Info;
 
   useEffect(() => {
     if (toast.duration === Infinity) return;
@@ -55,39 +46,42 @@ const ToastItem = ({ toast }: { toast: ToastType }) => {
         mb: 1.5,
         p: "14px 16px",
         borderRadius: "12px",
-        bgcolor: style.bg,
+        bgcolor: alpha(theme.palette.background.paper, 0.95),
         backdropFilter: "blur(8px)",
-        border: `1px solid ${style.border}`,
-        boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4)",
+        border: 1,
+        borderColor: alpha(getColor(), 0.25),
+        boxShadow: theme.shadows[10],
         display: "flex",
         alignItems: "flex-start",
         gap: 1.75,
         position: "relative",
       }}
     >
-      <Box sx={{ mt: 0.25, flexShrink: 0 }}>{style.icon}</Box>
-      
+      <Box sx={{ mt: 0.25, flexShrink: 0, color: getColor(), lineHeight: 0 }}>
+        <Icon size={18} />
+      </Box>
+
       <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Typography 
-          variant="body2" 
-          sx={{ 
-            fontWeight: 600, 
-            color: "#fff", 
+        <Typography
+          variant="body2"
+          sx={{
+            fontWeight: 600,
+            color: "text.primary",
             lineHeight: 1.5,
-            letterSpacing: "-0.01em"
+            letterSpacing: "-0.01em",
           }}
         >
           {toast.message}
         </Typography>
         {toast.description && (
-          <Typography 
-            variant="caption" 
-            sx={{ 
-              color: "rgba(255, 255, 255, 0.6)", 
-              mt: 0.5, 
+          <Typography
+            variant="caption"
+            sx={{
+              color: "text.secondary",
+              mt: 0.5,
               display: "block",
               lineHeight: 1.4,
-              fontSize: "0.75rem"
+              fontSize: "0.75rem",
             }}
           >
             {toast.description}
@@ -99,13 +93,13 @@ const ToastItem = ({ toast }: { toast: ToastType }) => {
         size="small"
         onClick={() => remove(toast.id)}
         sx={{
-          color: "rgba(255, 255, 255, 0.3)",
+          color: "text.disabled",
           p: 0.5,
           mt: -0.5,
           mr: -0.5,
-          "&:hover": { 
-            color: "#fff", 
-            bgcolor: "rgba(255, 255, 255, 0.1)" 
+          "&:hover": {
+            color: "text.primary",
+            bgcolor: alpha(theme.palette.action.hover, 0.5),
           },
         }}
       >

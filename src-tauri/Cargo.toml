@@ -1,9 +1,6 @@
-[workspace]
-members = ["openbench-macros"]
-
 [package]
 name = "openbench"
-version = "1.0.0"
+version = "0.1.0"
 description = "A Tauri App"
 authors = ["you"]
 edition = "2021"
@@ -31,9 +28,5 @@ uuid = { version = "1.0", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 sqlx = { version = "0.8", features = ["sqlite", "runtime-tokio", "macros", "migrate"] }
 reqwest = { version = "0.12", features = ["rustls-tls"] }
-hostname = "0.4"
-schemars = "1"
-sysinfo = "0.30"
 async-trait = "0.1"
-openbench-macros = { path = "openbench-macros" }
 futures = "0.3.32"

@@ -8,9 +8,6 @@ async function getRepo() {
   return getRepository();
 }
 
-// Perf stub
-function perfLog(..._args: unknown[]): void {}
-
 export type { Conversation, Message };
 
 type ChatStore = {
@@ -46,6 +43,7 @@ type ChatStore = {
     }) => Promise<Message>;
     loadConversations: () => Promise<void>;
     deleteConversation: (id: string) => Promise<void>;
+    deleteAllConversations: () => Promise<void>;
     archiveConversation: (id: string) => Promise<void>;
     unarchiveConversation: (id: string) => Promise<void>;
     renameConversation: (id: string, newTitle: string) => Promise<void>;
@@ -113,10 +111,6 @@ export const useChatStore = create<ChatStore>((set) => ({
           messages: [],
           hasMoreMessages: false,
         }));
-      });
-      perfLog("store", "chatStore.createConversation.optimistic", {
-        id,
-        isTemporary,
       });
       if (!isTemporary) {
         try {
@@ -203,11 +197,6 @@ export const useChatStore = create<ChatStore>((set) => ({
         };
       });
 
-      perfLog("store", "chatStore.addMessage.optimistic", {
-        id: payload.id,
-        role: payload.role,
-      });
-
       if (!isTemporary) {
         try {
           const r = await getRepo();
@@ -241,6 +230,27 @@ export const useChatStore = create<ChatStore>((set) => ({
           activeConversationId: newActiveId,
           messages: newMessages,
         };
+      });
+    },
+    deleteAllConversations: async () => {
+      const auth = useAuthStore.getState();
+      const userId = auth.user?.id || auth.guestId;
+      if (!userId) return;
+
+      const { conversations } = useChatStore.getState();
+      const userConversations = conversations.filter(
+        (c) => !c.isTemporary,
+      );
+
+      if (userConversations.length > 0) {
+        const r = await getRepo();
+        await r.deleteAllConversations(userId);
+      }
+
+      set({
+        conversations: [],
+        activeConversationId: null,
+        messages: [],
       });
     },
     archiveConversation: async (id) => {

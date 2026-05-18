@@ -16,15 +16,8 @@ pub struct StreamPayload {
     pub request_id: String,
     pub content: String,
     pub thinking: Option<String>,
-    pub tool_calls: Option<Vec<GenericToolCall>>,
     pub done: bool,
     pub metadata: Option<StreamMetadata>,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct GenericToolCall {
-    pub name: String,
-    pub arguments: serde_json::Value,
 }
 
 #[derive(Serialize, Clone)]

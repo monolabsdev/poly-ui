@@ -5,7 +5,8 @@ export interface ConversationRepository {
   createConversation(id: string, title: string, userId?: string): Promise<void>;
   updateConversation(id: string, updates: { title?: string; updatedAt?: string; isArchived?: boolean }): Promise<void>;
   deleteConversation(id: string): Promise<void>;
-  
+  deleteAllConversations(userId: string): Promise<void>;
+
   getMessages(conversationId: string, limit: number, offset: number): Promise<Message[]>;
   addMessage(message: Message): Promise<void>;
   deleteMessagesAfter(conversationId: string, messageId: string): Promise<void>;

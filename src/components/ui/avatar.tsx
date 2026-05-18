@@ -1,6 +1,5 @@
 import * as React from "react";
 import { Avatar as MuiAvatar, Box } from "@mui/material";
-import { cn } from "@/lib/utils";
 
 function Avatar({
   className,
@@ -36,7 +35,8 @@ function AvatarImage({ src, alt, className }: { src?: string; alt?: string; clas
       component="img"
       src={src}
       alt={alt}
-      className={cn("aspect-square size-full rounded-full object-cover", className)}
+      className={className}
+      sx={{ aspectRatio: "1", width: "100%", height: "100%", borderRadius: "9999px", objectFit: "cover" }}
     />
   );
 }
@@ -51,10 +51,16 @@ function AvatarFallback({
 } & React.ComponentProps<typeof Box>) {
   return (
     <Box
-      className={cn(
-        "flex size-full items-center justify-center rounded-full text-sm",
-        className
-      )}
+      className={className}
+      sx={{
+        display: "flex",
+        width: "100%",
+        height: "100%",
+        alignItems: "center",
+        justifyContent: "center",
+        borderRadius: "9999px",
+        fontSize: "0.875rem",
+      }}
       {...props}
     >
       {children}

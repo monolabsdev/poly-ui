@@ -7,9 +7,6 @@ use crate::models::chat::{ChatMessage, StreamPayload};
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Hash, sqlx::Type)]
 pub enum ProviderType {
     OllamaLocal,
-    OllamaAPI,
-    Anthropic,
-    OpenAI,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
@@ -38,7 +35,6 @@ pub trait LLMProvider: Send + Sync {
         model: String,
         messages: Vec<ChatMessage>,
         system_prompt: Option<String>,
-        tools: Option<Vec<serde_json::Value>>,
         options: Option<serde_json::Value>,
     ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamPayload, String>> + Send>>, String>;
     async fn get_available_models(&self) -> Result<Vec<crate::models::chat::ModelDetails>, String>;

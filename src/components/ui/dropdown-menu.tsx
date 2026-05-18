@@ -65,10 +65,12 @@ function DropdownMenuContent({
   children,
   align = "start",
   className,
+  sx,
 }: {
   children: React.ReactNode;
   align?: "start" | "end";
   className?: string;
+  sx?: SxProps<Theme>;
 }) {
   const { anchorEl, handleClose, isOpen } =
     React.useContext(DropdownMenuContext);
@@ -87,15 +89,18 @@ function DropdownMenuContent({
         horizontal: align === "end" ? "right" : "left",
       }}
       PaperProps={{
-        sx: {
-          bgcolor: "background.paper",
-          border: "1px solid",
-          borderColor: "divider",
-          color: "text.primary",
-          mt: 0.5,
-          minWidth: 160,
-          boxShadow: 3,
-        },
+        sx: [
+          {
+            bgcolor: "background.paper",
+            border: "1px solid",
+            borderColor: "divider",
+            color: "text.primary",
+            mt: 0.5,
+            minWidth: 160,
+            boxShadow: 3,
+          },
+          ...(Array.isArray(sx) ? sx : [sx]),
+        ],
       }}
     >
       {children}

@@ -31,11 +31,6 @@ function Root() {
   const theme = useMemo(() => getTheme(mode, prefersDarkMode), [mode, prefersDarkMode]);
 
   useEffect(() => {
-    const isDark = mode === "dark" || (mode === "system" && prefersDarkMode);
-    document.documentElement.classList.toggle("dark", isDark);
-  }, [mode, prefersDarkMode]);
-
-  useEffect(() => {
     let cancelled = false;
     
     prepareAppStartup().then(() => {
