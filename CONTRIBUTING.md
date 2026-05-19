@@ -5,7 +5,7 @@ Thank you for considering contributing to OpenBench! We welcome contributions fr
 ## How to Contribute
 
 ### Reporting Issues
-- Use the [GitHub Issues](https://github.com/tslater/openbench/issues) to report bugs or request features.
+- Use the [GitHub Issues](https://github.com/theoslater/openbench/issues) to report bugs or request features.
 - Please include:
   - Clear description of the issue
   - Steps to reproduce (for bugs)
