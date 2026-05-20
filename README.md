@@ -34,6 +34,9 @@ Openbench can be installed through the [releases](https:github.com/theoslater/op
 > [!WARNING]
 > The `:dev` branch contains the latest unstable features and changes. Use it at your own risk as it may have bugs or incomplete features.
 
+> [!INFO]
+> This repository includes AI generated code aswell as manually written code (don't be scared!!)
+
 Instructions soon!
 
 ## What's next? 🌟
@@ -51,3 +54,4 @@ This project contains licenced code. Please refer to [LICENSE](./LICENSE.md)
    <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=theoslater/openbench&type=date&legend=top-left" />
  </picture>
 </a>
+
