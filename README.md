@@ -12,7 +12,6 @@ Openbench is a small, high performance and user-friendly AI desktop application 
 ![openbench demo](public/Openbench_Demo.png)
 
 ## Key features of Openbench
----
 
 - 🚀 **Effortless Setup**: Intall seamlessly using the setup file for a hassle-free experience with support for Ollama. You **must** have ollama installed first.
 - 🤝 **Ollama Integration**: Use ollama models effortlessly through this application.
@@ -26,9 +25,9 @@ Openbench is a small, high performance and user-friendly AI desktop application 
 - 🔒**Privacy first**: All conversations and models stay on your machine, nothing leaves your computer without your explicit action
 
 ## How to Install 🚀
----
+
 ### Installation via releases
-Openbench can be installed through the [releases](https:github.com/theoslater/openbench/releases) page by downloading and running the installer.
+Openbench can be installed through the [releases](https://github.com/monolabsdev/openbench-ai/releases) page by downloading and running the installer.
 
 ### Using the Dev Branch 🌙
 > [!WARNING]
@@ -37,21 +36,64 @@ Openbench can be installed through the [releases](https:github.com/theoslater/op
 > [!NOTE]
 > This repository includes AI generated code aswell as manually written code (don't be scared!!)
 
-Instructions soon!
+### Setup (dev)
+Make sure you've got the essentials installed:
+- Git
+- Bun
+- Tauri prerequisites (Rust, system deps, etc)
+
+**Clone the repo**: `git clone https://github.com/monolabsdev/openbench-ai.git`
+
+Then switch to the `:dev` branch or just use `:main`
+
+```bash
+git checkout dev
+git pull origin dev
+```
+
+Install dependenciesd:
+```bash
+bun install
+```
+
+### 🧪 Running the dev server
+
+```bash
+bun run tauri dev
+```
+
+### 📦 Building for Production
+
+To build the default installer:
+```bash
+bun run tauri build
+```
+To compile and build the Ollama + Openbench AI installer:
+```bash
+bun run ollama-setup
+```
+
+
+## ❓ Frequently Asked Questions
+
+###  How is Openbench different from Open WebUI?
+
+Openbench focuses on simplicity and ease of setup.
+
+Unlike platforms that commonly rely on Python, Docker, Kubernetes, or more complex deployment infrastructure, Openbench is designed to be lightweight and straightforward to install and run locally.
 
 ## What's next? 🌟
-Discover upcoming features on our roadmap in the [Openbench backlog](https://github.com/users/TheoSlater/projects/2)
+Discover upcoming features on our roadmap in the [Openbench backlog](https://github.com/orgs/monolabsdev/projects/1/)
 
 ## License
-This project contains licenced code. Please refer to [LICENSE](./LICENSE.md)
+This project contains licenced code. Please refer to [LICENSE](LICENSE.md)
 
 ## Star History
 
-<a href="https://www.star-history.com/?repos=theoslater%2Fopenbench&type=date&legend=top-left">
+<a href="https://www.star-history.com/?repos=monolabsdev%2Fopenbench-ai&type=date&legend=top-left">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=theoslater/openbench&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=theoslater/openbench&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=theoslater/openbench&type=date&legend=top-left" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=monolabsdev/openbench-ai&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=monolabsdev/openbench-ai&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=monolabsdev/openbench-ai&type=date&legend=top-left" />
  </picture>
 </a>
-
