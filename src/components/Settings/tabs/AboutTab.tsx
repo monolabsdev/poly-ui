@@ -15,7 +15,7 @@ export function AboutTab() {
             <Typography
               sx={{ fontSize: 13, fontWeight: 600, color: "text.primary" }}
             >
-              OpenBench
+              Openbench AI
             </Typography>
             <Typography
               sx={{ fontSize: 12, color: "text.secondary", mt: 0.25 }}

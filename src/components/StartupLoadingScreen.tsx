@@ -49,7 +49,7 @@ function StartupLoadingScreen({
           color: "text.primary",
         }}
       >
-        OpenBench
+        Openbench AI
       </Typography>
       <Ring2
         size="28"

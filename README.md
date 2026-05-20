@@ -1,4 +1,4 @@
-# Openbench
+# Openbench AI
 ![GitHub repo size](https://img.shields.io/github/repo-size/theoslater/openbench)
 ![GitHub language count](https://img.shields.io/github/languages/count/theoslater/openbench)
 ![GitHub top language](https://img.shields.io/github/languages/top/theoslater/openbench)

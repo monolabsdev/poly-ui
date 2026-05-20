@@ -77,7 +77,7 @@ export const AuthModal: React.FC = () => {
           {/* Header */}
           <Box sx={{ p: 3, pb: 2, textAlign: "center", borderBottom: 1, borderColor: "divider" }}>
             <Typography variant="h6" sx={{ fontWeight: 600, color: "text.primary" }}>
-              Welcome to OpenBench
+              Welcome to Openbench AI
             </Typography>
             <Typography variant="body2" sx={{ color: "text.secondary", mt: 0.5 }}>
               Sign in or create an account to continue.
