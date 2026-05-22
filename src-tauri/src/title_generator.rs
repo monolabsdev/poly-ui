@@ -27,7 +27,11 @@ pub async fn generate_title(
         attachments: None,
     }];
 
-    let max_attempts = if title_generation_retry_enabled() { 2 } else { 1 };
+    let max_attempts = if title_generation_retry_enabled() {
+        2
+    } else {
+        1
+    };
 
     for attempt in 0..max_attempts {
         let temperature = if attempt == 0 { 0.2 } else { 0.7 };
@@ -58,7 +62,15 @@ async fn attempt_title_generation(
     temperature: f64,
     conversation: &[ChatMessage],
 ) -> Option<String> {
-    match run_title_completion(provider, task_model, task_messages, use_json_format, temperature).await {
+    match run_title_completion(
+        provider,
+        task_model,
+        task_messages,
+        use_json_format,
+        temperature,
+    )
+    .await
+    {
         Ok(raw) => {
             let trimmed = raw.trim();
             if trimmed.is_empty() {
@@ -144,7 +156,11 @@ fn first_user_fallback_title(messages: &[ChatMessage]) -> Option<String> {
         .collect();
     let cleaned = compact_whitespace(&cleaned).trim().to_string();
 
-    if cleaned.is_empty() { None } else { Some(cleaned) }
+    if cleaned.is_empty() {
+        None
+    } else {
+        Some(cleaned)
+    }
 }
 
 async fn run_title_completion(
@@ -209,7 +225,10 @@ fn build_title_prompt(messages: &[ChatMessage], user_name: Option<&str>) -> Stri
     render_message_template(&template, messages)
         .replace("{{prompt}}", first_user_prompt)
         .replace("{{USER_NAME}}", user_name.unwrap_or("User"))
-        .replace("{{CURRENT_DATE}}", &Utc::now().format("%Y-%m-%d").to_string())
+        .replace(
+            "{{CURRENT_DATE}}",
+            &Utc::now().format("%Y-%m-%d").to_string(),
+        )
 }
 
 fn default_title_prompt_template() -> String {
@@ -342,7 +361,8 @@ fn sanitize_title_json(raw_json: &str) -> String {
         .replace(['\u{300C}', '\u{300D}', '\u{300E}', '\u{300F}'], "\"")
         .replace(['\u{2032}', '\u{2033}', '\u{2036}', '\u{2037}'], "\"");
 
-    if sanitized.contains("'title'") || sanitized.contains("{'") || sanitized.contains("'title\":") {
+    if sanitized.contains("'title'") || sanitized.contains("{'") || sanitized.contains("'title\":")
+    {
         sanitized = sanitized.replace('\'', "\"");
     }
 

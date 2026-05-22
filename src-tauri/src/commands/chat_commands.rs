@@ -1,6 +1,4 @@
-use crate::models::chat::{
-    ChatMessage, StreamMetadata, StreamPayload, ThinkingPayload,
-};
+use crate::models::chat::{ChatMessage, StreamMetadata, StreamPayload, ThinkingPayload};
 use crate::title_generator;
 use crate::AppState;
 use serde_json::Value;
@@ -234,12 +232,8 @@ pub async fn generate_chat_title(
         }
     };
 
-    Ok(title_generator::generate_title(
-        provider.as_ref(),
-        &model,
-        &messages,
-        user_name.as_deref(),
-    ).await)
+    Ok(
+        title_generator::generate_title(provider.as_ref(), &model, &messages, user_name.as_deref())
+            .await,
+    )
 }
-
-

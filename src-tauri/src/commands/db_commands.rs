@@ -1,7 +1,7 @@
 use crate::AppState;
 use serde::Serialize;
-use sqlx::Row;
 use sqlx::Column;
+use sqlx::Row;
 use tauri::State;
 
 #[derive(Serialize)]
@@ -19,9 +19,10 @@ pub async fn clear_database(state: State<'_, AppState>) -> Result<SqlResult, Str
 
     for table in &["messages", "conversations", "sessions", "users"] {
         let sql = format!("DELETE FROM {}", table);
-        sqlx::raw_sql(&sql).execute(pool).await.map_err(|e| {
-            format!("Failed to clear table '{}': {}", table, e)
-        })?;
+        sqlx::raw_sql(&sql)
+            .execute(pool)
+            .await
+            .map_err(|e| format!("Failed to clear table '{}': {}", table, e))?;
     }
 
     Ok(SqlResult {

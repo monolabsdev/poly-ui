@@ -1,9 +1,9 @@
 use crate::providers::base::{LLMProvider, ProviderConfig, ProviderStatus, ProviderType};
 use crate::providers::factory::ProviderFactory;
+use sqlx::SqlitePool;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use sqlx::SqlitePool;
 use tokio::sync::Mutex as TokioMutex;
 
 #[derive(Clone)]
@@ -28,9 +28,7 @@ impl ProviderSelector {
     }
 
     pub async fn get_provider_configs(&self) -> Result<Vec<ProviderConfig>, String> {
-        let mut conn = self.pool.acquire().await.map_err(|e| {
-            e.to_string()
-        })?;
+        let mut conn = self.pool.acquire().await.map_err(|e| e.to_string())?;
 
         let configs = sqlx::query_as::<_, ProviderConfig>(
             "SELECT provider_type, enabled, ollama_host, ollama_api_key, ollama_api_base_url, priority FROM provider_configs ORDER BY priority ASC"
@@ -50,10 +48,10 @@ impl ProviderSelector {
 
         let mut results = HashMap::new();
         let now = Instant::now();
-        
+
         // We collect futures to run in parallel
         let mut futures = Vec::new();
-        
+
         {
             let cache = self.health_cache.lock().await;
             for config in configs {
@@ -86,15 +84,19 @@ impl ProviderSelector {
         // Run checks in parallel with a global timeout
         if !futures.is_empty() {
             let check_task = futures::future::join_all(futures);
-            let results_with_timeout = tokio::time::timeout(std::time::Duration::from_secs(10), check_task).await;
-            
+            let results_with_timeout =
+                tokio::time::timeout(std::time::Duration::from_secs(10), check_task).await;
+
             if let Ok(p_results) = results_with_timeout {
                 let mut cache = self.health_cache.lock().await;
                 for (p_type, status) in p_results {
-                    cache.insert(p_type, HealthCache {
-                        status,
-                        last_check: now,
-                    });
+                    cache.insert(
+                        p_type,
+                        HealthCache {
+                            status,
+                            last_check: now,
+                        },
+                    );
                     results.insert(p_type, status);
                 }
             }

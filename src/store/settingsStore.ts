@@ -17,13 +17,26 @@ export type GeneralSettings = {
   systemPrompt: string;
 };
 
+export type BrowserTtsSettings = {
+  voiceURI: string;
+  speed: number;
+  pitch: number;
+};
+
+export type TtsSettings = {
+  engine: "browser";
+  browser: BrowserTtsSettings;
+};
+
 type SettingsState = {
   general: GeneralSettings;
   account: AccountSettings;
+  tts: TtsSettings;
   selectedPromptPreset: PromptPresetId;
   actions: {
     updateGeneral: (update: Partial<GeneralSettings>) => void;
     updateAccount: (update: Partial<AccountSettings>) => void;
+    updateTts: (update: Partial<TtsSettings>) => void;
     resetAccount: () => void;
     setPromptPreset: (id: PromptPresetId) => void;
   };
@@ -36,6 +49,15 @@ const defaultAccount: AccountSettings = {
   birthDate: "",
 };
 
+const defaultTts: TtsSettings = {
+  engine: "browser",
+  browser: {
+    voiceURI: "",
+    speed: 1.0,
+    pitch: 1.0,
+  },
+};
+
 export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
@@ -45,6 +67,7 @@ export const useSettingsStore = create<SettingsState>()(
         systemPrompt: "",
       },
       account: { ...defaultAccount },
+      tts: { ...defaultTts },
       selectedPromptPreset: "default" as PromptPresetId,
       actions: {
         updateGeneral: (update) =>
@@ -52,6 +75,16 @@ export const useSettingsStore = create<SettingsState>()(
 
         updateAccount: (update) =>
           set((s) => ({ account: { ...s.account, ...update } })),
+
+        updateTts: (update) =>
+          set((s) => ({
+            tts: {
+              ...s.tts,
+              ...update,
+              browser: { ...s.tts.browser, ...(update.browser || {}) },
+            },
+          })),
+
         resetAccount: () => set({ account: { ...defaultAccount } }),
         setPromptPreset: (id) => set({ selectedPromptPreset: id }),
       },
@@ -61,8 +94,9 @@ export const useSettingsStore = create<SettingsState>()(
       partialize: (state) => ({
         general: state.general,
         account: state.account,
+        tts: state.tts,
         selectedPromptPreset: state.selectedPromptPreset,
-      }),
+      }) as SettingsState,
     },
   ),
 );

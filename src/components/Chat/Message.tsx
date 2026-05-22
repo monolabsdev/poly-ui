@@ -7,6 +7,8 @@ import {
   Paperclip,
   AlertCircle,
   StopCircle,
+  Volume2,
+  Square,
 } from "lucide-react";
 import { memo, useState, useEffect, useMemo } from "react";
 import ReactMarkdown from "react-markdown";
@@ -15,7 +17,7 @@ import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
-import { Box, Typography, IconButton, Tooltip, Collapse } from "@mui/material";
+import { Box, Typography, IconButton, Tooltip, Collapse, CircularProgress } from "@mui/material";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,6 +30,7 @@ import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { motion, AnimatePresence } from "motion/react";
 import { useTiming, ANIMATION_VARIANTS } from "@/lib/motion";
 import { useNotify } from "@/hooks/useNotify";
+import { useTtsStore } from "@/store/ttsStore";
 import {
   PRETEXT_FONTS,
   PRETEXT_LINE_HEIGHTS,
@@ -150,6 +153,21 @@ export const Message = memo(function Message({
   const timing = useTiming();
   const notify = useNotify();
   const [minHeight, setMinHeight] = useState(0);
+
+  const ttsPlayback = useTtsStore();
+  const isSpeaking = typeof messageIndex === "number" && ttsPlayback.activeMessageId === messageIndex && ttsPlayback.isPlaying;
+  const isGenerating = typeof messageIndex === "number" && ttsPlayback.activeMessageId === messageIndex && ttsPlayback.isGenerating;
+
+  const handleSpeak = () => {
+    if (typeof messageIndex !== "number") return;
+    if (isSpeaking || isGenerating) {
+      ttsPlayback.actions.stop();
+    } else {
+      ttsPlayback.actions.play(messageIndex, content).catch((err) => {
+        console.error("TTS playback error", err);
+      });
+    }
+  };
 
   useEffect(() => {
     if (isStreaming && content) {
@@ -651,6 +669,35 @@ export const Message = memo(function Message({
               </AnimatePresence>
             </IconButton>
           </Tooltip>
+
+          {typeof messageIndex === "number" && (
+            <Tooltip title={isSpeaking ? "Stop reading" : "Read message"}>
+              <IconButton
+                component={motion.button}
+                variants={ANIMATION_VARIANTS.interactive}
+                whileHover="hover"
+                whileTap="tap"
+                size="small"
+                onClick={handleSpeak}
+                disabled={isStreaming || (isGenerating && !isSpeaking)}
+                sx={{
+                  color: isSpeaking ? "primary.main" : "text.secondary",
+                  "&:hover": {
+                    color: isSpeaking ? "primary.main" : "text.primary",
+                    bgcolor: "action.hover",
+                  },
+                }}
+              >
+                {isGenerating ? (
+                  <CircularProgress size={14} color="inherit" />
+                ) : isSpeaking ? (
+                  <Square size={14} />
+                ) : (
+                  <Volume2 size={14} />
+                )}
+              </IconButton>
+            </Tooltip>
+          )}
 
           {canRegenerate && (
             <Tooltip title="Regenerate">

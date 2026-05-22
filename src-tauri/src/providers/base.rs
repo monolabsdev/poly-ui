@@ -1,8 +1,8 @@
-use serde::{Deserialize, Serialize};
+use crate::models::chat::{ChatMessage, StreamPayload};
 use async_trait::async_trait;
 use futures::Stream;
+use serde::{Deserialize, Serialize};
 use std::pin::Pin;
-use crate::models::chat::{ChatMessage, StreamPayload};
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Hash, sqlx::Type)]
 pub enum ProviderType {
@@ -38,7 +38,15 @@ pub trait LLMProvider: Send + Sync {
         options: Option<serde_json::Value>,
     ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamPayload, String>> + Send>>, String>;
     async fn get_available_models(&self) -> Result<Vec<crate::models::chat::ModelDetails>, String>;
-    async fn pull_model(&self, model: String) -> Result<Pin<Box<dyn Stream<Item = Result<crate::models::chat::PullProgressPayload, String>> + Send>>, String>;
+    async fn pull_model(
+        &self,
+        model: String,
+    ) -> Result<
+        Pin<
+            Box<dyn Stream<Item = Result<crate::models::chat::PullProgressPayload, String>> + Send>,
+        >,
+        String,
+    >;
     async fn delete_model(&self, model: String) -> Result<(), String>;
     fn get_provider_name(&self) -> String;
     fn get_provider_type(&self) -> ProviderType;

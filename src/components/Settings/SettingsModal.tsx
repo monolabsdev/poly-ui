@@ -15,6 +15,7 @@ import {
   Terminal,
   Play,
   AlertTriangle,
+  Volume2,
 } from "lucide-react";
 import { SettingCard, SectionHeader } from "./SettingComponents";
 import { useDevStore } from "@/store/devStore";
@@ -22,6 +23,7 @@ import { useNotify } from "@/hooks/useNotify";
 import { loggedInvoke } from "@/lib/utils";
 import { GeneralTab } from "./tabs/GeneralTab";
 import { PersonalisationTab } from "./tabs/PersonalisationTab";
+import { SpeechTab } from "./tabs/SpeechTab";
 import { DataControlsTab } from "./tabs/DataControlsTab";
 import { AboutTab } from "./tabs/AboutTab";
 import { APP_DIALOG_SIDEBAR_WIDTH } from "@/components/ui/appDialog";
@@ -33,6 +35,7 @@ type SettingsModalProps = {
 const SIDEBAR_ITEMS = [
   { id: "general", label: "General", icon: Settings },
   { id: "personalisation", label: "Personalisation", icon: User },
+  { id: "speech", label: "Speech", icon: Volume2 },
   { id: "data-controls", label: "Data Controls", icon: Shield },
   { id: "about", label: "About", icon: Info },
 ] as const;
@@ -170,6 +173,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             <Box key={activeTab} sx={appFadeInSx}>
               {activeTab === "general" && <GeneralTab />}
               {activeTab === "personalisation" && <PersonalisationTab />}
+              {activeTab === "speech" && <SpeechTab />}
               {activeTab === "data-controls" && <DataControlsTab />}
               {activeTab === "about" && <AboutTab />}
               {activeTab === "developer" && <DeveloperTab />}

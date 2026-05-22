@@ -38,12 +38,11 @@ pub async fn init_db<R: Runtime>(app: &AppHandle<R>) -> Result<SqlitePool, Strin
             r#"
             INSERT OR IGNORE INTO provider_configs (provider_type, enabled, ollama_host, priority)
             VALUES ('OllamaLocal', 1, 'http://127.0.0.1:11434', 0)
-            "#
+            "#,
         )
         .execute(&pool)
         .await
         .map_err(|e| e.to_string())?;
-
     }
     Ok(pool)
 }
@@ -57,7 +56,7 @@ async fn ensure_conversations_schema(pool: &SqlitePool) -> Result<(), String> {
             updatedAt TEXT,
             isArchived INTEGER DEFAULT 0,
             userId TEXT DEFAULT ''
-        )"
+        )",
     )
     .execute(pool)
     .await
@@ -74,7 +73,7 @@ async fn ensure_conversations_schema(pool: &SqlitePool) -> Result<(), String> {
             model TEXT,
             thinking TEXT,
             thinkingDuration REAL
-        )"
+        )",
     )
     .execute(pool)
     .await
@@ -95,10 +94,12 @@ async fn ensure_conversations_schema(pool: &SqlitePool) -> Result<(), String> {
         .await
         .map_err(|e| e.to_string())?;
 
-    sqlx::query("CREATE INDEX IF NOT EXISTS idx_conversations_archived ON conversations(isArchived)")
-        .execute(pool)
-        .await
-        .map_err(|e| e.to_string())?;
+    sqlx::query(
+        "CREATE INDEX IF NOT EXISTS idx_conversations_archived ON conversations(isArchived)",
+    )
+    .execute(pool)
+    .await
+    .map_err(|e| e.to_string())?;
 
     sqlx::query("CREATE INDEX IF NOT EXISTS idx_conversations_user ON conversations(userId)")
         .execute(pool)
@@ -118,7 +119,7 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), String> {
             return Err(message);
         }
 
-        // Dev repair: this branch exists because migrations were edited 
+        // Dev repair: this branch exists because migrations were edited
         // during development. Migration SQL is idempotent, so removing the
         // stale checksum lets sqlx record the current file and continue.
         sqlx::query("DELETE FROM _sqlx_migrations WHERE version IN (?, ?, ?)")
