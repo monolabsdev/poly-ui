@@ -29,6 +29,7 @@ pub fn run() {
         .plugin(tauri_plugin_sql::Builder::default().build())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
+        .plugin(tauri_plugin_supertonic::init())
         .setup(|app| {
             let db = tauri::async_runtime::block_on(db::connection::init_db(app.handle()))
                 .map_err(std::io::Error::other)?;

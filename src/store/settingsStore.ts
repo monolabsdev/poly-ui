@@ -23,9 +23,16 @@ export type BrowserTtsSettings = {
   pitch: number;
 };
 
+export type StTtsSettings = {
+  modelId: string;
+  voiceStyle: string;
+  speed: number;
+};
+
 export type TtsSettings = {
-  engine: "browser";
+  engine: "browser" | "stTts";
   browser: BrowserTtsSettings;
+  stTts: StTtsSettings;
 };
 
 type SettingsState = {
@@ -56,6 +63,11 @@ const defaultTts: TtsSettings = {
     speed: 1.0,
     pitch: 1.0,
   },
+  stTts: {
+    modelId: "Supertone/supertonic-3",
+    voiceStyle: "M1",
+    speed: 1.0,
+  },
 };
 
 export const useSettingsStore = create<SettingsState>()(
@@ -79,9 +91,11 @@ export const useSettingsStore = create<SettingsState>()(
         updateTts: (update) =>
           set((s) => ({
             tts: {
+              ...defaultTts,
               ...s.tts,
               ...update,
-              browser: { ...s.tts.browser, ...(update.browser || {}) },
+              browser: { ...defaultTts.browser, ...s.tts.browser, ...(update.browser || {}) },
+              stTts: { ...defaultTts.stTts, ...s.tts.stTts, ...(update.stTts || {}) },
             },
           })),
 
@@ -91,6 +105,24 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: "openbench:settings",
+      version: 2,
+      migrate: (persisted, version) => {
+        const state = persisted as any;
+        if (state?.tts) {
+          if (version < 1 && state.tts.supertonic) {
+            state.tts.stTts = state.tts.supertonic;
+            delete state.tts.supertonic;
+            if (state.tts.engine === "supertonic") {
+              state.tts.engine = "stTts";
+            }
+          }
+          if (version < 2) {
+            state.tts.stTts = { ...defaultTts.stTts, ...state.tts.stTts };
+            state.tts.browser = { ...defaultTts.browser, ...state.tts.browser };
+          }
+        }
+        return state as SettingsState;
+      },
       partialize: (state) => ({
         general: state.general,
         account: state.account,

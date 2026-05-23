@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   FormControl,
   MenuItem,
@@ -13,7 +13,7 @@ import {
 import { SettingCard, SectionHeader, selectSx } from "../SettingComponents";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useTtsStore } from "@/store/ttsStore";
-import { Volume2, Square, AlertCircle } from "lucide-react";
+import { Volume2, Square, AlertCircle, Download, Check } from "lucide-react";
 import { useNotify } from "@/hooks/useNotify";
 
 export function SpeechTab() {
@@ -23,6 +23,11 @@ export function SpeechTab() {
 
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [speechSupported, setSpeechSupported] = useState(true);
+  const [stTtsVoices, setStTtsVoices] = useState<string[]>([]);
+  const [loadProgress, setLoadProgress] = useState<string | null>(null);
+
+  const stTtsSpeed = tts.stTts?.speed ?? 1.0;
+  const stTtsVoiceStyle = tts.stTts?.voiceStyle ?? "M1";
 
   useEffect(() => {
     if (typeof window === "undefined" || !window.speechSynthesis) {
@@ -51,6 +56,22 @@ export function SpeechTab() {
     }
   }, [ttsPlayback.error, notify]);
 
+  const handleLoadModel = useCallback(async () => {
+    setLoadProgress("Downloading model...");
+    try {
+      await ttsPlayback.actions.loadEngine();
+      setLoadProgress(null);
+      notify.success("TTS model loaded");
+
+      const { listVoices } = await import("tauri-plugin-supertonic-api");
+      const v = await listVoices();
+      setStTtsVoices(v);
+    } catch (err: any) {
+      setLoadProgress(null);
+      notify.error("Failed to load TTS model", err?.message ?? String(err));
+    }
+  }, [ttsPlayback.actions, notify]);
+
   const handleTestSpeech = async () => {
     const testId = "test-synthesis";
     if (ttsPlayback.activeMessageId === testId && ttsPlayback.isPlaying) {
@@ -65,9 +86,9 @@ export function SpeechTab() {
   };
 
   const isTesting = ttsPlayback.activeMessageId === "test-synthesis";
-
   const isDisabled =
-    (ttsPlayback.isGenerating && !isTesting) || !speechSupported;
+    (ttsPlayback.isGenerating && !isTesting) ||
+    (tts.engine === "browser" && !speechSupported);
 
   return (
     <Stack spacing={2.5}>
@@ -76,7 +97,26 @@ export function SpeechTab() {
         description="Configure speech synthesis options for reading AI assistant messages."
       />
 
-      {!speechSupported ? (
+      <SettingCard
+        title="TTS Engine"
+        description="Choose between browser SpeechSynthesis or on-device ST-TTS."
+        action={
+          <FormControl size="small" sx={{ minWidth: 160, maxWidth: 200 }}>
+            <Select
+              value={tts.engine}
+              onChange={(e) =>
+                actions.updateTts({ engine: e.target.value as "browser" | "stTts" })
+              }
+              sx={selectSx}
+            >
+              <MenuItem value="browser" sx={{ fontSize: 13 }}>Browser</MenuItem>
+              <MenuItem value="stTts" sx={{ fontSize: 13 }}>ST-TTS (On-device)</MenuItem>
+            </Select>
+          </FormControl>
+        }
+      />
+
+      {tts.engine === "browser" && !speechSupported ? (
         <Box
           sx={{
             display: "flex",
@@ -95,7 +135,9 @@ export function SpeechTab() {
             Browser SpeechSynthesis is not supported or disabled on your system.
           </Typography>
         </Box>
-      ) : (
+      ) : null}
+
+      {tts.engine === "browser" && speechSupported ? (
         <>
           <SettingCard
             title="Browser Voice"
@@ -219,7 +261,110 @@ export function SpeechTab() {
             </Box>
           </SettingCard>
         </>
-      )}
+      ) : null}
+
+      {tts.engine === "stTts" ? (
+        <>
+          <SettingCard
+            title="Model"
+            description="On-device TTS model from HuggingFace (~100MB download)."
+            action={
+              <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+                <Button
+                  variant={ttsPlayback.engineLoaded ? "outlined" : "contained"}
+                  disableElevation
+                  size="small"
+                  onClick={handleLoadModel}
+                  disabled={loadProgress !== null}
+                  startIcon={
+                    loadProgress ? (
+                      <CircularProgress size={14} color="inherit" />
+                    ) : ttsPlayback.engineLoaded ? (
+                      <Check size={14} />
+                    ) : (
+                      <Download size={14} />
+                    )
+                  }
+                  sx={{ textTransform: "none", fontWeight: 600, fontSize: 12, borderRadius: "8px" }}
+                >
+                  {loadProgress ? "Downloading..." : ttsPlayback.engineLoaded ? "Loaded" : "Load Model"}
+                </Button>
+              </Box>
+            }
+          />
+
+          {ttsPlayback.engineLoaded ? (
+            <SettingCard
+              title="Voice"
+              description="Select a voice style for synthesis."
+              action={
+                <FormControl size="small" sx={{ minWidth: 160, maxWidth: 200 }}>
+                  <Select
+                    value={stTtsVoiceStyle}
+                    onChange={async (e) => {
+                      const voice = e.target.value;
+                      actions.updateTts({ stTts: { ...tts.stTts, voiceStyle: voice } });
+                      try {
+                        const { selectVoice } = await import("tauri-plugin-supertonic-api");
+                        await selectVoice(voice);
+                      } catch (err: any) {
+                        notify.error("Failed to switch voice", err.message);
+                      }
+                    }}
+                    sx={selectSx}
+                  >
+                    {stTtsVoices.length === 0 ? (
+                      <MenuItem value={stTtsVoiceStyle} sx={{ fontSize: 13 }}>
+                        {stTtsVoiceStyle}
+                      </MenuItem>
+                    ) : (
+                      stTtsVoices.map((v) => (
+                        <MenuItem key={v} value={v} sx={{ fontSize: 13 }}>{v}</MenuItem>
+                      ))
+                    )}
+                  </Select>
+                </FormControl>
+              }
+            />
+          ) : null}
+
+          <SettingCard
+            title="Speed"
+            description="Adjust synthesis speed (1.0 = normal)."
+          >
+            <Box
+              sx={{
+                px: 1,
+                py: 0.5,
+                display: "flex",
+                alignItems: "center",
+                gap: 3,
+              }}
+            >
+              <Slider
+                value={stTtsSpeed}
+                onChange={(_, val) =>
+                  actions.updateTts({
+                    stTts: { ...tts.stTts, speed: val as number },
+                  })
+                }
+                sx={{ flexGrow: 1 }}
+              />
+              <Typography
+                sx={{
+                  width: 45,
+                  fontSize: 13,
+                  fontWeight: 700,
+                  textAlign: "right",
+                  color: "text.secondary",
+                }}
+              >
+                {stTtsSpeed.toFixed(1)}x
+              </Typography>
+            </Box>
+          </SettingCard>
+        </>
+      ) : null}
 
       <Box sx={{ pt: 2, display: "flex", justifyContent: "flex-end" }}>
         <Button

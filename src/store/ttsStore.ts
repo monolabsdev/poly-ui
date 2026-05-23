@@ -6,15 +6,20 @@ interface TtsState {
   activeMessageId: number | string | null;
   isPlaying: boolean;
   isGenerating: boolean;
+  engineLoaded: boolean;
   error: string | null;
+  statusMessage: string | null;
   actions: {
     play: (messageId: number | string, text: string) => Promise<void>;
     stop: () => void;
+    loadEngine: () => Promise<void>;
   };
 }
 
 let browserSentenceQueue: string[] = [];
 let browserSentenceIndex = 0;
+
+let stTtsAudio: HTMLAudioElement | null = null;
 
 export function cleanTextForSpeech(text: string): string {
   if (!text) return "";
@@ -54,8 +59,17 @@ export const useTtsStore = create<TtsState>((set, get) => ({
   activeMessageId: null,
   isPlaying: false,
   isGenerating: false,
+  engineLoaded: false,
   error: null,
+  statusMessage: null,
   actions: {
+    loadEngine: async () => {
+      const { loadModel } = await import("tauri-plugin-supertonic-api");
+      const settings = useSettingsStore.getState().tts.stTts;
+      await loadModel(settings.modelId, settings.voiceStyle);
+      set({ engineLoaded: true });
+    },
+
     play: async (messageId, rawText) => {
       const { stop } = get().actions;
       stop();
@@ -69,65 +83,92 @@ export const useTtsStore = create<TtsState>((set, get) => ({
           return;
         }
 
-        if (typeof window === "undefined" || !window.speechSynthesis) {
-          throw new Error("Speech synthesis is not supported in this environment.");
-        }
-
-        window.speechSynthesis.cancel();
-
-        browserSentenceQueue = cleanedText
-          .split(/[.!?]+\s+/)
-          .map((s) => s.trim())
-          .filter((s) => s.length > 0);
-
-        if (browserSentenceQueue.length === 0) {
-          set({ isGenerating: false, activeMessageId: null });
-          return;
-        }
-
-        browserSentenceIndex = 0;
-        set({ isGenerating: false, isPlaying: true });
-
         const settings = useSettingsStore.getState().tts;
 
-        const speakNext = () => {
-          if (browserSentenceIndex >= browserSentenceQueue.length) {
+        if (settings.engine === "stTts") {
+          if (!get().engineLoaded) {
+            set({ statusMessage: "Downloading TTS model (~100MB)..." });
+            await get().actions.loadEngine();
+            set({ statusMessage: null });
+          }
+          const { synthesize } = await import("tauri-plugin-supertonic-api");
+          const result = await synthesize(cleanedText, "en", undefined, settings.stTts.speed);
+          set({ isGenerating: false, isPlaying: true });
+
+          const audio = new Audio(`data:audio/wav;base64,${result.wavBase64}`);
+          stTtsAudio = audio;
+          audio.onended = () => {
+            stTtsAudio = null;
             set({ isPlaying: false, activeMessageId: null });
+          };
+          audio.onerror = () => {
+            stTtsAudio = null;
+            set({ error: "Audio playback failed", isPlaying: false, activeMessageId: null });
+          };
+          audio.play().catch((err) => {
+            stTtsAudio = null;
+            throw err;
+          });
+        } else {
+          if (typeof window === "undefined" || !window.speechSynthesis) {
+            throw new Error("Speech synthesis is not supported in this environment.");
+          }
+
+          window.speechSynthesis.cancel();
+
+          browserSentenceQueue = cleanedText
+            .split(/[.!?]+\s+/)
+            .map((s) => s.trim())
+            .filter((s) => s.length > 0);
+
+          if (browserSentenceQueue.length === 0) {
+            set({ isGenerating: false, activeMessageId: null });
             return;
           }
 
-          const sentence = browserSentenceQueue[browserSentenceIndex];
-          const utterance = new SpeechSynthesisUtterance(sentence);
+          browserSentenceIndex = 0;
+          set({ isGenerating: false, isPlaying: true });
 
-          const voices = window.speechSynthesis.getVoices();
-          const voice = voices.find((v) => v.voiceURI === settings.browser.voiceURI);
-          if (voice) {
-            utterance.voice = voice;
-          }
-
-          utterance.rate = settings.browser.speed;
-          utterance.pitch = settings.browser.pitch;
-
-          utterance.onend = () => {
-            browserSentenceIndex++;
-            speakNext();
-          };
-
-          utterance.onerror = (e) => {
-            if (e.error !== "interrupted") {
-              console.error("SpeechSynthesis utterance error:", e);
-              set({ error: `Speech synthesis error: ${e.error}`, isPlaying: false, activeMessageId: null });
+          const speakNext = () => {
+            if (browserSentenceIndex >= browserSentenceQueue.length) {
+              set({ isPlaying: false, activeMessageId: null });
+              return;
             }
+
+            const sentence = browserSentenceQueue[browserSentenceIndex];
+            const utterance = new SpeechSynthesisUtterance(sentence);
+
+            const voices = window.speechSynthesis.getVoices();
+            const voice = voices.find((v) => v.voiceURI === settings.browser.voiceURI);
+            if (voice) {
+              utterance.voice = voice;
+            }
+
+            utterance.rate = settings.browser.speed;
+            utterance.pitch = settings.browser.pitch;
+
+            utterance.onend = () => {
+              browserSentenceIndex++;
+              speakNext();
+            };
+
+            utterance.onerror = (e) => {
+              if (e.error !== "interrupted") {
+                console.error("SpeechSynthesis utterance error:", e);
+                set({ error: `Speech synthesis error: ${e.error}`, isPlaying: false, activeMessageId: null });
+              }
+            };
+
+            window.speechSynthesis.speak(utterance);
           };
 
-          window.speechSynthesis.speak(utterance);
-        };
-
-        speakNext();
+          speakNext();
+        }
       } catch (err: any) {
         console.error("TTS play error:", err);
         set({
           error: err.message || "An unexpected error occurred during speech synthesis.",
+          statusMessage: null,
           isPlaying: false,
           isGenerating: false,
           activeMessageId: null,
@@ -136,6 +177,10 @@ export const useTtsStore = create<TtsState>((set, get) => ({
     },
 
     stop: () => {
+      if (stTtsAudio) {
+        stTtsAudio.pause();
+        stTtsAudio = null;
+      }
       if (typeof window !== "undefined" && window.speechSynthesis) {
         try {
           window.speechSynthesis.cancel();

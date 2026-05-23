@@ -22,6 +22,7 @@
     "sql:allow-select",
     "sql:allow-load",
     "window-state:default",
-    "fs:default"
+    "fs:default",
+    "supertonic:default"
   ]
 }

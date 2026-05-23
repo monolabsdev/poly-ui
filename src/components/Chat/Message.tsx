@@ -164,10 +164,16 @@ export const Message = memo(function Message({
       ttsPlayback.actions.stop();
     } else {
       ttsPlayback.actions.play(messageIndex, content).catch((err) => {
-        console.error("TTS playback error", err);
+        notify.error("TTS error", err?.message ?? String(err));
       });
     }
   };
+
+  useEffect(() => {
+    if (ttsPlayback.statusMessage) {
+      notify.info(ttsPlayback.statusMessage);
+    }
+  }, [ttsPlayback.statusMessage, notify]);
 
   useEffect(() => {
     if (isStreaming && content) {
