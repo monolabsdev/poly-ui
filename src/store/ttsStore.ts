@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { useSettingsStore } from "./settingsStore";
 import { useChatStore } from "./chatStore";
+import { useNotificationStore } from "./notificationStore";
 
 interface TtsState {
   activeMessageId: number | string | null;
@@ -8,7 +9,6 @@ interface TtsState {
   isGenerating: boolean;
   engineLoaded: boolean;
   error: string | null;
-  statusMessage: string | null;
   actions: {
     play: (messageId: number | string, text: string) => Promise<void>;
     stop: () => void;
@@ -61,7 +61,6 @@ export const useTtsStore = create<TtsState>((set, get) => ({
   isGenerating: false,
   engineLoaded: false,
   error: null,
-  statusMessage: null,
   actions: {
     loadEngine: async () => {
       const { loadModel } = await import("tauri-plugin-supertonic-api");
@@ -87,9 +86,22 @@ export const useTtsStore = create<TtsState>((set, get) => ({
 
         if (settings.engine === "stTts") {
           if (!get().engineLoaded) {
-            set({ statusMessage: "Downloading TTS model (~100MB)..." });
-            await get().actions.loadEngine();
-            set({ statusMessage: null });
+            const notifId = useNotificationStore.getState().actions.add({
+              message: "Downloading TTS model (~100MB)...",
+              type: "loading",
+              duration: Infinity,
+            });
+            try {
+              await get().actions.loadEngine();
+              useNotificationStore.getState().actions.update(notifId, {
+                message: "TTS model loaded",
+                type: "success",
+                duration: 3000,
+              });
+            } catch (e) {
+              useNotificationStore.getState().actions.remove(notifId);
+              throw e;
+            }
           }
           const { synthesize } = await import("tauri-plugin-supertonic-api");
           const result = await synthesize(cleanedText, "en", undefined, settings.stTts.speed);
@@ -168,7 +180,6 @@ export const useTtsStore = create<TtsState>((set, get) => ({
         console.error("TTS play error:", err);
         set({
           error: err.message || "An unexpected error occurred during speech synthesis.",
-          statusMessage: null,
           isPlaying: false,
           isGenerating: false,
           activeMessageId: null,

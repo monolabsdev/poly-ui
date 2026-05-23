@@ -170,12 +170,6 @@ export const Message = memo(function Message({
   };
 
   useEffect(() => {
-    if (ttsPlayback.statusMessage) {
-      notify.info(ttsPlayback.statusMessage);
-    }
-  }, [ttsPlayback.statusMessage, notify]);
-
-  useEffect(() => {
     if (isStreaming && content) {
       const h = measureTextHeight(
         content,
