@@ -27,9 +27,10 @@ pub async fn pull_model(
     state.is_pull_cancelled.store(false, Ordering::SeqCst);
     let provider = state.provider_selector.get_active_provider().await?;
 
-    let mut stream = provider.pull_model(model.clone()).await.map_err(|e| {
-        format!("Failed to start pull: {}", e)
-    })?;
+    let mut stream = provider
+        .pull_model(model.clone())
+        .await
+        .map_err(|e| format!("Failed to start pull: {}", e))?;
 
     let mut last_error = String::new();
     while let Some(result) = stream.next().await {

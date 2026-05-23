@@ -1,6 +1,6 @@
 [package]
 name = "openbench"
-version = "0.1.1"
+version = "0.2.0"
 description = "A Tauri App"
 authors = ["you"]
 edition = "2021"
@@ -30,3 +30,5 @@ sqlx = { version = "0.8", features = ["sqlite", "runtime-tokio", "macros", "migr
 reqwest = { version = "0.12", features = ["rustls-tls"] }
 async-trait = "0.1"
 futures = "0.3.32"
+tauri-plugin-fs = "2"
+tauri-plugin-supertonic = "0.1"

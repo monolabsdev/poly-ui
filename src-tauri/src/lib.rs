@@ -2,17 +2,17 @@ mod auth;
 mod commands;
 mod db;
 mod models;
-mod title_generator;
 mod providers;
+mod title_generator;
 
 use crate::commands::chat_commands::{chat, chat_stream, generate_chat_title};
 use crate::commands::config_commands::cancel_chat;
-use crate::commands::model_commands::{cancel_pull, delete_model, get_local_models, pull_model};
 use crate::commands::db_commands::{clear_database, execute_sql};
+use crate::commands::model_commands::{cancel_pull, delete_model, get_local_models, pull_model};
+use providers::ProviderSelector;
 use sqlx::SqlitePool;
 use std::sync::atomic::{AtomicBool, AtomicUsize};
 use tauri::Manager;
-use providers::ProviderSelector;
 
 pub struct AppState {
     pub db: SqlitePool,
@@ -24,10 +24,12 @@ pub struct AppState {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_sql::Builder::default().build())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
+        .plugin(tauri_plugin_supertonic::init())
         .setup(|app| {
             let db = tauri::async_runtime::block_on(db::connection::init_db(app.handle()))
                 .map_err(std::io::Error::other)?;

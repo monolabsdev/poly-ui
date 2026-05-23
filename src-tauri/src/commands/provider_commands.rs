@@ -1,5 +1,5 @@
-use crate::AppState;
 use crate::providers::base::{ProviderConfig, ProviderStatus, ProviderType};
+use crate::AppState;
 
 #[derive(serde::Serialize)]
 pub struct ProviderStatusResponse {
@@ -18,7 +18,10 @@ pub async fn get_providers(
 
     let mut response = Vec::new();
     for config in configs {
-        let status = health.get(&config.provider_type).cloned().unwrap_or(ProviderStatus::Offline);
+        let status = health
+            .get(&config.provider_type)
+            .cloned()
+            .unwrap_or(ProviderStatus::Offline);
         response.push(ProviderStatusResponse {
             provider_type: config.provider_type,
             status,

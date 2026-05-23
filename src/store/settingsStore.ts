@@ -17,13 +17,33 @@ export type GeneralSettings = {
   systemPrompt: string;
 };
 
+export type BrowserTtsSettings = {
+  voiceURI: string;
+  speed: number;
+  pitch: number;
+};
+
+export type StTtsSettings = {
+  modelId: string;
+  voiceStyle: string;
+  speed: number;
+};
+
+export type TtsSettings = {
+  engine: "browser" | "stTts";
+  browser: BrowserTtsSettings;
+  stTts: StTtsSettings;
+};
+
 type SettingsState = {
   general: GeneralSettings;
   account: AccountSettings;
+  tts: TtsSettings;
   selectedPromptPreset: PromptPresetId;
   actions: {
     updateGeneral: (update: Partial<GeneralSettings>) => void;
     updateAccount: (update: Partial<AccountSettings>) => void;
+    updateTts: (update: Partial<TtsSettings>) => void;
     resetAccount: () => void;
     setPromptPreset: (id: PromptPresetId) => void;
   };
@@ -36,6 +56,20 @@ const defaultAccount: AccountSettings = {
   birthDate: "",
 };
 
+const defaultTts: TtsSettings = {
+  engine: "browser",
+  browser: {
+    voiceURI: "",
+    speed: 1.0,
+    pitch: 1.0,
+  },
+  stTts: {
+    modelId: "Supertone/supertonic-3",
+    voiceStyle: "M1",
+    speed: 1.0,
+  },
+};
+
 export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
@@ -45,6 +79,7 @@ export const useSettingsStore = create<SettingsState>()(
         systemPrompt: "",
       },
       account: { ...defaultAccount },
+      tts: { ...defaultTts },
       selectedPromptPreset: "default" as PromptPresetId,
       actions: {
         updateGeneral: (update) =>
@@ -52,17 +87,48 @@ export const useSettingsStore = create<SettingsState>()(
 
         updateAccount: (update) =>
           set((s) => ({ account: { ...s.account, ...update } })),
+
+        updateTts: (update) =>
+          set((s) => ({
+            tts: {
+              ...defaultTts,
+              ...s.tts,
+              ...update,
+              browser: { ...defaultTts.browser, ...s.tts.browser, ...(update.browser || {}) },
+              stTts: { ...defaultTts.stTts, ...s.tts.stTts, ...(update.stTts || {}) },
+            },
+          })),
+
         resetAccount: () => set({ account: { ...defaultAccount } }),
         setPromptPreset: (id) => set({ selectedPromptPreset: id }),
       },
     }),
     {
       name: "openbench:settings",
+      version: 2,
+      migrate: (persisted, version) => {
+        const state = persisted as any;
+        if (state?.tts) {
+          if (version < 1 && state.tts.supertonic) {
+            state.tts.stTts = state.tts.supertonic;
+            delete state.tts.supertonic;
+            if (state.tts.engine === "supertonic") {
+              state.tts.engine = "stTts";
+            }
+          }
+          if (version < 2) {
+            state.tts.stTts = { ...defaultTts.stTts, ...state.tts.stTts };
+            state.tts.browser = { ...defaultTts.browser, ...state.tts.browser };
+          }
+        }
+        return state as SettingsState;
+      },
       partialize: (state) => ({
         general: state.general,
         account: state.account,
+        tts: state.tts,
         selectedPromptPreset: state.selectedPromptPreset,
-      }),
+      }) as SettingsState,
     },
   ),
 );

@@ -10,13 +10,19 @@
     "http:default",
     {
       "identifier": "http:allow-fetch",
-      "allow": [{ "url": "http://localhost:11434/**" }]
+      "allow": [
+        {
+          "url": "http://localhost:11434/**"
+        }
+      ]
     },
     "opener:default",
     "sql:default",
     "sql:allow-execute",
     "sql:allow-select",
     "sql:allow-load",
-    "window-state:default"
+    "window-state:default",
+    "fs:default",
+    "supertonic:default"
   ]
 }
