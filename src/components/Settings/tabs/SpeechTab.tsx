@@ -26,7 +26,6 @@ export function SpeechTab() {
   const [stTtsVoices, setStTtsVoices] = useState<string[]>([]);
   const [loadProgress, setLoadProgress] = useState<string | null>(null);
 
-  const stTtsSpeed = tts.stTts?.speed ?? 1.0;
   const stTtsVoiceStyle = tts.stTts?.voiceStyle ?? "M1";
 
   useEffect(() => {
@@ -328,41 +327,6 @@ export function SpeechTab() {
             />
           ) : null}
 
-          <SettingCard
-            title="Speed"
-            description="Adjust synthesis speed (1.0 = normal)."
-          >
-            <Box
-              sx={{
-                px: 1,
-                py: 0.5,
-                display: "flex",
-                alignItems: "center",
-                gap: 3,
-              }}
-            >
-              <Slider
-                value={stTtsSpeed}
-                onChange={(_, val) =>
-                  actions.updateTts({
-                    stTts: { ...tts.stTts, speed: val as number },
-                  })
-                }
-                sx={{ flexGrow: 1 }}
-              />
-              <Typography
-                sx={{
-                  width: 45,
-                  fontSize: 13,
-                  fontWeight: 700,
-                  textAlign: "right",
-                  color: "text.secondary",
-                }}
-              >
-                {stTtsSpeed.toFixed(1)}x
-              </Typography>
-            </Box>
-          </SettingCard>
         </>
       ) : null}
 
