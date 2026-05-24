@@ -79,7 +79,7 @@ jobs:
         run: |
           PREV=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "")
           {
-            echo "notes<<EOF"
+            echo "notes<<-EOF"
             echo "## Openbench AI ${{ github.ref_name }}"
             echo ""
             [ -n "$PREV" ] && echo "Changes since $PREV:" || echo "Changes:"
