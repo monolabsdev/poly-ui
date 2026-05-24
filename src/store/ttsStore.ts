@@ -20,6 +20,7 @@ let browserSentenceQueue: string[] = [];
 let browserSentenceIndex = 0;
 
 let stTtsAudio: HTMLAudioElement | null = null;
+let downloadNotifId: string | null = null;
 
 export function cleanTextForSpeech(text: string): string {
   if (!text) return "";
@@ -81,30 +82,41 @@ export const useTtsStore = create<TtsState>((set, get) => ({
           set({ isGenerating: false, activeMessageId: null });
           return;
         }
+        if (!get().isGenerating) return;
 
         const settings = useSettingsStore.getState().tts;
 
         if (settings.engine === "stTts") {
           if (!get().engineLoaded) {
-            const notifId = useNotificationStore.getState().actions.add({
+            downloadNotifId = useNotificationStore.getState().actions.add({
               message: "Downloading TTS model (~100MB)...",
               type: "loading",
               duration: Infinity,
             });
             try {
               await get().actions.loadEngine();
-              useNotificationStore.getState().actions.update(notifId, {
+            } catch (e) {
+              if (downloadNotifId) {
+                useNotificationStore.getState().actions.remove(downloadNotifId);
+                downloadNotifId = null;
+              }
+              throw e;
+            }
+            if (downloadNotifId) {
+              useNotificationStore.getState().actions.update(downloadNotifId, {
                 message: "TTS model loaded",
                 type: "success",
                 duration: 3000,
               });
-            } catch (e) {
-              useNotificationStore.getState().actions.remove(notifId);
-              throw e;
+              downloadNotifId = null;
             }
           }
+          if (!get().isGenerating) return;
+
           const { synthesize } = await import("tauri-plugin-supertonic-api");
           const result = await synthesize(cleanedText, "en", undefined, settings.stTts.speed);
+          if (!get().isGenerating) return;
+
           set({ isGenerating: false, isPlaying: true });
 
           const audio = new Audio(`data:audio/wav;base64,${result.wavBase64}`);
@@ -188,6 +200,10 @@ export const useTtsStore = create<TtsState>((set, get) => ({
     },
 
     stop: () => {
+      if (downloadNotifId) {
+        useNotificationStore.getState().actions.remove(downloadNotifId);
+        downloadNotifId = null;
+      }
       if (stTtsAudio) {
         stTtsAudio.pause();
         stTtsAudio = null;

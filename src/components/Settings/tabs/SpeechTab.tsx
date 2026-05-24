@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import {
   FormControl,
   MenuItem,
@@ -27,6 +27,8 @@ export function SpeechTab() {
   const [loadProgress, setLoadProgress] = useState<string | null>(null);
 
   const stTtsVoiceStyle = tts.stTts?.voiceStyle ?? "M1";
+  const shownErrorsRef = useRef<Set<string>>(new Set());
+  const voicesLoadedRef = useRef(false);
 
   useEffect(() => {
     if (typeof window === "undefined" || !window.speechSynthesis) {
@@ -50,26 +52,56 @@ export function SpeechTab() {
   }, []);
 
   useEffect(() => {
-    if (ttsPlayback.error) {
+    if (ttsPlayback.error && !shownErrorsRef.current.has(ttsPlayback.error)) {
+      shownErrorsRef.current.add(ttsPlayback.error);
       notify.error("Speech error", ttsPlayback.error);
     }
   }, [ttsPlayback.error, notify]);
 
+  useEffect(() => {
+    if (ttsPlayback.engineLoaded && !voicesLoadedRef.current) {
+      voicesLoadedRef.current = true;
+      (async () => {
+        try {
+          const { listVoices } = await import("tauri-plugin-supertonic-api");
+          const v = await listVoices();
+          setStTtsVoices(v);
+        } catch {
+          voicesLoadedRef.current = false;
+        }
+      })();
+    }
+  }, [ttsPlayback.engineLoaded]);
+
+  const loadCancelRef = useRef<(() => void) | null>(null);
+
   const handleLoadModel = useCallback(async () => {
+    if (loadProgress) {
+      loadCancelRef.current?.();
+      setLoadProgress(null);
+      return;
+    }
     setLoadProgress("Downloading model...");
+    let cancelled = false;
+    loadCancelRef.current = () => { cancelled = true; };
     try {
       await ttsPlayback.actions.loadEngine();
+      if (cancelled) return;
       setLoadProgress(null);
       notify.success("TTS model loaded");
 
+      voicesLoadedRef.current = true;
       const { listVoices } = await import("tauri-plugin-supertonic-api");
       const v = await listVoices();
       setStTtsVoices(v);
     } catch (err: any) {
+      if (cancelled) return;
       setLoadProgress(null);
       notify.error("Failed to load TTS model", err?.message ?? String(err));
+    } finally {
+      loadCancelRef.current = null;
     }
-  }, [ttsPlayback.actions, notify]);
+  }, [loadProgress, ttsPlayback.actions, notify]);
 
   const handleTestSpeech = async () => {
     const testId = "test-synthesis";
@@ -270,11 +302,11 @@ export function SpeechTab() {
             action={
               <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
                 <Button
-                  variant={ttsPlayback.engineLoaded ? "outlined" : "contained"}
+                  variant={loadProgress ? "outlined" : ttsPlayback.engineLoaded ? "outlined" : "contained"}
                   disableElevation
                   size="small"
                   onClick={handleLoadModel}
-                  disabled={loadProgress !== null}
+                  color={loadProgress ? "error" : "primary"}
                   startIcon={
                     loadProgress ? (
                       <CircularProgress size={14} color="inherit" />
@@ -286,7 +318,7 @@ export function SpeechTab() {
                   }
                   sx={{ textTransform: "none", fontWeight: 600, fontSize: 12, borderRadius: "8px" }}
                 >
-                  {loadProgress ? "Downloading..." : ttsPlayback.engineLoaded ? "Loaded" : "Load Model"}
+                  {loadProgress ? "Cancel" : ttsPlayback.engineLoaded ? "Loaded" : "Load Model"}
                 </Button>
               </Box>
             }
