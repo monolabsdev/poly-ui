@@ -1,10 +1,11 @@
-use crate::models::chat::{ChatMessage, StreamMetadata, StreamPayload};
+use crate::models::chat::{ChatMessage, StreamMetadata, StreamPayload, ToolCallInfo, ToolDefinition};
 use crate::providers::base::{LLMProvider, ProviderStatus, ProviderType};
 use async_trait::async_trait;
 use futures::Stream;
 use ollama_rs::generation::chat::request::ChatMessageRequest;
 use ollama_rs::generation::chat::ChatMessage as OllamaChatMessage;
 use ollama_rs::generation::parameters::FormatType;
+use ollama_rs::generation::tools::ToolInfo;
 use ollama_rs::models::ModelOptions;
 use ollama_rs::Ollama;
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION};
@@ -115,6 +116,7 @@ impl LLMProvider for OllamaProvider {
         messages: Vec<ChatMessage>,
         system_prompt: Option<String>,
         options: Option<serde_json::Value>,
+        tools: Option<Vec<ToolDefinition>>,
     ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamPayload, String>> + Send>>, String> {
         let mut history: Vec<OllamaChatMessage> = Vec::new();
 
@@ -126,7 +128,23 @@ impl LLMProvider for OllamaProvider {
 
         for msg in messages {
             let mut ollama_msg = match msg.role.as_str() {
-                "assistant" => OllamaChatMessage::assistant(msg.content),
+                "assistant" => {
+                    let mut m = OllamaChatMessage::assistant(msg.content);
+                    if let Some(tcs) = msg.tool_calls {
+                        if !tcs.is_empty() {
+                            m.tool_calls = tcs
+                                .into_iter()
+                                .map(|tc| ollama_rs::generation::tools::ToolCall {
+                                    function: ollama_rs::generation::tools::ToolCallFunction {
+                                        name: tc.name,
+                                        arguments: tc.arguments,
+                                    },
+                                })
+                                .collect();
+                        }
+                    }
+                    m
+                }
                 "tool" => OllamaChatMessage::tool(msg.content),
                 _ => OllamaChatMessage::user(msg.content),
             };
@@ -167,6 +185,26 @@ impl LLMProvider for OllamaProvider {
             }
         }
 
+        if let Some(tool_defs) = tools {
+            let ollama_tools: Vec<ToolInfo> = tool_defs
+                .into_iter()
+                .filter_map(|t| {
+                    serde_json::from_value(serde_json::json!({
+                        "type": "function",
+                        "function": {
+                            "name": t.name,
+                            "description": t.description,
+                            "parameters": t.parameters,
+                        }
+                    }))
+                    .ok()
+                })
+                .collect();
+            if !ollama_tools.is_empty() {
+                request.tools = ollama_tools;
+            }
+        }
+
         let stream = self
             .client
             .send_chat_messages_stream(request)
@@ -189,12 +227,29 @@ impl LLMProvider for OllamaProvider {
                     });
                 }
 
+                let tool_calls = if response.message.tool_calls.is_empty() {
+                    None
+                } else {
+                    Some(
+                        response
+                            .message
+                            .tool_calls
+                            .into_iter()
+                            .map(|tc| ToolCallInfo {
+                                name: tc.function.name,
+                                arguments: tc.function.arguments,
+                            })
+                            .collect(),
+                    )
+                };
+
                 Ok(StreamPayload {
                     request_id: String::new(),
                     content: response.message.content,
                     thinking: response.message.thinking,
                     done: response.done,
                     metadata,
+                    tool_calls,
                 })
             }
             Err(e) => Err(normalize_ollama_stream_error(e)),

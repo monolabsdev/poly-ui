@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { getRepository } from "@/lib/repositories";
-import { Message, Conversation, Attachment } from "@/types/chat";
+import { Message, Conversation, Attachment, WebSearchEvent } from "@/types/chat";
 import { startTransition } from "react";
 import { useAuthStore } from "@/store/authStore";
 
@@ -40,6 +40,7 @@ type ChatStore = {
       isStreaming?: boolean;
       status?: Message["status"];
       errorMessage?: string;
+      webSearch?: WebSearchEvent;
     }) => Promise<Message>;
     loadConversations: () => Promise<void>;
     deleteConversation: (id: string) => Promise<void>;
@@ -175,6 +176,7 @@ export const useChatStore = create<ChatStore>((set) => ({
         isStreaming: false,
         status: message.status,
         errorMessage: message.errorMessage,
+        webSearch: message.webSearch,
       };
 
       const { conversations } = useChatStore.getState();

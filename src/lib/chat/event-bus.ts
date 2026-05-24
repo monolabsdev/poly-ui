@@ -1,4 +1,5 @@
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import type { SearchResultItem } from "@/types/chat";
 
 export type ChunkPayload = {
   request_id: string;
@@ -21,9 +22,17 @@ export type ThinkingPayload = {
   is_thinking: boolean;
 };
 
+export type WebSearchPayload = {
+  request_id: string;
+  query: string;
+  status: "searching" | "complete" | "error";
+  results?: SearchResultItem[];
+};
+
 type Handlers = {
   onChunk: (payload: ChunkPayload) => void;
   onThinking: (payload: ThinkingPayload) => void;
+  onWebSearch: (payload: WebSearchPayload) => void;
 };
 
 export class StreamEventBus {
@@ -43,6 +52,7 @@ export class StreamEventBus {
     this.unlisteners = [
       listen<ChunkPayload>("chat-chunk", (e) => this.handlers?.onChunk(e.payload)),
       listen<ThinkingPayload>("chat-thinking", (e) => this.handlers?.onThinking(e.payload)),
+      listen<WebSearchPayload>("web-search-event", (e) => this.handlers?.onWebSearch(e.payload)),
     ];
   }
 

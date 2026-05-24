@@ -15,6 +15,7 @@ export type GeneralSettings = {
   language: string;
   notifications: boolean;
   systemPrompt: string;
+  exaApiKey: string;
 };
 
 export type BrowserTtsSettings = {
@@ -77,6 +78,7 @@ export const useSettingsStore = create<SettingsState>()(
         language: "en",
         notifications: true,
         systemPrompt: "",
+        exaApiKey: "",
       },
       account: { ...defaultAccount },
       tts: { ...defaultTts },
@@ -105,7 +107,7 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: "openbench:settings",
-      version: 2,
+      version: 3,
       migrate: (persisted, version) => {
         const state = persisted as any;
         if (state?.tts) {

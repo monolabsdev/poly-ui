@@ -18,6 +18,8 @@ pub struct StreamPayload {
     pub thinking: Option<String>,
     pub done: bool,
     pub metadata: Option<StreamMetadata>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_calls: Option<Vec<ToolCallInfo>>,
 }
 
 #[derive(Serialize, Clone)]
@@ -54,4 +56,34 @@ pub struct ChatMessage {
     pub role: String,
     pub content: String,
     pub attachments: Option<Vec<ChatAttachment>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_calls: Option<Vec<ToolCallInfo>>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ToolCallInfo {
+    pub name: String,
+    pub arguments: serde_json::Value,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ToolDefinition {
+    pub name: String,
+    pub description: String,
+    pub parameters: serde_json::Value,
+}
+
+#[derive(Serialize, Clone)]
+pub struct WebSearchEvent {
+    pub request_id: String,
+    pub query: String,
+    pub status: String,
+    pub results: Option<Vec<SearchResultItem>>,
+}
+
+#[derive(Serialize, Clone, Debug)]
+pub struct SearchResultItem {
+    pub title: String,
+    pub url: String,
+    pub highlights: Vec<String>,
 }

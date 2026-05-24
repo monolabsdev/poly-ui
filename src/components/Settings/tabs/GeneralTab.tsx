@@ -94,6 +94,22 @@ export function GeneralTab() {
         />
       </SettingCard>
 
+      <SectionHeader title="Web Search" />
+
+      <SettingCard
+        title="Exa API Key"
+        description="Required for web search. Get one at https://dashboard.exa.ai"
+      >
+        <TextField
+          value={general.exaApiKey}
+          onChange={(e) => actions.updateGeneral({ exaApiKey: e.target.value })}
+          placeholder="Enter your Exa API key..."
+          type="password"
+          fullWidth
+          size="small"
+          sx={appTextFieldSx}
+        />
+      </SettingCard>
 
     </Stack>
   );
