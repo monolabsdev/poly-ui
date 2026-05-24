@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { useShallow } from "zustand/react/shallow";
 import type { ChatMessage, Attachment } from "@/types/chat";
 import { useChatStore } from "@/store/chatStore";
+import { useSettingsStore } from "@/store/settingsStore";
 import { loggedInvoke } from "@/lib/utils";
 import { useNotify } from "@/hooks/useNotify";
 import { useOllamaStore } from "@/services/ollama/monitor";
@@ -13,6 +14,7 @@ import {
   streamEventBus,
   type ChunkPayload,
   type ThinkingPayload,
+  type WebSearchPayload,
 } from "@/lib/chat/event-bus";
 
 // ---------------------------------------------------------------------------
@@ -54,6 +56,7 @@ export function useChatStream(selectedModels: string[], systemPrompt = "", userN
   const thinkingAccRef = useRef<Record<string, string>>({});
   const requestIdToMessageIdRef = useRef<Record<string, string>>({});
   const thinkingStartTimeRef = useRef<Record<string, number>>({});
+  const webSearchRef = useRef<Record<string, WebSearchPayload>>({});
   const pendingStreamsRef = useRef(0);
   const cancelRef = useRef(false);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -63,6 +66,7 @@ export function useChatStream(selectedModels: string[], systemPrompt = "", userN
   // re-run. Updated on every render via the layout effect below.
   const handleChunkRef = useRef<(p: ChunkPayload) => void>(() => {});
   const handleThinkingRef = useRef<(p: ThinkingPayload) => void>(() => {});
+  const handleWebSearchRef = useRef<(p: WebSearchPayload) => void>(() => {});
 
   // Keep activeConversationIdRef in sync.
   useEffect(() => {
@@ -113,6 +117,7 @@ export function useChatStream(selectedModels: string[], systemPrompt = "", userN
     });
     contentAccRef.current = {};
     thinkingAccRef.current = {};
+    webSearchRef.current = {};
     requestIdToMessageIdRef.current = {};
     thinkingStartTimeRef.current = {};
     pendingStreamsRef.current = 0;
@@ -210,6 +215,7 @@ const queueTokenBatch = (requestId: string, messageId: string, newContent: strin
           createdAt: new Date().toISOString(),
           model: completedModel || "unknown",
           status: "complete",
+          webSearch: existing?.webSearch,
         });
       }
 
@@ -250,6 +256,34 @@ const queueTokenBatch = (requestId: string, messageId: string, newContent: strin
     [patchStreamingMessage],
   );
 
+  const handleWebSearch = useCallback(
+    (payload: WebSearchPayload) => {
+      if (cancelRef.current) return;
+
+      const { request_id, query, status, results } = payload;
+      const messageId = requestIdToMessageIdRef.current[request_id];
+      if (!messageId) return;
+
+      webSearchRef.current[request_id] = payload;
+
+      // Accumulate results across multiple sequential searches for the same
+      // message (the model may search, get results, then search again).
+      // Each "complete" event merges new results (deduped by URL) into the
+      // existing set so the disclosure never shows stale "0 sources".
+      const existing = useChatStore.getState().streamingMessages[messageId];
+      const prevResults = existing?.webSearch?.results ?? [];
+      const merged = results
+        ? [...prevResults, ...results.filter((r) => !prevResults.some((p) => p.url === r.url))]
+        : prevResults;
+
+      patchStreamingMessage(messageId, {
+        webSearch: { request_id, query, status, results: merged },
+        status: "streaming",
+      });
+    },
+    [patchStreamingMessage],
+  );
+
   // Keep stable handler refs up to date on every render.
   // Using useLayoutEffect ensures refs are updated before any paint-driven
   // callbacks fire, but a plain useEffect would also be correct here since
@@ -257,6 +291,7 @@ const queueTokenBatch = (requestId: string, messageId: string, newContent: strin
   useEffect(() => {
     handleChunkRef.current = handleChunk;
     handleThinkingRef.current = handleThinking;
+    handleWebSearchRef.current = handleWebSearch;
   });
 
   // -------------------------------------------------------------------------
@@ -270,6 +305,7 @@ const queueTokenBatch = (requestId: string, messageId: string, newContent: strin
     streamEventBus.subscribe({
       onChunk: (p) => handleChunkRef.current(p),
       onThinking: (p) => handleThinkingRef.current(p),
+      onWebSearch: (p) => handleWebSearchRef.current(p),
     });
     return () => {
       streamEventBus.unsubscribe();
@@ -296,7 +332,8 @@ const queueTokenBatch = (requestId: string, messageId: string, newContent: strin
       resetStreamState();
       pendingStreamsRef.current = models.length;
 
-      const system = buildSystemPrompt(systemPrompt);
+      const exaApiKey = useSettingsStore.getState().general.exaApiKey;
+      const system = buildSystemPrompt(systemPrompt, exaApiKey);
 
       for (const model of models) {
         const rid = crypto.randomUUID();
@@ -319,9 +356,15 @@ const queueTokenBatch = (requestId: string, messageId: string, newContent: strin
           model,
           messages: history,
           systemPrompt: system,
+          exaApiKey: exaApiKey || null,
         }).catch((err) => {
           console.error(err);
           settlePending();
+
+          // Check if handleChunk already finalised this message (done:true event
+          // raced ahead of the Promise rejection). If so, don't overwrite.
+          if (!useChatStore.getState().streamingMessages[mid]) return;
+
           const errMsg =
             typeof err === "string"
               ? err

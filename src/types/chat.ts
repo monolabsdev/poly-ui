@@ -17,6 +17,19 @@ export interface Attachment {
   content?: string; // base64 for images, text content for text files
 }
 
+export interface SearchResultItem {
+  title: string;
+  url: string;
+  highlights: string[];
+}
+
+export interface WebSearchEvent {
+  request_id: string;
+  query: string;
+  status: "searching" | "complete" | "error";
+  results?: SearchResultItem[];
+}
+
 export interface ChatMessage {
   id: string;
   conversationId: string;
@@ -31,6 +44,7 @@ export interface ChatMessage {
   isStreaming?: boolean;
   status?: "queued" | "streaming" | "complete" | "error" | "aborted";
   errorMessage?: string;
+  webSearch?: WebSearchEvent;
 }
 
 export interface Message extends ChatMessage {}

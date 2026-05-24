@@ -25,6 +25,7 @@ pub async fn generate_title(
         role: "user".to_string(),
         content: prompt,
         attachments: None,
+        tool_calls: None,
     }];
 
     let max_attempts = if title_generation_retry_enabled() {
@@ -181,7 +182,7 @@ async fn run_title_completion(
     }
 
     let mut stream = provider
-        .chat_completion(model.to_string(), messages.to_vec(), None, Some(opts))
+        .chat_completion(model.to_string(), messages.to_vec(), None, Some(opts), None)
         .await?;
 
     let mut raw = String::new();

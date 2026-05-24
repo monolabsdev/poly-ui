@@ -1,4 +1,4 @@
-import type { Role, Attachment } from "@/types/chat";
+import type { Role, Attachment, WebSearchEvent } from "@/types/chat";
 import {
   Copy,
   MoreHorizontal,
@@ -13,6 +13,7 @@ import {
 import { memo, useState, useEffect, useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import ThinkingIndicator from "./ThinkingIndicator";
+import WebSearchDisclosure from "./WebSearchDisclosure";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
@@ -50,6 +51,7 @@ export interface MessageProps {
   status?: "queued" | "streaming" | "complete" | "error" | "aborted";
   errorMessage?: string;
   onRegenerate?: (messageIndex: number) => void;
+  webSearch?: WebSearchEvent;
 }
 
 const CodeBlock = memo(function CodeBlock({
@@ -146,9 +148,11 @@ export const Message = memo(function Message({
   status,
   errorMessage,
   onRegenerate,
+  webSearch,
 }: MessageProps) {
   const [copied, setCopied] = useState(false);
   const [thinkingExpanded, setThinkingExpanded] = useState(isThinking || false);
+  const [webSearchExpanded, setWebSearchExpanded] = useState(false);
   const isUser = role === "user";
   const timing = useTiming();
   const notify = useNotify();
@@ -181,9 +185,12 @@ export const Message = memo(function Message({
     }
   }, [isStreaming, content]);
 
+  const stripInvisible = (s: string) =>
+    s.replace(/[\u200B-\u200D\uFEFF\u00AD\u2060\u2061\u2062\u2063\u2064]/g, "");
+
   const processedContent = useMemo(() => {
     if (!content) return "";
-    return content
+    return stripInvisible(content)
       .replace(/\\\[/g, "$$$$")
       .replace(/\\\]/g, "$$$$")
       .replace(/\\\(/g, "$")
@@ -192,7 +199,7 @@ export const Message = memo(function Message({
 
   const processedThinking = useMemo(() => {
     if (!thinking) return "";
-    return thinking
+    return stripInvisible(thinking)
       .replace(/\\\[/g, "$$$$")
       .replace(/\\\]/g, "$$$$")
       .replace(/\\\(/g, "$")
@@ -226,12 +233,8 @@ export const Message = memo(function Message({
   useEffect(() => {
     if (isThinking) {
       setThinkingExpanded(true);
-      return;
     }
-    if (thinking && !isThinking) {
-      setThinkingExpanded(false);
-    }
-  }, [isThinking, Boolean(thinking)]);
+  }, [isThinking]);
 
   const canRegenerate =
     typeof messageIndex === "number" && typeof onRegenerate === "function";
@@ -509,7 +512,7 @@ export const Message = memo(function Message({
 
         {(thinking || isThinking) && (
           <Box
-            sx={{ mb: 2, maxWidth: isUser ? "100%" : { xs: "90%", sm: "80%" } }}
+            sx={{ maxWidth: isUser ? "100%" : { xs: "90%", sm: "80%" } }}
           >
             <Box onClick={() => setThinkingExpanded(!thinkingExpanded)}>
               <ThinkingIndicator
@@ -522,6 +525,7 @@ export const Message = memo(function Message({
               <Box
                 sx={{
                   mt: 1,
+                  mb: 1,
                   pl: 2,
                   borderLeft: "2px solid",
                   borderColor: "divider",
@@ -558,6 +562,18 @@ export const Message = memo(function Message({
                 </Box>
               </Box>
             </Collapse>
+          </Box>
+        )}
+
+        {webSearch && webSearch.status !== "searching" && (
+          <Box sx={{ mb: 0.5 }}>
+            <WebSearchDisclosure
+              isSearching={false}
+              query={webSearch.query}
+              results={webSearch.results}
+              isExpanded={webSearchExpanded}
+              onToggle={() => setWebSearchExpanded(!webSearchExpanded)}
+            />
           </Box>
         )}
 

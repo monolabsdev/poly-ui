@@ -4,6 +4,7 @@ mod db;
 mod models;
 mod providers;
 mod title_generator;
+mod web_search;
 
 use crate::commands::chat_commands::{chat, chat_stream, generate_chat_title};
 use crate::commands::config_commands::cancel_chat;

@@ -8,9 +8,13 @@ export function getTemporalPrompt(): string {
   ].join("\n");
 }
 
-export function buildSystemPrompt(userSystemPrompt: string): string {
+export function buildSystemPrompt(userSystemPrompt: string, exaApiKey?: string): string {
   const temporal = getTemporalPrompt();
-  return userSystemPrompt.trim()
-    ? `${temporal}\nPersonalization/Custom Instructions:\n${userSystemPrompt}`
-    : temporal;
+  const toolInstruction = exaApiKey
+    ? `\n\n## Available Tools\n\nYou have access to the \`web_search\` tool. Call it using the \`web_search\` function with a \`query\` parameter when you need current information, recent events, or facts outside your training data. Do NOT refuse to search — use the tool when appropriate.`
+    : "";
+  const base = userSystemPrompt.trim()
+    ? `${temporal}\nPersonalization/Custom Instructions:\n${userSystemPrompt}${toolInstruction}`
+    : `${temporal}${toolInstruction}`;
+  return base;
 }

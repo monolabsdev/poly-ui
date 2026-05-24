@@ -298,6 +298,7 @@ export const ChatArea = memo(function ChatArea({
                         errorMessage={msg.errorMessage}
                         messageIndex={turn.startIndex + 1 + msgIndex}
                         onRegenerate={onRegenerate}
+                        webSearch={msg.webSearch}
                       />
                     </Box>
                   );
