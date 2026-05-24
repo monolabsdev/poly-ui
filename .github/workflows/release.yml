@@ -69,6 +69,7 @@ jobs:
 
       - name: Checksums
         run: |
+          shopt -s nullglob
           for f in *.dmg *.msi *.exe *.AppImage *.deb *.tar.gz; do
             [ -f "$f" ] && sha256sum "$f" > "$f.sha256"
           done
