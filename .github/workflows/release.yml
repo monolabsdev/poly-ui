@@ -1,0 +1,116 @@
+name: Release
+
+on:
+  push:
+    tags: [v*]
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os:
+          - macos-latest
+          - windows-latest
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - run: bun install --frozen-lockfile
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Build
+        run: bun run tauri build
+        env:
+          OLLAMA_HOST: http://127.0.0.1:11434
+
+      - name: Upload bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: bundle-${{ matrix.os }}
+          path: src-tauri/target/release/bundle/
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all bundles
+        uses: actions/download-artifact@v4
+        with:
+          pattern: bundle-*
+          merge-multiple: true
+
+      - name: Flatten bundles
+        run: |
+          find . -type f \( -name "*.dmg" -o -name "*.msi" -o -name "*.exe" -o -name "*.AppImage" -o -name "*.deb" -o -name "*.tar.gz" \) -exec sh -c '
+            for f; do
+              base=$(basename "$f")
+              if [ ! -f "$base" ]; then
+                mv "$f" "./$base"
+              fi
+            done
+          ' sh {} +
+          rm -rf dmg msi nsis deb appimage
+
+      - name: Checksums
+        run: |
+          shopt -s nullglob
+          for f in *.dmg *.msi *.exe *.AppImage *.deb *.tar.gz; do
+            [ -f "$f" ] && sha256sum "$f" > "$f.sha256"
+          done
+
+      - name: Generate release notes
+        id: notes
+        run: |
+          PREV=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "")
+          {
+            echo "notes<<EOF"
+            echo "## Openbench AI ${{ github.ref_name }}"
+            echo ""
+            [ -n "$PREV" ] && echo "Changes since $PREV:" || echo "Changes:"
+            echo ""
+            git log --oneline "${PREV}"..HEAD --format="  - %s" 2>/dev/null || echo "  - See commit history"
+            echo ""
+            echo "### Downloads"
+            echo ""
+            echo "| File | Platform |"
+            echo "|------|----------|"
+            for f in *.dmg; do [ -f "$f" ] && echo "| \`$f\` | macOS |"; done
+            for f in *.msi; do [ -f "$f" ] && echo "| \`$f\` | Windows |"; done
+            for f in *.exe; do [ -f "$f" ] && echo "| \`$f\` | Windows |"; done
+            echo ""
+            echo "SHA256 checksums attached."
+            EOF
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Openbench AI ${{ github.ref_name }}
+          body: ${{ steps.notes.outputs.notes }}
+          draft: true
+          prerelease: false
+          files: |
+            *.dmg
+            *.msi
+            *.exe
+            *.AppImage
+            *.deb
+            *.tar.gz
+            *.sha256
