@@ -4890,9 +4890,9 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 
 [[package]]
 name = "supertonic-core"
-version = "0.1.0"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d020147d9c3ba2bd5012d9513bcd9059d01ed59d5c35dcc6d949091b36e67b5a"
+checksum = "bbf15fad36535202373da26111967e6c6beffc64387f308c4b65ee2da25fd5e9"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4928,9 +4928,9 @@ dependencies = [
 
 [[package]]
 name = "supertonic-ort-backend"
-version = "0.1.0"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dff361b8b6a5eadb7a54f2ed10e53d4fdfbf54cea0ce23255fd5e4f360be442b"
+checksum = "e0aef753e3a6204e4101a8c654a94efa42e38d8ffcbbc9a39af9f97c549cf4fe"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5308,9 +5308,9 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-supertonic"
-version = "0.1.0"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cd60d4aa77130f431a95710176267970ca16a915dd8718ca436b6fbf3d09fcb9"
+checksum = "c83466241892be0bb6c0e97f7f93ae5067dd84c42f152e86495269a86107b4be"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
