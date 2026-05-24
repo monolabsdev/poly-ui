@@ -1,14 +1,12 @@
 import { Box, Link, Stack, Typography } from "@mui/material";
-// import { SectionHeader } from "../SettingComponents";
 
-const APP_VERSION = "0.1.0";
+declare const __APP_VERSION__: string;
+
 const APP_REPO = "https://github.com/theoslater/openbench";
 
 export function AboutTab() {
   return (
     <Stack spacing={0}>
-      {/*<SectionHeader title="About" />*/}
-
       <Box sx={{ px: 2.5, py: 2 }}>
         <Stack spacing={2}>
           <Box>
@@ -20,7 +18,7 @@ export function AboutTab() {
             <Typography
               sx={{ fontSize: 12, color: "text.secondary", mt: 0.25 }}
             >
-              Version {APP_VERSION}
+              Version {__APP_VERSION__}
             </Typography>
           </Box>
 
