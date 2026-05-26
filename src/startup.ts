@@ -75,7 +75,6 @@ async function preloadVisibleAppChunks() {
  * - See connection.rs for backend schema, repositories/index.ts for frontend.
  */
 async function initializeStores() {
-  if (DEV) console.log("[Startup] Initializing stores...");
   restoreSystemPrompts();
   startSystemPromptPersistence();
 
@@ -83,7 +82,7 @@ async function initializeStores() {
   await repo.initRepository().catch(() => {});
 
   await Promise.all([
-    useProviderStore.getState().actions.refresh().then(() => { if (DEV) console.log("[Startup] Providers refreshed:", useProviderStore.getState().providers); }).catch(err => { if (DEV) console.error("[Startup] Provider refresh failed:", err); }),
+    useProviderStore.getState().actions.refresh().catch(() => {}),
     useAuthStore.getState().actions.restoreSession().catch(() => {}),
   ]).catch(() => {});
 
@@ -99,7 +98,6 @@ async function initializeStores() {
 }
 
 export async function prepareAppStartup() {
-  if (DEV) console.log("[Startup] localStorage settings:", localStorage.getItem("settings-storage"));
   startupPromise ??= Promise.all([
     preloadVisibleAppChunks(),
     initializeStores(),

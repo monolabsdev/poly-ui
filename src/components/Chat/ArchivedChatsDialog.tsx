@@ -19,7 +19,8 @@ export function ArchivedChatsDialog({
   open,
   onOpenChange,
 }: ArchivedChatsDialogProps) {
-  const { conversations, actions } = useChatStore();
+  const conversations = useChatStore((s) => s.conversations);
+  const actions = useChatStore((s) => s.actions);
   const [searchQuery, setSearchQuery] = useState("");
 
   const archivedConversations = conversations

@@ -402,6 +402,7 @@ export const ChatInput = memo(function ChatInput({
                   {isStreaming ? (
                     <motion.div
                       key="stop"
+                      style={{ display: "flex", alignItems: "center", justifyContent: "center" }}
                       initial={{ scale: 0.5, opacity: 0, rotate: -45 }}
                       animate={{ scale: 1, opacity: 1, rotate: 0 }}
                       exit={{ scale: 0.5, opacity: 0, rotate: 45 }}
@@ -412,6 +413,7 @@ export const ChatInput = memo(function ChatInput({
                   ) : (
                     <motion.div
                       key="send"
+                      style={{ display: "flex", alignItems: "center", justifyContent: "center" }}
                       initial={{ scale: 0.5, opacity: 0, y: 10 }}
                       animate={{ scale: 1, opacity: 1, y: 0 }}
                       exit={{ scale: 0.5, opacity: 0, y: -10 }}

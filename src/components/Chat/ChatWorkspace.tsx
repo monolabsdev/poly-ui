@@ -1,4 +1,4 @@
-import { useCallback, useDeferredValue, useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import { Box } from "@mui/material";
 import { useShallow } from "zustand/react/shallow";
 import { ChatArea } from "@/components/Chat/ChatArea";
@@ -24,9 +24,8 @@ export default function ChatWorkspace({
   isTemporary,
   onStopStreamingReady,
 }: ChatWorkspaceProps) {
-  const { messages, isStreaming, sendMessage, regenerateMessage, stopStreaming, bottomRef, hasMessages } =
+  const { messages, streamingMessagesList, isStreaming, sendMessage, regenerateMessage, stopStreaming, bottomRef, hasMessages } =
     useChatStream(selectedModels, systemPromptContent, userName);
-  const deferredMessages = useDeferredValue(messages);
 
   const { activeConversationId, currentAttachments } = useChatStore(
     useShallow((state) => ({
@@ -102,7 +101,8 @@ export default function ChatWorkspace({
       >
         {hasMessages ? (
           <ChatArea
-            messages={deferredMessages}
+            messages={messages}
+            streamingMessagesList={streamingMessagesList}
             bottomRef={bottomRef}
             onRegenerate={handleRegenerate}
             isTemporary={isTemporary}

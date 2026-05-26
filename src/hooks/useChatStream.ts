@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useShallow } from "zustand/react/shallow";
-import type { ChatMessage, Attachment } from "@/types/chat";
+import type { ChatMessage, Attachment, Message } from "@/types/chat";
 import { useChatStore } from "@/store/chatStore";
 import { useSettingsStore } from "@/store/settingsStore";
 import { loggedInvoke } from "@/lib/utils";
@@ -87,19 +87,22 @@ export function useChatStream(selectedModels: string[], systemPrompt = "", userN
   }, [activeConversationId]);
 
   useEffect(() => {
-    requestAnimationFrame(() =>
-      bottomRef.current?.scrollIntoView({ behavior: "auto", block: "end" }),
-    );
+    requestAnimationFrame(() => {
+      if (!bottomRef.current) return;
+      const rect = bottomRef.current.getBoundingClientRect();
+      if (rect.bottom <= window.innerHeight + 150) {
+        bottomRef.current.scrollIntoView({ behavior: "auto", block: "end" });
+      }
+    });
   }, [messages, streamingMessages]);
 
-  // Merge persisted + live streaming messages for the UI.
-  const displayMessages = useMemo<ChatMessage[]>(() => {
-    const live = Object.values(streamingMessages);
-    if (live.length === 0) return messages;
-    const liveIds = new Set(live.map((m) => m.id));
-    const persisted = messages.filter((m) => !liveIds.has(m.id));
-    return [...persisted, ...live];
-  }, [messages, streamingMessages]);
+  // Streaming messages rendered separately (bottom) so persisted messages
+  // array never changes identity during streaming. This prevents ALL
+  // Message components from re-rendering on every streaming chunk.
+  const streamingMessagesList = useMemo<ChatMessage[]>(
+    () => Object.values(streamingMessages),
+    [streamingMessages],
+  );
 
   // -------------------------------------------------------------------------
   // resetStreamState — clears all per-stream bookkeeping.
@@ -109,11 +112,7 @@ export function useChatStream(selectedModels: string[], systemPrompt = "", userN
     Object.keys(requestIdToMessageIdRef.current).forEach((rid) => {
       const mid = requestIdToMessageIdRef.current[rid];
       if (current[mid]) setStreamingMessage(mid, null);
-      
-      // Cleanup pending token batches
-      const batch = pendingBatchesRef.current[rid];
-      if (batch?.timer) clearTimeout(batch.timer);
-      delete pendingBatchesRef.current[rid];
+      delete pendingBatchesRef.current[mid];
     });
     contentAccRef.current = {};
     thinkingAccRef.current = {};
@@ -128,34 +127,38 @@ export function useChatStream(selectedModels: string[], systemPrompt = "", userN
     if (pendingStreamsRef.current === 0) setIsStreaming(false);
   }, []);
 
-  // Token batching: accumulate tokens, update state every ~16ms to reduce re-renders
-const pendingBatchesRef = useRef<Record<string, { content: string; timer: number | null }>>({});
+  // Token batching: single rAF loop flushes ALL pending streams every frame.
+  // Eliminates multiple setTimeout timers and their GC/timer-overhead.
+  const pendingBatchesRef = useRef<Record<string, string>>({});
+  const hasScheduledFlushRef = useRef(false);
 
-const flushTokenBatch = (requestId: string, messageId: string) => {
-  const batch = pendingBatchesRef.current[requestId];
-  if (!batch || !batch.content) return;
-  
-  const { patchStreamingMessage } = useChatStore.getState().actions;
-  patchStreamingMessage(messageId, { content: batch.content, status: "streaming" });
-  batch.content = "";
-  batch.timer = null;
-};
+  const flushAllBatches = useCallback(() => {
+    hasScheduledFlushRef.current = false;
+    const batches = pendingBatchesRef.current;
+    if (Object.keys(batches).length === 0) return;
 
-const queueTokenBatch = (requestId: string, messageId: string, newContent: string) => {
-  let batch = pendingBatchesRef.current[requestId];
-  if (!batch) {
-    batch = { content: "", timer: null };
-    pendingBatchesRef.current[requestId] = batch;
-  }
-  
-  batch.content = newContent;
-  
-  if (!batch.timer) {
-    batch.timer = window.setTimeout(() => {
-      flushTokenBatch(requestId, messageId);
-    }, 16); // ~1 frame at 60fps
-  }
-};
+    const updates: Record<string, Partial<Message>> = {};
+    for (const [messageId, content] of Object.entries(batches)) {
+      if (content) {
+        updates[messageId] = { content, status: "streaming" };
+      }
+    }
+    if (Object.keys(updates).length > 0) {
+      useChatStore.getState().actions.patchStreamingMessages(updates);
+    }
+    pendingBatchesRef.current = {};
+  }, []);
+
+  const scheduleBatchFlush = useCallback(() => {
+    if (hasScheduledFlushRef.current) return;
+    hasScheduledFlushRef.current = true;
+    requestAnimationFrame(flushAllBatches);
+  }, [flushAllBatches]);
+
+  const queueTokenBatch = (_requestId: string, messageId: string, newContent: string) => {
+    pendingBatchesRef.current[messageId] = newContent;
+    scheduleBatchFlush();
+  };
 
   // -------------------------------------------------------------------------
   // Stream event handlers.
@@ -186,11 +189,7 @@ const queueTokenBatch = (requestId: string, messageId: string, newContent: strin
       }
 
       // Flush any pending batch before finalizing
-      const batch = pendingBatchesRef.current[request_id];
-      if (batch?.timer) {
-        clearTimeout(batch.timer);
-        flushTokenBatch(request_id, messageId);
-      }
+      delete pendingBatchesRef.current[messageId];
 
       // Finalize: read model from store at call time, not from closure.
       const { streamingMessages: current } = useChatStore.getState();
@@ -478,12 +477,13 @@ const queueTokenBatch = (requestId: string, messageId: string, newContent: strin
   );
 
   return {
-    messages: displayMessages,
+    messages,
+    streamingMessagesList,
     isStreaming,
     sendMessage,
     regenerateMessage,
     stopStreaming,
     bottomRef,
-    hasMessages: displayMessages.length > 0,
+    hasMessages: messages.length > 0 || streamingMessagesList.length > 0,
   };
 }

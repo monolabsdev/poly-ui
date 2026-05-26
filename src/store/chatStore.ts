@@ -25,6 +25,7 @@ type ChatStore = {
     setMessages: (messages: Message[]) => void;
     setStreamingMessage: (id: string, message: Message | null) => void;
     patchStreamingMessage: (id: string, update: Partial<Message>) => void;
+    patchStreamingMessages: (updates: Record<string, Partial<Message>>) => void;
     loadMoreMessages: () => Promise<void>;
     addMessage: (message: {
       conversationId: string;
@@ -79,20 +80,30 @@ export const useChatStore = create<ChatStore>((set) => ({
     },
     setStreamingConversationId: (id) => set({ streamingConversationId: id }),
     setStreamingMessage: (id, message) => set((state) => {
-      const next = { ...state.streamingMessages };
-      if (message) next[id] = message;
-      else delete next[id];
-      return { streamingMessages: next };
+      if (message) {
+        state.streamingMessages[id] = message;
+      } else {
+        delete state.streamingMessages[id];
+      }
+      return { streamingMessages: { ...state.streamingMessages } };
     }),
     patchStreamingMessage: (id, update) => set((state) => {
       const existing = state.streamingMessages[id];
       if (!existing) return state;
-      return {
-        streamingMessages: {
-          ...state.streamingMessages,
-          [id]: { ...existing, ...update }
+      Object.assign(existing, update);
+      return { streamingMessages: { ...state.streamingMessages } };
+    }),
+    patchStreamingMessages: (updates: Record<string, Partial<Message>>) => set((state) => {
+      let changed = false;
+      for (const [id, update] of Object.entries(updates)) {
+        const existing = state.streamingMessages[id];
+        if (existing) {
+          Object.assign(existing, update);
+          changed = true;
         }
-      };
+      }
+      if (!changed) return state;
+      return { streamingMessages: { ...state.streamingMessages } };
     }),
     createConversation: async (title = "New Chat", isTemporary = false) => {
       const id = crypto.randomUUID();

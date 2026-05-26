@@ -1,6 +1,6 @@
 import { ollamaClient } from "./client";
 import type { OllamaState, OllamaModel } from "./types";
-import { useProviderStore } from "../providers";
+import { useProviderStore, type ProviderStatusResponse } from "../providers";
 
 type StateChangeCallback = (state: OllamaState, models?: OllamaModel[], error?: string) => void;
 
@@ -11,9 +11,9 @@ const MAX_BACKOFF = 30000;
 const ONLINE_INTERVAL = 10000;
 
 interface HealthMonitorDeps {
-  getLocalModels: typeof ollamaClient.getLocalModels;
-  refreshProviders: () => Promise<void>;
-  getProviderState: () => { providers: Array<{ provider_type: string; status: string }> };
+  getProviderAndModels: typeof ollamaClient.getProviderAndModels;
+  setProviders: (providers: ProviderStatusResponse[]) => void;
+  getProviderState: () => { providers: ProviderStatusResponse[] };
   onOnline?: () => void;
   onOffline?: (error: string) => void;
 }
@@ -41,26 +41,24 @@ function createHealthMonitor(deps: HealthMonitorDeps) {
     }
 
     try {
-      await deps.refreshProviders();
+      const result = await deps.getProviderAndModels();
       if (seq !== checkSeq) return;
 
-      const providers = deps.getProviderState().providers;
-      const activeProvider = providers.find((p) => p.status === "Online");
+      deps.setProviders(result.providers);
+
+      const activeProvider = result.providers.find((p) => p.status === "Online");
 
       if (!activeProvider) {
         notify("offline", undefined, "No active provider");
         return;
       }
 
-      const models = await deps.getLocalModels();
-      if (seq !== checkSeq) return;
-
       if (currentState !== "online") {
         deps.onOnline?.();
         currentBackoff = 2000;
       }
 
-      notify("online", models);
+      notify("online", result.models);
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
       const isProviderError =
@@ -134,8 +132,8 @@ let monitor: HealthMonitor | null = null;
 export function getHealthMonitor(): HealthMonitor {
   if (!monitor) {
     monitor = createHealthMonitor({
-      getLocalModels: ollamaClient.getLocalModels,
-      refreshProviders: () => useProviderStore.getState().actions.refresh(),
+      getProviderAndModels: ollamaClient.getProviderAndModels,
+      setProviders: (providers) => useProviderStore.getState().actions.setProviders(providers),
       getProviderState: () => ({
         providers: useProviderStore.getState().providers,
       }),

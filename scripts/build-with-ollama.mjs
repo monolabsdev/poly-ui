@@ -22,8 +22,10 @@ async function main() {
 
   const originalProductName = config.productName;
   const originalResources = config.bundle.resources;
+  const originalTargets = config.bundle.targets;
 
   config.productName = originalProductName + '-Ollama';
+  config.bundle.targets = ['nsis'];
   config.bundle.windows ??= {};
   config.bundle.windows.nsis ??= {};
   config.bundle.windows.nsis.installerHooks = './windows/hooks.nsh';
@@ -35,6 +37,7 @@ async function main() {
     execSync('bun run tauri build', { stdio: 'inherit', shell: true });
   } finally {
     config.productName = originalProductName;
+    config.bundle.targets = originalTargets;
     delete config.bundle.windows.nsis.installerHooks;
     config.bundle.resources = originalResources;
     writeFileSync(configPath, JSON.stringify(config, null, 2));

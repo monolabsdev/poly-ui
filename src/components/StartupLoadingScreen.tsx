@@ -1,8 +1,6 @@
 import { memo, useEffect } from "react";
 import { Box, Typography } from "@mui/material";
 import { motion } from "motion/react";
-import { Ring2 } from "ldrs/react";
-import "ldrs/react/Ring2.css";
 
 type StartupLoadingScreenProps = {
   visible?: boolean;
@@ -51,13 +49,20 @@ function StartupLoadingScreen({
       >
         Openbench AI
       </Typography>
-      <Ring2
-        size="28"
-        stroke="5"
-        strokeLength="0.25"
-        bgOpacity="0.1"
-        speed="0.8"
-        color="currentColor"
+      <Box
+        sx={{
+          width: 28,
+          height: 28,
+          borderRadius: "50%",
+          border: "3px solid",
+          borderColor: "text.secondary",
+          borderTopColor: "text.primary",
+          animation: "openbench-spin 0.8s linear infinite",
+          "@keyframes openbench-spin": {
+            "0%": { transform: "rotate(0deg)" },
+            "100%": { transform: "rotate(360deg)" },
+          },
+        }}
       />
     </Box>
   );

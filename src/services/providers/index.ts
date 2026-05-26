@@ -26,6 +26,7 @@ interface ProviderStore {
   
   actions: {
     refresh: () => Promise<void>;
+    setProviders: (providers: ProviderStatusResponse[]) => void;
   };
 }
 
@@ -44,5 +45,6 @@ export const useProviderStore = create<ProviderStore>((set) => ({
         set({ error: err as string, loading: false });
       }
     },
+    setProviders: (providers) => set({ providers, loading: false, error: null }),
   }
 }));

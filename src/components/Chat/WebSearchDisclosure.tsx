@@ -22,9 +22,6 @@ function WebSearchDisclosure({
   const count = results?.length ?? 0;
   const hasResults = count > 0;
 
-  // Don't render anything during searching — avoids flicker
-  if (isSearching) return null;
-
   const truncate = (text: string) =>
     text.length > MAX_HIGHLIGHT_LENGTH
       ? text.slice(0, MAX_HIGHLIGHT_LENGTH) + "…"
@@ -38,7 +35,7 @@ function WebSearchDisclosure({
           display: "inline-flex",
           alignItems: "center",
           gap: 1,
-          cursor: "pointer",
+          cursor: isSearching ? "default" : "pointer",
           userSelect: "none",
           color: "text.secondary",
           "&:hover": { opacity: 0.75 },
@@ -46,11 +43,13 @@ function WebSearchDisclosure({
       >
         <Globe size={13} />
         <Typography variant="body2" sx={{ fontSize: "13px", fontWeight: 500 }}>
-          {hasResults
-            ? `Searched ${count} source${count === 1 ? "" : "s"} for "${query}"`
-            : `Searched for "${query}"`}
+          {isSearching
+            ? `Searching for "${query}"…`
+            : hasResults
+              ? `Searched ${count} source${count === 1 ? "" : "s"} for "${query}"`
+              : `Searched for "${query}"`}
         </Typography>
-        {hasResults && (isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
+        {!isSearching && hasResults && (isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
       </Box>
       {hasResults && (
         <Collapse in={isExpanded}>

@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useMemo, useState, type RefObject } from "react";
+import { memo, useCallback, useEffect, useRef, useMemo, useState, type RefObject } from "react";
 import type { ChatMessage } from "@/types/chat";
 import { Message } from "./Message";
 import { Box, CircularProgress, Typography } from "@mui/material";
@@ -8,6 +8,7 @@ import { useTiming, ANIMATION_VARIANTS } from "@/lib/motion";
 
 interface ChatAreaProps {
   messages: ChatMessage[];
+  streamingMessagesList: ChatMessage[];
   bottomRef: RefObject<HTMLDivElement | null>;
   onRegenerate?: (messageIndex: number) => void;
   isTemporary?: boolean;
@@ -23,8 +24,117 @@ const VIRTUALIZE_AFTER_TURNS = 80;
 const ESTIMATED_TURN_HEIGHT = 220;
 const OVERSCAN_TURNS = 8;
 
+const TurnItem = memo(function TurnItem({
+  turn,
+  turnIndex,
+  isNewest,
+  onRegenerate,
+  onHeightChange,
+}: {
+  turn: MessageTurn;
+  turnIndex: number;
+  isNewest: boolean;
+  onRegenerate?: (index: number) => void;
+  onHeightChange: (index: number, height: number) => void;
+}) {
+  const timing = useTiming();
+  const turnRef = useRef<HTMLDivElement>(null);
+  const onHeightRef = useRef(onHeightChange);
+  onHeightRef.current = onHeightChange;
+
+  useEffect(() => {
+    const el = turnRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver((entries) => {
+      const h = entries[0]?.contentRect.height;
+      if (h && h > 0) onHeightRef.current(turnIndex, h);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [turnIndex]);
+
+  return (
+    <Box
+      ref={turnRef}
+      component={motion.div}
+      variants={ANIMATION_VARIANTS.messageTurn}
+      initial="initial"
+      animate="animate"
+      transition={{
+        duration: timing.duration("base"),
+        ease: timing.ease,
+        delay: isNewest ? 0.05 : 0,
+      }}
+      key={turn.userMessage?.id || turn.assistantMessages[0]?.id || `turn-${turnIndex}`}
+      sx={{ display: "flex", flexDirection: "column", gap: 1 }}
+    >
+      {turn.userMessage && (
+        <Box sx={{ maxWidth: 768, mx: "auto", width: "100%" }}>
+          <Message
+            role={turn.userMessage.role}
+            content={turn.userMessage.content}
+            attachments={turn.userMessage.attachments}
+            model={turn.userMessage.model}
+            messageIndex={turn.startIndex}
+            onRegenerate={onRegenerate}
+          />
+        </Box>
+      )}
+
+      {turn.assistantMessages.length > 0 && (
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: {
+              xs: "1fr",
+              md:
+                turn.assistantMessages.length > 1
+                  ? `repeat(${Math.min(turn.assistantMessages.length, 3)}, 1fr)`
+                  : "1fr",
+            },
+            gap: 1.5,
+            width: "100%",
+            alignItems: "stretch",
+            maxWidth: 768,
+            mx: "auto",
+          }}
+        >
+          {turn.assistantMessages.map((msg, msgIndex) => (
+            <Box
+              key={msg.id || `msg-${turnIndex}-${msgIndex}`}
+              sx={{
+                height: "100%",
+                display: "flex",
+                flexDirection: "column",
+                bgcolor: "transparent",
+              }}
+            >
+              <Message
+                role={msg.role}
+                content={msg.content}
+                attachments={msg.attachments}
+                model={msg.model}
+                thinking={msg.thinking}
+                thinkingDuration={msg.thinkingDuration}
+                isThinking={msg.isThinking}
+                isStreaming={msg.isStreaming}
+                status={msg.status}
+                errorMessage={msg.errorMessage}
+                messageIndex={turn.startIndex + 1 + msgIndex}
+                onRegenerate={onRegenerate}
+                webSearch={msg.webSearch}
+              />
+            </Box>
+          ))}
+        </Box>
+      )}
+    </Box>
+  );
+});
+
 export const ChatArea = memo(function ChatArea({
   messages,
+  streamingMessagesList,
   bottomRef,
   onRegenerate,
   isTemporary,
@@ -35,8 +145,12 @@ export const ChatArea = memo(function ChatArea({
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const scrollFrameRef = useRef<number | null>(null);
   const viewportRef = useRef({ top: 0, height: 0 });
+  const turnHeightsRef = useRef<Map<number, number>>(new Map());
   const [viewport, setViewport] = useState({ top: 0, height: 0 });
-  const timing = useTiming();
+  const handleHeightChange = useCallback((index: number, height: number) => {
+    turnHeightsRef.current.set(index, height);
+  }, []);
+  const onRegenCb = useCallback((i: number) => onRegenerate?.(i), [onRegenerate]);
 
   useEffect(() => {
     if (!hasMoreMessages) return;
@@ -131,6 +245,13 @@ export const ChatArea = memo(function ChatArea({
     return result;
   }, [messages]);
 
+  const effectiveHeight = useMemo(() => {
+    const heights = Array.from(turnHeightsRef.current.values());
+    if (heights.length === 0) return ESTIMATED_TURN_HEIGHT;
+    const avg = heights.reduce((a, b) => a + b, 0) / heights.length;
+    return Math.max(ESTIMATED_TURN_HEIGHT, Math.ceil(avg));
+  }, [turns.length, viewport.top]);
+
   const virtualWindow = useMemo(() => {
     if (turns.length <= VIRTUALIZE_AFTER_TURNS || viewport.height === 0) {
       return {
@@ -143,19 +264,19 @@ export const ChatArea = memo(function ChatArea({
 
     const start = Math.max(
       0,
-      Math.floor(viewport.top / ESTIMATED_TURN_HEIGHT) - OVERSCAN_TURNS,
+      Math.floor(viewport.top / effectiveHeight) - OVERSCAN_TURNS,
     );
     const visibleCount =
-      Math.ceil(viewport.height / ESTIMATED_TURN_HEIGHT) + OVERSCAN_TURNS * 2;
+      Math.ceil(viewport.height / effectiveHeight) + OVERSCAN_TURNS * 2;
     const end = Math.min(turns.length, start + visibleCount);
 
     return {
       start,
       end,
-      topSpacer: start * ESTIMATED_TURN_HEIGHT,
-      bottomSpacer: Math.max(0, (turns.length - end) * ESTIMATED_TURN_HEIGHT),
+      topSpacer: start * effectiveHeight,
+      bottomSpacer: Math.max(0, (turns.length - end) * effectiveHeight),
     };
-  }, [turns.length, viewport.height, viewport.top]);
+  }, [turns.length, viewport.height, viewport.top, effectiveHeight]);
 
   const visibleTurns = useMemo(
     () => turns.slice(virtualWindow.start, virtualWindow.end),
@@ -228,90 +349,57 @@ export const ChatArea = memo(function ChatArea({
         {visibleTurns.map((turn, visibleTurnIndex) => {
           const turnIndex = virtualWindow.start + visibleTurnIndex;
           const isNewest = visibleTurnIndex === visibleTurns.length - 1;
-          
           return (
-            <Box
-              component={motion.div}
-              variants={ANIMATION_VARIANTS.messageTurn}
-              initial="initial"
-              animate="animate"
-              transition={{ 
-                duration: timing.duration("base"), 
-                ease: timing.ease,
-                delay: isNewest ? 0.05 : 0 
-              }}
+            <TurnItem
               key={turn.userMessage?.id || turn.assistantMessages[0]?.id || `turn-${turnIndex}`}
-              sx={{ display: "flex", flexDirection: "column", gap: 1 }}
-            >
-            {turn.userMessage && (
-              <Box sx={{ maxWidth: 768, mx: "auto", width: "100%" }}>
-                <Message
-                  role={turn.userMessage.role}
-                  content={turn.userMessage.content}
-                  attachments={turn.userMessage.attachments}
-                  model={turn.userMessage.model}
-                  messageIndex={turn.startIndex}
-                  onRegenerate={onRegenerate}
-                />
-              </Box>
-            )}
-
-            {turn.assistantMessages.length > 0 && (
-              <Box
-                sx={{
-                  display: "grid",
-                  gridTemplateColumns: {
-                    xs: "1fr",
-                    md:
-                      turn.assistantMessages.length > 1
-                        ? `repeat(${Math.min(turn.assistantMessages.length, 3)}, 1fr)`
-                        : "1fr",
-                  },
-                  gap: 1.5,
-                  width: "100%",
-                  alignItems: "stretch",
-                  maxWidth: 768,
-                  mx: "auto",
-                }}
-              >
-                {turn.assistantMessages.map((msg, msgIndex) => {
-                  return (
-                    <Box
-                      key={msg.id || `msg-${turnIndex}-${msgIndex}`}
-                      sx={{
-                        height: "100%",
-                        display: "flex",
-                        flexDirection: "column",
-                        bgcolor: "transparent",
-                      }}
-                    >
-                      <Message
-                        role={msg.role}
-                        content={msg.content}
-                        attachments={msg.attachments}
-                        model={msg.model}
-                        thinking={msg.thinking}
-                        thinkingDuration={msg.thinkingDuration}
-                        isThinking={msg.isThinking}
-                        isStreaming={msg.isStreaming}
-                        status={msg.status}
-                        errorMessage={msg.errorMessage}
-                        messageIndex={turn.startIndex + 1 + msgIndex}
-                        onRegenerate={onRegenerate}
-                        webSearch={msg.webSearch}
-                      />
-                    </Box>
-                  );
-                })}
-              </Box>
-            )}
-          </Box>
-        );
+              turn={turn}
+              turnIndex={turnIndex}
+              isNewest={isNewest}
+              onRegenerate={onRegenCb}
+              onHeightChange={handleHeightChange}
+            />
+          );
         })}
 
         {virtualWindow.bottomSpacer > 0 && (
           <Box aria-hidden sx={{ height: virtualWindow.bottomSpacer, flexShrink: 0 }} />
         )}
+
+        {streamingMessagesList.length > 0 && (
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "1fr",
+                md: streamingMessagesList.length > 1
+                  ? `repeat(${Math.min(streamingMessagesList.length, 3)}, 1fr)`
+                  : "1fr",
+              },
+              gap: 1.5,
+              width: "100%",
+              maxWidth: 768,
+              mx: "auto",
+            }}
+          >
+            {streamingMessagesList.map((msg) => (
+              <Box key={msg.id} sx={{ height: "100%", display: "flex", flexDirection: "column", bgcolor: "transparent" }}>
+                <Message
+                  role={msg.role}
+                  content={msg.content}
+                  model={msg.model}
+                  thinking={msg.thinking}
+                  thinkingDuration={msg.thinkingDuration}
+                  isThinking={msg.isThinking}
+                  isStreaming={msg.isStreaming}
+                  status={msg.status}
+                  errorMessage={msg.errorMessage}
+                  webSearch={msg.webSearch}
+                />
+              </Box>
+            ))}
+          </Box>
+        )}
+
         <Box ref={bottomRef} sx={{ height: 80 }} />
       </Box>
     </Box>

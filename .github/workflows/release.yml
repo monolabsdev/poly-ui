@@ -4,113 +4,106 @@ on:
   push:
     tags: [v*]
   workflow_dispatch:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+  OLLAMA_HOST: http://127.0.0.1:11434
 
 jobs:
   build:
-    strategy:
-      matrix:
-        os:
-          - macos-latest
-          - windows-latest
+    name: Build ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
-    steps:
-      - uses: actions/checkout@v4
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS
+            os: macos-latest
+            platform: macos
+          - name: Windows
+            os: windows-latest
+            platform: windows
 
-      - uses: oven-sh/setup-bun@v2
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
 
-      - run: bun install --frozen-lockfile
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
 
-      - uses: dtolnay/rust-toolchain@stable
-
-      - uses: Swatinem/rust-cache@v2
+      - name: Cache Rust
+        uses: swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
 
-      - name: Build
-        run: bun run tauri build
-        env:
-          OLLAMA_HOST: http://127.0.0.1:11434
+      - name: Install frontend dependencies
+        run: bun install --frozen-lockfile
 
-      - name: Upload bundle
+      - name: Build Openbench installer
+        run: bun run tauri build
+
+      - name: Upload Openbench macOS installer
+        if: matrix.platform == 'macos'
         uses: actions/upload-artifact@v4
         with:
-          name: bundle-${{ matrix.os }}
-          path: src-tauri/target/release/bundle/
+          name: openbench-macos
+          path: |
+            src-tauri/target/release/bundle/dmg/*.dmg
+            src-tauri/target/release/bundle/macos/*.app
           if-no-files-found: error
 
-  publish:
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Download all bundles
-        uses: actions/download-artifact@v4
+      - name: Upload Openbench Windows installer
+        if: matrix.platform == 'windows'
+        uses: actions/upload-artifact@v4
         with:
-          pattern: bundle-*
-          merge-multiple: true
+          name: openbench-windows
+          path: |
+            src-tauri/target/release/bundle/nsis/*.exe
+            src-tauri/target/release/bundle/msi/*.msi
+          if-no-files-found: error
 
-      - name: Flatten bundles
-        run: |
-          find . -type f \( -name "*.dmg" -o -name "*.msi" -o -name "*.exe" -o -name "*.AppImage" -o -name "*.deb" -o -name "*.tar.gz" \) -exec sh -c '
-            for f; do
-              base=$(basename "$f")
-              if [ ! -f "$base" ]; then
-                mv "$f" "./$base"
-              fi
-            done
-          ' sh {} +
-          rm -rf dmg msi nsis deb appimage
+      - name: Build Openbench + Ollama Windows installer
+        if: matrix.platform == 'windows'
+        run: bun run ollama-setup
 
-      - name: Checksums
-        run: |
-          shopt -s nullglob
-          for f in *.dmg *.msi *.exe *.AppImage *.deb *.tar.gz; do
-            [ -f "$f" ] && sha256sum "$f" > "$f.sha256"
-          done
+      - name: Upload Openbench + Ollama Windows installer
+        if: matrix.platform == 'windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: openbench-ollama-windows
+          path: src-tauri/target/release/bundle/nsis/*Ollama*.exe
+          if-no-files-found: error
 
-      - name: Generate release notes
-        id: notes
-        run: |
-          PREV=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "")
-          {
-            echo "notes<<-EOF"
-            echo "## Openbench AI ${{ github.ref_name }}"
-            echo ""
-            [ -n "$PREV" ] && echo "Changes since $PREV:" || echo "Changes:"
-            echo ""
-            git log --oneline "${PREV}"..HEAD --format="  - %s" 2>/dev/null || echo "  - See commit history"
-            echo ""
-            echo "### Downloads"
-            echo ""
-            echo "| File | Platform |"
-            echo "|------|----------|"
-            for f in *.dmg; do [ -f "$f" ] && echo "| \`$f\` | macOS |"; done
-            for f in *.msi; do [ -f "$f" ] && echo "| \`$f\` | Windows |"; done
-            for f in *.exe; do [ -f "$f" ] && echo "| \`$f\` | Windows |"; done
-            echo ""
-            echo "SHA256 checksums attached."
-            EOF
-          } >> "$GITHUB_OUTPUT"
+      - name: Build Openbench + Ollama macOS installer
+        if: matrix.platform == 'macos'
+        run: bash scripts/macos/build-ollama-pkg.sh
 
-      - name: Release
+      - name: Upload Openbench + Ollama macOS installer
+        if: matrix.platform == 'macos'
+        uses: actions/upload-artifact@v4
+        with:
+          name: openbench-ollama-macos
+          path: src-tauri/target/release/bundle/pkg/*.pkg
+          if-no-files-found: error
+
+      - name: Upload release assets
+        if: github.event_name != 'workflow_dispatch'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
-          name: Openbench AI ${{ github.ref_name }}
-          body: ${{ steps.notes.outputs.notes }}
-          draft: true
-          prerelease: false
+          draft: ${{ github.event_name == 'push' }}
           files: |
-            *.dmg
-            *.msi
-            *.exe
-            *.AppImage
-            *.deb
-            *.tar.gz
-            *.sha256
+            src-tauri/target/release/bundle/dmg/*.dmg
+            src-tauri/target/release/bundle/pkg/*.pkg
+            src-tauri/target/release/bundle/nsis/*.exe
+            src-tauri/target/release/bundle/msi/*.msi

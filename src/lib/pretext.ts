@@ -20,11 +20,9 @@ export const PRETEXT_LINE_HEIGHTS = {
   sidebarItem: 1.5,
 };
 
-/**
- * Helper to measure text height for a given width.
- * Note: Pretext prepare() should be cached if the text doesn't change.
- * For streaming text, we prepare on each chunk.
- */
+const cache = new Map<string, number>();
+const MAX_CACHE = 100;
+
 export const measureTextHeight = (
   text: string,
   font: string,
@@ -32,9 +30,17 @@ export const measureTextHeight = (
   lineHeight: number
 ) => {
   if (!text || width <= 0) return 0;
+  const key = `${text}|${font}|${width}|${lineHeight}`;
+  const cached = cache.get(key);
+  if (cached !== undefined) return cached;
   try {
     const prepared = prepare(text, font);
     const result = layout(prepared, width, lineHeight);
+    if (cache.size >= MAX_CACHE) {
+      const firstKey = cache.keys().next().value;
+      if (firstKey) cache.delete(firstKey);
+    }
+    cache.set(key, result.height);
     return result.height;
   } catch (e) {
     console.warn("Pretext measurement failed:", e);

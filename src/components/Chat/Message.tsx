@@ -26,17 +26,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { isImageAttachment, createDataUrl, formatFileSize } from "@/lib/utils";
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { motion, AnimatePresence } from "motion/react";
 import { useTiming, ANIMATION_VARIANTS } from "@/lib/motion";
 import { useNotify } from "@/hooks/useNotify";
 import { useTtsStore } from "@/store/ttsStore";
-import {
-  PRETEXT_FONTS,
-  PRETEXT_LINE_HEIGHTS,
-  measureTextHeight,
-} from "@/lib/pretext";
 
 export interface MessageProps {
   role: Role;
@@ -55,13 +48,10 @@ export interface MessageProps {
 }
 
 const CodeBlock = memo(function CodeBlock({
-  language,
   value,
-  ...props
 }: {
-  language: string | null;
   value: string;
-  [key: string]: any;
+  language?: string | null;
 }) {
   const [copied, setCopied] = useState(false);
   const notify = useNotify();
@@ -123,14 +113,29 @@ const CodeBlock = memo(function CodeBlock({
           </AnimatePresence>
         </IconButton>
       </Tooltip>
-      <SyntaxHighlighter
-        style={vscDarkPlus as any}
-        language={language || undefined}
-        PreTag="pre"
-        {...props}
+      <Box
+        component="pre"
+        sx={{
+          bgcolor: "#1e1e1e",
+          color: "#d4d4d4",
+          p: 2.5,
+          borderRadius: "8px",
+          overflow: "auto",
+          fontSize: "13px",
+          lineHeight: 1.5,
+          fontFamily: "'JetBrains Mono', 'Fira Code', 'Consolas', monospace",
+          m: 0,
+          "& code": {
+            fontFamily: "inherit",
+            fontSize: "inherit",
+            bgcolor: "transparent",
+            px: 0,
+            py: 0,
+          },
+        }}
       >
-        {value}
-      </SyntaxHighlighter>
+        <code>{value}</code>
+      </Box>
     </Box>
   );
 });
@@ -156,55 +161,45 @@ export const Message = memo(function Message({
   const isUser = role === "user";
   const timing = useTiming();
   const notify = useNotify();
-  const [minHeight, setMinHeight] = useState(0);
 
-  const ttsPlayback = useTtsStore();
-  const isSpeaking = typeof messageIndex === "number" && ttsPlayback.activeMessageId === messageIndex && ttsPlayback.isPlaying;
-  const isGenerating = typeof messageIndex === "number" && ttsPlayback.activeMessageId === messageIndex && ttsPlayback.isGenerating;
+  const activeMessageId = useTtsStore((s) => s.activeMessageId);
+  const isPlaying = useTtsStore((s) => s.isPlaying);
+  const isGenerating = useTtsStore((s) => s.isGenerating);
+  const ttsActions = useTtsStore((s) => s.actions);
+  const isSpeaking = typeof messageIndex === "number" && activeMessageId === messageIndex && isPlaying;
+  const isActiveTts = typeof messageIndex === "number" && activeMessageId === messageIndex && isGenerating;
 
   const handleSpeak = () => {
     if (typeof messageIndex !== "number") return;
-    if (isSpeaking || isGenerating) {
-      ttsPlayback.actions.stop();
+    if (isSpeaking || isActiveTts) {
+      ttsActions.stop();
     } else {
-      ttsPlayback.actions.play(messageIndex, content).catch((err) => {
+      ttsActions.play(messageIndex, content).catch((err) => {
         notify.error("TTS error", err?.message ?? String(err));
       });
     }
   };
 
-  useEffect(() => {
-    if (isStreaming && content) {
-      const h = measureTextHeight(
-        content,
-        PRETEXT_FONTS.message,
-        600,
-        PRETEXT_LINE_HEIGHTS.message,
-      );
-      setMinHeight(h);
-    }
-  }, [isStreaming, content]);
-
   const stripInvisible = (s: string) =>
     s.replace(/[\u200B-\u200D\uFEFF\u00AD\u2060\u2061\u2062\u2063\u2064]/g, "");
 
   const processedContent = useMemo(() => {
-    if (!content) return "";
+    if (!content || isStreaming) return content || "";
     return stripInvisible(content)
       .replace(/\\\[/g, "$$$$")
       .replace(/\\\]/g, "$$$$")
       .replace(/\\\(/g, "$")
       .replace(/\\\)/g, "$");
-  }, [content]);
+  }, [content, isStreaming]);
 
   const processedThinking = useMemo(() => {
-    if (!thinking) return "";
+    if (!thinking || isStreaming) return thinking || "";
     return stripInvisible(thinking)
       .replace(/\\\[/g, "$$$$")
       .replace(/\\\]/g, "$$$$")
       .replace(/\\\(/g, "$")
       .replace(/\\\)/g, "$");
-  }, [thinking]);
+  }, [thinking, isStreaming]);
 
   const markdownComponents = useMemo(
     () => ({
@@ -635,8 +630,6 @@ export const Message = memo(function Message({
                   wordBreak: "break-word",
                   lineHeight: 1.6,
                   fontSize: "15px",
-                  minHeight: isStreaming ? minHeight : 0,
-                  transition: "min-height 0.1s ease-out",
                 }}
               >
                 {content}

@@ -567,6 +567,8 @@ export const Sidebar = React.memo(function Sidebar({
                           }}
                           sx={{
                             "&:hover .conversation-actions": { opacity: 1 },
+                            contentVisibility: "auto",
+                            containIntrinsicSize: "1px 40px",
                           }}
                         >
                           <ConversationItem

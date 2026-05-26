@@ -10,11 +10,17 @@ export function getTemporalPrompt(): string {
 
 export function buildSystemPrompt(userSystemPrompt: string, exaApiKey?: string): string {
   const temporal = getTemporalPrompt();
+  const formatting = [
+    "Response Formatting:",
+    "- Use Markdown for prose.",
+    "- For mathematical notation, use LaTeX delimiters: inline math as \\(...\\) and display equations as \\[...\\].",
+    "- Do not wrap equations in backticks or fenced code blocks unless the user asks for literal source code.",
+  ].join("\n");
   const toolInstruction = exaApiKey
     ? `\n\n## Available Tools\n\nYou have access to the \`web_search\` tool. Call it using the \`web_search\` function with a \`query\` parameter when you need current information, recent events, or facts outside your training data. Do NOT refuse to search — use the tool when appropriate.`
     : "";
   const base = userSystemPrompt.trim()
-    ? `${temporal}\nPersonalization/Custom Instructions:\n${userSystemPrompt}${toolInstruction}`
-    : `${temporal}${toolInstruction}`;
+    ? `${temporal}\n\n${formatting}\n\nPersonalization/Custom Instructions:\n${userSystemPrompt}${toolInstruction}`
+    : `${temporal}\n\n${formatting}${toolInstruction}`;
   return base;
 }
