@@ -583,17 +583,19 @@ export const Sidebar = React.memo(function Sidebar({
                 }}
               />
               {searchQuery && (
-                <Box
+                <IconButton
+                  size="small"
+                  aria-label="Clear search"
                   onClick={() => setSearchQuery("")}
                   sx={{
-                    cursor: "pointer",
-                    opacity: 0.5,
-                    "&:hover": { opacity: 1 },
-                    display: "flex",
+                    p: 0.25,
+                    color: "text.secondary",
+                    opacity: 0.65,
+                    "&:hover": { opacity: 1, color: "text.primary" },
                   }}
                 >
                   <X size={14} />
-                </Box>
+                </IconButton>
               )}
             </Box>
           </Box>
@@ -643,6 +645,7 @@ export const Sidebar = React.memo(function Sidebar({
                         <SidebarMenuButton
                           key={conv.id}
                           isActive={activeConversationId === conv.id}
+                          ariaCurrent={activeConversationId === conv.id}
                           tooltip={conv.title || "Untitled"}
                           onClick={() => {
                             onSelectConversation(conv.id);
@@ -882,22 +885,26 @@ export function SidebarMenuButton({
   onClick,
   sx,
   tooltip,
+  ariaCurrent,
 }: {
   children: React.ReactNode;
   isActive?: boolean;
   onClick?: () => void;
   sx?: CSSObject;
   tooltip?: string;
+  ariaCurrent?: boolean;
 }) {
   const { isCollapsed } = useSidebar();
 
   const content = (
     <Box
-      component={motion.div}
+      component={motion.button}
+      type="button"
       variants={ANIMATION_VARIANTS.interactive}
       whileHover="hover"
       whileTap="tap"
       onClick={onClick}
+      aria-current={ariaCurrent ? "page" : undefined}
       sx={{
         display: "flex",
         alignItems: "center",

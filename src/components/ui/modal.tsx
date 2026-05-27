@@ -87,6 +87,7 @@ export function Modal({
                 <IconButton
                   size="small"
                   onClick={() => onOpenChange(false)}
+                  aria-label="Close modal"
                   sx={{ color: "text.secondary", "&:hover": { color: "text.primary" } }}
                 >
                   <X size={18} />

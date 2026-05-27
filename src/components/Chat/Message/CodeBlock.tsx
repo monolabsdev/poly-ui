@@ -23,6 +23,14 @@ export const CodeBlock = memo(function CodeBlock({
   const theme = useTheme();
   const themeKey = theme.palette.mode;
   const actualTheme = SHIKI_THEMES[themeKey];
+  const overlayBackground =
+    themeKey === "dark" ? "rgba(30, 30, 30, 0.45)" : "rgba(255, 255, 255, 0.75)";
+  const overlayHoverBackground =
+    themeKey === "dark" ? "rgba(30, 30, 30, 0.75)" : "rgba(255, 255, 255, 0.95)";
+  const overlayColor =
+    themeKey === "dark" ? "rgba(255, 255, 255, 0.6)" : "rgba(17, 24, 39, 0.68)";
+  const overlayHoverColor =
+    themeKey === "dark" ? "rgba(255, 255, 255, 0.95)" : "rgba(17, 24, 39, 0.95)";
   const [highlightedHtml, setHighlightedHtml] = useState<string | null>(null);
 
   useEffect(() => {
@@ -94,15 +102,15 @@ export const CodeBlock = memo(function CodeBlock({
             top: 8,
             right: 8,
             zIndex: 10,
-            color: "rgba(255, 255, 255, 0.4)",
-            bgcolor: "rgba(30, 30, 30, 0.4)",
+            color: overlayColor,
+            bgcolor: overlayBackground,
             backdropFilter: "blur(4px)",
             opacity: 0,
             transition:
               "opacity 0.18s ease, background-color 0.18s ease, color 0.18s ease",
             "&:hover": {
-              color: "rgba(255, 255, 255, 0.9)",
-              bgcolor: "rgba(30, 30, 30, 0.7)",
+              color: overlayHoverColor,
+              bgcolor: overlayHoverBackground,
             },
             "@media (hover: none)": {
               opacity: 1,
@@ -131,10 +139,10 @@ export const CodeBlock = memo(function CodeBlock({
       {highlightedHtml ? (
         <Box
           sx={{
-            bgcolor: "#1e1e1e",
-            color: "#d4d4d4",
+            bgcolor: theme.palette.mode === "dark" ? "grey.900" : "grey.100",
+            color: "text.primary",
             "& pre": {
-              bgcolor: "#1e1e1e !important",
+              bgcolor: "transparent !important",
             },
             "& code": {
               bgcolor: "transparent !important",
@@ -146,8 +154,8 @@ export const CodeBlock = memo(function CodeBlock({
         <Box
           component="pre"
           sx={{
-            bgcolor: "#1e1e1e",
-            color: "#d4d4d4",
+            bgcolor: theme.palette.mode === "dark" ? "grey.900" : "grey.100",
+            color: "text.primary",
           }}
         >
           <code>{value}</code>

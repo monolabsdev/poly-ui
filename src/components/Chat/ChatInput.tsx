@@ -276,6 +276,7 @@ export const ChatInput = memo(function ChatInput({
                     <IconButton
                       size="small"
                       onClick={() => removeCurrentAttachment(att.id)}
+                      aria-label={`Remove attachment ${att.name}`}
                       sx={{
                         position: "absolute",
                         top: -4,
@@ -335,6 +336,7 @@ export const ChatInput = memo(function ChatInput({
                 <DropdownMenuTrigger>
                   <IconButton
                     size="small"
+                    aria-label="Add attachment"
                     sx={{ color: "text.secondary", p: 1 }}
                     disabled={isStreaming}
                   >
@@ -362,6 +364,8 @@ export const ChatInput = memo(function ChatInput({
               </DropdownMenu>
               <IconButton
                 size="small"
+                aria-label={webSearchEnabled ? "Disable web search" : "Enable web search"}
+                aria-pressed={webSearchEnabled}
                 onClick={() =>
                   updateGeneral({ webSearchEnabled: !webSearchEnabled })
                 }
@@ -399,12 +403,13 @@ export const ChatInput = memo(function ChatInput({
                 transition={{ duration: timing.duration("fast"), ease: timing.ease }}
                 onClick={handleAction}
                 disabled={isStreaming ? false : !hasContent || isInputDisabled}
+                aria-label={isStreaming ? "Stop generation" : "Send message"}
                 sx={{
                   width: 32,
                   height: 32,
                   p: 0,
-                  bgcolor: "white",
-                  color: "black",
+                  bgcolor: "primary.main",
+                  color: "primary.contrastText",
                   borderRadius: "50%",
                   display: "flex",
                   alignItems: "center",
@@ -412,13 +417,12 @@ export const ChatInput = memo(function ChatInput({
                   mb: 0.5,
                   mr: 0.5,
                   "&:hover": {
-                    bgcolor: "white",
-                    opacity: 0.9,
+                    bgcolor: "primary.dark",
                   },
                   "&.Mui-disabled": {
-                    bgcolor: "action.hover",
+                    bgcolor: "action.disabledBackground",
                     color: "text.disabled",
-                    opacity: 0.3,
+                    opacity: 1,
                   },
                 }}
               >

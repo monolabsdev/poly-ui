@@ -70,7 +70,12 @@ export const WebSearchDisclosure = React.memo(
         ) : (
           <Typography
             component="span"
-            sx={{ fontSize: "13px", fontWeight: 500, lineHeight: 1, color: "text.secondary" }}
+            sx={{
+              fontSize: "13px",
+              fontWeight: 500,
+              lineHeight: 1,
+              color: "text.secondary",
+            }}
           >
             {label}
           </Typography>

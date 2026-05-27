@@ -360,7 +360,13 @@ export const ChatArea = memo(function ChatArea({
   );
 
   return (
-    <Box ref={scrollRef} sx={{ flex: 1, overflowY: "auto" }}>
+    <Box
+      ref={scrollRef}
+      role="log"
+      aria-live="polite"
+      aria-relevant="additions text"
+      sx={{ flex: 1, overflowY: "auto" }}
+    >
       <Box
         sx={{
           mx: "auto",
@@ -500,7 +506,6 @@ export const ChatArea = memo(function ChatArea({
 
       <Fade in={showScrollButton} timeout={200}>
         <Box
-          onClick={handleScrollToBottom}
           sx={{
             position: "sticky",
             bottom: 24,
@@ -513,6 +518,8 @@ export const ChatArea = memo(function ChatArea({
         >
           <IconButton
             size="small"
+            aria-label="Scroll to latest messages"
+            onClick={handleScrollToBottom}
             sx={{
               pointerEvents: "auto",
               bgcolor: "background.paper",
