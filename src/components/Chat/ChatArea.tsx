@@ -10,10 +10,11 @@ import {
 } from "react";
 import type { ChatMessage } from "@/types/chat";
 import { Message } from "./Message";
-import { Box, CircularProgress, Typography } from "@mui/material";
+import { Box, CircularProgress, Typography, IconButton, Fade } from "@mui/material";
 import { useChatStore } from "@/store/chatStore";
 import { motion } from "motion/react";
 import { useTiming, ANIMATION_VARIANTS } from "@/lib/motion";
+import { ChevronDown } from "lucide-react";
 
 interface ChatAreaProps {
   messages: ChatMessage[];
@@ -176,6 +177,14 @@ export const ChatArea = memo(function ChatArea({
     [onRegenerate],
   );
 
+  const [showScrollButton, setShowScrollButton] = useState(false);
+
+  const handleScrollToBottom = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+  }, []);
+
   const scrollToBottom = useCallback(() => {
     const el = scrollRef.current;
     if (!el) return;
@@ -236,6 +245,9 @@ export const ChatArea = memo(function ChatArea({
 
     const updateViewport = () => {
       scrollFrameRef.current = null;
+      const distFromBottom =
+        element.scrollHeight - element.scrollTop - element.clientHeight;
+      setShowScrollButton(distFromBottom > 300);
       const next = {
         top: element.scrollTop,
         height: element.clientHeight,
@@ -485,6 +497,41 @@ export const ChatArea = memo(function ChatArea({
 
         <Box ref={bottomRef} sx={{ height: 80 }} />
       </Box>
+
+      <Fade in={showScrollButton} timeout={200}>
+        <Box
+          onClick={handleScrollToBottom}
+          sx={{
+            position: "sticky",
+            bottom: 24,
+            display: "flex",
+            justifyContent: "center",
+            pointerEvents: "none",
+            zIndex: 10,
+            mb: 2,
+          }}
+        >
+          <IconButton
+            size="small"
+            sx={{
+              pointerEvents: "auto",
+              bgcolor: "background.paper",
+              border: "1px solid",
+              borderColor: "divider",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
+              color: "text.secondary",
+              width: 36,
+              height: 36,
+              "&:hover": {
+                bgcolor: "action.hover",
+                color: "text.primary",
+              },
+            }}
+          >
+            <ChevronDown size={18} />
+          </IconButton>
+        </Box>
+      </Fade>
     </Box>
   );
 });

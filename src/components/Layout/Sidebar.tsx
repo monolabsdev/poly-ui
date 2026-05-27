@@ -17,6 +17,8 @@ import {
   MoreHorizontal,
   Archive,
   AlertTriangle,
+  Search,
+  MessageSquare,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useTiming, ANIMATION_VARIANTS } from "@/lib/motion";
@@ -283,10 +285,14 @@ export const Sidebar = React.memo(function Sidebar({
   const timing = useTiming();
   const notify = useNotify();
 
+  const conversationsLoading = useChatStore(
+    (state) => state.conversationsLoading,
+  );
   const archiveConversation = useChatStore(
     (state) => state.actions.archiveConversation,
   );
   const [editingId, setEditingId] = React.useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = React.useState("");
   const [editValue, setEditValue] = React.useState("");
   const [deleteId, setDeleteId] = React.useState<string | null>(null);
   const [deleteTitle, setDeleteTitle] = React.useState("");
@@ -367,8 +373,10 @@ export const Sidebar = React.memo(function Sidebar({
     const now = new Date();
     const sevenDaysAgo = subDays(now, 7);
 
+    const q = searchQuery.toLowerCase().trim();
     const filtered = conversations
-      .filter((c) => !c.isArchived && !c.isTemporary);
+      .filter((c) => !c.isArchived && !c.isTemporary)
+      .filter((c) => !q || c.title?.toLowerCase().includes(q));
 
     const today: Conversation[] = [];
     const yesterday: Conversation[] = [];
@@ -394,7 +402,7 @@ export const Sidebar = React.memo(function Sidebar({
       { id: "last7days", label: "Previous 7 Days", items: last7Days },
       { id: "older", label: "Older", items: older },
     ].filter((group) => group.items.length > 0);
-  }, [conversations]);
+  }, [conversations, searchQuery]);
 
   const sidebarContent = (
     <>
@@ -540,7 +548,82 @@ export const Sidebar = React.memo(function Sidebar({
             overflowX: "hidden",
           }}
         >
-            {groupedConversations.map((group, groupIndex) => (
+          <Box sx={{ px: 1.5, mb: 0.5 }}>
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 1,
+                px: 1.5,
+                height: 36,
+                borderRadius: "8px",
+                bgcolor: "action.hover",
+                border: "1px solid",
+                borderColor: "divider",
+                transition: "border-color 0.15s",
+                "&:focus-within": {
+                  borderColor: "primary.main",
+                },
+              }}
+            >
+              <Search size={14} style={{ flexShrink: 0, opacity: 0.5 }} />
+              <input
+                placeholder="Search conversations..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === "Escape" && setSearchQuery("")}
+                style={{
+                  flex: 1,
+                  background: "transparent",
+                  border: "none",
+                  color: "inherit",
+                  outline: "none",
+                  fontSize: "13px",
+                  width: "100%",
+                }}
+              />
+              {searchQuery && (
+                <Box
+                  onClick={() => setSearchQuery("")}
+                  sx={{
+                    cursor: "pointer",
+                    opacity: 0.5,
+                    "&:hover": { opacity: 1 },
+                    display: "flex",
+                  }}
+                >
+                  <X size={14} />
+                </Box>
+              )}
+            </Box>
+          </Box>
+
+          {conversationsLoading ? (
+            <ConversationSkeleton />
+          ) : groupedConversations.length === 0 ? (
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 1,
+                px: 2,
+                py: 4,
+                color: "text.secondary",
+              }}
+            >
+              <MessageSquare size={20} style={{ opacity: 0.4 }} />
+              <Typography
+                variant="caption"
+                sx={{ fontSize: "12px", textAlign: "center" }}
+              >
+                {searchQuery
+                  ? "No conversations match your search"
+                  : "No conversations yet"}
+              </Typography>
+            </Box>
+          ) : (
+            groupedConversations.map((group, groupIndex) => (
               <Box
                 key={group.id}
                 component={motion.div}
@@ -589,7 +672,8 @@ export const Sidebar = React.memo(function Sidebar({
                   </SidebarGroupContent>
                 </SidebarGroup>
               </Box>
-            ))}
+            ))
+          )}
           </Box>
       </SidebarContent>
 
@@ -938,6 +1022,31 @@ function GuestWarning() {
       >
         Chats won't be saved unless you sign up or log in.
       </Typography>
+    </Box>
+  );
+}
+
+function ConversationSkeleton() {
+  const { isCollapsed } = useSidebar();
+  if (isCollapsed) return null;
+  return (
+    <Box sx={{ px: 1.5 }}>
+      {[1, 2, 3, 4, 5].map((i) => (
+        <Box
+          key={i}
+          sx={{
+            height: 40,
+            borderRadius: "10px",
+            mb: 0.5,
+            bgcolor: "action.hover",
+            animation: "pulse 1.5s ease-in-out infinite",
+            "@keyframes pulse": {
+              "0%, 100%": { opacity: 0.6 },
+              "50%": { opacity: 0.3 },
+            },
+          }}
+        />
+      ))}
     </Box>
   );
 }

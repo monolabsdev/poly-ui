@@ -1,3 +1,8 @@
+/* Theme transition */
+html, body {
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
 /* CSS reset for elements used with Box component="button" et al */
 button {
   all: unset;
