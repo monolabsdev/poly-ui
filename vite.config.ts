@@ -29,7 +29,7 @@ export default defineConfig(async () => ({
       output: {
         manualChunks: {
           "vendor-mui": ["@mui/material", "@mui/icons-material", "@emotion/react", "@emotion/styled"],
-          "vendor-markdown": ["react-markdown", "remark-gfm", "remark-math", "rehype-katex", "react-syntax-highlighter", "katex"],
+          "vendor-markdown": ["react-markdown", "remark-gfm", "remark-math", "rehype-katex", "katex"],
           "vendor-motion": ["motion"],
           "vendor-date": ["date-fns"],
         },

@@ -226,19 +226,6 @@ pub async fn chat_stream(
                                 },
                             );
 
-                            // Emit a placeholder chunk so frontend isn't frozen during search
-                            let _ = app_handle.emit(
-                                "chat-chunk",
-                                StreamPayload {
-                                    request_id: request_id.clone(),
-                                    content: format!("_Searching the web for: {}..._\n\n", query),
-                                    thinking: None,
-                                    done: false,
-                                    metadata: None,
-                                    tool_calls: None,
-                                },
-                            );
-
                             let (search_results, search_error): (
                                 Vec<SearchResultItem>,
                                 Option<String>,

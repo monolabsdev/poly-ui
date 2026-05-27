@@ -1,4 +1,4 @@
-import { Square, Plus, ArrowUp, Paperclip, X, Image as ImageIcon } from "lucide-react";
+import { Square, Plus, ArrowUp, Paperclip, X, Globe, Image as ImageIcon } from "lucide-react";
 import { useRef, useEffect, useState, useCallback, memo } from "react";
 import { Box, InputBase, IconButton, Typography } from "@mui/material";
 import {
@@ -8,6 +8,7 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import { useChatStore } from "@/store/chatStore";
+import { useSettingsStore } from "@/store/settingsStore";
 import { Attachment } from "@/types/chat";
 import { isImageAttachment, createDataUrl } from "@/lib/utils";
 import { motion, AnimatePresence } from "motion/react";
@@ -48,6 +49,8 @@ export const ChatInput = memo(function ChatInput({
     (state) => state.actions.removeCurrentAttachment,
   );
 
+  const webSearchEnabled = useSettingsStore((s) => s.general.webSearchEnabled);
+  const updateGeneral = useSettingsStore((s) => s.actions.updateGeneral);
   const canUploadImages = true;
 
   const handleFileClick = (accept: string) => {
@@ -150,9 +153,7 @@ export const ChatInput = memo(function ChatInput({
     const files = e.target.files;
     if (!files) return;
     processFiles(files);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   useEffect(() => {
@@ -172,8 +173,7 @@ export const ChatInput = memo(function ChatInput({
     textarea.style.height = `${finalHeight}px`;
   }, [draft]);
 
-  const canSubmit =
-    draft.trim() || currentAttachments.length > 0 || isStreaming;
+  const hasContent = draft.trim() || currentAttachments.length > 0;
   const isInputDisabled = isStreaming || (!selectedModel && !allowEmptyModel);
 
   return (
@@ -360,6 +360,30 @@ export const ChatInput = memo(function ChatInput({
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+              <IconButton
+                size="small"
+                onClick={() =>
+                  updateGeneral({ webSearchEnabled: !webSearchEnabled })
+                }
+                sx={{
+                  color: webSearchEnabled ? "primary.main" : "text.secondary",
+                  px: 1.5,
+                  py: 0.5,
+                  gap: 0.5,
+                  borderRadius: "999px",
+                  fontSize: "13px",
+                  fontWeight: 500,
+                  border: "1px solid",
+                  borderColor: webSearchEnabled ? "text.secondary" : "divider",
+                  bgcolor: webSearchEnabled ? "action.selected" : "transparent",
+                  "&:hover": {
+                    bgcolor: "action.hover",
+                  },
+                }}
+              >
+                <Globe size={16} />
+                Search
+              </IconButton>
             </Box>
 
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
@@ -369,12 +393,12 @@ export const ChatInput = memo(function ChatInput({
                 whileHover="hover"
                 whileTap="tap"
                 animate={{
-                  scale: canSubmit || isStreaming ? 1 : 0.95,
-                  opacity: canSubmit || isStreaming ? 1 : 0.3,
+                  scale: hasContent || isStreaming ? 1 : 0.95,
+                  opacity: hasContent || isStreaming ? 1 : 0.3,
                 }}
                 transition={{ duration: timing.duration("fast"), ease: timing.ease }}
                 onClick={handleAction}
-                disabled={isStreaming ? false : !canSubmit || isInputDisabled}
+                disabled={isStreaming ? false : !hasContent || isInputDisabled}
                 sx={{
                   width: 32,
                   height: 32,

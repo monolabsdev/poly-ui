@@ -18,9 +18,9 @@ export interface Attachment {
 }
 
 export interface SearchResultItem {
-  title: string;
   url: string;
-  highlights: string[];
+  title: string;
+  highlights?: string[];
 }
 
 export interface WebSearchEvent {

@@ -113,7 +113,7 @@ export const darkTheme = createTheme({
     },
     chat: {
       bubble: "#262626",
-      bubbleUser: "#2f2f2f",
+      bubbleUser: "#212121",
     },
     success: {
       main: "#4ade80",
@@ -122,6 +122,14 @@ export const darkTheme = createTheme({
     error: {
       main: "#f87171",
       soft: "rgba(248, 113, 113, 0.1)",
+    },
+    info: {
+      main: "#60a5fa",
+      soft: "rgba(96, 165, 250, 0.1)",
+    },
+    warning: {
+      main: "#fbbf24",
+      soft: "rgba(251, 191, 36, 0.1)",
     },
   },
 });
@@ -158,7 +166,7 @@ export const lightTheme = createTheme({
     },
     chat: {
       bubble: "#f3f3f3",
-      bubbleUser: "#e5e5e5",
+      bubbleUser: "#f5f5f5",
     },
     success: {
       main: "#22c55e",
@@ -167,6 +175,14 @@ export const lightTheme = createTheme({
     error: {
       main: "#ef4444",
       soft: "rgba(239, 68, 68, 0.1)",
+    },
+    info: {
+      main: "#0288d1",
+      soft: "rgba(2, 136, 209, 0.1)",
+    },
+    warning: {
+      main: "#ed6c02",
+      soft: "rgba(237, 108, 2, 0.1)",
     },
   },
 });

@@ -1,4 +1,13 @@
-import { memo, useCallback, useEffect, useRef, useMemo, useState, type RefObject } from "react";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useMemo,
+  useState,
+  type RefObject,
+} from "react";
 import type { ChatMessage } from "@/types/chat";
 import { Message } from "./Message";
 import { Box, CircularProgress, Typography } from "@mui/material";
@@ -65,7 +74,11 @@ const TurnItem = memo(function TurnItem({
         ease: timing.ease,
         delay: isNewest ? 0.05 : 0,
       }}
-      key={turn.userMessage?.id || turn.assistantMessages[0]?.id || `turn-${turnIndex}`}
+      key={
+        turn.userMessage?.id ||
+        turn.assistantMessages[0]?.id ||
+        `turn-${turnIndex}`
+      }
       sx={{ display: "flex", flexDirection: "column", gap: 1 }}
     >
       {turn.userMessage && (
@@ -140,17 +153,63 @@ export const ChatArea = memo(function ChatArea({
   isTemporary,
 }: ChatAreaProps) {
   const hasMoreMessages = useChatStore((state) => state.hasMoreMessages);
-  const loadMoreMessages = useChatStore((state) => state.actions.loadMoreMessages);
+  const loadMoreMessages = useChatStore(
+    (state) => state.actions.loadMoreMessages,
+  );
   const scrollRef = useRef<HTMLDivElement>(null);
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const scrollFrameRef = useRef<number | null>(null);
   const viewportRef = useRef({ top: 0, height: 0 });
   const turnHeightsRef = useRef<Map<number, number>>(new Map());
   const [viewport, setViewport] = useState({ top: 0, height: 0 });
+  const isStreamingRef = useRef(false);
+  useEffect(() => {
+    isStreamingRef.current = streamingMessagesList.length > 0;
+  }, [streamingMessagesList]);
+  const scrollRAFDeps = useRef<number | null>(null);
+  const prevScrollHeightRef = useRef(0);
   const handleHeightChange = useCallback((index: number, height: number) => {
     turnHeightsRef.current.set(index, height);
   }, []);
-  const onRegenCb = useCallback((i: number) => onRegenerate?.(i), [onRegenerate]);
+  const onRegenCb = useCallback(
+    (i: number) => onRegenerate?.(i),
+    [onRegenerate],
+  );
+
+  const scrollToBottom = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    requestAnimationFrame(() => {
+      const newHeight = el.scrollHeight;
+      if (newHeight === prevScrollHeightRef.current) return;
+      prevScrollHeightRef.current = newHeight;
+      el.scrollTo({ top: newHeight, behavior: "instant" });
+    });
+  }, []);
+
+  const scheduleScrollToBottom = useCallback(() => {
+    if (scrollRAFDeps.current !== null) return;
+    scrollRAFDeps.current = requestAnimationFrame(() => {
+      scrollRAFDeps.current = null;
+      scrollToBottom();
+    });
+  }, [scrollToBottom]);
+
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const threshold = 150;
+    const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    if (distFromBottom <= threshold) {
+      scheduleScrollToBottom();
+    }
+    return () => {
+      if (scrollRAFDeps.current !== null) {
+        cancelAnimationFrame(scrollRAFDeps.current);
+        scrollRAFDeps.current = null;
+      }
+    };
+  }, [messages, streamingMessagesList, scheduleScrollToBottom]);
 
   useEffect(() => {
     if (!hasMoreMessages) return;
@@ -182,7 +241,10 @@ export const ChatArea = memo(function ChatArea({
         height: element.clientHeight,
       };
       const current = viewportRef.current;
-      if (Math.abs(next.top - current.top) < 1 && Math.abs(next.height - current.height) < 1) {
+      if (
+        Math.abs(next.top - current.top) < 1 &&
+        Math.abs(next.height - current.height) < 1
+      ) {
         return;
       }
       viewportRef.current = next;
@@ -200,7 +262,9 @@ export const ChatArea = memo(function ChatArea({
     updateViewport();
     const resizeObserver = new ResizeObserver(scheduleViewportUpdate);
     resizeObserver.observe(element);
-    element.addEventListener("scroll", scheduleViewportUpdate, { passive: true });
+    element.addEventListener("scroll", scheduleViewportUpdate, {
+      passive: true,
+    });
 
     return () => {
       resizeObserver.disconnect();
@@ -343,7 +407,10 @@ export const ChatArea = memo(function ChatArea({
         </Box>
 
         {virtualWindow.topSpacer > 0 && (
-          <Box aria-hidden sx={{ height: virtualWindow.topSpacer, flexShrink: 0 }} />
+          <Box
+            aria-hidden
+            sx={{ height: virtualWindow.topSpacer, flexShrink: 0 }}
+          />
         )}
 
         {visibleTurns.map((turn, visibleTurnIndex) => {
@@ -351,7 +418,11 @@ export const ChatArea = memo(function ChatArea({
           const isNewest = visibleTurnIndex === visibleTurns.length - 1;
           return (
             <TurnItem
-              key={turn.userMessage?.id || turn.assistantMessages[0]?.id || `turn-${turnIndex}`}
+              key={
+                turn.userMessage?.id ||
+                turn.assistantMessages[0]?.id ||
+                `turn-${turnIndex}`
+              }
               turn={turn}
               turnIndex={turnIndex}
               isNewest={isNewest}
@@ -362,7 +433,10 @@ export const ChatArea = memo(function ChatArea({
         })}
 
         {virtualWindow.bottomSpacer > 0 && (
-          <Box aria-hidden sx={{ height: virtualWindow.bottomSpacer, flexShrink: 0 }} />
+          <Box
+            aria-hidden
+            sx={{ height: virtualWindow.bottomSpacer, flexShrink: 0 }}
+          />
         )}
 
         {streamingMessagesList.length > 0 && (
@@ -371,9 +445,10 @@ export const ChatArea = memo(function ChatArea({
               display: "grid",
               gridTemplateColumns: {
                 xs: "1fr",
-                md: streamingMessagesList.length > 1
-                  ? `repeat(${Math.min(streamingMessagesList.length, 3)}, 1fr)`
-                  : "1fr",
+                md:
+                  streamingMessagesList.length > 1
+                    ? `repeat(${Math.min(streamingMessagesList.length, 3)}, 1fr)`
+                    : "1fr",
               },
               gap: 1.5,
               width: "100%",
@@ -382,7 +457,15 @@ export const ChatArea = memo(function ChatArea({
             }}
           >
             {streamingMessagesList.map((msg) => (
-              <Box key={msg.id} sx={{ height: "100%", display: "flex", flexDirection: "column", bgcolor: "transparent" }}>
+              <Box
+                key={msg.id}
+                sx={{
+                  height: "100%",
+                  display: "flex",
+                  flexDirection: "column",
+                  bgcolor: "transparent",
+                }}
+              >
                 <Message
                   role={msg.role}
                   content={msg.content}

@@ -16,6 +16,7 @@ export type GeneralSettings = {
   notifications: boolean;
   systemPrompt: string;
   exaApiKey: string;
+  webSearchEnabled: boolean;
 };
 
 export type BrowserTtsSettings = {
@@ -79,6 +80,7 @@ export const useSettingsStore = create<SettingsState>()(
         notifications: true,
         systemPrompt: "",
         exaApiKey: "",
+        webSearchEnabled: false,
       },
       account: { ...defaultAccount },
       tts: { ...defaultTts },
@@ -96,8 +98,8 @@ export const useSettingsStore = create<SettingsState>()(
               ...defaultTts,
               ...s.tts,
               ...update,
-              browser: { ...defaultTts.browser, ...s.tts.browser, ...(update.browser || {}) },
-              stTts: { ...defaultTts.stTts, ...s.tts.stTts, ...(update.stTts || {}) },
+              browser: { ...defaultTts.browser, ...s.tts.browser, ...(update.browser ?? {}) },
+              stTts: { ...defaultTts.stTts, ...s.tts.stTts, ...(update.stTts ?? {}) },
             },
           })),
 
@@ -110,26 +112,22 @@ export const useSettingsStore = create<SettingsState>()(
       version: 3,
       migrate: (persisted, version) => {
         const state = persisted as any;
-        if (state?.tts) {
-          if (version < 1 && state.tts.supertonic) {
-            state.tts.stTts = state.tts.supertonic;
-            delete state.tts.supertonic;
-            if (state.tts.engine === "supertonic") {
-              state.tts.engine = "stTts";
-            }
+        if (!state?.tts) return state as SettingsState;
+        if (version < 1 && state.tts.supertonic) {
+          state.tts.stTts = state.tts.supertonic;
+          delete state.tts.supertonic;
+          if (state.tts.engine === "supertonic") {
+            state.tts.engine = "stTts";
           }
-          if (version < 2) {
-            state.tts.stTts = { ...defaultTts.stTts, ...state.tts.stTts };
-            state.tts.browser = { ...defaultTts.browser, ...state.tts.browser };
-          }
+        }
+        if (version < 2) {
+          state.tts.stTts = { ...defaultTts.stTts, ...state.tts.stTts };
+          state.tts.browser = { ...defaultTts.browser, ...state.tts.browser };
         }
         return state as SettingsState;
       },
-      partialize: (state) => ({
-        general: state.general,
-        account: state.account,
-        tts: state.tts,
-        selectedPromptPreset: state.selectedPromptPreset,
+      partialize: ({ general, account, tts, selectedPromptPreset }) => ({
+        general, account, tts, selectedPromptPreset,
       }) as SettingsState,
     },
   ),

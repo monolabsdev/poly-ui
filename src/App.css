@@ -26,25 +26,10 @@ button {
   background: #3f3f46;
 }
 
-/* Syntax Highlighting overrides */
-pre {
-  background: rgba(9, 9, 11, 0.5) !important;
-  border: 1px solid rgba(255, 255, 255, 0.05) !important;
-  border-radius: 12px !important;
-  padding: 16px !important;
-  margin: 16px 0 !important;
-}
-
+/* Inline code fallback when MUI components aren't available */
 code {
   font-family: monospace;
   font-size: 0.9em;
-}
-
-.inline-code {
-  background: rgba(39, 39, 42, 0.5);
-  padding: 1.5px 6px;
-  border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 /* Hover visibility for copy button */

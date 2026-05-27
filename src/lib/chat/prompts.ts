@@ -8,7 +8,7 @@ export function getTemporalPrompt(): string {
   ].join("\n");
 }
 
-export function buildSystemPrompt(userSystemPrompt: string, exaApiKey?: string): string {
+export function buildSystemPrompt(userSystemPrompt: string, exaApiKey?: string, forceSearch?: boolean): string {
   const temporal = getTemporalPrompt();
   const formatting = [
     "Response Formatting:",
@@ -17,7 +17,7 @@ export function buildSystemPrompt(userSystemPrompt: string, exaApiKey?: string):
     "- Do not wrap equations in backticks or fenced code blocks unless the user asks for literal source code.",
   ].join("\n");
   const toolInstruction = exaApiKey
-    ? `\n\n## Available Tools\n\nYou have access to the \`web_search\` tool. Call it using the \`web_search\` function with a \`query\` parameter when you need current information, recent events, or facts outside your training data. Do NOT refuse to search — use the tool when appropriate.`
+    ? `\n\n## Available Tools\n\nYou have access to the \`web_search\` tool. Call it using the \`web_search\` function with a \`query\` parameter when you need current information, recent events, or facts outside your training data. Do NOT refuse to search — use the tool when appropriate.${forceSearch ? "\n\n**Important:** Web search is currently ENABLED. You SHOULD use the \`web_search\` tool proactively whenever the user's request could benefit from up-to-date information, even if you're unsure whether your training data is sufficient. If nothing needs searching, simply answer normally." : ""}`
     : "";
   const base = userSystemPrompt.trim()
     ? `${temporal}\n\n${formatting}\n\nPersonalization/Custom Instructions:\n${userSystemPrompt}${toolInstruction}`

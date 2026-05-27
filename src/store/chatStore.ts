@@ -10,6 +10,13 @@ async function getRepo() {
 
 export type { Conversation, Message };
 
+export type QueuedMessage = {
+  id: string;
+  conversationId: string;
+  content: string;
+  attachments?: Attachment[];
+};
+
 type ChatStore = {
   conversations: Conversation[];
   activeConversationId: string | null;
@@ -18,6 +25,7 @@ type ChatStore = {
   streamingMessages: Record<string, Message>;
   hasMoreMessages: boolean;
   currentAttachments: Attachment[];
+  messageQueue: QueuedMessage[];
   actions: {
     createConversation: (title?: string, isTemporary?: boolean) => Promise<Conversation>;
     setActiveConversationId: (id: string | null) => Promise<void>;
@@ -56,9 +64,13 @@ type ChatStore = {
     addCurrentAttachment: (attachment: Attachment) => void;
     removeCurrentAttachment: (id: string) => void;
     clearCurrentAttachments: () => void;
+    enqueueMessage: (msg: QueuedMessage) => void;
+    dequeueMessage: (id: string) => void;
+    clearQueue: (conversationId: string) => void;
+    getNextQueued: (conversationId: string) => QueuedMessage | undefined;
   };
 };
-export const useChatStore = create<ChatStore>((set) => ({
+export const useChatStore = create<ChatStore>((set, get) => ({
   conversations: [],
   activeConversationId: null,
   streamingConversationId: null,
@@ -66,6 +78,7 @@ export const useChatStore = create<ChatStore>((set) => ({
   streamingMessages: {},
   hasMoreMessages: false,
   currentAttachments: [],
+  messageQueue: [],
   actions: {
     loadConversations: async () => {
       const auth = useAuthStore.getState();
@@ -344,6 +357,27 @@ export const useChatStore = create<ChatStore>((set) => ({
         if (index === -1) return state;
         return { messages: state.messages.slice(0, index) };
       });
+    },
+    enqueueMessage: (msg) =>
+      set((state) => ({
+        messageQueue: [...state.messageQueue, msg],
+      })),
+    dequeueMessage: (id) =>
+      set((state) => ({
+        messageQueue: state.messageQueue.filter((m) => m.id !== id),
+      })),
+    clearQueue: (conversationId) =>
+      set((state) => ({
+        messageQueue: state.messageQueue.filter(
+          (m) => m.conversationId !== conversationId,
+        ),
+      })),
+    // LIFO: returns most recently enqueued (last item) so rapid sends
+    // always drain the latest user input first.
+    getNextQueued: (conversationId) => {
+      const queue = get().messageQueue;
+      const convMsgs = queue.filter((m) => m.conversationId === conversationId);
+      return convMsgs.length > 0 ? convMsgs[convMsgs.length - 1] : undefined;
     },
     addCurrentAttachment: (attachment) =>
       set((state) => ({

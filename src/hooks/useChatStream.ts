@@ -61,6 +61,9 @@ export function useChatStream(selectedModels: string[], systemPrompt = "", userN
   const cancelRef = useRef(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const activeConversationIdRef = useRef(activeConversationId);
+  const processingQueueRef = useRef(false);
+  const selectedModelsRef = useRef(selectedModels);
+  useEffect(() => { selectedModelsRef.current = selectedModels; }, [selectedModels]);
 
   // Stable refs for event handlers so the bus subscription never needs to
   // re-run. Updated on every render via the layout effect below.
@@ -85,16 +88,6 @@ export function useChatStream(selectedModels: string[], systemPrompt = "", userN
     // deps per the rules of hooks — it never changes identity.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeConversationId]);
-
-  useEffect(() => {
-    requestAnimationFrame(() => {
-      if (!bottomRef.current) return;
-      const rect = bottomRef.current.getBoundingClientRect();
-      if (rect.bottom <= window.innerHeight + 150) {
-        bottomRef.current.scrollIntoView({ behavior: "auto", block: "end" });
-      }
-    });
-  }, [messages, streamingMessages]);
 
   // Streaming messages rendered separately (bottom) so persisted messages
   // array never changes identity during streaming. This prevents ALL
@@ -194,8 +187,9 @@ export function useChatStream(selectedModels: string[], systemPrompt = "", userN
       // Finalize: read model from store at call time, not from closure.
       const { streamingMessages: current } = useChatStore.getState();
       const existing = current[messageId];
+      if (!existing) return; // Already finalized by another path (e.g. error)
       const thinking = thinkingAccRef.current[request_id];
-      const completedModel = existing?.model ?? "";
+      const completedModel = existing.model ?? "";
       const shouldStartTitleGeneration = pendingStreamsRef.current <= 1;
 
       if (acc.trim() || thinking?.trim()) {
@@ -214,7 +208,7 @@ export function useChatStream(selectedModels: string[], systemPrompt = "", userN
           createdAt: new Date().toISOString(),
           model: completedModel || "unknown",
           status: "complete",
-          webSearch: existing?.webSearch,
+          webSearch: existing.webSearch,
         });
       }
 
@@ -227,6 +221,10 @@ export function useChatStream(selectedModels: string[], systemPrompt = "", userN
           model: completedModel,
           userName,
         });
+      }
+
+      if (pendingStreamsRef.current === 0) {
+        processNextInQueueRef.current?.();
       }
     },
     [addMessage, settlePending, setStreamingMessage, userName],
@@ -331,8 +329,8 @@ export function useChatStream(selectedModels: string[], systemPrompt = "", userN
       resetStreamState();
       pendingStreamsRef.current = models.length;
 
-      const exaApiKey = useSettingsStore.getState().general.exaApiKey;
-      const system = buildSystemPrompt(systemPrompt, exaApiKey);
+      const { exaApiKey, webSearchEnabled } = useSettingsStore.getState().general;
+      const system = buildSystemPrompt(systemPrompt, exaApiKey, webSearchEnabled);
 
       for (const model of models) {
         const rid = crypto.randomUUID();
@@ -390,17 +388,50 @@ export function useChatStream(selectedModels: string[], systemPrompt = "", userN
   );
 
   // -------------------------------------------------------------------------
+  // processNextInQueue — drain queued messages after stream completes.
+  // Last-queued wins (LIFO) so rapid sends always prioritize the latest input.
+  // -------------------------------------------------------------------------
+  const processNextInQueue = useCallback(async () => {
+    if (processingQueueRef.current) return;
+    const conversationId = activeConversationIdRef.current;
+    if (!conversationId) return;
+
+    const next = useChatStore.getState().actions.getNextQueued(conversationId);
+    if (!next) return;
+
+    processingQueueRef.current = true;
+    try {
+      const models = selectedModelsRef.current.filter(Boolean);
+      if (!models.length) return;
+
+      useChatStore.getState().actions.dequeueMessage(next.id);
+
+      cancelRef.current = false;
+      await addMessage({
+        conversationId: next.conversationId,
+        role: "user",
+        content: next.content,
+        attachments: next.attachments,
+      });
+
+      startStream(next.conversationId, models);
+    } catch (err) {
+      console.error("processNextInQueue failed — message may be lost", err);
+    } finally {
+      processingQueueRef.current = false;
+    }
+  }, [addMessage, startStream]);
+
+  const processNextInQueueRef = useRef(processNextInQueue);
+  useEffect(() => { processNextInQueueRef.current = processNextInQueue; });
+
+  // -------------------------------------------------------------------------
   // sendMessage
   // -------------------------------------------------------------------------
   const sendMessage = useCallback(
     async (content: string, attachments?: Attachment[]) => {
       const models = selectedModels.filter(Boolean);
-      if (
-        (!content.trim() && !attachments?.length) ||
-        isStreaming ||
-        !models.length
-      )
-        return;
+      if ((!content.trim() && !attachments?.length) || !models.length) return;
 
       const { state } = useOllamaStore.getState();
       if (state !== "online") {
@@ -412,8 +443,21 @@ export function useChatStream(selectedModels: string[], systemPrompt = "", userN
         useChatStore.getState().activeConversationId ?? activeConversationId;
       if (!conversationId) return;
 
-      cancelRef.current = false;
       const processed = defaultPreprocessor.preprocess(content.trim());
+
+      // Backpressure: enqueue instead of blocking when already streaming.
+      // Processes newest-first after current stream completes.
+      if (isStreaming) {
+        useChatStore.getState().actions.enqueueMessage({
+          id: crypto.randomUUID(),
+          conversationId,
+          content: processed,
+          attachments,
+        });
+        return;
+      }
+
+      cancelRef.current = false;
       await addMessage({
         conversationId,
         role: "user",
@@ -476,6 +520,12 @@ export function useChatStream(selectedModels: string[], systemPrompt = "", userN
     [selectedModels, isStreaming, startStream],
   );
 
+  const messageQueue = useChatStore((s) => s.messageQueue);
+  const queuedCount = useMemo(
+    () => messageQueue.filter((m) => m.conversationId === activeConversationId).length,
+    [messageQueue, activeConversationId],
+  );
+
   return {
     messages,
     streamingMessagesList,
@@ -485,5 +535,7 @@ export function useChatStream(selectedModels: string[], systemPrompt = "", userN
     stopStreaming,
     bottomRef,
     hasMessages: messages.length > 0 || streamingMessagesList.length > 0,
+    queuedCount,
+    processNextInQueue,
   };
 }

@@ -126,7 +126,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             {isCollapsed ? (
-              <Tooltip title="Guest" placement="right" arrow>
+              <Tooltip title="Guest" placement="right">
                 {guestButton}
               </Tooltip>
             ) : (
@@ -260,7 +260,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           {isCollapsed ? (
-            <Tooltip title={user.fullName || user.email} placement="right" arrow>
+            <Tooltip title={user.fullName || user.email} placement="right">
               {button}
             </Tooltip>
           ) : (

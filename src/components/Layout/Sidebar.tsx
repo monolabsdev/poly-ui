@@ -844,7 +844,7 @@ export function SidebarMenuButton({
 
   if (isCollapsed && tooltip) {
     return (
-      <Tooltip title={tooltip} placement="right" arrow>
+      <Tooltip title={tooltip} placement="right">
         {content}
       </Tooltip>
     );
