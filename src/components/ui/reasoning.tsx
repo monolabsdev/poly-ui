@@ -4,6 +4,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useId,
   useRef,
   useState,
   type HTMLAttributes,
@@ -14,6 +15,7 @@ import { Box } from "@mui/material";
 type ReasoningContextType = {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
+  panelId: string;
 };
 
 const ReasoningContext = createContext<ReasoningContextType | undefined>(
@@ -49,6 +51,7 @@ export function Reasoning({
 
   const isControlled = open !== undefined;
   const isOpen = isControlled ? open : internalOpen;
+  const panelId = useId();
 
   const handleOpenChange = useCallback(
     (newOpen: boolean) => {
@@ -73,7 +76,7 @@ export function Reasoning({
 
   return (
     <ReasoningContext.Provider
-      value={{ isOpen, onOpenChange: handleOpenChange }}
+      value={{ isOpen, onOpenChange: handleOpenChange, panelId }}
     >
       <Box {...props}>{children}</Box>
     </ReasoningContext.Provider>
@@ -88,12 +91,14 @@ export function ReasoningTrigger({
   children,
   ...props
 }: ReasoningTriggerProps) {
-  const { isOpen, onOpenChange } = useReasoningContext();
+  const { isOpen, onOpenChange, panelId } = useReasoningContext();
 
   return (
     <Box
       component="button"
       onClick={() => onOpenChange(!isOpen)}
+      aria-expanded={isOpen}
+      aria-controls={panelId}
       sx={{
         display: "inline-flex",
         alignItems: "center",
@@ -105,6 +110,13 @@ export function ReasoningTrigger({
         fontFamily: "inherit",
         fontSize: "inherit",
         color: "inherit",
+        minHeight: 24,
+        borderRadius: "6px",
+        "&:focus-visible": {
+          outline: "2px solid",
+          outlineColor: "primary.main",
+          outlineOffset: 2,
+        },
       }}
       {...props}
     >
@@ -135,7 +147,7 @@ export function ReasoningContent({
 }: ReasoningContentProps) {
   const outerRef = useRef<HTMLDivElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
-  const { isOpen } = useReasoningContext();
+  const { isOpen, panelId } = useReasoningContext();
   const [maxHeight, setMaxHeight] = useState("0px");
 
   const updateHeight = useCallback(() => {
@@ -160,6 +172,8 @@ export function ReasoningContent({
   return (
     <Box
       ref={outerRef}
+      id={panelId}
+      role="region"
       sx={{
         overflow: "hidden",
         transition: "max-height 0.2s ease-out",

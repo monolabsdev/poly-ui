@@ -32,7 +32,7 @@ function Root() {
 
   useEffect(() => {
     let cancelled = false;
-    
+
     prepareAppStartup().then(() => {
       if (!cancelled) setIsAppReady(true);
     });
@@ -62,6 +62,16 @@ function Root() {
       window.removeEventListener("unhandledrejection", onRejection);
     };
   }, []);
+
+  // Toggle dark class for Tailwind
+  useEffect(() => {
+    const isDark = mode === 'dark' || (mode === 'system' && prefersDarkMode);
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [mode, prefersDarkMode]);
 
   return (
     <ThemeProvider theme={theme}>

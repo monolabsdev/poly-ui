@@ -19,6 +19,7 @@ export type QueuedMessage = {
 
 type ChatStore = {
   conversations: Conversation[];
+  conversationsLoading: boolean;
   activeConversationId: string | null;
   streamingConversationId: string | null;
   messages: Message[];
@@ -72,6 +73,7 @@ type ChatStore = {
 };
 export const useChatStore = create<ChatStore>((set, get) => ({
   conversations: [],
+  conversationsLoading: false,
   activeConversationId: null,
   streamingConversationId: null,
   messages: [],
@@ -84,12 +86,17 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       const auth = useAuthStore.getState();
       const userId = auth.user?.id || auth.guestId;
       if (!userId) {
-        set({ conversations: [], messages: [], hasMoreMessages: false, activeConversationId: null });
+        set({ conversations: [], conversationsLoading: false, messages: [], hasMoreMessages: false, activeConversationId: null });
         return;
       }
-      const r = await getRepo();
-      const conversations = await r.getConversations(userId);
-      set({ conversations });
+      set({ conversationsLoading: true });
+      try {
+        const r = await getRepo();
+        const conversations = await r.getConversations(userId);
+        set({ conversations, conversationsLoading: false });
+      } catch {
+        set({ conversationsLoading: false });
+      }
     },
     setStreamingConversationId: (id) => set({ streamingConversationId: id }),
     setStreamingMessage: (id, message) => set((state) => {

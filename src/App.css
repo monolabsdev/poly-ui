@@ -1,6 +1,19 @@
+/* Theme transition */
+html, body {
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
 /* CSS reset for elements used with Box component="button" et al */
 button {
   all: unset;
+  box-sizing: border-box;
+}
+
+button:focus-visible,
+[role="button"]:focus-visible {
+  outline: 2px solid var(--mui-palette-primary-main, #3b82f6);
+  outline-offset: 2px;
+  border-radius: 6px;
 }
 
 *, *::before, *::after {
@@ -95,5 +108,14 @@ code {
 @media (hover: none) {
   .conversation-actions {
     opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
