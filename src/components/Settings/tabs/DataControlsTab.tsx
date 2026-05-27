@@ -15,6 +15,53 @@ import { SettingCard, SectionHeader } from "../SettingComponents";
 import { useChatStore } from "@/store/chatStore";
 import { useNotify } from "@/hooks/useNotify";
 
+function toCsvCell(value: unknown): string {
+  const normalized = value === null || value === undefined ? "" : String(value);
+  const escaped = normalized.replace(/"/g, '""');
+  return `"${escaped}"`;
+}
+
+function buildChatsCsv(
+  rows: Array<{
+    conversationId: string;
+    conversationTitle: string;
+    conversationCreatedAt: string;
+    conversationUpdatedAt: string;
+    messageRole: string;
+    messageContent: string;
+    messageCreatedAt: string;
+    messageModel: string;
+  }>,
+): string {
+  const header = [
+    "conversation_id",
+    "conversation_title",
+    "conversation_created_at",
+    "conversation_updated_at",
+    "message_role",
+    "message_content",
+    "message_created_at",
+    "message_model",
+  ];
+
+  const lines = rows.map((row) =>
+    [
+      row.conversationId,
+      row.conversationTitle,
+      row.conversationCreatedAt,
+      row.conversationUpdatedAt,
+      row.messageRole,
+      row.messageContent,
+      row.messageCreatedAt,
+      row.messageModel,
+    ]
+      .map(toCsvCell)
+      .join(","),
+  );
+
+  return [header.join(","), ...lines].join("\n");
+}
+
 export function DataControlsTab() {
   const notify = useNotify();
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -59,36 +106,99 @@ export function DataControlsTab() {
       const repoModule = await import("@/lib/repositories");
       const repo = repoModule.getRepository();
       const conversations = await repo.getConversations();
-      const exportData: Record<string, unknown>[] = [];
+      const exportRows: Array<{
+        conversationId: string;
+        conversationTitle: string;
+        conversationCreatedAt: string;
+        conversationUpdatedAt: string;
+        messageRole: string;
+        messageContent: string;
+        messageCreatedAt: string;
+        messageModel: string;
+      }> = [];
 
       for (const conv of conversations) {
         const messages = await repo.getMessages(conv.id, 9999, 0);
-        exportData.push({
-          id: conv.id,
-          title: conv.title,
-          createdAt: conv.createdAt,
-          updatedAt: conv.updatedAt,
-          messages: messages.map((m) => ({
-            role: m.role,
-            content: m.content,
-            createdAt: m.createdAt,
-            model: m.model,
-          })),
-        });
+        if (messages.length === 0) {
+          exportRows.push({
+            conversationId: conv.id,
+            conversationTitle: conv.title ?? "Untitled",
+            conversationCreatedAt: conv.createdAt,
+            conversationUpdatedAt: conv.updatedAt,
+            messageRole: "",
+            messageContent: "",
+            messageCreatedAt: "",
+            messageModel: "",
+          });
+          continue;
+        }
+
+        for (const message of messages) {
+          exportRows.push({
+            conversationId: conv.id,
+            conversationTitle: conv.title ?? "Untitled",
+            conversationCreatedAt: conv.createdAt,
+            conversationUpdatedAt: conv.updatedAt,
+            messageRole: message.role,
+            messageContent: message.content,
+            messageCreatedAt: message.createdAt,
+            messageModel: message.model ?? "",
+          });
+        }
       }
 
-      const blob = new Blob([JSON.stringify(exportData, null, 2)], {
-        type: "application/json",
-      });
+      const csv = buildChatsCsv(exportRows);
+      const date = new Date().toISOString().slice(0, 10);
+      const defaultFileName = `openbench-export-${date}.csv`;
+
+      if ("showSaveFilePicker" in window) {
+        const fileHandle = await (
+          window as Window & {
+            showSaveFilePicker?: (options?: {
+              suggestedName?: string;
+              types?: Array<{
+                description?: string;
+                accept: Record<string, string[]>;
+              }>;
+            }) => Promise<{
+              createWritable: () => Promise<{
+                write: (data: string) => Promise<void>;
+                close: () => Promise<void>;
+              }>;
+            }>;
+          }
+        ).showSaveFilePicker?.({
+          suggestedName: defaultFileName,
+          types: [
+            {
+              description: "CSV file",
+              accept: { "text/csv": [".csv"] },
+            },
+          ],
+        });
+
+        if (fileHandle) {
+          const writable = await fileHandle.createWritable();
+          await writable.write(csv);
+          await writable.close();
+          notify.success(
+            `Exported ${conversations.length} conversations as CSV`,
+          );
+          return;
+        }
+      }
+
+      // Fallback for environments without File System Access API
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `openbench-export-${new Date().toISOString().slice(0, 10)}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = defaultFileName;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
       URL.revokeObjectURL(url);
-      notify.success(`Exported ${exportData.length} conversations`);
+      notify.success(`Exported ${conversations.length} conversations as CSV`);
     } catch (err) {
       notify.error("Failed to export chats", err as string);
     } finally {
@@ -105,7 +215,7 @@ export function DataControlsTab() {
 
       <SettingCard
         title="Export Chats"
-        description="Download all conversations as a JSON file."
+        description="Choose a location and export all conversations as CSV."
         action={
           <Button
             size="small"
