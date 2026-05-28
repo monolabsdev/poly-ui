@@ -27,6 +27,13 @@ interface ProviderStore {
   actions: {
     refresh: () => Promise<void>;
     setProviders: (providers: ProviderStatusResponse[]) => void;
+    updateProviderConfig: (config: {
+      provider_type: ProviderType;
+      enabled?: boolean;
+      ollama_host?: string;
+      ollama_api_key?: string;
+      ollama_api_base_url?: string;
+    }) => Promise<void>;
   };
 }
 
@@ -46,5 +53,23 @@ export const useProviderStore = create<ProviderStore>((set) => ({
       }
     },
     setProviders: (providers) => set({ providers, loading: false, error: null }),
+    updateProviderConfig: async (config: {
+      provider_type: ProviderType;
+      enabled?: boolean;
+      ollama_host?: string;
+      ollama_api_key?: string;
+      ollama_api_base_url?: string;
+    }) => {
+      const current = (await invoke<ProviderStatusResponse[]>("get_providers")).find(
+        (p) => p.config.provider_type === config.provider_type,
+      );
+      if (!current) throw new Error("Provider not found");
+      await invoke("update_provider_config", {
+        request: { ...current.config, ...config },
+      });
+      set({ loading: true });
+      const providers = await invoke<ProviderStatusResponse[]>("get_providers");
+      set({ providers, loading: false, error: null });
+    },
   }
 }));

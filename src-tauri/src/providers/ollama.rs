@@ -36,6 +36,7 @@ impl OllamaProvider {
         let reqwest_client = reqwest::Client::builder()
             .default_headers(headers)
             .timeout(std::time::Duration::from_secs(60))
+            .no_proxy()
             .build()
             .unwrap_or_default();
 
@@ -98,7 +99,16 @@ fn normalize_msg(msg: &str, raw: String) -> String {
 impl LLMProvider for OllamaProvider {
     async fn health_check(&self) -> ProviderStatus {
         match self.client.list_local_models().await {
-            Ok(_) => ProviderStatus::Online,
+            Ok(models) => {
+                if cfg!(debug_assertions) {
+                    println!(
+                        "[OllamaProvider] Health check OK: {} models at {}",
+                        models.len(),
+                        self.client.url()
+                    );
+                }
+                ProviderStatus::Online
+            }
             Err(e) => {
                 eprintln!(
                     "[OllamaProvider] Health check failed for {}: {}",

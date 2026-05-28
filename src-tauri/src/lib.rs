@@ -60,6 +60,7 @@ pub fn run() {
             auth::auth_update_status,
             commands::provider_commands::get_providers,
             commands::provider_commands::get_provider_and_models,
+            commands::provider_commands::update_provider_config,
             clear_database,
             execute_sql,
         ])

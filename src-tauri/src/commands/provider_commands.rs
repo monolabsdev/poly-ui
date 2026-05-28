@@ -81,3 +81,32 @@ pub async fn get_provider_and_models(
 
     Ok(ProviderAndModelsResponse { providers, models })
 }
+
+#[derive(serde::Deserialize)]
+pub struct UpdateProviderConfigRequest {
+    pub provider_type: ProviderType,
+    pub enabled: bool,
+    #[serde(default)]
+    pub ollama_host: Option<String>,
+    #[serde(default)]
+    pub ollama_api_key: Option<String>,
+    #[serde(default)]
+    pub ollama_api_base_url: Option<String>,
+}
+
+#[tauri::command]
+pub async fn update_provider_config(
+    state: tauri::State<'_, AppState>,
+    request: UpdateProviderConfigRequest,
+) -> Result<(), String> {
+    state
+        .provider_selector
+        .update_provider_config(
+            &request.provider_type,
+            request.enabled,
+            request.ollama_host,
+            request.ollama_api_key,
+            request.ollama_api_base_url,
+        )
+        .await
+}

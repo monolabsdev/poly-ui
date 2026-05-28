@@ -28,22 +28,23 @@ pub async fn init_db<R: Runtime>(app: &AppHandle<R>) -> Result<SqlitePool, Strin
     ensure_users_schema(&pool).await?;
     ensure_sessions_schema(&pool).await?;
 
-    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM provider_configs")
-        .fetch_one(&pool)
-        .await
-        .map_err(|e| e.to_string())?;
-
-    if count == 0 {
-        sqlx::query(
-            r#"
-            INSERT OR IGNORE INTO provider_configs (provider_type, enabled, ollama_host, priority)
-            VALUES ('OllamaLocal', 1, 'http://127.0.0.1:11434', 0)
-            "#,
-        )
+    // Remove stale rows from earlier provider types (e.g. OpenAI) that were removed
+    sqlx::query("DELETE FROM provider_configs WHERE provider_type NOT IN ('OllamaLocal')")
         .execute(&pool)
         .await
         .map_err(|e| e.to_string())?;
-    }
+
+    // Ensure the default OllamaLocal row exists
+    sqlx::query(
+        r#"
+        INSERT OR IGNORE INTO provider_configs (provider_type, enabled, ollama_host, priority)
+        VALUES ('OllamaLocal', 1, 'http://127.0.0.1:11434', 0)
+        "#,
+    )
+    .execute(&pool)
+    .await
+    .map_err(|e| e.to_string())?;
+
     Ok(pool)
 }
 

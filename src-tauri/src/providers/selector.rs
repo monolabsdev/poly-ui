@@ -137,4 +137,38 @@ impl ProviderSelector {
         self.health_cache.lock().await.clear();
         self.check_all_providers().await
     }
+
+    pub async fn update_provider_config(
+        &self,
+        provider_type: &ProviderType,
+        enabled: bool,
+        ollama_host: Option<String>,
+        ollama_api_key: Option<String>,
+        ollama_api_base_url: Option<String>,
+    ) -> Result<(), String> {
+        let mut conn = self.pool.acquire().await.map_err(|e| e.to_string())?;
+
+        sqlx::query(
+            r#"
+            UPDATE provider_configs SET
+                enabled = ?1,
+                ollama_host = ?2,
+                ollama_api_key = ?3,
+                ollama_api_base_url = ?4,
+                updated_at = datetime('now')
+            WHERE provider_type = ?5
+            "#,
+        )
+        .bind(enabled)
+        .bind(&ollama_host)
+        .bind(&ollama_api_key)
+        .bind(&ollama_api_base_url)
+        .bind(provider_type)
+        .execute(&mut *conn)
+        .await
+        .map_err(|e| e.to_string())?;
+
+        self.health_cache.lock().await.clear();
+        Ok(())
+    }
 }
