@@ -1,19 +1,22 @@
-import { Square, Plus, ArrowUp, Paperclip, X, Globe, Image as ImageIcon } from "lucide-react";
-import { useRef, useEffect, useState, useCallback, memo } from "react";
+import { Square, Plus, ArrowUp, Paperclip, Image as ImageIcon } from "lucide-react";
+import { useState, memo } from "react";
 import { Box, InputBase, IconButton, Typography } from "@mui/material";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { useChatStore } from "@/store/chatStore";
-import { useSettingsStore } from "@/store/settingsStore";
-import { Attachment } from "@/types/chat";
-import { isImageAttachment, createDataUrl } from "@/lib/utils";
 import { motion, AnimatePresence } from "motion/react";
 import { useTiming, ANIMATION_VARIANTS } from "@/lib/motion";
-import { PRETEXT_FONTS, PRETEXT_LINE_HEIGHTS, measureTextHeight } from "@/lib/pretext";
+import { useFeatures } from "@/lib/featureRegistry";
+import { useChatAttachments } from "@/hooks/useChatAttachments";
+import { useChatTextarea } from "@/hooks/useChatTextarea";
+import { useSlashCommand } from "@/hooks/useSlashCommand";
+import { ActiveFeaturesList } from "@/components/Chat/ChatInput/ActiveFeaturesList";
+import { SlashCommandMenu } from "@/components/Chat/ChatInput/SlashCommandMenu";
+import { ChatAttachmentsList } from "@/components/Chat/ChatInput/ChatAttachmentsList";
 
 interface ChatInputProps {
   onSubmit: (value: string) => void | Promise<void>;
@@ -35,34 +38,38 @@ export const ChatInput = memo(function ChatInput({
   onFocusChange,
   isTemporary,
 }: ChatInputProps) {
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [fileAccept, setFileAccept] = useState<string>("*");
   const [draft, setDraft] = useState("");
   const timing = useTiming();
 
-  const currentAttachments = useChatStore((state) => state.currentAttachments);
-  const addCurrentAttachment = useChatStore(
-    (state) => state.actions.addCurrentAttachment,
-  );
-  const removeCurrentAttachment = useChatStore(
-    (state) => state.actions.removeCurrentAttachment,
-  );
+  // Hooks
+  const {
+    fileInputRef,
+    fileAccept,
+    isDragging,
+    currentAttachments,
+    removeCurrentAttachment,
+    openFilePicker,
+    handleFileChange,
+    handleDragEnter,
+    handleDragLeave,
+    handleDragOver,
+    handleDrop,
+  } = useChatAttachments();
 
-  const webSearchEnabled = useSettingsStore((s) => s.general.webSearchEnabled);
-  const updateGeneral = useSettingsStore((s) => s.actions.updateGeneral);
+  const textareaRef = useChatTextarea(draft);
+  const { showSlashMenu, closeSlashMenu } = useSlashCommand(draft);
+  const features = useFeatures();
+
+  // Derived state
+  const activeFeatures = features.filter((f) => f.active);
+  const hasContent = draft.trim() || currentAttachments.length > 0;
+  const isInputDisabled = isStreaming || (!selectedModel && !allowEmptyModel);
   const canUploadImages = true;
 
-  const handleFileClick = (accept: string) => {
-    setFileAccept(accept);
-    setTimeout(() => {
-      fileInputRef.current?.click();
-    }, 0);
-  };
-
+  // Handlers
   const handleSubmit = () => {
-    const hasContent = draft.trim().length > 0 || currentAttachments.length > 0;
-    if (!hasContent || isStreaming) return;
+    const hasMsg = draft.trim().length > 0 || currentAttachments.length > 0;
+    if (!hasMsg || isStreaming) return;
     onSubmit(draft);
     setDraft("");
   };
@@ -82,99 +89,12 @@ export const ChatInput = memo(function ChatInput({
     }
   };
 
-  const [isDragging, setIsDragging] = useState(false);
-  const dragCounter = useRef(0);
-
-  const processFiles = useCallback(
-    async (files: FileList | File[]) => {
-      for (const file of Array.from(files)) {
-        const reader = new FileReader();
-
-        const attachment: Attachment = {
-          id: crypto.randomUUID(),
-          name: file.name,
-          type: file.type,
-          size: file.size,
-        };
-
-        const isImage = isImageAttachment(file.type);
-        reader.onload = (e) => {
-          const result = e.target?.result as string;
-          attachment.content = isImage ? result.split(",")[1] : result;
-          addCurrentAttachment(attachment);
-        };
-
-        if (isImage) {
-          reader.readAsDataURL(file);
-        } else {
-          reader.readAsText(file);
-        }
-      }
-    },
-    [addCurrentAttachment],
-  );
-
-  const handleDragEnter = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    dragCounter.current += 1;
-    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
-      setIsDragging(true);
-    }
+  const handleSlashSelect = (feature: (typeof features)[number]) => {
+    feature.toggle();
+    setDraft((prev) => prev.replace(/\s?\/?$/, ""));
+    closeSlashMenu();
+    textareaRef.current?.focus();
   };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    dragCounter.current -= 1;
-    if (dragCounter.current === 0) {
-      setIsDragging(false);
-    }
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-    dragCounter.current = 0;
-
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      processFiles(e.dataTransfer.files);
-      e.dataTransfer.clearData();
-    }
-  };
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files) return;
-    processFiles(files);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  };
-
-  useEffect(() => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-
-    const width = textarea.clientWidth || 800; // fallback width
-    const height = measureTextHeight(
-      draft, 
-      PRETEXT_FONTS.composer, 
-      width, 
-      PRETEXT_LINE_HEIGHTS.composer
-    );
-    
-    // Add some buffer for padding/line-height adjustments
-    const finalHeight = Math.max(40, Math.min(height + 12, 200));
-    textarea.style.height = `${finalHeight}px`;
-  }, [draft]);
-
-  const hasContent = draft.trim() || currentAttachments.length > 0;
-  const isInputDisabled = isStreaming || (!selectedModel && !allowEmptyModel);
 
   return (
     <Box
@@ -196,7 +116,15 @@ export const ChatInput = memo(function ChatInput({
         style={{ display: "none" }}
         onChange={handleFileChange}
       />
-      <Box sx={{ mx: "auto", width: "100%", maxWidth: 840 }}>
+      <Box sx={{ mx: "auto", width: "100%", maxWidth: 840, position: "relative" }}>
+        {/* Slash command menu */}
+        <AnimatePresence>
+          {showSlashMenu && (
+            <SlashCommandMenu features={features} onSelect={handleSlashSelect} />
+          )}
+        </AnimatePresence>
+
+        {/* Main input container */}
         <Box
           onDragEnter={handleDragEnter}
           onDragOver={handleDragOver}
@@ -210,7 +138,8 @@ export const ChatInput = memo(function ChatInput({
             borderRadius: "24px",
             bgcolor: isDragging ? "action.selected" : "background.paper",
             p: 1.5,
-            transition: "background-color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease",
+            transition:
+              "background-color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease",
             border: isDragging ? "2px dashed" : isTemporary ? "1px dashed" : "1px solid",
             borderColor: isDragging || isTemporary ? "border.main" : "divider",
             "&:focus-within": {
@@ -219,83 +148,35 @@ export const ChatInput = memo(function ChatInput({
             },
           }}
         >
+          {/* Active feature badges */}
           <AnimatePresence>
-            {currentAttachments.length > 0 ? (
-              <Box
-                component={motion.div}
+            {activeFeatures.length > 0 && (
+              <motion.div
+                key="feature-badges-container"
                 initial={{ opacity: 0, height: 0, overflow: "hidden" }}
                 animate={{ opacity: 1, height: "auto" }}
                 exit={{ opacity: 0, height: 0 }}
                 transition={{ duration: timing.duration("base"), ease: timing.ease }}
-                sx={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  gap: 1.5,
-                  px: 1.5,
-                  pt: 1,
-                  pb: 1,
-                }}
               >
-                <AnimatePresence>
-                {currentAttachments.map((att) => (
-                  <Box
-                    component={motion.div}
-                    layout
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.8 }}
-                    transition={{ duration: timing.duration("fast"), ease: timing.ease }}
-                    key={att.id}
-                    sx={{
-                      position: "relative",
-                      width: 64,
-                      height: 64,
-                      borderRadius: "12px",
-                      overflow: "hidden",
-                      border: "1px solid",
-                      borderColor: "divider",
-                      bgcolor: "action.hover",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    {att.type.startsWith("image/") ? (
-                      <img
-                        src={createDataUrl(att.type, att.content || "")}
-                        alt={att.name}
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          objectFit: "cover",
-                        }}
-                      />
-                    ) : (
-                      <Paperclip size={24} style={{ color: "text.secondary" }} />
-                    )}
-                    <IconButton
-                      size="small"
-                      onClick={() => removeCurrentAttachment(att.id)}
-                      aria-label={`Remove attachment ${att.name}`}
-                      sx={{
-                        position: "absolute",
-                        top: -4,
-                        right: -4,
-                        bgcolor: "background.paper",
-                        boxShadow: 1,
-                        p: 0.5,
-                        "&:hover": { bgcolor: "action.selected" },
-                      }}
-                    >
-                      <X size={12} />
-                    </IconButton>
-                  </Box>
-                ))}
-                </AnimatePresence>
-              </Box>
-            ) : null}
+                <ActiveFeaturesList
+                  activeFeatures={activeFeatures}
+                  hasAttachments={currentAttachments.length > 0}
+                />
+              </motion.div>
+            )}
           </AnimatePresence>
 
+          {/* Attachments */}
+          <AnimatePresence>
+            {currentAttachments.length > 0 && (
+              <ChatAttachmentsList
+                attachments={currentAttachments}
+                onRemove={removeCurrentAttachment}
+              />
+            )}
+          </AnimatePresence>
+
+          {/* Textarea */}
           <InputBase
             multiline
             inputRef={textareaRef}
@@ -322,6 +203,7 @@ export const ChatInput = memo(function ChatInput({
             }}
           />
 
+          {/* Bottom toolbar */}
           <Box
             sx={{
               display: "flex",
@@ -331,6 +213,7 @@ export const ChatInput = memo(function ChatInput({
               px: 0.5,
             }}
           >
+            {/* Left: plus menu */}
             <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
               <DropdownMenu>
                 <DropdownMenuTrigger>
@@ -346,7 +229,7 @@ export const ChatInput = memo(function ChatInput({
                 <DropdownMenuContent align="start">
                   {canUploadImages ? (
                     <DropdownMenuItem
-                      onClick={() => handleFileClick("image/*")}
+                      onClick={() => openFilePicker("image/*")}
                       sx={{ display: "flex", alignItems: "center", gap: 2 }}
                     >
                       <ImageIcon size={16} />
@@ -354,42 +237,49 @@ export const ChatInput = memo(function ChatInput({
                     </DropdownMenuItem>
                   ) : null}
                   <DropdownMenuItem
-                    onClick={() => handleFileClick("*")}
+                    onClick={() => openFilePicker("*")}
                     sx={{ display: "flex", alignItems: "center", gap: 2 }}
                   >
                     <Paperclip size={16} />
                     <Typography variant="body2">Upload files</Typography>
                   </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  {features.map((feature) => {
+                    const Icon = feature.icon;
+                    return (
+                      <DropdownMenuItem
+                        key={feature.id}
+                        onClick={() => feature.toggle()}
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 2,
+                          justifyContent: "space-between",
+                          minWidth: 160,
+                        }}
+                      >
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                          <Icon size={16} />
+                          <Typography variant="body2">{feature.name}</Typography>
+                        </Box>
+                        {feature.active && (
+                          <Box
+                            sx={{
+                              width: 6,
+                              height: 6,
+                              borderRadius: "50%",
+                              bgcolor: "primary.main",
+                            }}
+                          />
+                        )}
+                      </DropdownMenuItem>
+                    );
+                  })}
                 </DropdownMenuContent>
               </DropdownMenu>
-              <IconButton
-                size="small"
-                aria-label={webSearchEnabled ? "Disable web search" : "Enable web search"}
-                aria-pressed={webSearchEnabled}
-                onClick={() =>
-                  updateGeneral({ webSearchEnabled: !webSearchEnabled })
-                }
-                sx={{
-                  color: webSearchEnabled ? "primary.main" : "text.secondary",
-                  px: 1.5,
-                  py: 0.5,
-                  gap: 0.5,
-                  borderRadius: "999px",
-                  fontSize: "13px",
-                  fontWeight: 500,
-                  border: "1px solid",
-                  borderColor: webSearchEnabled ? "text.secondary" : "divider",
-                  bgcolor: webSearchEnabled ? "action.selected" : "transparent",
-                  "&:hover": {
-                    bgcolor: "action.hover",
-                  },
-                }}
-              >
-                <Globe size={16} />
-                Search
-              </IconButton>
             </Box>
 
+            {/* Right: send / stop button */}
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               <IconButton
                 component={motion.button}
