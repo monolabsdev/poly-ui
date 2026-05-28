@@ -123,10 +123,11 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), String> {
         // Dev repair: this branch exists because migrations were edited
         // during development. Migration SQL is idempotent, so removing the
         // stale checksum lets sqlx record the current file and continue.
-        sqlx::query("DELETE FROM _sqlx_migrations WHERE version IN (?, ?, ?)")
+        sqlx::query("DELETE FROM _sqlx_migrations WHERE version IN (?, ?, ?, ?)")
             .bind(20260501000000_i64)
             .bind(20260509000000_i64)
             .bind(20260510000000_i64)
+            .bind(20260528000000_i64)
             .execute(pool)
             .await
             .map_err(|e| e.to_string())?;
