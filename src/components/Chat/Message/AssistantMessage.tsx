@@ -28,6 +28,7 @@ import { useNotify } from "@/hooks/useNotify";
 
 import { ThinkingDisclosure } from "./ThinkingDisclosure";
 import { WebSearchDisclosure } from "./WebSearchDisclosure";
+import { Source, SourceTrigger, SourceContent } from "@/components/ui/sources";
 
 import type { MessageProps } from "./types";
 import {
@@ -271,6 +272,36 @@ export function AssistantMessage(props: MessageProps) {
             )}
           </Box>
         ) : null}
+
+        {/* ── Source Badges ── */}
+        <AnimatePresence>
+          {!isStreaming && webSearch?.results && webSearch.results.length > 0 && (
+            <Box
+              component={motion.div}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              sx={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: 0.75,
+                mt: 1.5,
+                maxWidth: { xs: "90%", sm: "80%" },
+              }}
+            >
+              {webSearch.results.map((result) => (
+                <Source key={result.url} href={result.url}>
+                  <SourceTrigger showFavicon />
+                  <SourceContent
+                    title={result.title}
+                    description={result.highlights?.join(" ") || ""}
+                  />
+                </Source>
+              ))}
+            </Box>
+          )}
+        </AnimatePresence>
 
         {/* ── Contextual Action Toolbar ── */}
         <Box className="action-bar" sx={{ display: "flex", gap: 0.5, mt: 1.5 }}>

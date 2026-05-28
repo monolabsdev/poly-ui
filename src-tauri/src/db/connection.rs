@@ -72,7 +72,8 @@ async fn ensure_conversations_schema(pool: &SqlitePool) -> Result<(), String> {
             attachments TEXT,
             model TEXT,
             thinking TEXT,
-            thinkingDuration REAL
+            thinkingDuration REAL,
+            webSearch TEXT
         )",
     )
     .execute(pool)
