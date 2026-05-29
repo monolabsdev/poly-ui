@@ -8,6 +8,7 @@ mod web_search;
 
 use crate::commands::chat_commands::{chat, chat_stream, generate_chat_title};
 use crate::commands::config_commands::cancel_chat;
+use crate::commands::dictation::{transcribe_audio, DictationState};
 use crate::commands::db_commands::{clear_database, execute_sql};
 use crate::commands::model_commands::{cancel_pull, delete_model, get_local_models, pull_model};
 use providers::ProviderSelector;
@@ -20,6 +21,7 @@ pub struct AppState {
     pub current_generation_id: AtomicUsize,
     pub is_pull_cancelled: AtomicBool,
     pub provider_selector: ProviderSelector,
+    pub dictation: DictationState,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -40,6 +42,7 @@ pub fn run() {
                 current_generation_id: AtomicUsize::new(0),
                 is_pull_cancelled: AtomicBool::new(false),
                 provider_selector: ProviderSelector::new(db),
+                dictation: DictationState::new(),
             });
 
             Ok(())
@@ -51,6 +54,7 @@ pub fn run() {
             chat_stream,
             chat,
             generate_chat_title,
+            transcribe_audio,
             cancel_chat,
             cancel_pull,
             auth::auth_signup,

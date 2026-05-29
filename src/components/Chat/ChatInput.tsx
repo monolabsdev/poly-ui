@@ -1,5 +1,5 @@
-import { Square, Plus, ArrowUp, Paperclip, Image as ImageIcon } from "lucide-react";
-import { useState, memo, useEffect } from "react";
+import { Square, Plus, ArrowUp, Paperclip, Image as ImageIcon, Mic } from "lucide-react";
+import { useState, memo, useEffect, useCallback } from "react";
 import { Box, InputBase, IconButton, Typography } from "@mui/material";
 import {
   DropdownMenu,
@@ -9,14 +9,18 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { motion, AnimatePresence } from "motion/react";
+import { Ring2 } from "ldrs/react";
+import "ldrs/react/Ring2.css";
 import { useTiming, ANIMATION_VARIANTS } from "@/lib/motion";
 import { useFeatures } from "@/lib/featureRegistry";
 import { useChatAttachments } from "@/hooks/useChatAttachments";
 import { useChatTextarea } from "@/hooks/useChatTextarea";
 import { useSlashCommand } from "@/hooks/useSlashCommand";
+import { useDictation } from "@/hooks/useDictation";
 import { ActiveFeaturesList } from "@/components/Chat/ChatInput/ActiveFeaturesList";
 import { SlashCommandMenu } from "@/components/Chat/ChatInput/SlashCommandMenu";
 import { ChatAttachmentsList } from "@/components/Chat/ChatInput/ChatAttachmentsList";
+import { useNotify } from "@/hooks/useNotify";
 
 interface ChatInputProps {
   onSubmit: (value: string) => void | Promise<void>;
@@ -40,6 +44,7 @@ export const ChatInput = memo(function ChatInput({
 }: ChatInputProps) {
   const [draft, setDraft] = useState("");
   const timing = useTiming();
+  const notify = useNotify();
 
   // Hooks
   const {
@@ -60,6 +65,27 @@ export const ChatInput = memo(function ChatInput({
   const { showSlashMenu, closeSlashMenu } = useSlashCommand(draft);
   const features = useFeatures();
   const [slashMenuIndex, setSlashMenuIndex] = useState(0);
+  const appendTranscript = useCallback((text: string) => {
+    setDraft((prev) => {
+      const cleanText = text.trim();
+      if (!cleanText) {
+        return prev;
+      }
+
+      if (!prev.trim()) {
+        return cleanText;
+      }
+
+      const separator = /\s$/.test(prev) ? "" : " ";
+      return `${prev}${separator}${cleanText}`;
+    });
+    textareaRef.current?.focus();
+  }, [textareaRef]);
+
+  const { isRecording, isTranscribing, toggle } = useDictation({
+    onTranscript: appendTranscript,
+    onError: (message) => notify.error("Dictation failed", message),
+  });
 
   useEffect(() => {
     if (showSlashMenu) setSlashMenuIndex(0);
@@ -314,13 +340,82 @@ export const ChatInput = memo(function ChatInput({
                 variants={ANIMATION_VARIANTS.interactive}
                 whileHover="hover"
                 whileTap="tap"
+                onClick={toggle}
+                disabled={isStreaming || isTranscribing}
+                aria-label={isRecording ? "Stop dictation" : "Start dictation"}
+                title={isRecording ? "Stop dictation" : "Start dictation"}
+                sx={{
+                  width: 32,
+                  height: 32,
+                  p: 0,
+                  color: isRecording ? "error.main" : "text.secondary",
+                  borderRadius: "50%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  mb: 0.5,
+                  "&.Mui-disabled": {
+                    color: "text.disabled",
+                    opacity: 0.5,
+                  },
+                }}
+              >
+                <AnimatePresence mode="popLayout" initial={false}>
+                  {isTranscribing ? (
+                    <motion.div
+                      key="dictation-loading"
+                      style={{ display: "flex", alignItems: "center", justifyContent: "center" }}
+                      initial={{ scale: 0.5, opacity: 0, rotate: -45 }}
+                      animate={{ scale: 1, opacity: 1, rotate: 0 }}
+                      exit={{ scale: 0.5, opacity: 0, rotate: 45 }}
+                      transition={{ duration: timing.duration("fast"), ease: timing.ease }}
+                    >
+                      <Ring2
+                        size="16"
+                        stroke="4"
+                        strokeLength="0.28"
+                        bgOpacity="0.1"
+                        speed="0.8"
+                        color="currentColor"
+                      />
+                    </motion.div>
+                  ) : isRecording ? (
+                    <motion.div
+                      key="dictation-stop"
+                      style={{ display: "flex", alignItems: "center", justifyContent: "center" }}
+                      initial={{ scale: 0.5, opacity: 0, rotate: -45 }}
+                      animate={{ scale: 1, opacity: 1, rotate: 0 }}
+                      exit={{ scale: 0.5, opacity: 0, rotate: 45 }}
+                      transition={{ duration: timing.duration("fast"), ease: timing.ease }}
+                    >
+                      <Square size={14} fill="currentColor" />
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="dictation-mic"
+                      style={{ display: "flex", alignItems: "center", justifyContent: "center" }}
+                      initial={{ scale: 0.5, opacity: 0, y: 10 }}
+                      animate={{ scale: 1, opacity: 1, y: 0 }}
+                      exit={{ scale: 0.5, opacity: 0, y: -10 }}
+                      transition={{ duration: timing.duration("fast"), ease: timing.ease }}
+                    >
+                      <Mic size={18} />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </IconButton>
+              <IconButton
+                component={motion.button}
+                variants={ANIMATION_VARIANTS.interactive}
+                whileHover="hover"
+                whileTap="tap"
                 animate={{
                   scale: hasContent || isStreaming ? 1 : 0.95,
                   opacity: hasContent || isStreaming ? 1 : 0.3,
                 }}
                 transition={{ duration: timing.duration("fast"), ease: timing.ease }}
                 onClick={handleAction}
-                disabled={isStreaming ? false : !hasContent || isInputDisabled}
+                disabled={isStreaming ? false : !hasContent || isInputDisabled || isRecording || isTranscribing}
                 aria-label={isStreaming ? "Stop generation" : "Send message"}
                 sx={{
                   width: 32,
