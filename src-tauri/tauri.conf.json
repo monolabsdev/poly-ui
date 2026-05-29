@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Openbench AI",
+  "productName": "PolyUI",
   "version": "0.7.2",
-  "identifier": "com.tslater.openbench",
+  "identifier": "com.tslater.polyui",
   "build": {
     "beforeDevCommand": "bun run dev",
     "devUrl": "http://localhost:1420",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "Openbench AI",
+        "title": "PolyUI",
         "width": 1100,
         "height": 750,
         "minWidth": 900,

@@ -50,7 +50,7 @@ function StartupLoadingScreen({
           color: "text.primary",
         }}
       >
-        Openbench AI
+        PolyUI
       </Typography>
       <Ring2
         size="28"

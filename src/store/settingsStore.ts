@@ -110,7 +110,7 @@ export const useSettingsStore = create<SettingsState>()(
       },
     }),
     {
-      name: "openbench:settings",
+      name: "polyui:settings",
       version: 4,
       migrate: (persisted, version) => {
         const state = persisted as any;

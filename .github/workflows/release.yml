@@ -93,7 +93,7 @@ jobs:
         if: matrix.platform == 'macos'
         uses: actions/upload-artifact@v4
         with:
-          name: openbench-macos
+          name: polyui-macos
           if-no-files-found: error
           path: |
             src-tauri/target/release/bundle/dmg/*.dmg
@@ -104,7 +104,7 @@ jobs:
         if: matrix.platform == 'windows'
         uses: actions/upload-artifact@v4
         with:
-          name: openbench-windows
+          name: polyui-windows
           if-no-files-found: error
           path: |
             src-tauri/target/release/bundle/nsis/*.exe
@@ -114,7 +114,7 @@ jobs:
         if: matrix.platform == 'windows'
         uses: actions/upload-artifact@v4
         with:
-          name: openbench-ollama-windows
+          name: polyui-ollama-windows
           if-no-files-found: error
           path: |
             src-tauri/target/release/bundle/nsis/*Ollama*.exe

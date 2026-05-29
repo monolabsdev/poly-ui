@@ -305,7 +305,7 @@ export const Sidebar = React.memo(function Sidebar({
     if (devTapCount.current >= 10) {
       devTapCount.current = 0;
       setDevMode(true);
-      notify.success("Dev mode activated", "Tap the Openbench AI logo 10 more times to deactivate.");
+      notify.success("Dev mode activated", "Tap the PolyUI logo 10 more times to deactivate.");
     } else if (devTapCount.current === 1 && useDevStore.getState().devMode) {
       // First tap while already in dev mode — deactivate
       devTapCount.current = 0;
@@ -442,7 +442,7 @@ export const Sidebar = React.memo(function Sidebar({
                 userSelect: "none",
               }}
             >
-              Openbench AI
+              PolyUI
             </Typography>
           </Box>
           <SidebarTrigger />

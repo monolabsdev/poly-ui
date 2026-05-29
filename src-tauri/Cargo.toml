@@ -1,12 +1,12 @@
 [package]
-name = "openbench"
+name = "polyui"
 version = "0.7.2"
 description = "A Tauri App"
 authors = ["you"]
 edition = "2021"
 
 [lib]
-name = "openbench_lib"
+name = "polyui_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

@@ -1,4 +1,4 @@
-# Openbench AI
+# PolyUI
 ![GitHub repo size](https://img.shields.io/github/repo-size/theoslater/openbench)
 ![GitHub language count](https://img.shields.io/github/languages/count/theoslater/openbench)
 ![GitHub top language](https://img.shields.io/github/languages/top/theoslater/openbench)
@@ -7,11 +7,11 @@
 
 ![openbench_banner](public/Openbench_Large_Alt.png)
 
-Openbench is a small, high performance and user-friendly AI desktop application designed to be able to operate entirely offline. It currently only supports **Ollama** as its primary LLM runner with hopes of providing different ones such as OpenAI-compatible APIs.
+PolyUI is a small, high performance and user-friendly AI desktop application designed to be able to operate entirely offline. It currently only supports **Ollama** as its primary LLM runner with hopes of providing different ones such as OpenAI-compatible APIs.
 
 ![openbench demo](public/Openbench_Demo.png)
 
-## Key features of Openbench
+## Key features of PolyUI
 
 - 🚀 **Effortless Setup**: Intall seamlessly using the setup file for a hassle-free experience with support for Ollama. You **must** have ollama installed first.
 - 🤝 **Ollama Integration**: Use ollama models effortlessly through this application.
@@ -27,7 +27,7 @@ Openbench is a small, high performance and user-friendly AI desktop application 
 ## How to Install 🚀
 
 ### Installation via releases
-Openbench can be installed through the [releases](https://github.com/monolabsdev/openbench-ai/releases) page by downloading and running the installer.
+PolyUI can be installed through the [releases](https://github.com/monolabsdev/openbench-ai/releases) page by downloading and running the installer.
 
 ### Using the Dev Branch 🌙
 > [!WARNING]
@@ -68,7 +68,7 @@ To build the default installer:
 ```bash
 bun run tauri build
 ```
-To compile and build the Ollama + Openbench AI installer:
+To compile and build the Ollama + PolyUI installer:
 ```bash
 bun run ollama-setup
 ```
@@ -76,14 +76,14 @@ bun run ollama-setup
 
 ## ❓ Frequently Asked Questions
 
-###  How is Openbench different from Open WebUI?
+###  How is PolyUI different from Open WebUI?
 
-Openbench focuses on simplicity and ease of setup.
+PolyUI focuses on simplicity and ease of setup.
 
-Unlike platforms that commonly rely on Python, Docker, Kubernetes, or more complex deployment infrastructure, Openbench is designed to be lightweight and straightforward to install and run locally.
+Unlike platforms that commonly rely on Python, Docker, Kubernetes, or more complex deployment infrastructure, PolyUI is designed to be lightweight and straightforward to install and run locally.
 
 ## What's next? 🌟
-Discover upcoming features on our roadmap in the [Openbench backlog](https://github.com/orgs/monolabsdev/projects/1/)
+Discover upcoming features on our roadmap in the [PolyUI backlog](https://github.com/orgs/monolabsdev/projects/1/)
 
 ## License
 This project contains licenced code. Please refer to [LICENSE](LICENSE.md)

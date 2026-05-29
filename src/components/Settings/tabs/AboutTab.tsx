@@ -2,7 +2,7 @@ import { Box, Link, Stack, Typography } from "@mui/material";
 
 declare const __APP_VERSION__: string;
 
-const APP_REPO = "https://github.com/theoslater/openbench";
+const APP_REPO = "https://github.com/theoslater/polyui";
 
 export function AboutTab() {
   return (
@@ -13,7 +13,7 @@ export function AboutTab() {
             <Typography
               sx={{ fontSize: 13, fontWeight: 600, color: "text.primary" }}
             >
-              Openbench AI
+              PolyUI
             </Typography>
             <Typography
               sx={{ fontSize: 12, color: "text.secondary", mt: 0.25 }}

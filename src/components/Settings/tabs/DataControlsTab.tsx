@@ -149,7 +149,7 @@ export function DataControlsTab() {
 
       const csv = buildChatsCsv(exportRows);
       const date = new Date().toISOString().slice(0, 10);
-      const defaultFileName = `openbench-export-${date}.csv`;
+      const defaultFileName = `polyui-export-${date}.csv`;
 
       if ("showSaveFilePicker" in window) {
         const fileHandle = await (

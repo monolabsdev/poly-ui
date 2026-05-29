@@ -4,7 +4,7 @@ import { loggedInvoke } from "@/lib/utils";
 import { useChatStore } from "@/store/chatStore";
 import { getRepository } from "@/lib/repositories";
 
-const GUEST_ID_KEY = "openbench.guestId";
+const GUEST_ID_KEY = "polyui.guestId";
 
 function loadGuestId(): string | null {
   try {

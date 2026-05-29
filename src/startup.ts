@@ -5,7 +5,7 @@ import { useModelStore } from "@/store/modelStore";
 import { useOllamaStore } from "@/services/ollama/monitor";
 import { useProviderStore } from "@/services/providers";
 
-const SYSTEM_PROMPTS_STORAGE_KEY = "openbench.systemPrompts";
+const SYSTEM_PROMPTS_STORAGE_KEY = "polyui.systemPrompts";
 
 type StoredPrompts = {
   systemPrompts: SystemPrompt[];
@@ -37,10 +37,10 @@ function restoreSystemPrompts() {
 }
 
 function startSystemPromptPersistence() {
-  if (window.__openbenchSystemPromptUnsubscribe) return;
+  if (window.__polyuiSystemPromptUnsubscribe) return;
 
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
-  window.__openbenchSystemPromptUnsubscribe = useModelStore.subscribe(
+  window.__polyuiSystemPromptUnsubscribe = useModelStore.subscribe(
     (state) => {
       if (timeoutId) clearTimeout(timeoutId);
 
@@ -108,7 +108,7 @@ export async function prepareAppStartup() {
 
 declare global {
   interface Window {
-    __openbenchSystemPromptUnsubscribe?: () => void;
+    __polyuiSystemPromptUnsubscribe?: () => void;
   }
 }
 
