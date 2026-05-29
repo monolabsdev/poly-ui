@@ -11,6 +11,16 @@ interface UseDictationOptions {
 }
 
 const TARGET_SAMPLE_RATE = 16000;
+const MAX_RECORDING_SECONDS = 120;
+
+let audioContext: AudioContext | null = null;
+
+function getAudioContext(): AudioContext {
+  if (!audioContext) {
+    audioContext = new AudioContext();
+  }
+  return audioContext;
+}
 
 function pickRecorderMimeType(): string | undefined {
   if (typeof window === "undefined" || typeof MediaRecorder === "undefined") {
@@ -74,16 +84,21 @@ function downsamplePcm(samples: Float32Array, sourceSampleRate: number, targetSa
   return output;
 }
 
-async function decodeRecording(blob: Blob): Promise<Float32Array> {
-  const audioContext = new AudioContext();
-  try {
-    const arrayBuffer = await blob.arrayBuffer();
-    const decoded = await audioContext.decodeAudioData(arrayBuffer.slice(0));
-    const mono = mixToMono(decoded);
-    return downsamplePcm(mono, decoded.sampleRate, TARGET_SAMPLE_RATE);
-  } finally {
-    await audioContext.close().catch(() => {});
+function normalizeInt16(samples: Float32Array): Int16Array {
+  const out = new Int16Array(samples.length);
+  for (let i = 0; i < samples.length; i++) {
+    const clamped = Math.max(-1, Math.min(1, samples[i]));
+    out[i] = Math.round(clamped * 32767);
   }
+  return out;
+}
+
+async function decodeRecording(blob: Blob): Promise<Float32Array> {
+  const ctx = getAudioContext();
+  const arrayBuffer = await blob.arrayBuffer();
+  const decoded = await ctx.decodeAudioData(arrayBuffer.slice(0));
+  const mono = mixToMono(decoded);
+  return downsamplePcm(mono, decoded.sampleRate, TARGET_SAMPLE_RATE);
 }
 
 export function useDictation({ onTranscript, onError }: UseDictationOptions) {
@@ -94,17 +109,6 @@ export function useDictation({ onTranscript, onError }: UseDictationOptions) {
   const isMountedRef = useRef(true);
   const sessionIdRef = useRef(0);
 
-  useEffect(() => {
-    const markUnmounted = markDictationMounted(isMountedRef);
-    return () => {
-      markUnmounted();
-      if (recorderRef.current?.state === "recording") {
-        recorderRef.current.stop();
-      }
-      streamRef.current?.getTracks().forEach((track) => track.stop());
-    };
-  }, []);
-
   const cleanup = useCallback(() => {
     recorderRef.current = null;
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -112,11 +116,20 @@ export function useDictation({ onTranscript, onError }: UseDictationOptions) {
     chunksRef.current = [];
   }, []);
 
+  useEffect(() => {
+    const markUnmounted = markDictationMounted(isMountedRef);
+    return () => {
+      markUnmounted();
+      cleanup();
+    };
+  }, [cleanup]);
+
   const transcribeRecording = useCallback(
     async (blob: Blob) => {
       const samples = await decodeRecording(blob);
+      const i16 = normalizeInt16(samples);
       const transcript = await loggedInvoke<string>("transcribe_audio", {
-        samples: Array.from(samples),
+        samples: Array.from(i16),
         sampleRate: TARGET_SAMPLE_RATE,
         language: "en",
       });
@@ -191,6 +204,12 @@ export function useDictation({ onTranscript, onError }: UseDictationOptions) {
       chunksRef.current = [];
       setStatus("recording");
 
+      const maxDurationTimer = setTimeout(() => {
+        if (recorder.state === "recording") {
+          recorder.stop();
+        }
+      }, MAX_RECORDING_SECONDS * 1000);
+
       recorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
           chunksRef.current.push(event.data);
@@ -198,12 +217,14 @@ export function useDictation({ onTranscript, onError }: UseDictationOptions) {
       };
 
       recorder.onerror = () => {
+        clearTimeout(maxDurationTimer);
         onError?.("Dictation recording failed.");
         cleanup();
         finishSession(sessionId);
       };
 
       recorder.onstop = () => {
+        clearTimeout(maxDurationTimer);
         const blob = new Blob(chunksRef.current, {
           type: recorder.mimeType || "audio/webm",
         });

@@ -4,7 +4,6 @@ import {
   AppDialogBody,
   AppDialogFrame,
   AppDialogHeader,
-  appFadeInSx,
   appTextFieldSx,
 } from "@/components/ui/appDialog";
 import {
@@ -104,7 +103,6 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     textAlign: "left",
                     color: isActive ? "text.primary" : "text.secondary",
                     bgcolor: isActive ? "action.hover" : "transparent",
-                    transition: "background 100ms ease, color 100ms ease",
                     "&:hover": {
                       bgcolor: "action.hover",
                       color: "text.primary",
@@ -173,7 +171,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           </Box>
 
           <AppDialogBody>
-            <Box key={activeTab} sx={appFadeInSx}>
+            <Box key={activeTab}>
               {activeTab === "general" && <GeneralTab />}
               {activeTab === "providers" && <ProviderTab />}
               {activeTab === "personalisation" && <PersonalisationTab />}

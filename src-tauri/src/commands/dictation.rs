@@ -1,10 +1,11 @@
 use crate::AppState;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tauri::{AppHandle, Manager};
+use std::sync::OnceLock;
+use std::time::Duration;
+use tauri::{AppHandle, Emitter, Manager};
 use tokio::fs;
 use tokio::io::AsyncWriteExt;
-use tokio::sync::Mutex;
 use tokio_stream::StreamExt;
 use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextParameters};
 
@@ -13,19 +14,19 @@ const WHISPER_MODEL_URL: &str =
     "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en.bin";
 
 pub struct DictationState {
-    context: Mutex<Option<Arc<WhisperContext>>>,
+    context: OnceLock<Arc<WhisperContext>>,
 }
 
 impl DictationState {
     pub fn new() -> Self {
         Self {
-            context: Mutex::new(None),
+            context: OnceLock::new(),
         }
     }
 
     async fn context(&self, model_path: PathBuf) -> Result<Arc<WhisperContext>, String> {
-        if let Some(context) = self.context.lock().await.as_ref().cloned() {
-            return Ok(context);
+        if let Some(context) = self.context.get() {
+            return Ok(context.clone());
         }
 
         let loaded_context = tokio::task::spawn_blocking(move || {
@@ -36,12 +37,10 @@ impl DictationState {
         .await
         .map_err(|err| format!("Dictation model load task failed: {err}"))??;
 
-        let mut context = self.context.lock().await;
-        if let Some(existing_context) = context.as_ref().cloned() {
-            return Ok(existing_context);
-        }
+        self.context
+            .set(loaded_context.clone())
+            .map_err(|_| "Dictation model already initialized by another task".to_string())?;
 
-        *context = Some(loaded_context.clone());
         Ok(loaded_context)
     }
 }
@@ -50,7 +49,7 @@ impl DictationState {
 pub async fn transcribe_audio(
     app_handle: AppHandle,
     state: tauri::State<'_, AppState>,
-    samples: Vec<f32>,
+    samples: Vec<i16>,
     sample_rate: u32,
     language: Option<String>,
 ) -> Result<String, String> {
@@ -66,10 +65,11 @@ pub async fn transcribe_audio(
     let context = state.dictation.context(model_path).await?;
     let language = language.unwrap_or_else(|| "en".to_string());
 
+    let samples: Vec<f32> = samples.into_iter().map(|s| (s as f32) / 32768.0).collect();
+
     let transcript = tokio::task::spawn_blocking(move || transcribe_samples(context, samples, language))
         .await
         .map_err(|err| format!("Dictation task failed: {err}"))??;
-    eprintln!("[Dictation] returning transcript to frontend: {transcript:?}");
     Ok(transcript)
 }
 
@@ -119,13 +119,12 @@ fn transcribe_samples(
     }
 
     let transcript = segments.join(" ");
-    eprintln!("[Dictation] transcript: {transcript:?}");
     Ok(transcript)
 }
 
 fn thread_count() -> i32 {
     std::thread::available_parallelism()
-        .map(|count| count.get().clamp(1, 4) as i32)
+        .map(|count| count.get() as i32)
         .unwrap_or(4)
 }
 
@@ -145,11 +144,21 @@ async fn ensure_model(app_handle: &AppHandle) -> Result<PathBuf, String> {
     }
 
     let download_path = model_dir.join(format!("{WHISPER_MODEL_NAME}.download"));
-    let response = reqwest::get(WHISPER_MODEL_URL)
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(300))
+        .build()
+        .map_err(|err| format!("Failed to create HTTP client: {err}"))?;
+
+    let response = client
+        .get(WHISPER_MODEL_URL)
+        .send()
         .await
         .map_err(|err| format!("Failed to download dictation model: {err}"))?
         .error_for_status()
         .map_err(|err| format!("Failed to download dictation model: {err}"))?;
+
+    let total_size = response.content_length().unwrap_or(0);
+    let mut downloaded: u64 = 0;
 
     let mut file = fs::File::create(&download_path)
         .await
@@ -158,9 +167,20 @@ async fn ensure_model(app_handle: &AppHandle) -> Result<PathBuf, String> {
     let mut stream = response.bytes_stream();
     while let Some(chunk) = stream.next().await {
         let chunk = chunk.map_err(|err| format!("Failed to download dictation model: {err}"))?;
+        downloaded += chunk.len() as u64;
         file.write_all(&chunk)
             .await
             .map_err(|err| format!("Failed to write dictation model: {err}"))?;
+
+        if total_size > 0 {
+            let _ = app_handle.emit(
+                "dictation-progress",
+                serde_json::json!({
+                    "downloaded": downloaded,
+                    "total": total_size,
+                }),
+            );
+        }
     }
 
     file.flush()

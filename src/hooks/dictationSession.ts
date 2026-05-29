@@ -13,7 +13,7 @@ export async function runDictationTranscription({
 }: RunDictationTranscriptionOptions): Promise<void> {
   try {
     const transcript = (await transcribe()).trim();
-    if (transcript && isCurrentSession()) {
+    if (isCurrentSession()) {
       onTranscript(transcript);
     }
   } catch (error) {
