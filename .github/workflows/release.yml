@@ -55,6 +55,17 @@ jobs:
       - name: Install frontend dependencies
         run: bun install --frozen-lockfile
 
+      - name: Configure macOS native build flags
+        if: matrix.platform == 'macos'
+        shell: bash
+        run: |
+          {
+            echo "MACOSX_DEPLOYMENT_TARGET=11.0"
+            echo "CMAKE_OSX_DEPLOYMENT_TARGET=11.0"
+            echo "CMAKE_C_FLAGS=-mmacosx-version-min=11.0"
+            echo "CMAKE_CXX_FLAGS=-D_LIBCPP_DISABLE_AVAILABILITY -mmacosx-version-min=11.0"
+          } >> "$GITHUB_ENV"
+
       - name: Build OpenBench installer
         run: bun run tauri build
 
