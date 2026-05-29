@@ -12,6 +12,7 @@ permissions:
 env:
   CARGO_TERM_COLOR: always
   OLLAMA_HOST: http://127.0.0.1:11434
+  MACOSX_DEPLOYMENT_TARGET: "10.15"
 
 jobs:
   build:

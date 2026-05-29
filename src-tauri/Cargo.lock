@@ -3063,7 +3063,7 @@ dependencies = [
 
 [[package]]
 name = "openbench"
-version = "0.7.1"
+version = "0.7.2"
 dependencies = [
  "async-trait",
  "bcrypt",
