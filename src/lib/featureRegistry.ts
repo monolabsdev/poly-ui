@@ -1,4 +1,4 @@
-import { Globe } from "lucide-react";
+import { Globe, Brain } from "lucide-react";
 import { useSettingsStore } from "@/store/settingsStore";
 import React from "react";
 
@@ -21,6 +21,17 @@ export const featureRegistry: FeatureDef[] = [
     toggle: () => {
       const state = useSettingsStore.getState();
       state.actions.updateGeneral({ webSearchEnabled: !state.general.webSearchEnabled });
+    }
+  },
+  {
+    id: "reasoning",
+    name: "Reasoning",
+    description: "Enable thinking for reasoning models (DeepSeek, Qwen3, GPT-OSS)",
+    icon: Brain,
+    useIsActive: () => useSettingsStore((s) => s.general.reasoningEnabled),
+    toggle: () => {
+      const state = useSettingsStore.getState();
+      state.actions.updateGeneral({ reasoningEnabled: !state.general.reasoningEnabled });
     }
   }
 ];

@@ -28,9 +28,9 @@ dist-ssr
 *.sln
 *.sw?
 
-./CLAUDE.md
-/.junie/memory
-/.junie
+CLAUDE.md
 AGENTS.md
-docs/inp-trace-playbook.md
+.claude/
 .claude/settings.local.json
+.codex/
+.codex/config.toml

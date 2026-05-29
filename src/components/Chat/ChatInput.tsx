@@ -1,5 +1,5 @@
 import { Square, Plus, ArrowUp, Paperclip, Image as ImageIcon } from "lucide-react";
-import { useState, memo } from "react";
+import { useState, memo, useEffect } from "react";
 import { Box, InputBase, IconButton, Typography } from "@mui/material";
 import {
   DropdownMenu,
@@ -59,6 +59,11 @@ export const ChatInput = memo(function ChatInput({
   const textareaRef = useChatTextarea(draft);
   const { showSlashMenu, closeSlashMenu } = useSlashCommand(draft);
   const features = useFeatures();
+  const [slashMenuIndex, setSlashMenuIndex] = useState(0);
+
+  useEffect(() => {
+    if (showSlashMenu) setSlashMenuIndex(0);
+  }, [showSlashMenu]);
 
   // Derived state
   const activeFeatures = features.filter((f) => f.active);
@@ -83,6 +88,29 @@ export const ChatInput = memo(function ChatInput({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (showSlashMenu) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setSlashMenuIndex((prev) => (prev + 1) % features.length);
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setSlashMenuIndex((prev) => (prev - 1 + features.length) % features.length);
+        return;
+      }
+      if (e.key === "Enter") {
+        e.preventDefault();
+        handleSlashSelect(features[slashMenuIndex]);
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        closeSlashMenu();
+        return;
+      }
+    }
+
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSubmit();
@@ -120,7 +148,7 @@ export const ChatInput = memo(function ChatInput({
         {/* Slash command menu */}
         <AnimatePresence>
           {showSlashMenu && (
-            <SlashCommandMenu features={features} onSelect={handleSlashSelect} />
+            <SlashCommandMenu features={features} onSelect={handleSlashSelect} selectedIndex={slashMenuIndex} />
           )}
         </AnimatePresence>
 

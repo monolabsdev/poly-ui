@@ -17,6 +17,7 @@ export type GeneralSettings = {
   systemPrompt: string;
   exaApiKey: string;
   webSearchEnabled: boolean;
+  reasoningEnabled: boolean;
 };
 
 export type BrowserTtsSettings = {
@@ -81,6 +82,7 @@ export const useSettingsStore = create<SettingsState>()(
         systemPrompt: "",
         exaApiKey: "",
         webSearchEnabled: false,
+        reasoningEnabled: false,
       },
       account: { ...defaultAccount },
       tts: { ...defaultTts },
@@ -109,7 +111,7 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: "openbench:settings",
-      version: 3,
+      version: 4,
       migrate: (persisted, version) => {
         const state = persisted as any;
         if (!state?.tts) return state as SettingsState;

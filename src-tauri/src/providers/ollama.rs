@@ -1,10 +1,12 @@
-use crate::models::chat::{ChatMessage, StreamMetadata, StreamPayload, ToolCallInfo, ToolDefinition};
+use crate::models::chat::{
+    ChatMessage, StreamMetadata, StreamPayload, ToolCallInfo, ToolDefinition,
+};
 use crate::providers::base::{LLMProvider, ProviderStatus, ProviderType};
 use async_trait::async_trait;
 use futures::Stream;
 use ollama_rs::generation::chat::request::ChatMessageRequest;
 use ollama_rs::generation::chat::ChatMessage as OllamaChatMessage;
-use ollama_rs::generation::parameters::FormatType;
+use ollama_rs::generation::parameters::{FormatType, ThinkType};
 use ollama_rs::generation::tools::ToolInfo;
 use ollama_rs::models::ModelOptions;
 use ollama_rs::Ollama;
@@ -95,6 +97,54 @@ fn normalize_msg(msg: &str, raw: String) -> String {
     raw
 }
 
+fn is_gpt_oss_model(model: &str) -> bool {
+    let normalized = model.to_ascii_lowercase().replace('_', "-");
+    normalized.contains("gpt-oss")
+}
+
+fn is_gemma_think_token_model(model: &str) -> bool {
+    let normalized = model.to_ascii_lowercase().replace('_', "-");
+    normalized.contains("gemma4") || normalized.contains("gemma-4")
+}
+
+fn think_type_for_model(model: &str, reasoning_enabled: bool) -> ThinkType {
+    if is_gpt_oss_model(model) {
+        if reasoning_enabled {
+            ThinkType::Medium
+        } else {
+            ThinkType::Low
+        }
+    } else if reasoning_enabled {
+        ThinkType::True
+    } else {
+        ThinkType::False
+    }
+}
+
+fn with_model_thinking_prompt(
+    model: &str,
+    system_prompt: Option<String>,
+    reasoning_enabled: bool,
+) -> Option<String> {
+    let prompt = system_prompt.unwrap_or_default();
+    let prompt = prompt
+        .trim_start_matches("<|think|>")
+        .trim_start()
+        .to_string();
+
+    if reasoning_enabled && is_gemma_think_token_model(model) {
+        if prompt.is_empty() {
+            Some("<|think|>".to_string())
+        } else {
+            Some(format!("<|think|>\n{prompt}"))
+        }
+    } else if prompt.is_empty() {
+        None
+    } else {
+        Some(prompt)
+    }
+}
+
 #[async_trait]
 impl LLMProvider for OllamaProvider {
     async fn health_check(&self) -> ProviderStatus {
@@ -128,9 +178,15 @@ impl LLMProvider for OllamaProvider {
         options: Option<serde_json::Value>,
         tools: Option<Vec<ToolDefinition>>,
     ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamPayload, String>> + Send>>, String> {
+        let reasoning_enabled = options
+            .as_ref()
+            .and_then(|opt| opt.get("reasoning_enabled"))
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+
         let mut history: Vec<OllamaChatMessage> = Vec::new();
 
-        if let Some(prompt) = system_prompt {
+        if let Some(prompt) = with_model_thinking_prompt(&model, system_prompt, reasoning_enabled) {
             if !prompt.trim().is_empty() {
                 history.push(OllamaChatMessage::system(prompt));
             }
@@ -179,6 +235,11 @@ impl LLMProvider for OllamaProvider {
         let mut request = ChatMessageRequest::new(model.clone(), history);
 
         if let Some(mut opt) = options {
+            request.think = Some(think_type_for_model(&model, reasoning_enabled));
+            if let Some(object) = opt.as_object_mut() {
+                object.remove("reasoning_enabled");
+            }
+
             if opt
                 .get("format")
                 .and_then(|value| value.as_str())
@@ -193,6 +254,9 @@ impl LLMProvider for OllamaProvider {
             if let Ok(model_opts) = serde_json::from_value::<ModelOptions>(opt) {
                 request.options = Some(model_opts);
             }
+        } else {
+            // Default reasoning off; GPT-OSS uses "low" because it does not accept false.
+            request.think = Some(think_type_for_model(&model, false));
         }
 
         if let Some(tool_defs) = tools {

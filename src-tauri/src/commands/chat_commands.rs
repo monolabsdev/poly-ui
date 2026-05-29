@@ -10,6 +10,129 @@ use std::sync::atomic::Ordering;
 use tauri::{AppHandle, Emitter};
 use tokio_stream::StreamExt;
 
+const THINK_START_TAGS: [&str; 2] = ["<think>", "<|channel>thought"];
+const THINK_END_TAGS: [&str; 2] = ["</think>", "<channel|>"];
+
+struct ThinkingTagParser {
+    enabled: bool,
+    in_thinking: bool,
+    buffer: String,
+}
+
+impl ThinkingTagParser {
+    fn new(enabled: bool) -> Self {
+        Self {
+            enabled,
+            in_thinking: false,
+            buffer: String::new(),
+        }
+    }
+
+    fn push(&mut self, chunk: &str) -> (String, String) {
+        if !self.enabled {
+            return (chunk.to_string(), String::new());
+        }
+
+        self.buffer.push_str(chunk);
+        self.drain(false)
+    }
+
+    fn finish(&mut self) -> (String, String) {
+        if !self.enabled {
+            return (String::new(), String::new());
+        }
+
+        let drained = self.drain(true);
+        self.in_thinking = false;
+        drained
+    }
+
+    fn drain(&mut self, finish: bool) -> (String, String) {
+        let mut content = String::new();
+        let mut thinking = String::new();
+
+        loop {
+            if self.in_thinking {
+                if let Some((idx, tag)) = find_first_tag(&self.buffer, &THINK_END_TAGS) {
+                    thinking.push_str(&self.buffer[..idx]);
+                    self.buffer.drain(..idx + tag.len());
+                    self.in_thinking = false;
+                    continue;
+                }
+
+                let keep = if finish {
+                    0
+                } else {
+                    THINK_END_TAGS
+                        .iter()
+                        .map(|tag| tag.len())
+                        .max()
+                        .unwrap_or(0)
+                        - 1
+                };
+                if self.buffer.len() > keep {
+                    let split_at = safe_split_index(&self.buffer, self.buffer.len() - keep);
+                    thinking.push_str(&self.buffer[..split_at]);
+                    self.buffer.drain(..split_at);
+                }
+                break;
+            }
+
+            if let Some((idx, tag)) = find_first_tag(&self.buffer, &THINK_START_TAGS) {
+                content.push_str(&self.buffer[..idx]);
+                self.buffer.drain(..idx + tag.len());
+                self.in_thinking = true;
+                if self.buffer.starts_with('\n') {
+                    self.buffer.drain(..1);
+                }
+                continue;
+            }
+
+            let keep = if finish {
+                0
+            } else {
+                THINK_START_TAGS
+                    .iter()
+                    .map(|tag| tag.len())
+                    .max()
+                    .unwrap_or(0)
+                    - 1
+            };
+            if self.buffer.len() > keep {
+                let split_at = safe_split_index(&self.buffer, self.buffer.len() - keep);
+                content.push_str(&self.buffer[..split_at]);
+                self.buffer.drain(..split_at);
+            }
+            break;
+        }
+
+        if finish && !self.buffer.is_empty() {
+            if self.in_thinking {
+                thinking.push_str(&self.buffer);
+            } else {
+                content.push_str(&self.buffer);
+            }
+            self.buffer.clear();
+        }
+
+        (content, thinking)
+    }
+}
+
+fn find_first_tag<'a>(haystack: &str, tags: &'a [&str]) -> Option<(usize, &'a str)> {
+    tags.iter()
+        .filter_map(|tag| haystack.find(tag).map(|idx| (idx, *tag)))
+        .min_by_key(|(idx, _)| *idx)
+}
+
+fn safe_split_index(value: &str, max: usize) -> usize {
+    let mut idx = max.min(value.len());
+    while idx > 0 && !value.is_char_boundary(idx) {
+        idx -= 1;
+    }
+    idx
+}
+
 #[tauri::command]
 pub async fn chat_stream(
     app_handle: AppHandle,
@@ -19,6 +142,7 @@ pub async fn chat_stream(
     messages: Vec<ChatMessage>,
     system_prompt: Option<String>,
     exa_api_key: Option<String>,
+    reasoning_enabled: bool,
 ) -> Result<(), String> {
     let my_generation_id = state.current_generation_id.load(Ordering::SeqCst);
 
@@ -56,6 +180,7 @@ pub async fn chat_stream(
     let mut content_acc = String::new();
     let mut thinking_acc = String::new();
     let mut final_metadata: Option<StreamMetadata> = None;
+    let mut thinking_tag_parser = ThinkingTagParser::new(reasoning_enabled);
 
     // Iterative tool-calling loop: each pass streams with tools defined;
     // if the model calls web_search, we execute the search, append tool call +
@@ -66,12 +191,18 @@ pub async fn chat_stream(
         let mut pending_content = String::new();
         let mut handled_tool_call = false;
 
+        let reasoning_opt = if reasoning_enabled {
+            serde_json::json!({"reasoning_enabled": true})
+        } else {
+            serde_json::json!({"reasoning_enabled": false})
+        };
+
         let mut stream = match provider
             .chat_completion(
                 model.clone(),
                 current_messages.clone(),
                 system_prompt.clone(),
-                None,
+                Some(reasoning_opt),
                 Some(vec![web_search_tool.clone()]),
             )
             .await
@@ -168,8 +299,22 @@ pub async fn chat_stream(
             }
 
             if !chunk.content.is_empty() {
-                content_acc.push_str(&chunk.content);
-                pending_content.push_str(&chunk.content);
+                let (content_chunk, thinking_chunk) = thinking_tag_parser.push(&chunk.content);
+                if !thinking_chunk.is_empty() {
+                    thinking_acc.push_str(&thinking_chunk);
+                    let is_thinking = content_acc.is_empty();
+                    let _ = app_handle.emit(
+                        "chat-thinking",
+                        ThinkingPayload {
+                            request_id: request_id.clone(),
+                            thinking: thinking_acc.clone(),
+                            is_thinking,
+                        },
+                    );
+                }
+
+                content_acc.push_str(&content_chunk);
+                pending_content.push_str(&content_chunk);
                 if pending_content.len() >= TOKEN_BATCH_SIZE {
                     let _ = app_handle.emit(
                         "chat-chunk",
@@ -187,6 +332,23 @@ pub async fn chat_stream(
             }
 
             if chunk.done {
+                let (content_chunk, thinking_chunk) = thinking_tag_parser.finish();
+                if !thinking_chunk.is_empty() {
+                    thinking_acc.push_str(&thinking_chunk);
+                    let _ = app_handle.emit(
+                        "chat-thinking",
+                        ThinkingPayload {
+                            request_id: request_id.clone(),
+                            thinking: thinking_acc.clone(),
+                            is_thinking: false,
+                        },
+                    );
+                }
+                if !content_chunk.is_empty() {
+                    content_acc.push_str(&content_chunk);
+                    pending_content.push_str(&content_chunk);
+                }
+
                 // Flush remaining pending content
                 if !pending_content.is_empty() {
                     let _ = app_handle.emit(
@@ -357,10 +519,7 @@ fn format_search_results(query: &str, results: &[SearchResultItem], error: Optio
     let mut output = String::new();
 
     if let Some(err) = error {
-        output.push_str(&format!(
-            "Web search for \"{}\" failed: {}\n",
-            query, err
-        ));
+        output.push_str(&format!("Web search for \"{}\" failed: {}\n", query, err));
         return output;
     }
 

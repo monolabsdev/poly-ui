@@ -329,7 +329,7 @@ export function useChatStream(selectedModels: string[], systemPrompt = "", userN
       resetStreamState();
       pendingStreamsRef.current = models.length;
 
-      const { exaApiKey, webSearchEnabled } = useSettingsStore.getState().general;
+      const { exaApiKey, webSearchEnabled, reasoningEnabled } = useSettingsStore.getState().general;
       const system = buildSystemPrompt(systemPrompt, exaApiKey, webSearchEnabled);
 
       for (const model of models) {
@@ -354,6 +354,7 @@ export function useChatStream(selectedModels: string[], systemPrompt = "", userN
           messages: history,
           systemPrompt: system,
           exaApiKey: exaApiKey || null,
+          reasoningEnabled,
         }).catch((err) => {
           console.error(err);
           settlePending();
