@@ -34,3 +34,18 @@ log = "0.4"
 tauri-plugin-fs = "2"
 tauri-plugin-supertonic = "0.1"
 whisper-rs = "0.16"
+
+[build]
+rustflags = [
+  "-C", "link-arg=-mmacosx-version-min=10.15",
+]
+
+[target.aarch64-apple-darwin]
+rustflags = [
+  "-C", "link-arg=-mmacosx-version-min=10.15",
+]
+
+[target.x86_64-apple-darwin]
+rustflags = [
+  "-C", "link-arg=-mmacosx-version-min=10.15",
+]
