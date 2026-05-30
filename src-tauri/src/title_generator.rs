@@ -1,5 +1,5 @@
 use crate::models::chat::ChatMessage;
-use crate::providers::base::{LLMProvider, ProviderType};
+use crate::providers::base::LLMProvider;
 use chrono::Utc;
 use serde_json::Value;
 use std::env;
@@ -15,7 +15,7 @@ pub async fn generate_title(
         return None;
     }
 
-    let task_model = resolve_task_model(provider.get_provider_type(), model);
+    let task_model = selected_title_model(model);
     if task_model.trim().is_empty() {
         return None;
     }
@@ -34,18 +34,11 @@ pub async fn generate_title(
         1
     };
 
-    for attempt in 0..max_attempts {
-        let temperature = if attempt == 0 { 0.2 } else { 0.7 };
-        for use_json_format in [false, true] {
-            if let Some(title) = attempt_title_generation(
-                provider,
-                &task_model,
-                &task_messages,
-                use_json_format,
-                temperature,
-                messages,
-            )
-            .await
+    for _ in 0..max_attempts {
+        for options in title_completion_options() {
+            if let Some(title) =
+                attempt_title_generation(provider, task_model, &task_messages, options, messages)
+                    .await
             {
                 return Some(title);
             }
@@ -59,19 +52,10 @@ async fn attempt_title_generation(
     provider: &dyn LLMProvider,
     task_model: &str,
     task_messages: &[ChatMessage],
-    use_json_format: bool,
-    temperature: f64,
+    options: Value,
     conversation: &[ChatMessage],
 ) -> Option<String> {
-    match run_title_completion(
-        provider,
-        task_model,
-        task_messages,
-        use_json_format,
-        temperature,
-    )
-    .await
-    {
+    match run_title_completion(provider, task_model, task_messages, options).await {
         Ok(raw) => {
             let trimmed = raw.trim();
             if trimmed.is_empty() {
@@ -143,18 +127,20 @@ fn first_user_fallback_title(messages: &[ChatMessage]) -> Option<String> {
         return None;
     }
 
-    let words: Vec<&str> = first_user.split_whitespace().collect();
-    let truncated: String = if words.len() <= 8 && first_user.chars().count() <= 80 {
-        first_user
+    let cleaned: String = first_user
+        .chars()
+        .filter(|ch| !is_emoji(*ch))
+        .map(|ch| if ch.is_control() { ' ' } else { ch })
+        .collect();
+    let cleaned = compact_whitespace(&cleaned);
+    let words: Vec<&str> = cleaned.split_whitespace().collect();
+    let truncated: String = if words.len() <= 8 && cleaned.chars().count() <= 80 {
+        cleaned
     } else {
         words[..8.min(words.len())].join(" ")
     };
 
-    let cleaned: String = truncated
-        .chars()
-        .take(80)
-        .map(|ch| if ch.is_control() { ' ' } else { ch })
-        .collect();
+    let cleaned: String = truncated.chars().take(80).collect();
     let cleaned = compact_whitespace(&cleaned).trim().to_string();
 
     if cleaned.is_empty() {
@@ -168,21 +154,16 @@ async fn run_title_completion(
     provider: &dyn LLMProvider,
     model: &str,
     messages: &[ChatMessage],
-    use_json_format: bool,
-    temperature: f64,
+    options: Value,
 ) -> Result<String, String> {
-    let mut opts = serde_json::json!({
-        "temperature": temperature,
-        "num_predict": 200,
-        "top_p": 0.8,
-    });
-
-    if use_json_format {
-        opts["format"] = serde_json::json!("json");
-    }
-
     let mut stream = provider
-        .chat_completion(model.to_string(), messages.to_vec(), None, Some(opts), None)
+        .chat_completion(
+            model.to_string(),
+            messages.to_vec(),
+            None,
+            Some(options),
+            None,
+        )
         .await?;
 
     let mut raw = String::new();
@@ -197,18 +178,28 @@ async fn run_title_completion(
     Ok(raw)
 }
 
-fn resolve_task_model(provider_type: ProviderType, fallback_model: &str) -> String {
-    let env_key = if provider_type == ProviderType::OllamaLocal {
-        "TASK_MODEL"
-    } else {
-        "TASK_MODEL_EXTERNAL"
-    };
+fn selected_title_model(model: &str) -> &str {
+    model
+}
 
-    env::var(env_key)
-        .ok()
-        .map(|value| value.trim().to_string())
-        .filter(|value| !value.is_empty())
-        .unwrap_or_else(|| fallback_model.to_string())
+fn title_completion_options() -> [Value; 2] {
+    let base = serde_json::json!({
+        "temperature": 0.0,
+        "num_predict": 80,
+        "top_p": 0.8,
+    });
+    let mut structured = base.clone();
+    structured["format"] = serde_json::json!({
+        "type": "object",
+        "properties": {
+            "title": { "type": "string" }
+        },
+        "required": ["title"],
+        "additionalProperties": false
+    });
+    let mut json = base;
+    json["format"] = serde_json::json!("json");
+    [structured, json]
 }
 
 fn build_title_prompt(messages: &[ChatMessage], user_name: Option<&str>) -> String {
@@ -233,7 +224,7 @@ fn build_title_prompt(messages: &[ChatMessage], user_name: Option<&str>) -> Stri
 }
 
 fn default_title_prompt_template() -> String {
-    r#"Generate a short chat title (2-5 words, with emoji) for this message:
+    r#"Generate a short chat title (2-5 words, without emoji) for this message:
 
 {{prompt}}
 
@@ -371,6 +362,10 @@ fn sanitize_title_json(raw_json: &str) -> String {
 }
 
 fn validate_title(title: String, messages: &[ChatMessage]) -> Option<String> {
+    if title.chars().any(is_emoji) {
+        return None;
+    }
+
     let first_user = messages
         .iter()
         .find(|message| message.role == "user")
@@ -465,4 +460,81 @@ fn normalized_title(value: &str) -> String {
 
 fn compact_whitespace(value: &str) -> String {
     value.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+fn is_emoji(ch: char) -> bool {
+    matches!(
+        ch as u32,
+        0x1F000..=0x1FAFF
+            | 0x2300..=0x23FF
+            | 0x2600..=0x27BF
+            | 0x2B00..=0x2BFF
+            | 0xFE00..=0xFE0F
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn user_message(content: &str) -> ChatMessage {
+        ChatMessage {
+            role: "user".to_string(),
+            content: content.to_string(),
+            attachments: None,
+            tool_calls: None,
+        }
+    }
+
+    #[test]
+    fn title_generation_uses_selected_model_unchanged() {
+        assert_eq!(selected_title_model("llama3.2:latest"), "llama3.2:latest");
+    }
+
+    #[test]
+    fn title_generation_requests_schema_before_json_with_zero_temperature() {
+        let options = title_completion_options();
+
+        assert_eq!(options.len(), 2);
+        assert!(options[0]["format"].is_object());
+        assert_eq!(
+            options[0]["format"]["required"],
+            serde_json::json!(["title"])
+        );
+        assert_eq!(options[1]["format"], serde_json::json!("json"));
+        assert_eq!(options[0]["temperature"], serde_json::json!(0.0));
+        assert_eq!(options[1]["temperature"], serde_json::json!(0.0));
+    }
+
+    #[test]
+    fn generated_title_rejects_emoji() {
+        let messages = vec![user_message("Help configure a Rust workspace")];
+
+        assert_eq!(
+            validate_title("Rust Workspace Setup 🚀".to_string(), &messages),
+            None
+        );
+    }
+
+    #[test]
+    fn local_fallback_removes_emoji() {
+        let messages = vec![user_message("🚀 Help configure a Rust workspace")];
+
+        assert_eq!(
+            first_user_fallback_title(&messages),
+            Some("Help configure a Rust workspace".to_string())
+        );
+    }
+
+    #[test]
+    fn local_fallback_keeps_useful_words_after_leading_emoji() {
+        let messages = vec![user_message(
+            "🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 Help configure a Rust workspace",
+        )];
+
+        assert_eq!(
+            first_user_fallback_title(&messages),
+            Some("Help configure a Rust workspace".to_string())
+        );
+    }
 }

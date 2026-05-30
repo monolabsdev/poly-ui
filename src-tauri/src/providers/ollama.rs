@@ -240,12 +240,8 @@ impl LLMProvider for OllamaProvider {
                 object.remove("reasoning_enabled");
             }
 
-            if opt
-                .get("format")
-                .and_then(|value| value.as_str())
-                .is_some_and(|value| value == "json")
-            {
-                request.format = Some(FormatType::Json);
+            if let Some(format) = opt.get("format").and_then(parse_response_format) {
+                request.format = Some(format);
                 if let Some(object) = opt.as_object_mut() {
                     object.remove("format");
                 }
@@ -390,5 +386,32 @@ impl LLMProvider for OllamaProvider {
 
     fn get_provider_type(&self) -> ProviderType {
         self.provider_type
+    }
+}
+
+fn parse_response_format(value: &serde_json::Value) -> Option<FormatType> {
+    serde_json::from_value(value.clone()).ok()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_json_and_schema_response_formats() {
+        assert!(matches!(
+            parse_response_format(&serde_json::json!("json")),
+            Some(FormatType::Json)
+        ));
+        assert!(matches!(
+            parse_response_format(&serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "title": { "type": "string" }
+                },
+                "required": ["title"]
+            })),
+            Some(FormatType::StructuredJson(_))
+        ));
     }
 }

@@ -40,9 +40,9 @@ export function UserMessage({ content, attachments }: MessageProps) {
             <Box
               key={att.id}
               sx={{
-                width: isImageAttachment(att.type) ? 120 : "auto",
-                height: isImageAttachment(att.type) ? 120 : "auto",
-                minWidth: isImageAttachment(att.type) ? 0 : 200,
+                width: isImageAttachment(att.type) ? { xs: 80, sm: 120 } : "auto",
+                height: isImageAttachment(att.type) ? { xs: 80, sm: 120 } : "auto",
+                minWidth: isImageAttachment(att.type) ? 0 : { xs: 140, sm: 200 },
                 borderRadius: "12px",
                 overflow: "hidden",
                 border: "1px solid",

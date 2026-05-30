@@ -72,9 +72,10 @@ export function EmptyState({
           sx={{
             fontWeight: 600,
             color: "primary.main",
-            fontSize: "36px",
+            fontSize: { xs: "24px", sm: "30px", md: "36px" },
             letterSpacing: "-0.5px",
             opacity: 1,
+            textAlign: "center",
           }}
         >
           {isMultiModel

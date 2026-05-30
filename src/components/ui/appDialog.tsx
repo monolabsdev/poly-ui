@@ -28,11 +28,21 @@ export function AppDialogFrame({
       onOpenChange={onOpenChange}
       maxWidth={APP_DIALOG_WIDTH}
       showCloseButton={false}
-      contentSx={{ p: 0, overflow: "hidden" }}
+      contentSx={{ p: 0 }}
       sx={{
-        width: `min(${APP_DIALOG_WIDTH}px, calc(100vw - 32px))`,
-        height: "min(680px, calc(100vh - 48px))",
-        borderRadius: "12px",
+        width: {
+          xs: "100vw",
+          sm: `min(${APP_DIALOG_WIDTH}px, calc(100vw - 32px))`,
+        },
+        height: {
+          xs: "100dvh",
+          sm: "min(680px, calc(100dvh - 48px))",
+        },
+        maxHeight: {
+          xs: "100dvh",
+          sm: "min(680px, calc(100dvh - 48px))",
+        },
+        borderRadius: { xs: 0, sm: "12px" },
         bgcolor: "background.paper",
         borderColor: "border.main",
         boxShadow:
@@ -40,6 +50,7 @@ export function AppDialogFrame({
             ? "0 24px 72px rgba(0,0,0,0.54)"
             : "0 24px 72px rgba(15,23,42,0.14)",
         outline: "none",
+        mx: { xs: 0, sm: "auto" },
       }}
     >
       {children}
@@ -110,7 +121,7 @@ export function AppDialogBody({ children }: { children: ReactNode }) {
         justifyContent: "center",
       }}
     >
-      <Box sx={{ width: "100%", maxWidth: APP_DIALOG_CONTENT_WIDTH, minWidth: 0 }}>
+      <Box sx={{ width: "100%", maxWidth: { xs: "100%", sm: APP_DIALOG_CONTENT_WIDTH }, minWidth: 0 }}>
         {children}
       </Box>
     </Box>

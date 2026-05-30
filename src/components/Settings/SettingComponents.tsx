@@ -15,8 +15,8 @@ export function SettingCard({
   return (
     <Box sx={{ py: 0.75 }}>
       <Stack spacing={children ? 1.5 : 0}>
-        <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
-          <Box>
+        <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2} sx={{ minWidth: 0 }}>
+          <Box sx={{ minWidth: 0, overflow: "hidden" }}>
             <Typography sx={{ fontSize: 13, fontWeight: 500, color: "text.primary" }}>
               {title}
             </Typography>
@@ -44,8 +44,8 @@ export function SectionHeader({
   action?: React.ReactNode;
 }) {
   return (
-    <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2} sx={{ mb: 0.5, mt: 2.5 }}>
-      <Box>
+    <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2} sx={{ mb: 0.5, mt: 2.5, minWidth: 0 }}>
+      <Box sx={{ minWidth: 0, overflow: "hidden" }}>
         <Typography sx={{ fontSize: 14, fontWeight: 700, color: "text.primary" }}>
           {title}
         </Typography>
@@ -55,7 +55,7 @@ export function SectionHeader({
           </Typography>
         )}
       </Box>
-      {action}
+      {action && <Box sx={{ flexShrink: 0 }}>{action}</Box>}
     </Stack>
   );
 }

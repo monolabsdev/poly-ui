@@ -201,7 +201,7 @@ function App() {
             overflow: "hidden",
             position: "relative",
             bgcolor: "background.default",
-            pt: "56px",
+            pt: { xs: "64px", sm: "56px" },
           }}
         >
           <Suspense fallback={<Box sx={{ flex: 1 }} />}>

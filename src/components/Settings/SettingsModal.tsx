@@ -141,8 +141,15 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               px: 2.5,
               py: 1.5,
               overflowX: "auto",
+              scrollSnapType: "x mandatory",
               borderBottom: "1px solid",
               borderColor: "divider",
+              position: "sticky",
+              top: 0,
+              zIndex: 1,
+              bgcolor: "background.paper",
+              scrollbarWidth: "none",
+              "&::-webkit-scrollbar": { display: "none" },
             }}
           >
             {sidebarItems.map((item) => {
@@ -153,8 +160,8 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   component="button"
                   onClick={() => setActiveTab(item.id)}
                   sx={{
-                    px: 1.25,
-                    py: 0.75,
+                    px: { xs: 1.5, sm: 1.25 },
+                    py: { xs: 1, sm: 0.75 },
                     borderRadius: "8px",
                     bgcolor: isActive ? "action.hover" : "transparent",
                     color: isActive ? "text.primary" : "text.secondary",
@@ -162,6 +169,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     fontSize: 13,
                     fontWeight: 500,
                     cursor: "pointer",
+                    scrollSnapAlign: "start",
                   }}
                 >
                   {item.label}

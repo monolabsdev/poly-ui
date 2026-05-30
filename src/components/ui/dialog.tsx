@@ -21,6 +21,7 @@ export function Dialog({
           backgroundImage: "none",
           boxShadow: "none",
           m: 0,
+          maxHeight: "100%",
         },
       }}
     >

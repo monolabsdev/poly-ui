@@ -159,8 +159,8 @@ export const ChatInput = memo(function ChatInput({
         shrink: 0,
         bgcolor: "transparent",
         px: 2,
-        pb: 3,
-        pt: 2,
+        pb: { xs: 2, sm: 3 },
+        pt: { xs: 1.5, sm: 2 },
         position: "relative",
         zIndex: 10,
       }}
@@ -267,11 +267,12 @@ export const ChatInput = memo(function ChatInput({
               alignItems: "center",
               justifyContent: "space-between",
               mt: 1,
-              px: 0.5,
+              px: { xs: 0, sm: 0.5 },
+              gap: 1,
             }}
           >
             {/* Left: plus menu */}
-            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 0, sm: 0.5 }, flexShrink: 0 }}>
               <DropdownMenu>
                 <DropdownMenuTrigger>
                   <IconButton
@@ -312,7 +313,7 @@ export const ChatInput = memo(function ChatInput({
                           alignItems: "center",
                           gap: 2,
                           justifyContent: "space-between",
-                          minWidth: 160,
+                          minWidth: { xs: 140, sm: 160 },
                         }}
                       >
                         <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
@@ -337,7 +338,7 @@ export const ChatInput = memo(function ChatInput({
             </Box>
 
             {/* Right: send / stop button */}
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 0.5, sm: 1 }, flexShrink: 0 }}>
               <IconButton
                 component={motion.button}
                 variants={ANIMATION_VARIANTS.interactive}

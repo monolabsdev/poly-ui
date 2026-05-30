@@ -23,9 +23,11 @@ import {
   Plus,
   AlertCircle,
   ScrollText,
+  PanelLeft,
 } from "lucide-react";
 import { PROMPT_PRESETS } from "@/constants/promptPresets";
 import { useSettingsStore } from "@/store/settingsStore";
+import { useSidebar } from "@/components/Layout/Sidebar";
 
 interface HeaderProps {
   selectedModels: string[];
@@ -83,7 +85,7 @@ export const Header = memo(function Header({
         bgcolor: "background.default",
         backdropFilter: "blur(12px)",
         px: { xs: 2, md: 3 },
-        py: 1,
+        py: { xs: 1.5, sm: 1 },
         position: "sticky",
         top: 0,
         left: 0,
@@ -91,15 +93,16 @@ export const Header = memo(function Header({
         zIndex: 20,
       }}
     >
-      <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+      <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 1, sm: 2 }, minWidth: 0, flex: 1 }}>
+        <SidebarToggle />
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5, minWidth: 0, flex: 1 }}>
           {ollama.pullingModel ? (
             <Box
               sx={{
                 display: "flex",
                 flexDirection: "column",
                 gap: 1,
-                minWidth: 200,
+                minWidth: { xs: 120, sm: 200 },
                 px: 0.5,
               }}
             >
@@ -134,8 +137,9 @@ export const Header = memo(function Header({
                 sx={{
                   display: "flex",
                   alignItems: "center",
-                  gap: 1,
+                  gap: { xs: 0.5, sm: 1 },
                   flexWrap: "wrap",
+                  minWidth: 0,
                 }}
               >
                 {selectedModels.map((selectedModel, index) => (
@@ -165,7 +169,7 @@ export const Header = memo(function Header({
                         sx={{
                           height: 32,
                           color: "primary.main",
-                          fontSize: "15px",
+                          fontSize: { xs: "14px", sm: "15px" },
                           fontWeight: 600,
                           opacity: 1,
                           "& .MuiOutlinedInput-notchedOutline": {
@@ -275,7 +279,7 @@ export const Header = memo(function Header({
         </Box>
       </Box>
 
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+      <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 0.5, sm: 1.5 }, flexShrink: 0 }}>
         {ollama.state !== "online" && (
           <Tooltip title={ollama.state === "reconnecting" ? "Reconnecting to Ollama..." : "Ollama Offline"}>
             <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mr: 1 }}>
@@ -422,3 +426,32 @@ export const Header = memo(function Header({
     </Box>
   );
 });
+
+function SidebarToggle() {
+  const { isMobile, setOpenMobile, isCollapsed, setIsCollapsed } = useSidebar();
+
+  return (
+    <Tooltip title={isMobile ? "Open sidebar" : isCollapsed ? "Expand sidebar" : "Collapse sidebar"}>
+      <IconButton
+        size="small"
+        onClick={() => {
+          if (isMobile) {
+            setOpenMobile(true);
+          } else {
+            setIsCollapsed(!isCollapsed);
+          }
+        }}
+        sx={{
+          color: "text.secondary",
+          width: 32,
+          height: 32,
+          borderRadius: "8px",
+          flexShrink: 0,
+          "&:hover": { color: "text.primary", bgcolor: "action.hover" },
+        }}
+      >
+        <PanelLeft size={18} />
+      </IconButton>
+    </Tooltip>
+  );
+}

@@ -84,11 +84,12 @@ export const CodeBlock = memo(function CodeBlock({
         "&:hover .copy-button": { opacity: 1 },
         "& pre": {
           m: 0,
-          p: 2.5,
-          fontSize: "13px",
+          p: { xs: 1.5, sm: 2.5 },
+          fontSize: { xs: "12px", sm: "13px" },
           lineHeight: 1.5,
           fontFamily: "'JetBrains Mono', 'Fira Code', 'Consolas', monospace",
           overflow: "auto",
+          maxWidth: "100%",
         },
         "& code": {
           fontFamily: "inherit",

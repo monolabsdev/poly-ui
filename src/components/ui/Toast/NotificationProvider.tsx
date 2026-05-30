@@ -41,7 +41,8 @@ const ToastItem = ({ toast }: { toast: ToastType }) => {
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, scale: 0.98, transition: { duration: 0.1 } }}
       sx={{
-        width: 380,
+        width: { xs: "calc(100vw - 32px)", sm: 380 },
+        maxWidth: 380,
         pointerEvents: "auto",
         mb: 1.5,
         p: "14px 16px",
@@ -118,8 +119,8 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
       <Box
         sx={{
           position: "fixed",
-          bottom: 24,
-          right: 24,
+          bottom: { xs: 16, sm: 24 },
+          right: { xs: 16, sm: 24 },
           zIndex: 9999,
           display: "flex",
           flexDirection: "column-reverse",
