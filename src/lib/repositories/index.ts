@@ -56,6 +56,13 @@ class SqliteConversationRepository implements ConversationRepository {
     return rows.map(mapRowToMessage).reverse();
   }
 
+  async getAllMessages(): Promise<Message[]> {
+    const rows = await this.db.select<{ id: string; conversationId: string; role: "user" | "assistant"; content: string; createdAt: string; attachments?: string; model?: string; thinking?: string; thinkingDuration?: number; webSearch?: string }[]>(
+      "SELECT * FROM messages ORDER BY conversationId ASC, createdAt ASC",
+    );
+    return rows.map(mapRowToMessage);
+  }
+
   async addMessage(message: Message): Promise<void> {
     await this.db.execute(
       "INSERT INTO messages (id, conversationId, role, content, createdAt, attachments, model, thinking, thinkingDuration, webSearch) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -122,6 +129,16 @@ class InMemoryConversationRepository implements ConversationRepository {
     const all = [...(this.messages[conversationId] ?? [])];
     all.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     return all.slice(offset, offset + limit).reverse();
+  }
+
+  async getAllMessages(): Promise<Message[]> {
+    return Object.values(this.messages)
+      .flat()
+      .sort((a, b) =>
+        a.conversationId === b.conversationId
+          ? a.createdAt.localeCompare(b.createdAt)
+          : a.conversationId.localeCompare(b.conversationId),
+      );
   }
 
   async addMessage(message: Message): Promise<void> {

@@ -22,7 +22,7 @@ function getTheme(mode: string, prefersDark: boolean) {
 }
 
 function Root() {
-  const { mode } = useThemeStore();
+  const mode = useThemeStore((state) => state.mode);
   const prefersDarkMode = useMediaQuery("(prefers-color-scheme: dark)");
   const [isAppReady, setIsAppReady] = useState(false);
   const [showStartupScreen, setShowStartupScreen] = useState(true);

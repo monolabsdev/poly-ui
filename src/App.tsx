@@ -120,8 +120,6 @@ function App() {
   } = useChatStore((state) => state.actions);
 
   const handleNewChat = useCallback((isTemporary = false) => {
-    stopStreamingRef.current?.();
-
     if (isTemporary) {
       void createConversation("Temporary Chat", true);
       return;
@@ -136,7 +134,6 @@ function App() {
       retryTitleForConversation(currentId);
     }
 
-    stopStreamingRef.current?.();
     setActiveConversationId(id);
   }, [setActiveConversationId]);
 
@@ -157,8 +154,6 @@ function App() {
   const isTemporary = Boolean(conversations.find((c) => c.id === activeConversationId)?.isTemporary);
 
   const handleToggleTemporaryChat = useCallback(async () => {
-    stopStreamingRef.current?.();
-
     if (isTemporary) {
       setActiveConversationId(null);
       return;

@@ -1,4 +1,5 @@
 import { memo } from "react";
+import { useShallow } from "zustand/react/shallow";
 import {
   ModelProvider,
 } from "@/store/modelStore";
@@ -49,7 +50,12 @@ export const Header = memo(function Header({
   isTemporary,
   onToggleTemporaryChat,
 }: HeaderProps) {
-  const { selectedPromptPreset, actions } = useSettingsStore();
+  const { selectedPromptPreset, actions } = useSettingsStore(
+    useShallow((state) => ({
+      selectedPromptPreset: state.selectedPromptPreset,
+      actions: state.actions,
+    })),
+  );
   const ollama = useOllama();
 
   const hasAnyModels = ollama.models.length > 0;

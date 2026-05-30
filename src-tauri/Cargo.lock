@@ -3062,34 +3062,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "openbench"
-version = "0.7.2"
-dependencies = [
- "async-trait",
- "bcrypt",
- "chrono",
- "futures",
- "log",
- "ollama-rs",
- "reqwest 0.12.28",
- "serde",
- "serde_json",
- "sqlx",
- "tauri",
- "tauri-build",
- "tauri-plugin-fs",
- "tauri-plugin-http",
- "tauri-plugin-opener",
- "tauri-plugin-sql",
- "tauri-plugin-supertonic",
- "tauri-plugin-window-state",
- "tokio",
- "tokio-stream",
- "uuid",
- "whisper-rs",
-]
-
-[[package]]
 name = "openssl"
 version = "0.10.76"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3533,6 +3505,34 @@ dependencies = [
  "pin-project-lite",
  "rustix",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "polyui"
+version = "0.7.2"
+dependencies = [
+ "async-trait",
+ "bcrypt",
+ "chrono",
+ "futures",
+ "log",
+ "ollama-rs",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-fs",
+ "tauri-plugin-http",
+ "tauri-plugin-opener",
+ "tauri-plugin-sql",
+ "tauri-plugin-supertonic",
+ "tauri-plugin-window-state",
+ "tokio",
+ "tokio-stream",
+ "uuid",
+ "whisper-rs",
 ]
 
 [[package]]

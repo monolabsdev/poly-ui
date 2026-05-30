@@ -1,4 +1,5 @@
 import { Paperclip, X } from "lucide-react";
+import { memo } from "react";
 import { Box, IconButton } from "@mui/material";
 import { motion, AnimatePresence } from "motion/react";
 import { useTiming } from "@/lib/motion";
@@ -10,7 +11,10 @@ interface ChatAttachmentsListProps {
   onRemove: (id: string) => void;
 }
 
-export function ChatAttachmentsList({ attachments, onRemove }: ChatAttachmentsListProps) {
+export const ChatAttachmentsList = memo(function ChatAttachmentsList({
+  attachments,
+  onRemove,
+}: ChatAttachmentsListProps) {
   const timing = useTiming();
 
   if (attachments.length === 0) return null;
@@ -89,4 +93,4 @@ export function ChatAttachmentsList({ attachments, onRemove }: ChatAttachmentsLi
       </AnimatePresence>
     </Box>
   );
-}
+});

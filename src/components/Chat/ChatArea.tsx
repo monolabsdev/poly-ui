@@ -40,12 +40,14 @@ const TurnItem = memo(function TurnItem({
   isNewest,
   onRegenerate,
   onHeightChange,
+  streamingForTurn,
 }: {
   turn: MessageTurn;
   turnIndex: number;
   isNewest: boolean;
   onRegenerate?: (index: number) => void;
   onHeightChange: (index: number, height: number) => void;
+  streamingForTurn?: ChatMessage[];
 }) {
   const timing = useTiming();
   const turnRef = useRef<HTMLDivElement>(null);
@@ -62,6 +64,15 @@ const TurnItem = memo(function TurnItem({
     observer.observe(el);
     return () => observer.disconnect();
   }, [turnIndex]);
+
+  const allAssistantMessages = useMemo(() => {
+    if (!streamingForTurn?.length) return turn.assistantMessages;
+    const existingIds = new Set(turn.assistantMessages.map((m) => m.id));
+    const deduped = streamingForTurn.filter(
+      (sm) => !existingIds.has(sm.id),
+    );
+    return [...turn.assistantMessages, ...deduped];
+  }, [turn.assistantMessages, streamingForTurn]);
 
   return (
     <Box
@@ -95,15 +106,15 @@ const TurnItem = memo(function TurnItem({
         </Box>
       )}
 
-      {turn.assistantMessages.length > 0 && (
+      {allAssistantMessages.length > 0 && (
         <Box
           sx={{
             display: "grid",
             gridTemplateColumns: {
               xs: "1fr",
               md:
-                turn.assistantMessages.length > 1
-                  ? `repeat(${Math.min(turn.assistantMessages.length, 3)}, 1fr)`
+                allAssistantMessages.length > 1
+                  ? `repeat(${Math.min(allAssistantMessages.length, 3)}, 1fr)`
                   : "1fr",
             },
             gap: 1.5,
@@ -113,9 +124,9 @@ const TurnItem = memo(function TurnItem({
             mx: "auto",
           }}
         >
-          {turn.assistantMessages.map((msg, msgIndex) => (
+          {allAssistantMessages.map((msg, idx) => (
             <Box
-              key={msg.id || `msg-${turnIndex}-${msgIndex}`}
+              key={msg.id || `msg-${turnIndex}-${idx}`}
               sx={{
                 height: "100%",
                 display: "flex",
@@ -134,9 +145,10 @@ const TurnItem = memo(function TurnItem({
                 isStreaming={msg.isStreaming}
                 status={msg.status}
                 errorMessage={msg.errorMessage}
-                messageIndex={turn.startIndex + 1 + msgIndex}
+                messageIndex={turn.startIndex + 1 + idx}
                 onRegenerate={onRegenerate}
                 webSearch={msg.webSearch}
+                isLastMessage={isNewest && idx === allAssistantMessages.length - 1}
               />
             </Box>
           ))}
@@ -163,12 +175,11 @@ export const ChatArea = memo(function ChatArea({
   const viewportRef = useRef({ top: 0, height: 0 });
   const turnHeightsRef = useRef<Map<number, number>>(new Map());
   const [viewport, setViewport] = useState({ top: 0, height: 0 });
-  const isStreamingRef = useRef(false);
-  useEffect(() => {
-    isStreamingRef.current = streamingMessagesList.length > 0;
-  }, [streamingMessagesList]);
-  const scrollRAFDeps = useRef<number | null>(null);
-  const prevScrollHeightRef = useRef(0);
+  const scrollAnchorRef = useRef<{
+    scrollHeight: number;
+    scrollTop: number;
+    pending: boolean;
+  } | null>(null);
   const handleHeightChange = useCallback((index: number, height: number) => {
     turnHeightsRef.current.set(index, height);
   }, []);
@@ -185,40 +196,39 @@ export const ChatArea = memo(function ChatArea({
     el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }, []);
 
-  const scrollToBottom = useCallback(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    requestAnimationFrame(() => {
-      const newHeight = el.scrollHeight;
-      if (newHeight === prevScrollHeightRef.current) return;
-      prevScrollHeightRef.current = newHeight;
-      el.scrollTo({ top: newHeight, behavior: "instant" });
-    });
-  }, []);
-
-  const scheduleScrollToBottom = useCallback(() => {
-    if (scrollRAFDeps.current !== null) return;
-    scrollRAFDeps.current = requestAnimationFrame(() => {
-      scrollRAFDeps.current = null;
-      scrollToBottom();
-    });
-  }, [scrollToBottom]);
-
   useLayoutEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
     const threshold = 150;
     const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-    if (distFromBottom <= threshold) {
-      scheduleScrollToBottom();
+    if (distFromBottom <= threshold && distFromBottom >= 0) {
+      el.scrollTop = el.scrollHeight;
     }
-    return () => {
-      if (scrollRAFDeps.current !== null) {
-        cancelAnimationFrame(scrollRAFDeps.current);
-        scrollRAFDeps.current = null;
-      }
+  }, [messages, streamingMessagesList]);
+
+  // Scroll anchoring for load-more: restore position after prepending
+  useLayoutEffect(() => {
+    const anchor = scrollAnchorRef.current;
+    if (!anchor?.pending) return;
+    const el = scrollRef.current;
+    if (!el) return;
+    const heightDiff = el.scrollHeight - anchor.scrollHeight;
+    if (heightDiff > 0) {
+      el.scrollTop = anchor.scrollTop + heightDiff;
+    }
+    scrollAnchorRef.current = null;
+  }, [messages]);
+
+  const handleLoadMore = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    scrollAnchorRef.current = {
+      scrollHeight: el.scrollHeight,
+      scrollTop: el.scrollTop,
+      pending: true,
     };
-  }, [messages, streamingMessagesList, scheduleScrollToBottom]);
+    void loadMoreMessages();
+  }, [loadMoreMessages]);
 
   useEffect(() => {
     if (!hasMoreMessages) return;
@@ -226,7 +236,7 @@ export const ChatArea = memo(function ChatArea({
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting) {
-          void loadMoreMessages();
+          handleLoadMore();
         }
       },
       { root: scrollRef.current, threshold: 0.1 },
@@ -237,7 +247,7 @@ export const ChatArea = memo(function ChatArea({
     }
 
     return () => observer.disconnect();
-  }, [hasMoreMessages, loadMoreMessages]);
+  }, [hasMoreMessages, handleLoadMore]);
 
   useEffect(() => {
     const element = scrollRef.current;
@@ -446,6 +456,11 @@ export const ChatArea = memo(function ChatArea({
               isNewest={isNewest}
               onRegenerate={onRegenCb}
               onHeightChange={handleHeightChange}
+              streamingForTurn={
+                isNewest && streamingMessagesList.length > 0
+                  ? streamingMessagesList
+                  : undefined
+              }
             />
           );
         })}
@@ -455,50 +470,6 @@ export const ChatArea = memo(function ChatArea({
             aria-hidden
             sx={{ height: virtualWindow.bottomSpacer, flexShrink: 0 }}
           />
-        )}
-
-        {streamingMessagesList.length > 0 && (
-          <Box
-            sx={{
-              display: "grid",
-              gridTemplateColumns: {
-                xs: "1fr",
-                md:
-                  streamingMessagesList.length > 1
-                    ? `repeat(${Math.min(streamingMessagesList.length, 3)}, 1fr)`
-                    : "1fr",
-              },
-              gap: 1.5,
-              width: "100%",
-              maxWidth: 768,
-              mx: "auto",
-            }}
-          >
-            {streamingMessagesList.map((msg) => (
-              <Box
-                key={msg.id}
-                sx={{
-                  height: "100%",
-                  display: "flex",
-                  flexDirection: "column",
-                  bgcolor: "transparent",
-                }}
-              >
-                <Message
-                  role={msg.role}
-                  content={msg.content}
-                  model={msg.model}
-                  thinking={msg.thinking}
-                  thinkingDuration={msg.thinkingDuration}
-                  isThinking={msg.isThinking}
-                  isStreaming={msg.isStreaming}
-                  status={msg.status}
-                  errorMessage={msg.errorMessage}
-                  webSearch={msg.webSearch}
-                />
-              </Box>
-            ))}
-          </Box>
         )}
 
         <Box ref={bottomRef} sx={{ height: 80 }} />

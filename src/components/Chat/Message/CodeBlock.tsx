@@ -1,6 +1,5 @@
-import { memo, useState, useEffect } from "react";
+import { memo, useRef, useState, useEffect } from "react";
 import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
-import { codeToHtml } from "shiki";
 import { Copy, Check } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { ANIMATION_VARIANTS } from "@/lib/motion";
@@ -19,6 +18,7 @@ export const CodeBlock = memo(function CodeBlock({
   language?: string | null;
 }) {
   const [copied, setCopied] = useState(false);
+  const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const notify = useNotify();
   const theme = useTheme();
   const themeKey = theme.palette.mode;
@@ -40,6 +40,7 @@ export const CodeBlock = memo(function CodeBlock({
         setHighlightedHtml("<pre><code></code></pre>");
         return;
       }
+      const { codeToHtml } = await import("shiki");
       const html = await codeToHtml(value, {
         lang: language || "text",
         theme: actualTheme,
@@ -50,13 +51,23 @@ export const CodeBlock = memo(function CodeBlock({
     return () => { cancelled = true; };
   }, [value, language, actualTheme]);
 
+  useEffect(() => {
+    return () => {
+      if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+    };
+  }, []);
+
   const handleCopy = () => {
     navigator.clipboard
       ?.writeText(value)
       .then(() => {
         setCopied(true);
         notify.success("Copied to clipboard");
-        setTimeout(() => setCopied(false), 2000);
+        if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+        copiedTimerRef.current = setTimeout(() => {
+          copiedTimerRef.current = null;
+          setCopied(false);
+        }, 2000);
       })
       .catch(() => {
         notify.error("Failed to copy");

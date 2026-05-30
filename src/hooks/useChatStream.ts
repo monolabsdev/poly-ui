@@ -55,6 +55,7 @@ export function useChatStream(selectedModels: string[], systemPrompt = "", userN
   const contentAccRef = useRef<Record<string, string>>({});
   const thinkingAccRef = useRef<Record<string, string>>({});
   const requestIdToMessageIdRef = useRef<Record<string, string>>({});
+  const requestIdToConversationIdRef = useRef<Record<string, string>>({});
   const thinkingStartTimeRef = useRef<Record<string, number>>({});
   const webSearchRef = useRef<Record<string, WebSearchPayload>>({});
   const pendingStreamsRef = useRef(0);
@@ -76,25 +77,12 @@ export function useChatStream(selectedModels: string[], systemPrompt = "", userN
     activeConversationIdRef.current = activeConversationId;
   }, [activeConversationId]);
 
-  useEffect(() => {
-    setStreamingConversationId(isStreaming ? activeConversationId : null);
-  }, [isStreaming, activeConversationId, setStreamingConversationId]);
-
-  useEffect(() => {
-    cancelRef.current = true;
-    resetStreamState();
-    setIsStreaming(false);
-    // resetStreamState is stable (see useCallback below); safe to omit from
-    // deps per the rules of hooks — it never changes identity.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeConversationId]);
-
   // Streaming messages rendered separately (bottom) so persisted messages
   // array never changes identity during streaming. This prevents ALL
   // Message components from re-rendering on every streaming chunk.
   const streamingMessagesList = useMemo<ChatMessage[]>(
-    () => Object.values(streamingMessages),
-    [streamingMessages],
+    () => Object.values(streamingMessages).filter((m) => m.conversationId === activeConversationId),
+    [activeConversationId, streamingMessages],
   );
 
   // -------------------------------------------------------------------------
@@ -111,14 +99,18 @@ export function useChatStream(selectedModels: string[], systemPrompt = "", userN
     thinkingAccRef.current = {};
     webSearchRef.current = {};
     requestIdToMessageIdRef.current = {};
+    requestIdToConversationIdRef.current = {};
     thinkingStartTimeRef.current = {};
     pendingStreamsRef.current = 0;
   }, [setStreamingMessage]);
 
   const settlePending = useCallback(() => {
     pendingStreamsRef.current = Math.max(0, pendingStreamsRef.current - 1);
-    if (pendingStreamsRef.current === 0) setIsStreaming(false);
-  }, []);
+    if (pendingStreamsRef.current === 0) {
+      setIsStreaming(false);
+      setStreamingConversationId(null);
+    }
+  }, [setStreamingConversationId]);
 
   // Token batching: single rAF loop flushes ALL pending streams every frame.
   // Eliminates multiple setTimeout timers and their GC/timer-overhead.
@@ -163,7 +155,7 @@ export function useChatStream(selectedModels: string[], systemPrompt = "", userN
 
   const handleChunk = useCallback(
     async (payload: ChunkPayload) => {
-      const conversationId = activeConversationIdRef.current;
+      const conversationId = requestIdToConversationIdRef.current[payload.request_id];
       if (cancelRef.current || !conversationId) return;
 
       const { request_id, content, done } = payload;
@@ -213,6 +205,8 @@ export function useChatStream(selectedModels: string[], systemPrompt = "", userN
       }
 
       setStreamingMessage(messageId, null);
+      delete requestIdToMessageIdRef.current[request_id];
+      delete requestIdToConversationIdRef.current[request_id];
       settlePending();
 
       if (shouldStartTitleGeneration) {
@@ -326,6 +320,7 @@ export function useChatStream(selectedModels: string[], systemPrompt = "", userN
         }));
 
       setIsStreaming(true);
+      setStreamingConversationId(conversationId);
       resetStreamState();
       pendingStreamsRef.current = models.length;
 
@@ -336,6 +331,7 @@ export function useChatStream(selectedModels: string[], systemPrompt = "", userN
         const rid = crypto.randomUUID();
         const mid = crypto.randomUUID();
         requestIdToMessageIdRef.current[rid] = mid;
+        requestIdToConversationIdRef.current[rid] = conversationId;
 
         setStreamingMessage(mid, {
           id: mid,
@@ -526,11 +522,12 @@ export function useChatStream(selectedModels: string[], systemPrompt = "", userN
     () => messageQueue.filter((m) => m.conversationId === activeConversationId).length,
     [messageQueue, activeConversationId],
   );
+  const activeConversationIsStreaming = streamingMessagesList.length > 0;
 
   return {
     messages,
     streamingMessagesList,
-    isStreaming,
+    isStreaming: activeConversationIsStreaming,
     sendMessage,
     regenerateMessage,
     stopStreaming,

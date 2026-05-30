@@ -13,7 +13,7 @@ export function SettingCard({
   children?: React.ReactNode;
 }) {
   return (
-    <Box sx={{ py: 1 }}>
+    <Box sx={{ py: 0.75 }}>
       <Stack spacing={children ? 1.5 : 0}>
         <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
           <Box>
@@ -44,7 +44,7 @@ export function SectionHeader({
   action?: React.ReactNode;
 }) {
   return (
-    <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2} sx={{ mb: 1, mt: 1 }}>
+    <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2} sx={{ mb: 0.5, mt: 2.5 }}>
       <Box>
         <Typography sx={{ fontSize: 14, fontWeight: 700, color: "text.primary" }}>
           {title}

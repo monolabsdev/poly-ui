@@ -103,6 +103,7 @@ async function decodeRecording(blob: Blob): Promise<Float32Array> {
 
 export function useDictation({ onTranscript, onError }: UseDictationOptions) {
   const [status, setStatus] = useState<DictationStatus>("idle");
+  const [isAvailable, setIsAvailable] = useState(true);
   const streamRef = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -123,6 +124,26 @@ export function useDictation({ onTranscript, onError }: UseDictationOptions) {
       cleanup();
     };
   }, [cleanup]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    loggedInvoke<boolean>("is_dictation_available")
+      .then((available) => {
+        if (!cancelled) {
+          setIsAvailable(available);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setIsAvailable(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const transcribeRecording = useCallback(
     async (blob: Blob) => {
@@ -177,6 +198,11 @@ export function useDictation({ onTranscript, onError }: UseDictationOptions) {
 
   const start = useCallback(async () => {
     if (status !== "idle") {
+      return;
+    }
+
+    if (!isAvailable) {
+      onError?.("Dictation is disabled in this build.");
       return;
     }
 
@@ -241,7 +267,7 @@ export function useDictation({ onTranscript, onError }: UseDictationOptions) {
       onError?.(message || "Microphone permission denied.");
       finishSession(sessionIdRef.current);
     }
-  }, [cleanup, finishSession, onError, runTranscription, status]);
+  }, [cleanup, finishSession, isAvailable, onError, runTranscription, status]);
 
   const toggle = useCallback(() => {
     if (status === "recording") {
@@ -256,6 +282,7 @@ export function useDictation({ onTranscript, onError }: UseDictationOptions) {
     isRecording: status === "recording",
     isTranscribing: status === "transcribing",
     isBusy: status !== "idle",
+    isAvailable,
     toggle,
     stop,
   };

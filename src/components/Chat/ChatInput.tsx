@@ -1,5 +1,5 @@
 import { Square, Plus, ArrowUp, Paperclip, Image as ImageIcon, Mic } from "lucide-react";
-import { useState, memo, useEffect, useCallback } from "react";
+import { useState, memo, useEffect, useCallback, useMemo } from "react";
 import { Box, InputBase, IconButton, Typography } from "@mui/material";
 import {
   DropdownMenu,
@@ -82,7 +82,7 @@ export const ChatInput = memo(function ChatInput({
     textareaRef.current?.focus();
   }, [textareaRef]);
 
-  const { isRecording, isTranscribing, toggle } = useDictation({
+  const { isRecording, isTranscribing, isAvailable: isDictationAvailable, toggle } = useDictation({
     onTranscript: appendTranscript,
     onError: (message) => notify.error("Dictation failed", message),
   });
@@ -92,28 +92,38 @@ export const ChatInput = memo(function ChatInput({
   }, [showSlashMenu]);
 
   // Derived state
-  const activeFeatures = features.filter((f) => f.active);
+  const activeFeatures = useMemo(
+    () => features.filter((feature) => feature.active),
+    [features],
+  );
   const hasContent = draft.trim() || currentAttachments.length > 0;
   const isInputDisabled = isStreaming || (!selectedModel && !allowEmptyModel);
   const canUploadImages = true;
 
   // Handlers
-  const handleSubmit = () => {
+  const handleSubmit = useCallback(() => {
     const hasMsg = draft.trim().length > 0 || currentAttachments.length > 0;
     if (!hasMsg || isStreaming) return;
     onSubmit(draft);
     setDraft("");
-  };
+  }, [currentAttachments.length, draft, isStreaming, onSubmit]);
 
-  const handleAction = () => {
+  const handleAction = useCallback(() => {
     if (isStreaming) {
       onStop();
       return;
     }
     handleSubmit();
-  };
+  }, [handleSubmit, isStreaming, onStop]);
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleSlashSelect = useCallback((feature: (typeof features)[number]) => {
+    feature.toggle();
+    setDraft((prev) => prev.replace(/\s?\/?$/, ""));
+    closeSlashMenu();
+    textareaRef.current?.focus();
+  }, [closeSlashMenu, features, textareaRef]);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (showSlashMenu) {
       if (e.key === "ArrowDown") {
         e.preventDefault();
@@ -141,14 +151,7 @@ export const ChatInput = memo(function ChatInput({
       e.preventDefault();
       handleSubmit();
     }
-  };
-
-  const handleSlashSelect = (feature: (typeof features)[number]) => {
-    feature.toggle();
-    setDraft((prev) => prev.replace(/\s?\/?$/, ""));
-    closeSlashMenu();
-    textareaRef.current?.focus();
-  };
+  }, [closeSlashMenu, features, handleSlashSelect, handleSubmit, showSlashMenu, slashMenuIndex]);
 
   return (
     <Box
@@ -341,9 +344,15 @@ export const ChatInput = memo(function ChatInput({
                 whileHover="hover"
                 whileTap="tap"
                 onClick={toggle}
-                disabled={isStreaming || isTranscribing}
+                disabled={!isDictationAvailable || isStreaming || isTranscribing}
                 aria-label={isRecording ? "Stop dictation" : "Start dictation"}
-                title={isRecording ? "Stop dictation" : "Start dictation"}
+                title={
+                  isDictationAvailable
+                    ? isRecording
+                      ? "Stop dictation"
+                      : "Start dictation"
+                    : "Dictation disabled in this build"
+                }
                 sx={{
                   width: 32,
                   height: 32,

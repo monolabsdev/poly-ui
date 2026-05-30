@@ -20,6 +20,7 @@ interface HealthMonitorDeps {
 
 function createHealthMonitor(deps: HealthMonitorDeps) {
   let currentState: OllamaState = "loading";
+  let isStarted = false;
   const callbacks: Set<StateChangeCallback> = new Set();
 
   const notify = (state: OllamaState, models?: OllamaModel[], error?: string) => {
@@ -80,7 +81,7 @@ function createHealthMonitor(deps: HealthMonitorDeps) {
         : Math.min(currentBackoff * 1.5, MAX_BACKOFF);
     }
 
-    if (seq !== checkSeq) return;
+    if (seq !== checkSeq || !isStarted) return;
     scheduleNext();
   };
 
@@ -103,7 +104,8 @@ function createHealthMonitor(deps: HealthMonitorDeps) {
     },
 
     start() {
-      if (pollTimer !== null) return;
+      if (isStarted) return;
+      isStarted = true;
       document.addEventListener("visibilitychange", onVisibilityChange);
       window.addEventListener("focus", onWindowFocus);
       pollTimer = 1;
@@ -111,6 +113,8 @@ function createHealthMonitor(deps: HealthMonitorDeps) {
     },
 
     stop() {
+      if (!isStarted) return;
+      isStarted = false;
       if (pollTimer !== null) {
         clearTimeout(pollTimer);
         pollTimer = null;

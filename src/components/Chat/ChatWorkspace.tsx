@@ -101,6 +101,7 @@ export default function ChatWorkspace({
       >
         {hasMessages ? (
           <ChatArea
+            key={activeConversationId ?? "no-conv"}
             messages={messages}
             streamingMessagesList={streamingMessagesList}
             bottomRef={bottomRef}

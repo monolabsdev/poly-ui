@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::Row;
 use sqlx::SqlitePool;
 use tauri::{command, State};
+use tokio::task;
 use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -89,7 +90,10 @@ pub async fn signup(
         return Err(AuthError::UserExists);
     }
 
-    let password_hash = hash(password, DEFAULT_COST)?;
+    let password = password.to_string();
+    let password_hash = task::spawn_blocking(move || hash(password, DEFAULT_COST))
+        .await
+        .map_err(|e| AuthError::DbError(e.to_string()))??;
     let now = Utc::now().to_rfc3339();
 
     let mut tx = pool.begin().await?;
@@ -143,7 +147,13 @@ pub async fn login(
     let password_hash: Option<String> = row.get("passwordHash");
     let password_hash = password_hash.ok_or(AuthError::InvalidCredentials)?;
 
-    if !verify(password, &password_hash)? {
+    let password = password.to_string();
+    let password_hash_for_verify = password_hash.clone();
+    let password_valid = task::spawn_blocking(move || verify(password, &password_hash_for_verify))
+        .await
+        .map_err(|e| AuthError::DbError(e.to_string()))??;
+
+    if !password_valid {
         return Err(AuthError::InvalidCredentials);
     }
 

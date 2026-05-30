@@ -21,6 +21,8 @@ import {
   MessageSquare,
 } from "lucide-react";
 import { motion } from "motion/react";
+import { Ring2 } from "ldrs/react";
+import "ldrs/react/Ring2.css";
 import { useTiming, ANIMATION_VARIANTS } from "@/lib/motion";
 import { useNotify } from "@/hooks/useNotify";
 import { useDevStore } from "@/store/devStore";
@@ -34,6 +36,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { DeleteConversationDialog } from "@/components/Chat/DeleteConversationDialog";
 import { ProfileMenu } from "@/components/Profile/ProfileMenu";
+import { TextShimmer } from "@/components/ui/text-shimmer";
 import { isToday, isYesterday, subDays, isAfter } from "date-fns";
 import { useElementBreakpoint, useResizeActivity } from "@/hooks/useResizePerformance";
 
@@ -125,6 +128,7 @@ const ConversationItem = React.memo(function ConversationItem({
   handleStartRename,
   handleArchive,
   handleStartDelete,
+  isGenerating,
 }: {
   conv: Conversation;
   activeConversationId: string | null;
@@ -136,6 +140,7 @@ const ConversationItem = React.memo(function ConversationItem({
   handleStartRename: (e: React.MouseEvent, conv: Conversation) => void;
   handleArchive: (id: string) => void;
   handleStartDelete: (conv: Conversation) => void;
+  isGenerating: boolean;
 }) {
   const { isCollapsed } = useSidebar();
   return (
@@ -205,6 +210,7 @@ const ConversationItem = React.memo(function ConversationItem({
             <Typography
               variant="body2"
               noWrap
+              component="div"
               sx={{
                 flex: 1,
                 color:
@@ -214,18 +220,49 @@ const ConversationItem = React.memo(function ConversationItem({
                 pr: 1,
               }}
             >
-              {conv.title || "Untitled"}
+              {isGenerating ? (
+                <TextShimmer duration={1.8} spread={18}>
+                  {conv.title || "Untitled"}
+                </TextShimmer>
+              ) : (
+                conv.title || "Untitled"
+              )}
             </Typography>
 
-            <Box
-              className="conversation-actions"
-              sx={{
-                display: "flex",
-                gap: 0,
-                mr: -0.5,
-                visibility: isCollapsed ? "hidden" : "visible",
-              }}
-            >
+            {isGenerating ? (
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 28,
+                  height: 28,
+                  color: "primary.main",
+                }}
+              >
+                <Ring2
+                  size="14"
+                  stroke="3"
+                  strokeLength="0.28"
+                  bgOpacity="0.14"
+                  speed="0.8"
+                  color="currentColor"
+                />
+              </Box>
+            ) : (
+              <Box
+                className="conversation-actions"
+                sx={{
+                  display: "flex",
+                  gap: 0,
+                  mr: -0.5,
+                  visibility: isCollapsed ? "hidden" : "visible",
+                  width: 28,
+                  height: 28,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <IconButton
@@ -261,7 +298,8 @@ const ConversationItem = React.memo(function ConversationItem({
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-            </Box>
+              </Box>
+            )}
           </Box>
         )}
       </>
@@ -288,6 +326,7 @@ export const Sidebar = React.memo(function Sidebar({
   const conversationsLoading = useChatStore(
     (state) => state.conversationsLoading,
   );
+  const streamingConversationId = useChatStore((state) => state.streamingConversationId);
   const archiveConversation = useChatStore(
     (state) => state.actions.archiveConversation,
   );
@@ -425,7 +464,6 @@ export const Sidebar = React.memo(function Sidebar({
               width: isCollapsed ? 0 : "auto",
               overflow: "hidden",
               transition: "opacity 0.18s ease",
-              willChange: "opacity, transform",
               pointerEvents: isCollapsed ? "none" : "auto",
             }}
           >
@@ -478,7 +516,6 @@ export const Sidebar = React.memo(function Sidebar({
                   width: isCollapsed ? 0 : "auto",
                   overflow: "hidden",
                   transition: "opacity 0.18s ease",
-                  willChange: "opacity, transform",
                 }}
               >
                 New Chat
@@ -524,7 +561,6 @@ export const Sidebar = React.memo(function Sidebar({
                   width: isCollapsed ? 0 : "auto",
                   overflow: "hidden",
                   transition: "opacity 0.18s ease",
-                  willChange: "opacity, transform",
                 }}
               >
                 Temporary Chat
@@ -542,7 +578,6 @@ export const Sidebar = React.memo(function Sidebar({
             opacity: isCollapsed ? 0 : 1,
             visibility: isCollapsed ? "hidden" : "visible",
             transition: "opacity 0.18s ease",
-            willChange: "opacity, transform",
             height: isCollapsed ? 0 : "auto",
             overflowY: "auto",
             overflowX: "hidden",
@@ -668,6 +703,7 @@ export const Sidebar = React.memo(function Sidebar({
                             handleStartRename={handleStartRename}
                             handleArchive={handleArchive}
                             handleStartDelete={handleStartDelete}
+                            isGenerating={streamingConversationId === conv.id}
                           />
                         </SidebarMenuButton>
                       ))}

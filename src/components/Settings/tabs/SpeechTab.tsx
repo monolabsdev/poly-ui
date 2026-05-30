@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from "react";
+import { useShallow } from "zustand/react/shallow";
 import {
   FormControl,
   MenuItem,
@@ -17,8 +18,22 @@ import { Volume2, Square, AlertCircle, Download, Check } from "lucide-react";
 import { useNotify } from "@/hooks/useNotify";
 
 export function SpeechTab() {
-  const { tts, actions } = useSettingsStore();
-  const ttsPlayback = useTtsStore();
+  const { tts, actions } = useSettingsStore(
+    useShallow((state) => ({
+      tts: state.tts,
+      actions: state.actions,
+    })),
+  );
+  const ttsPlayback = useTtsStore(
+    useShallow((state) => ({
+      activeMessageId: state.activeMessageId,
+      isPlaying: state.isPlaying,
+      isGenerating: state.isGenerating,
+      engineLoaded: state.engineLoaded,
+      error: state.error,
+      actions: state.actions,
+    })),
+  );
   const notify = useNotify();
 
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
@@ -122,7 +137,7 @@ export function SpeechTab() {
     (tts.engine === "browser" && !speechSupported);
 
   return (
-    <Stack spacing={2.5}>
+    <Stack spacing={0}>
       <SectionHeader
         title="Speech / TTS Settings"
         description="Configure speech synthesis options for reading AI assistant messages."
@@ -362,7 +377,7 @@ export function SpeechTab() {
         </>
       ) : null}
 
-      <Box sx={{ pt: 2, display: "flex", justifyContent: "flex-end" }}>
+      <Box sx={{ py: 1.5, display: "flex", justifyContent: "flex-end" }}>
         <Button
           variant="contained"
           disableElevation

@@ -1,22 +1,39 @@
+#[cfg(feature = "dictation")]
 use crate::AppState;
+#[cfg(feature = "dictation")]
 use std::path::PathBuf;
+#[cfg(feature = "dictation")]
 use std::sync::Arc;
+#[cfg(feature = "dictation")]
 use std::sync::OnceLock;
+#[cfg(feature = "dictation")]
 use std::time::Duration;
+#[cfg(feature = "dictation")]
 use tauri::{AppHandle, Emitter, Manager};
+#[cfg(feature = "dictation")]
 use tokio::fs;
+#[cfg(feature = "dictation")]
 use tokio::io::AsyncWriteExt;
+#[cfg(feature = "dictation")]
 use tokio_stream::StreamExt;
+#[cfg(feature = "dictation")]
 use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextParameters};
 
+#[cfg(feature = "dictation")]
 const WHISPER_MODEL_NAME: &str = "ggml-tiny.en.bin";
+#[cfg(feature = "dictation")]
 const WHISPER_MODEL_URL: &str =
     "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en.bin";
 
+#[cfg(feature = "dictation")]
 pub struct DictationState {
     context: OnceLock<Arc<WhisperContext>>,
 }
 
+#[cfg(not(feature = "dictation"))]
+pub struct DictationState;
+
+#[cfg(feature = "dictation")]
 impl DictationState {
     pub fn new() -> Self {
         Self {
@@ -45,6 +62,19 @@ impl DictationState {
     }
 }
 
+#[cfg(not(feature = "dictation"))]
+impl DictationState {
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+#[tauri::command]
+pub fn is_dictation_available() -> bool {
+    cfg!(feature = "dictation")
+}
+
+#[cfg(feature = "dictation")]
 #[tauri::command]
 pub async fn transcribe_audio(
     app_handle: AppHandle,
@@ -73,6 +103,18 @@ pub async fn transcribe_audio(
     Ok(transcript)
 }
 
+#[cfg(not(feature = "dictation"))]
+#[tauri::command]
+pub async fn transcribe_audio(
+    samples: Vec<i16>,
+    sample_rate: u32,
+    language: Option<String>,
+) -> Result<String, String> {
+    let _ = (samples, sample_rate, language);
+    Err("Dictation is disabled in this build.".to_string())
+}
+
+#[cfg(feature = "dictation")]
 fn transcribe_samples(
     context: Arc<WhisperContext>,
     samples: Vec<f32>,
@@ -122,12 +164,14 @@ fn transcribe_samples(
     Ok(transcript)
 }
 
+#[cfg(feature = "dictation")]
 fn thread_count() -> i32 {
     std::thread::available_parallelism()
         .map(|count| count.get() as i32)
         .unwrap_or(4)
 }
 
+#[cfg(feature = "dictation")]
 async fn ensure_model(app_handle: &AppHandle) -> Result<PathBuf, String> {
     let app_dir = app_handle
         .path()

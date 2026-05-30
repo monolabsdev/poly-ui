@@ -128,6 +128,221 @@ MemoizedMarkdownBlock.displayName = "MemoizedMarkdownBlock";
 export function MarkdownProse({ content }: { content: string }) {
   const id = useId();
   const blocks = useMemo(() => parseMarkdownIntoBlocks(content), [content]);
+  const components = useMemo<Partial<Components>>(
+    () => ({
+      pre: ({ children }) => <>{children}</>,
+
+      code({ inline, className, children, ...props }: any) {
+        const match = /language-(\w+)/.exec(className || "");
+        const codeValue = String(children).replace(/\n$/, "");
+        if (!inline && match) {
+          return <CodeBlock language={match[1]} value={codeValue} />;
+        }
+        if (!inline) {
+          return <CodeBlock language={null} value={codeValue} />;
+        }
+
+        return (
+          <Box
+            component="code"
+            sx={{
+              bgcolor: (t) =>
+                t.palette.mode === "dark" ? "grey.800" : "grey.100",
+              color: "text.primary",
+              px: 0.6,
+              py: 0.15,
+              borderRadius: "4px",
+              fontFamily:
+                "'JetBrains Mono', 'Fira Code', 'Consolas', monospace",
+              fontSize: "0.85em",
+              wordBreak: "break-word",
+            }}
+            {...props}
+          >
+            {children}
+          </Box>
+        );
+      },
+
+      h1: createHeadingComponent("h1"),
+      h2: createHeadingComponent("h2"),
+      h3: createHeadingComponent("h3"),
+      h4: createHeadingComponent("h4"),
+      h5: createHeadingComponent("h5"),
+      h6: createHeadingComponent("h6"),
+
+      p: ({ children }) => (
+        <Typography
+          component="p"
+          sx={{
+            m: 0,
+            lineHeight: 1.6,
+            fontSize: "15px",
+            color: "text.primary",
+          }}
+        >
+          {children}
+        </Typography>
+      ),
+
+      ul: ({ children }) => (
+        <Box component="ul" sx={{ pl: 3, m: 0, my: 1.5 }}>
+          {children}
+        </Box>
+      ),
+
+      ol: ({ children }) => (
+        <Box component="ol" sx={{ pl: 3, m: 0, my: 1.5 }}>
+          {children}
+        </Box>
+      ),
+
+      li: ({ children }) => (
+        <Typography
+          component="li"
+          sx={{
+            mb: 0.25,
+            lineHeight: 1.6,
+            fontSize: "15px",
+            color: "text.primary",
+          }}
+        >
+          {children}
+        </Typography>
+      ),
+
+      blockquote({ children }) {
+        const alertType = detectAlert(children);
+        if (alertType) {
+          const cfg = ALERT_CONFIG[alertType];
+          return (
+            <Box
+              sx={{
+                borderLeft: "2px solid",
+                borderColor: cfg.border,
+                bgcolor: cfg.bg,
+                borderRadius: "8px",
+                pl: 2,
+                pr: 1.5,
+                py: 1.5,
+                my: 2,
+                "& p": { m: 0, color: "text.primary", fontSize: "14px" },
+                "& p:first-of-type": {
+                  fontWeight: 600,
+                  fontSize: "13px",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                  color: cfg.border,
+                  mb: 0.5,
+                },
+              }}
+            >
+              {children}
+            </Box>
+          );
+        }
+
+        return (
+          <Box
+            component="blockquote"
+            sx={{
+              borderLeft: "2px solid",
+              borderColor: (t) =>
+                t.palette.mode === "dark" ? "grey.800" : "grey.300",
+              pl: 2,
+              pr: 1.5,
+              py: 0.5,
+              my: 2,
+              color: "text.secondary",
+              "& p": { m: 0, fontSize: "14px" },
+            }}
+          >
+            {children}
+          </Box>
+        );
+      },
+
+      a: ({ children, href }) => (
+        <Link
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          sx={{
+            color: "primary.main",
+            textDecoration: "none",
+            "&:hover": { textDecoration: "underline" },
+          }}
+        >
+          {children}
+        </Link>
+      ),
+
+      table: ({ children }) => (
+        <Box
+          sx={{
+            overflowX: "auto",
+            my: 2,
+            border: "1px solid",
+            borderColor: "divider",
+            borderRadius: "8px",
+          }}
+        >
+          <Box
+            component="table"
+            sx={{
+              width: "100%",
+              borderCollapse: "collapse",
+              "& th, & td": {
+                border: "1px solid",
+                borderColor: "divider",
+                p: 1.25,
+                textAlign: "left",
+                fontSize: "14px",
+                lineHeight: 1.5,
+              },
+              "& th": {
+                bgcolor: "action.hover",
+                fontWeight: 600,
+                color: "text.primary",
+              },
+              "& td": { color: "text.primary" },
+              "& tr:nth-of-type(even) td": { bgcolor: "action.hover" },
+            }}
+          >
+            {children}
+          </Box>
+        </Box>
+      ),
+
+      img: ({ src, alt }) => (
+        <Box
+          component="img"
+          src={src}
+          alt={alt}
+          sx={{
+            maxWidth: "100%",
+            height: "auto",
+            my: 2,
+            borderRadius: "8px",
+            display: "block",
+          }}
+        />
+      ),
+
+      hr: () => (
+        <Box
+          component="hr"
+          sx={{
+            border: "none",
+            height: "1px",
+            bgcolor: "divider",
+            my: 2,
+          }}
+        />
+      ),
+    }),
+    [],
+  );
 
   return (
     <Box sx={PROSE_SX}>
@@ -135,218 +350,7 @@ export function MarkdownProse({ content }: { content: string }) {
         <MemoizedMarkdownBlock
           key={`${id}-block-${index}`}
           content={block}
-          components={{
-            pre: ({ children }) => <>{children}</>,
-
-            code({ inline, className, children, ...props }: any) {
-              const match = /language-(\w+)/.exec(className || "");
-              const codeValue = String(children).replace(/\n$/, "");
-              if (!inline && match) {
-                return <CodeBlock language={match[1]} value={codeValue} />;
-              }
-              if (!inline) {
-                return <CodeBlock language={null} value={codeValue} />;
-              }
-
-              return (
-                <Box
-                  component="code"
-                  sx={{
-                    bgcolor: (t) =>
-                      t.palette.mode === "dark" ? "grey.800" : "grey.100",
-                    color: "text.primary",
-                    px: 0.6,
-                    py: 0.15,
-                    borderRadius: "4px",
-                    fontFamily:
-                      "'JetBrains Mono', 'Fira Code', 'Consolas', monospace",
-                    fontSize: "0.85em",
-                    wordBreak: "break-word",
-                  }}
-                  {...props}
-                >
-                  {children}
-                </Box>
-              );
-            },
-
-            h1: createHeadingComponent("h1"),
-            h2: createHeadingComponent("h2"),
-            h3: createHeadingComponent("h3"),
-            h4: createHeadingComponent("h4"),
-            h5: createHeadingComponent("h5"),
-            h6: createHeadingComponent("h6"),
-
-            p: ({ children }) => (
-              <Typography
-                component="p"
-                sx={{
-                  m: 0,
-                  lineHeight: 1.6,
-                  fontSize: "15px",
-                  color: "text.primary",
-                }}
-              >
-                {children}
-              </Typography>
-            ),
-
-            ul: ({ children }) => (
-              <Box component="ul" sx={{ pl: 3, m: 0, my: 1.5 }}>
-                {children}
-              </Box>
-            ),
-
-            ol: ({ children }) => (
-              <Box component="ol" sx={{ pl: 3, m: 0, my: 1.5 }}>
-                {children}
-              </Box>
-            ),
-
-            li: ({ children }) => (
-              <Typography
-                component="li"
-                sx={{
-                  mb: 0.25,
-                  lineHeight: 1.6,
-                  fontSize: "15px",
-                  color: "text.primary",
-                }}
-              >
-                {children}
-              </Typography>
-            ),
-
-            blockquote({ children }) {
-              const alertType = detectAlert(children);
-              if (alertType) {
-                const cfg = ALERT_CONFIG[alertType];
-                return (
-                  <Box
-                    sx={{
-                      borderLeft: "2px solid",
-                      borderColor: cfg.border,
-                      bgcolor: cfg.bg,
-                      borderRadius: "8px",
-                      pl: 2,
-                      pr: 1.5,
-                      py: 1.5,
-                      my: 2,
-                      "& p": { m: 0, color: "text.primary", fontSize: "14px" },
-                      "& p:first-of-type": {
-                        fontWeight: 600,
-                        fontSize: "13px",
-                        textTransform: "uppercase",
-                        letterSpacing: "0.05em",
-                        color: cfg.border,
-                        mb: 0.5,
-                      },
-                    }}
-                  >
-                    {children}
-                  </Box>
-                );
-              }
-
-              return (
-                <Box
-                  component="blockquote"
-                  sx={{
-                    borderLeft: "2px solid",
-                    borderColor: (t) =>
-                      t.palette.mode === "dark" ? "grey.800" : "grey.300",
-                    pl: 2,
-                    pr: 1.5,
-                    py: 0.5,
-                    my: 2,
-                    color: "text.secondary",
-                    "& p": { m: 0, fontSize: "14px" },
-                  }}
-                >
-                  {children}
-                </Box>
-              );
-            },
-
-            a: ({ children, href }) => (
-              <Link
-                href={href}
-                target="_blank"
-                rel="noopener noreferrer"
-                sx={{
-                  color: "primary.main",
-                  textDecoration: "none",
-                  "&:hover": { textDecoration: "underline" },
-                }}
-              >
-                {children}
-              </Link>
-            ),
-
-            table: ({ children }) => (
-              <Box
-                sx={{
-                  overflowX: "auto",
-                  my: 2,
-                  border: "1px solid",
-                  borderColor: "divider",
-                  borderRadius: "8px",
-                }}
-              >
-                <Box
-                  component="table"
-                  sx={{
-                    width: "100%",
-                    borderCollapse: "collapse",
-                    "& th, & td": {
-                      border: "1px solid",
-                      borderColor: "divider",
-                      p: 1.25,
-                      textAlign: "left",
-                      fontSize: "14px",
-                      lineHeight: 1.5,
-                    },
-                    "& th": {
-                      bgcolor: "action.hover",
-                      fontWeight: 600,
-                      color: "text.primary",
-                    },
-                    "& td": { color: "text.primary" },
-                    "& tr:nth-of-type(even) td": { bgcolor: "action.hover" },
-                  }}
-                >
-                  {children}
-                </Box>
-              </Box>
-            ),
-
-            img: ({ src, alt }) => (
-              <Box
-                component="img"
-                src={src}
-                alt={alt}
-                sx={{
-                  maxWidth: "100%",
-                  height: "auto",
-                  my: 2,
-                  borderRadius: "8px",
-                  display: "block",
-                }}
-              />
-            ),
-
-            hr: () => (
-              <Box
-                component="hr"
-                sx={{
-                  border: "none",
-                  height: "1px",
-                  bgcolor: "divider",
-                  my: 2,
-                }}
-              />
-            ),
-          }}
+          components={components}
         />
       ))}
     </Box>

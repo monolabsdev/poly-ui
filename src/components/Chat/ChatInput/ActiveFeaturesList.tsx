@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { X } from "lucide-react";
 import { Box } from "@mui/material";
 import { motion } from "motion/react";
@@ -8,7 +9,10 @@ interface ActiveFeaturesListProps {
   hasAttachments: boolean;
 }
 
-export function ActiveFeaturesList({ activeFeatures, hasAttachments }: ActiveFeaturesListProps) {
+export const ActiveFeaturesList = memo(function ActiveFeaturesList({
+  activeFeatures,
+  hasAttachments,
+}: ActiveFeaturesListProps) {
   return (
     <Box
       sx={{
@@ -56,4 +60,4 @@ export function ActiveFeaturesList({ activeFeatures, hasAttachments }: ActiveFea
       })}
     </Box>
   );
-}
+});

@@ -51,6 +51,7 @@ export function AssistantMessage(props: MessageProps) {
     errorMessage,
     onRegenerate,
     webSearch,
+    isLastMessage,
   } = props;
 
   const [copied, setCopied] = useState(false);
@@ -304,7 +305,20 @@ export function AssistantMessage(props: MessageProps) {
         </AnimatePresence>
 
         {/* ── Contextual Action Toolbar ── */}
-        <Box className="action-bar" sx={{ display: "flex", gap: 0.5, mt: 1.5 }}>
+        <Box
+          className={!isLastMessage ? "action-bar" : undefined}
+          sx={{
+            display: "flex",
+            gap: 0.5,
+            mt: 1.5,
+            ...(isLastMessage
+              ? {
+                  opacity: isStreaming ? 0 : 1,
+                  transition: "opacity 0.3s ease",
+                }
+              : {}),
+          }}
+        >
           <Tooltip title={copied ? "Copied" : "Copy"}>
             <IconButton
               component={motion.button}

@@ -1,7 +1,6 @@
 import { create } from "zustand";
 import { getRepository } from "@/lib/repositories";
 import { Message, Conversation, Attachment, WebSearchEvent } from "@/types/chat";
-import { startTransition } from "react";
 import { useAuthStore } from "@/store/authStore";
 
 async function getRepo() {
@@ -136,14 +135,12 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         isArchived: false,
         isTemporary,
       };
-      startTransition(() => {
-        set((state) => ({
-          conversations: [conversation, ...state.conversations],
-          activeConversationId: id,
-          messages: [],
-          hasMoreMessages: false,
-        }));
-      });
+      set((state) => ({
+        conversations: [conversation, ...state.conversations],
+        activeConversationId: id,
+        messages: [],
+        hasMoreMessages: false,
+      }));
       if (!isTemporary) {
         try {
           const r = await getRepo();
@@ -158,18 +155,18 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     },
     // Set active conversation and load its messages
     setActiveConversationId: async (id) => {
-      set({ activeConversationId: id });
-
       if (!id) {
-        set({ messages: [], hasMoreMessages: false });
+        set({ activeConversationId: null, messages: [], hasMoreMessages: false });
         return;
       }
 
       const pageSize = 50;
       const r = await getRepo();
       const messages = await r.getMessages(id, pageSize, 0);
-      startTransition(() => {
-        set({ messages, hasMoreMessages: messages.length === pageSize });
+      set({
+        activeConversationId: id,
+        messages,
+        hasMoreMessages: messages.length === pageSize,
       });
     },
     loadMoreMessages: async () => {
@@ -212,13 +209,16 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
       const { conversations } = useChatStore.getState();
       const conversation = conversations.find(c => c.id === message.conversationId);
-      const isTemporary = conversation?.isTemporary ?? true;
+      const isTemporary = conversation?.isTemporary ?? false;
 
       set((state) => {
         const exists = state.messages.some(m => m.id === payload.id);
-        const nextMessages = exists 
-          ? state.messages.map(m => m.id === payload.id ? payload : m)
-          : [...state.messages, payload];
+        const shouldShowMessage = payload.conversationId === state.activeConversationId;
+        const nextMessages = shouldShowMessage
+          ? exists
+            ? state.messages.map(m => m.id === payload.id ? payload : m)
+            : [...state.messages, payload]
+          : state.messages;
 
         return {
           messages: nextMessages,

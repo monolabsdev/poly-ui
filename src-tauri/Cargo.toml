@@ -12,6 +12,10 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
+[features]
+default = []
+dictation = ["dep:whisper-rs"]
+
 [dependencies]
 tauri = { version = "2", features = [] }
 tauri-plugin-http = "2"
@@ -33,4 +37,4 @@ futures = "0.3.32"
 log = "0.4"
 tauri-plugin-fs = "2"
 tauri-plugin-supertonic = "0.1"
-whisper-rs = "0.16"
+whisper-rs = { version = "0.16", optional = true }

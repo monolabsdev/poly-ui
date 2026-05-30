@@ -14,4 +14,5 @@ export interface MessageProps {
   errorMessage?: string;
   onRegenerate?: (messageIndex: number) => void;
   webSearch?: WebSearchEvent;
+  isLastMessage?: boolean;
 }

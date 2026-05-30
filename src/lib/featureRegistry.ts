@@ -37,13 +37,14 @@ export const featureRegistry: FeatureDef[] = [
 ];
 
 export function useFeatures() {
-  // Since the registry is static, we can call these hooks in order.
-  // If the registry becomes dynamic, we will need a central store instead of individual hooks.
-  const activeStates = featureRegistry.map(f => f.useIsActive());
-  
-  return featureRegistry.map((feature, i) => ({
-    ...feature,
-    active: activeStates[i]
-  }));
-}
+  const webSearchActive = useSettingsStore((s) => s.general.webSearchEnabled);
+  const reasoningActive = useSettingsStore((s) => s.general.reasoningEnabled);
 
+  return React.useMemo(
+    () => [
+      { ...featureRegistry[0], active: webSearchActive },
+      { ...featureRegistry[1], active: reasoningActive },
+    ],
+    [reasoningActive, webSearchActive],
+  );
+}

@@ -2,15 +2,6 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { PromptPresetId } from "@/constants/promptPresets";
 
-export type Gender = "male" | "female" | "other" | "prefer-not-to-say";
-
-export type AccountSettings = {
-  name: string;
-  bio: string;
-  gender: Gender;
-  birthDate: string;
-};
-
 export type GeneralSettings = {
   language: string;
   notifications: boolean;
@@ -40,23 +31,13 @@ export type TtsSettings = {
 
 type SettingsState = {
   general: GeneralSettings;
-  account: AccountSettings;
   tts: TtsSettings;
   selectedPromptPreset: PromptPresetId;
   actions: {
     updateGeneral: (update: Partial<GeneralSettings>) => void;
-    updateAccount: (update: Partial<AccountSettings>) => void;
     updateTts: (update: Partial<TtsSettings>) => void;
-    resetAccount: () => void;
     setPromptPreset: (id: PromptPresetId) => void;
   };
-};
-
-const defaultAccount: AccountSettings = {
-  name: "",
-  bio: "",
-  gender: "prefer-not-to-say",
-  birthDate: "",
 };
 
 const defaultTts: TtsSettings = {
@@ -81,18 +62,14 @@ export const useSettingsStore = create<SettingsState>()(
         notifications: true,
         systemPrompt: "",
         exaApiKey: "",
-        webSearchEnabled: false,
-        reasoningEnabled: false,
+        webSearchEnabled: true,
+        reasoningEnabled: true,
       },
-      account: { ...defaultAccount },
       tts: { ...defaultTts },
       selectedPromptPreset: "default" as PromptPresetId,
       actions: {
         updateGeneral: (update) =>
           set((s) => ({ general: { ...s.general, ...update } })),
-
-        updateAccount: (update) =>
-          set((s) => ({ account: { ...s.account, ...update } })),
 
         updateTts: (update) =>
           set((s) => ({
@@ -105,13 +82,12 @@ export const useSettingsStore = create<SettingsState>()(
             },
           })),
 
-        resetAccount: () => set({ account: { ...defaultAccount } }),
         setPromptPreset: (id) => set({ selectedPromptPreset: id }),
       },
     }),
     {
       name: "polyui:settings",
-      version: 4,
+      version: 5,
       migrate: (persisted, version) => {
         const state = persisted as any;
         if (!state?.tts) return state as SettingsState;
@@ -126,10 +102,13 @@ export const useSettingsStore = create<SettingsState>()(
           state.tts.stTts = { ...defaultTts.stTts, ...state.tts.stTts };
           state.tts.browser = { ...defaultTts.browser, ...state.tts.browser };
         }
+        if (version < 5) {
+          delete state.account;
+        }
         return state as SettingsState;
       },
-      partialize: ({ general, account, tts, selectedPromptPreset }) => ({
-        general, account, tts, selectedPromptPreset,
+      partialize: ({ general, tts, selectedPromptPreset }) => ({
+        general, tts, selectedPromptPreset,
       }) as SettingsState,
     },
   ),

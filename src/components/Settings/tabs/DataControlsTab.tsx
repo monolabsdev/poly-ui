@@ -21,7 +21,11 @@ function toCsvCell(value: unknown): string {
   return `"${escaped}"`;
 }
 
-function buildChatsCsv(
+async function yieldToMainThread() {
+  await new Promise<void>((resolve) => setTimeout(resolve, 0));
+}
+
+async function buildChatsCsv(
   rows: Array<{
     conversationId: string;
     conversationTitle: string;
@@ -32,7 +36,7 @@ function buildChatsCsv(
     messageCreatedAt: string;
     messageModel: string;
   }>,
-): string {
+): Promise<string> {
   const header = [
     "conversation_id",
     "conversation_title",
@@ -44,8 +48,12 @@ function buildChatsCsv(
     "message_model",
   ];
 
-  const lines = rows.map((row) =>
-    [
+  const lines: string[] = [];
+  const chunkSize = 500;
+  for (let i = 0; i < rows.length; i += chunkSize) {
+    const chunk = rows.slice(i, i + chunkSize);
+    for (const row of chunk) {
+      lines.push([
       row.conversationId,
       row.conversationTitle,
       row.conversationCreatedAt,
@@ -56,8 +64,10 @@ function buildChatsCsv(
       row.messageModel,
     ]
       .map(toCsvCell)
-      .join(","),
-  );
+      .join(","));
+    }
+    await yieldToMainThread();
+  }
 
   return [header.join(","), ...lines].join("\n");
 }
@@ -106,6 +116,13 @@ export function DataControlsTab() {
       const repoModule = await import("@/lib/repositories");
       const repo = repoModule.getRepository();
       const conversations = await repo.getConversations();
+      const messages = await repo.getAllMessages();
+      const messagesByConversation = new Map<string, typeof messages>();
+      for (const message of messages) {
+        const list = messagesByConversation.get(message.conversationId);
+        if (list) list.push(message);
+        else messagesByConversation.set(message.conversationId, [message]);
+      }
       const exportRows: Array<{
         conversationId: string;
         conversationTitle: string;
@@ -117,9 +134,10 @@ export function DataControlsTab() {
         messageModel: string;
       }> = [];
 
-      for (const conv of conversations) {
-        const messages = await repo.getMessages(conv.id, 9999, 0);
-        if (messages.length === 0) {
+      for (let i = 0; i < conversations.length; i++) {
+        const conv = conversations[i];
+        const convMessages = messagesByConversation.get(conv.id) ?? [];
+        if (convMessages.length === 0) {
           exportRows.push({
             conversationId: conv.id,
             conversationTitle: conv.title ?? "Untitled",
@@ -133,7 +151,7 @@ export function DataControlsTab() {
           continue;
         }
 
-        for (const message of messages) {
+        for (const message of convMessages) {
           exportRows.push({
             conversationId: conv.id,
             conversationTitle: conv.title ?? "Untitled",
@@ -145,9 +163,10 @@ export function DataControlsTab() {
             messageModel: message.model ?? "",
           });
         }
+        if (i % 100 === 0) await yieldToMainThread();
       }
 
-      const csv = buildChatsCsv(exportRows);
+      const csv = await buildChatsCsv(exportRows);
       const date = new Date().toISOString().slice(0, 10);
       const defaultFileName = `polyui-export-${date}.csv`;
 
@@ -188,7 +207,6 @@ export function DataControlsTab() {
         }
       }
 
-      // Fallback for environments without File System Access API
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");

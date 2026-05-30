@@ -69,7 +69,7 @@ export const ThinkingDisclosure = React.memo(
     if (!thinking && !isThinking) return null;
 
     return (
-      <Box sx={{ mb: 1 }}>
+      <Box sx={{ mb: 1.5 }}>
         <Reasoning
           open={expanded}
           onOpenChange={setExpanded}
@@ -117,7 +117,7 @@ export const ThinkingDisclosure = React.memo(
           </ReasoningTrigger>
           <ReasoningContent
             contentSx={{
-              mt: 1,
+              mt: 0.5,
               ml: "2px",
               pl: 1.5,
               borderLeft: "1.5px solid",

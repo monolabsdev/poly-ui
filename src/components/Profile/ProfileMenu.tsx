@@ -1,4 +1,5 @@
 import React from "react";
+import { useShallow } from "zustand/react/shallow";
 import { useAuthStore } from "@/store/authStore";
 import {
   DropdownMenu,
@@ -24,7 +25,14 @@ interface ProfileMenuProps {
 export const ProfileMenu: React.FC<ProfileMenuProps> = ({
   onOpenSettings,
 }) => {
-  const { user, isGuest, actions, isLoading } = useAuthStore();
+  const { user, isGuest, actions, isLoading } = useAuthStore(
+    useShallow((state) => ({
+      user: state.user,
+      isGuest: state.isGuest,
+      actions: state.actions,
+      isLoading: state.isLoading,
+    })),
+  );
   const { isCollapsed } = useSidebar();
   const [isArchivedOpen, setIsArchivedOpen] = React.useState(false);
 

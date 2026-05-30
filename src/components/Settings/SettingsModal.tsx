@@ -279,25 +279,7 @@ function DeveloperTab() {
         }
       />
 
-      <SectionHeader
-        title="SQL Runner"
-        description="Execute arbitrary SQL against the database."
-        action={
-          <Button
-            size="small"
-            variant="contained"
-            disableElevation
-            onClick={handleExecuteSql}
-            disabled={executing || !sql.trim()}
-            startIcon={<Play size={14} />}
-            sx={{ textTransform: "none", fontWeight: 700 }}
-          >
-            {executing ? "Running..." : "Execute"}
-          </Button>
-        }
-      />
-
-      <Box sx={{ px: 2.5, pb: 2 }}>
+      <SettingCard title="SQL Runner">
         <TextField
           value={sql}
           onChange={(e) => setSql(e.target.value)}
@@ -315,10 +297,25 @@ function DeveloperTab() {
             },
           }}
         />
-      </Box>
+      </SettingCard>
 
-      {result && (
-        <Box sx={{ px: 2.5, pb: 2 }}>
+      <SettingCard
+        title="Execute"
+        action={
+          <Button
+            size="small"
+            variant="contained"
+            disableElevation
+            onClick={handleExecuteSql}
+            disabled={executing || !sql.trim()}
+            startIcon={<Play size={14} />}
+            sx={{ textTransform: "none", fontWeight: 700 }}
+          >
+            {executing ? "Running..." : "Execute"}
+          </Button>
+        }
+      >
+        {result && (
           <Box
             sx={{
               p: 1.5,
@@ -390,19 +387,23 @@ function DeveloperTab() {
               ))
             )}
           </Box>
-        </Box>
-      )}
-
-      <SettingCard title="Deactivate Dev Mode">
-        <Button
-          size="small"
-          variant="text"
-          onClick={() => useDevStore.getState().actions.setDevMode(false)}
-          sx={{ textTransform: "none", fontWeight: 700 }}
-        >
-          Exit Dev Mode
-        </Button>
+        )}
       </SettingCard>
+
+      <SettingCard
+        title="Deactivate Dev Mode"
+        description="Exit developer mode and hide this tab."
+        action={
+          <Button
+            size="small"
+            variant="text"
+            onClick={() => useDevStore.getState().actions.setDevMode(false)}
+            sx={{ textTransform: "none", fontWeight: 700 }}
+          >
+            Exit Dev Mode
+          </Button>
+        }
+      />
     </Stack>
   );
 }

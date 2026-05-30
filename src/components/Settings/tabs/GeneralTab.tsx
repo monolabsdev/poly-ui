@@ -6,6 +6,7 @@ import {
   Switch,
   TextField,
 } from "@mui/material";
+import { useShallow } from "zustand/react/shallow";
 import { SettingCard, SectionHeader } from "../SettingComponents";
 import { appTextFieldSx } from "@/components/ui/appDialog";
 import { useSettingsStore } from "@/store/settingsStore";
@@ -28,8 +29,18 @@ const selectSx = {
 } as const;
 
 export function GeneralTab() {
-  const { general, actions } = useSettingsStore();
-  const { mode, setMode } = useThemeStore();
+  const { general, actions } = useSettingsStore(
+    useShallow((state) => ({
+      general: state.general,
+      actions: state.actions,
+    })),
+  );
+  const { mode, setMode } = useThemeStore(
+    useShallow((state) => ({
+      mode: state.mode,
+      setMode: state.setMode,
+    })),
+  );
 
   return (
     <Stack spacing={0}>
@@ -80,21 +91,7 @@ export function GeneralTab() {
         }
       />
 
-      <SettingCard title="System Prompt">
-        <TextField
-          value={general.systemPrompt}
-          onChange={(e) => actions.updateGeneral({ systemPrompt: e.target.value })}
-          placeholder="Enter system prompt here..."
-          multiline
-          minRows={4}
-          maxRows={8}
-          fullWidth
-          size="small"
-          sx={appTextFieldSx}
-        />
-      </SettingCard>
-
-      <SectionHeader title="Web Search" />
+      <SectionHeader title="API Keys" />
 
       <SettingCard
         title="Exa API Key"
@@ -110,7 +107,6 @@ export function GeneralTab() {
           sx={appTextFieldSx}
         />
       </SettingCard>
-
     </Stack>
   );
 }

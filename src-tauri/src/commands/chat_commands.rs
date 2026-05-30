@@ -146,8 +146,6 @@ pub async fn chat_stream(
 ) -> Result<(), String> {
     let my_generation_id = state.current_generation_id.load(Ordering::SeqCst);
 
-    const TOKEN_BATCH_SIZE: usize = 15;
-
     macro_rules! is_cancelled {
         () => {
             state.current_generation_id.load(Ordering::SeqCst) != my_generation_id
@@ -188,7 +186,6 @@ pub async fn chat_stream(
     // When the model responds without a tool call, we finalise and return.
     loop {
         let mut tool_calls_opt: Option<Vec<ToolCallInfo>> = None;
-        let mut pending_content = String::new();
         let mut handled_tool_call = false;
 
         let reasoning_opt = if reasoning_enabled {
@@ -226,19 +223,6 @@ pub async fn chat_stream(
 
         while let Some(result) = stream.next().await {
             if is_cancelled!() {
-                if !pending_content.is_empty() {
-                    let _ = app_handle.emit(
-                        "chat-chunk",
-                        StreamPayload {
-                            request_id: request_id.clone(),
-                            content: pending_content.clone(),
-                            thinking: None,
-                            done: false,
-                            metadata: None,
-                            tool_calls: None,
-                        },
-                    );
-                }
                 let _ = app_handle.emit(
                     "chat-chunk",
                     StreamPayload {
@@ -314,20 +298,18 @@ pub async fn chat_stream(
                 }
 
                 content_acc.push_str(&content_chunk);
-                pending_content.push_str(&content_chunk);
-                if pending_content.len() >= TOKEN_BATCH_SIZE {
+                if !content_chunk.is_empty() {
                     let _ = app_handle.emit(
                         "chat-chunk",
                         StreamPayload {
                             request_id: request_id.clone(),
-                            content: pending_content.clone(),
+                            content: content_chunk,
                             thinking: None,
                             done: false,
                             metadata: None,
                             tool_calls: None,
                         },
                     );
-                    pending_content.clear();
                 }
             }
 
@@ -346,23 +328,17 @@ pub async fn chat_stream(
                 }
                 if !content_chunk.is_empty() {
                     content_acc.push_str(&content_chunk);
-                    pending_content.push_str(&content_chunk);
-                }
-
-                // Flush remaining pending content
-                if !pending_content.is_empty() {
                     let _ = app_handle.emit(
                         "chat-chunk",
                         StreamPayload {
                             request_id: request_id.clone(),
-                            content: pending_content.clone(),
+                            content: content_chunk,
                             thinking: None,
                             done: false,
                             metadata: None,
                             tool_calls: None,
                         },
                     );
-                    pending_content.clear();
                 }
 
                 // If the model made a tool call, execute the search and loop back
@@ -486,19 +462,6 @@ pub async fn chat_stream(
         // If we broke out due to a tool call, the outer loop starts a new stream.
         // Otherwise (stream ended without done), emit done and return.
         if !handled_tool_call {
-            if !pending_content.is_empty() {
-                let _ = app_handle.emit(
-                    "chat-chunk",
-                    StreamPayload {
-                        request_id: request_id.clone(),
-                        content: pending_content.clone(),
-                        thinking: None,
-                        done: false,
-                        metadata: None,
-                        tool_calls: None,
-                    },
-                );
-            }
             let _ = app_handle.emit(
                 "chat-chunk",
                 StreamPayload {
