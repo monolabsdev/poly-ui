@@ -23,11 +23,10 @@ import {
   Plus,
   AlertCircle,
   ScrollText,
-  PanelLeft,
 } from "lucide-react";
 import { PROMPT_PRESETS } from "@/constants/promptPresets";
 import { useSettingsStore } from "@/store/settingsStore";
-import { useSidebar } from "@/components/Layout/Sidebar";
+
 
 interface HeaderProps {
   selectedModels: string[];
@@ -94,7 +93,6 @@ export const Header = memo(function Header({
       }}
     >
       <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 1, sm: 2 }, minWidth: 0, flex: 1 }}>
-        <SidebarToggle />
         <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5, minWidth: 0, flex: 1 }}>
           {ollama.pullingModel ? (
             <Box
@@ -427,31 +425,3 @@ export const Header = memo(function Header({
   );
 });
 
-function SidebarToggle() {
-  const { isMobile, setOpenMobile, isCollapsed, setIsCollapsed } = useSidebar();
-
-  return (
-    <Tooltip title={isMobile ? "Open sidebar" : isCollapsed ? "Expand sidebar" : "Collapse sidebar"}>
-      <IconButton
-        size="small"
-        onClick={() => {
-          if (isMobile) {
-            setOpenMobile(true);
-          } else {
-            setIsCollapsed(!isCollapsed);
-          }
-        }}
-        sx={{
-          color: "text.secondary",
-          width: 32,
-          height: 32,
-          borderRadius: "8px",
-          flexShrink: 0,
-          "&:hover": { color: "text.primary", bgcolor: "action.hover" },
-        }}
-      >
-        <PanelLeft size={18} />
-      </IconButton>
-    </Tooltip>
-  );
-}

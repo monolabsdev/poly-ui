@@ -5,11 +5,11 @@
 ![GitHub last commit](https://img.shields.io/github/last-commit/theoslater/openbench?color=red)
 ![GitHub stars](https://img.shields.io/github/stars/theoslater/openbench?style=social)
 
-![openbench_banner](public/Openbench_Large_Alt.png)
+![polyui_banner](public/Poly_UI.png)
 
 PolyUI is a small, high performance and user-friendly AI desktop application designed to be able to operate entirely offline. It currently only supports **Ollama** as its primary LLM runner with hopes of providing different ones such as OpenAI-compatible APIs.
 
-![openbench demo](public/Openbench_Demo.png)
+![polyui demo](public/PolyUI_Demo.png)
 
 ## Key features of PolyUI
 
