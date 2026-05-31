@@ -3,6 +3,7 @@ import { Box, Typography, useTheme } from "@mui/material";
 import { motion } from "motion/react";
 import { Ring2 } from "ldrs/react";
 import "ldrs/react/Ring2.css";
+import { TITLE_BAR_HEIGHT } from "@/components/Layout/WindowTitleBar";
 
 type StartupLoadingScreenProps = {
   visible?: boolean;
@@ -31,7 +32,10 @@ function StartupLoadingScreen({
       }}
       sx={{
         position: "fixed",
-        inset: 0,
+        top: `${TITLE_BAR_HEIGHT}px`,
+        right: 0,
+        bottom: 0,
+        left: 0,
         zIndex: 2147483647,
         bgcolor: "background.default",
         pointerEvents: visible ? "auto" : "none",

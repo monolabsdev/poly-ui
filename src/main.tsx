@@ -9,6 +9,7 @@ import { useThemeStore } from "./store/themeStore";
 import { NotificationProvider } from "./components/ui/Toast/NotificationProvider";
 import StartupLoadingScreen from "./components/StartupLoadingScreen";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { WindowTitleBar } from "./components/Layout/WindowTitleBar";
 import { loadAppModule, prepareAppStartup } from "./startup";
 import "@fontsource-variable/geist";
 
@@ -78,18 +79,21 @@ function Root() {
       <CssBaseline />
       <NotificationProvider>
         <ErrorBoundary>
-          {isAppReady && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.24, ease: "easeOut" }}
-              style={{ height: "100vh", overflow: "hidden" }}
-            >
-              <Suspense fallback={null}>
-                <App />
-              </Suspense>
-            </motion.div>
-          )}
+          <div style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+            <WindowTitleBar />
+            {isAppReady && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.24, ease: "easeOut" }}
+                style={{ flex: 1, minHeight: 0, overflow: "hidden" }}
+              >
+                <Suspense fallback={null}>
+                  <App />
+                </Suspense>
+              </motion.div>
+            )}
+          </div>
           {showStartupScreen && (
             <StartupLoadingScreen
               visible={isStartupScreenVisible}
