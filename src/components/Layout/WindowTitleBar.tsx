@@ -1,6 +1,7 @@
 import { Box } from "@mui/material";
 import { IS_MAC, USE_CUSTOM_WINDOW_CONTROLS } from "@/lib/platform";
 import { WindowControls } from "@/components/WindowControls";
+import { UpdateChip } from "@/components/UpdateChip";
 
 const TITLE_BAR_HEIGHT = 36;
 
@@ -35,7 +36,7 @@ function WindowTitleBar() {
           gap: 1,
         }}
       >
-        <Box data-tauri-drag-region sx={{ flex: 1, minWidth: 8, height: "100%" }} />
+        <UpdateChip />
       </Box>
       {USE_CUSTOM_WINDOW_CONTROLS && <WindowControls />}
     </Box>

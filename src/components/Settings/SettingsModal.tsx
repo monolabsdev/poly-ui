@@ -398,6 +398,19 @@ function DeveloperTab() {
         ) : null}
       </SettingCard>
 
+      <SectionHeader title="Update Tester" description="Simulate the update flow to test the UI." />
+      <SettingCard title="Simulate Update Download" action={
+        <Button size="small" variant="outlined" onClick={() => import("@/store/updateStore").then(m => m.simulateUpdateProgress())}
+          sx={{ textTransform: "none", fontWeight: 700 }}>
+          Download
+        </Button>
+      } />
+      <SettingCard title="Clear Update State" action={
+        <Button size="small" variant="outlined" onClick={() => import("@/store/updateStore").then(m => m.clearUpdateState())}
+          sx={{ textTransform: "none", fontWeight: 700 }}>
+          Clear
+        </Button>
+      } />
       <SettingCard
         title="Deactivate Dev Mode"
         description="Exit developer mode and hide this tab."

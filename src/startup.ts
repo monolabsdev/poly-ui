@@ -89,6 +89,9 @@ async function initializeStores() {
 
   useOllamaStore.getState().actions.start();
 
+  const { startUpdateChecker } = await import("@/store/updateStore");
+  startUpdateChecker();
+
   const { isLoading } = useAuthStore.getState();
   if (isLoading) {
     useAuthStore.setState({ isLoading: false });

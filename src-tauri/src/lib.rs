@@ -7,6 +7,7 @@ mod providers;
 mod stream_emitter;
 mod title_generator;
 mod tool_loop;
+mod updater;
 mod web_search;
 
 use crate::commands::chat_commands::{chat, chat_stream, generate_chat_title};
@@ -14,9 +15,13 @@ use crate::commands::config_commands::cancel_chat;
 use crate::commands::dictation::{is_dictation_available, transcribe_audio, DictationState};
 use crate::commands::db_commands::{clear_database, execute_sql};
 use crate::commands::model_commands::{cancel_pull, delete_model, get_local_models, pull_model};
+use crate::updater::{check_for_updates, download_update, install_update};
 use providers::ProviderSelector;
 use sqlx::SqlitePool;
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicUsize};
+use std::sync::Mutex;
+use std::time::Instant;
 use tauri::Manager;
 
 pub struct AppState {
@@ -25,6 +30,8 @@ pub struct AppState {
     pub is_pull_cancelled: AtomicBool,
     pub provider_selector: ProviderSelector,
     pub dictation: DictationState,
+    pub last_update_check: Mutex<Option<Instant>>,
+    pub update_download_path: Mutex<Option<PathBuf>>,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -47,6 +54,8 @@ pub fn run() {
                 is_pull_cancelled: AtomicBool::new(false),
                 provider_selector: ProviderSelector::new(db),
                 dictation: DictationState::new(),
+                last_update_check: Mutex::new(None),
+                update_download_path: Mutex::new(None),
             });
 
             if let Some(_window) = app.get_webview_window("main") {
@@ -85,6 +94,9 @@ pub fn run() {
             commands::provider_commands::update_provider_config,
             clear_database,
             execute_sql,
+            check_for_updates,
+            download_update,
+            install_update,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
