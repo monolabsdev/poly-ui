@@ -8,6 +8,7 @@ import { loggedInvoke } from "@/lib/utils";
 import { useNotify } from "@/hooks/useNotify";
 import { useOllamaStore } from "@/services/ollama/monitor";
 import { buildSystemPrompt } from "@/lib/chat/prompts";
+import { isFeatureAIActive } from "@/lib/featureRegistry";
 import { defaultPreprocessor } from "@/lib/chat/message-preprocessor";
 import { queueTitleGeneration } from "@/lib/chat/title-generation";
 import {
@@ -239,8 +240,10 @@ export function useChatStream(selectedModels: string[], systemPrompt = "", userN
       resetStreamState();
       pendingStreamsRef.current = models.length;
 
-      const { exaApiKey, webSearchEnabled, reasoningEnabled } = useSettingsStore.getState().general;
-      const system = buildSystemPrompt(systemPrompt, exaApiKey, webSearchEnabled);
+      const { exaApiKey } = useSettingsStore.getState().general;
+      const webSearchAI = isFeatureAIActive("web_search");
+      const reasoningAI = isFeatureAIActive("reasoning");
+      const system = buildSystemPrompt(systemPrompt, webSearchAI ? exaApiKey : undefined, webSearchAI);
 
       for (const model of models) {
         const rid = crypto.randomUUID();
@@ -264,8 +267,8 @@ export function useChatStream(selectedModels: string[], systemPrompt = "", userN
           model,
           messages: history,
           systemPrompt: system,
-          exaApiKey: exaApiKey || null,
-          reasoningEnabled,
+          exaApiKey: webSearchAI ? (exaApiKey || null) : null,
+          reasoningEnabled: reasoningAI,
         }).catch((err) => {
           console.error(err);
           settlePending();
