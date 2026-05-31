@@ -17,18 +17,61 @@ pub struct ProviderAndModelsResponse {
     pub models: Vec<ModelDetails>,
 }
 
+fn should_preload_models(provider_type: ProviderType) -> bool {
+    provider_type == ProviderType::OllamaLocal
+}
+
+async fn try_preload_models(
+    config: &ProviderConfig,
+) -> Option<(Vec<ModelDetails>, ProviderStatus)> {
+    let provider = ProviderFactory::create(config.clone())?;
+    let result = match tokio::time::timeout(
+        std::time::Duration::from_secs(10),
+        provider.get_available_models(),
+    )
+    .await
+    {
+        Ok(Ok(models)) => (models, ProviderStatus::Online),
+        Ok(Err(error)) => {
+            eprintln!(
+                "[Providers] Failed to list {:?} models: {error}",
+                provider.get_provider_type()
+            );
+            (Vec::new(), ProviderStatus::Offline)
+        }
+        Err(_) => {
+            eprintln!(
+                "[Providers] Timed out listing {:?} models",
+                provider.get_provider_type()
+            );
+            (Vec::new(), ProviderStatus::Offline)
+        }
+    };
+    Some(result)
+}
+
 #[tauri::command]
 pub async fn get_providers(
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<ProviderStatusResponse>, String> {
     let selector = &state.provider_selector;
-    let configs = selector.get_provider_configs().await.map_err(|e| AppError::Db(e).to_string())?;
+    let configs = selector
+        .get_provider_configs()
+        .await
+        .map_err(|e| AppError::Db(e).to_string())?;
     let health = selector.check_all_providers().await;
 
     let mut response = Vec::new();
     for config in configs {
-        let status = health.get(&config.provider_type).cloned().unwrap_or(ProviderStatus::Offline);
-        response.push(ProviderStatusResponse { provider_type: config.provider_type, status, config });
+        let status = health
+            .get(&config.provider_type)
+            .cloned()
+            .unwrap_or(ProviderStatus::Offline);
+        response.push(ProviderStatusResponse {
+            provider_type: config.provider_type,
+            status,
+            config,
+        });
     }
     Ok(response)
 }
@@ -38,30 +81,50 @@ pub async fn get_provider_and_models(
     state: tauri::State<'_, AppState>,
 ) -> Result<ProviderAndModelsResponse, String> {
     let selector = &state.provider_selector;
-    let configs = selector.get_provider_configs().await.map_err(|e| AppError::Db(e).to_string())?;
+    let configs = selector
+        .get_provider_configs()
+        .await
+        .map_err(|e| AppError::Db(e).to_string())?;
     let health = selector.check_all_providers().await;
 
     let mut providers = Vec::new();
     let mut models = Vec::new();
-    let mut online_config: Option<ProviderConfig> = None;
-
     for config in configs {
-        let status = health.get(&config.provider_type).cloned().unwrap_or(ProviderStatus::Offline);
-        if status == ProviderStatus::Online && online_config.is_none() {
-            online_config = Some(config);
-        } else {
-            providers.push(ProviderStatusResponse { provider_type: config.provider_type, status, config });
+        let mut status = health
+            .get(&config.provider_type)
+            .cloned()
+            .unwrap_or(ProviderStatus::Offline);
+        if status == ProviderStatus::Online && should_preload_models(config.provider_type) {
+            if let Some((preloaded_models, preload_status)) =
+                try_preload_models(&config).await
+            {
+                models.extend(preloaded_models);
+                status = preload_status;
+            }
         }
-    }
-
-    if let Some(config) = online_config {
-        providers.push(ProviderStatusResponse { provider_type: config.provider_type, status: ProviderStatus::Online, config: config.clone() });
-        if let Some(provider) = ProviderFactory::create(config) {
-            models = provider.get_available_models().await.map_err(|e| AppError::Provider(e).to_string())?;
-        }
+        providers.push(ProviderStatusResponse {
+            provider_type: config.provider_type,
+            status,
+            config: config.clone(),
+        });
     }
 
     Ok(ProviderAndModelsResponse { providers, models })
+}
+
+#[tauri::command]
+pub async fn get_provider_models(
+    state: tauri::State<'_, AppState>,
+    provider_type: ProviderType,
+) -> Result<Vec<ModelDetails>, String> {
+    let provider = state.provider_selector.get_provider(provider_type).await?;
+
+    tokio::time::timeout(
+        std::time::Duration::from_secs(10),
+        provider.get_available_models(),
+    )
+    .await
+    .map_err(|_| format!("Timed out listing {provider_type:?} models."))?
 }
 
 #[derive(serde::Deserialize)]
@@ -74,6 +137,10 @@ pub struct UpdateProviderConfigRequest {
     pub ollama_api_key: Option<String>,
     #[serde(default)]
     pub ollama_api_base_url: Option<String>,
+    #[serde(default)]
+    pub api_key: Option<String>,
+    #[serde(default)]
+    pub api_base_url: Option<String>,
 }
 
 #[tauri::command]
@@ -83,7 +150,26 @@ pub async fn update_provider_config(
 ) -> Result<(), String> {
     state
         .provider_selector
-        .update_provider_config(&request.provider_type, request.enabled, request.ollama_host, request.ollama_api_key, request.ollama_api_base_url)
+        .update_provider_config(
+            &request.provider_type,
+            request.enabled,
+            request.ollama_host,
+            request.ollama_api_key,
+            request.ollama_api_base_url,
+            request.api_key,
+            request.api_base_url,
+        )
         .await
         .map_err(|e| AppError::Db(e).to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn preloads_only_local_models() {
+        assert!(should_preload_models(ProviderType::OllamaLocal));
+        assert!(!should_preload_models(ProviderType::OpenAICompatible));
+    }
 }

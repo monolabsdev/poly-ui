@@ -1,6 +1,7 @@
 import { create } from "zustand";
+import type { ProviderType } from "@/services/providers";
 
-export type ModelProvider = "ollama";
+export type ModelProvider = ProviderType;
 
 export type AvailableModels = Record<string, string[]>;
 
@@ -77,7 +78,7 @@ const defaultSystemPrompt: SystemPrompt = {
 export const useModelStore = create<ModelStore>((set) => ({
   selectedModel: "",
   selectedModels: [],
-  selectedProvider: "ollama",
+  selectedProvider: "OllamaLocal",
   selectedProviders: [],
   availableModels: defaultAvailableModels,
   systemPrompts: [defaultSystemPrompt],
@@ -94,7 +95,7 @@ export const useModelStore = create<ModelStore>((set) => ({
     set({
       selectedProviders: models.map((m) => m.provider),
       selectedModels: models.map((m) => m.model),
-      selectedProvider: models[0]?.provider || "ollama",
+      selectedProvider: models[0]?.provider || "OllamaLocal",
       selectedModel: models[0]?.model || "",
     }),
   addSelectedModel: (provider: ModelProvider, model: string) =>
@@ -111,7 +112,7 @@ export const useModelStore = create<ModelStore>((set) => ({
       return {
         selectedProviders: nextProviders,
         selectedModels: nextModels,
-        selectedProvider: nextProviders[0] || "ollama",
+        selectedProvider: nextProviders[0] || "OllamaLocal",
         selectedModel: nextModels[0] || "",
       };
     }),
@@ -124,7 +125,7 @@ export const useModelStore = create<ModelStore>((set) => ({
       return {
         selectedProviders: nextProviders,
         selectedModels: nextModels,
-        selectedProvider: nextProviders[0] || "ollama",
+        selectedProvider: nextProviders[0] || "OllamaLocal",
         selectedModel: nextModels[0] || "",
       };
     }),
@@ -167,5 +168,6 @@ export const useModelStore = create<ModelStore>((set) => ({
 }));
 
 export const providerLabels: Record<ModelProvider, string> = {
-  ollama: "Ollama",
+  OllamaLocal: "Ollama",
+  OpenAICompatible: "OpenAI-compatible",
 };

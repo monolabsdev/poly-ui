@@ -7,7 +7,7 @@
 
 ![polyui_banner](public/Poly_UI.png)
 
-PolyUI is a small, high performance and user-friendly AI desktop application designed to be able to operate entirely offline. It currently only supports **Ollama** as its primary LLM runner with hopes of providing different ones such as OpenAI-compatible APIs.
+PolyUI is a small, high performance and user-friendly AI desktop application designed to be able to operate entirely offline. One calm window for your models — use Ollama, OpenAI-compatible APIs, and more from a simple interface built for private, everyday conversations with local LLMs.
 
 ![polyui demo](public/PolyUI_Demo.png)
 

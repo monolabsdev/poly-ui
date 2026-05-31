@@ -18,8 +18,11 @@ import {
   type WebSearchPayload,
 } from "@/lib/chat/event-bus";
 import { StreamAccumulator } from "@/lib/chat/stream-accumulator";
+import type { ModelProvider } from "@/store/modelStore";
 
-export function useChatStream(selectedModels: string[], systemPrompt = "", userName?: string) {
+type SelectedModel = { model: string; provider: ModelProvider };
+
+export function useChatStream(selectedModels: string[], selectedProviders: ModelProvider[], systemPrompt = "", userName?: string) {
   const { messages, streamingMessages, activeConversationId } = useChatStore(
     useShallow((s) => ({
       messages: s.messages,
@@ -48,7 +51,9 @@ export function useChatStream(selectedModels: string[], systemPrompt = "", userN
   const activeConversationIdRef = useRef(activeConversationId);
   const processingQueueRef = useRef(false);
   const selectedModelsRef = useRef(selectedModels);
+  const selectedProvidersRef = useRef(selectedProviders);
   useEffect(() => { selectedModelsRef.current = selectedModels; }, [selectedModels]);
+  useEffect(() => { selectedProvidersRef.current = selectedProviders; }, [selectedProviders]);
 
   const handleChunkRef = useRef<(p: ChunkPayload) => void>(() => {});
   const handleThinkingRef = useRef<(p: ThinkingPayload) => void>(() => {});
@@ -126,6 +131,7 @@ export function useChatStream(selectedModels: string[], systemPrompt = "", userN
 
       const thinking = acc.thinking[request_id];
       const completedModel = existing.model ?? "";
+      const completedProvider = existing.provider ?? "OllamaLocal";
       const shouldStartTitleGeneration = pendingStreamsRef.current <= 1;
 
       if (updated.trim() || thinking?.trim()) {
@@ -141,6 +147,7 @@ export function useChatStream(selectedModels: string[], systemPrompt = "", userN
           isThinking: false,
           createdAt: new Date().toISOString(),
           model: completedModel || "unknown",
+          provider: completedProvider,
           status: "complete",
           webSearch: existing.webSearch,
         });
@@ -152,7 +159,7 @@ export function useChatStream(selectedModels: string[], systemPrompt = "", userN
       settlePending();
 
       if (shouldStartTitleGeneration) {
-        queueTitleGeneration({ conversationId, model: completedModel, userName });
+        queueTitleGeneration({ conversationId, model: completedModel, providerType: completedProvider, userName });
       }
 
       if (pendingStreamsRef.current === 0) {
@@ -224,7 +231,7 @@ export function useChatStream(selectedModels: string[], systemPrompt = "", userN
   }, []);
 
   const startStream = useCallback(
-    (conversationId: string, models: string[]) => {
+    (conversationId: string, models: SelectedModel[]) => {
       if (!conversationId || !models.length) return;
 
       const history = useChatStore.getState().messages
@@ -245,7 +252,7 @@ export function useChatStream(selectedModels: string[], systemPrompt = "", userN
       const reasoningAI = isFeatureAIActive("reasoning");
       const system = buildSystemPrompt(systemPrompt, webSearchAI ? exaApiKey : undefined, webSearchAI);
 
-      for (const model of models) {
+      for (const { model, provider } of models) {
         const rid = crypto.randomUUID();
         const mid = crypto.randomUUID();
         requestIdToMessageIdRef.current[rid] = mid;
@@ -257,6 +264,7 @@ export function useChatStream(selectedModels: string[], systemPrompt = "", userN
           role: "assistant",
           content: "",
           model,
+          provider,
           createdAt: new Date().toISOString(),
           status: "streaming",
           isStreaming: true,
@@ -269,6 +277,7 @@ export function useChatStream(selectedModels: string[], systemPrompt = "", userN
           systemPrompt: system,
           exaApiKey: webSearchAI ? (exaApiKey || null) : null,
           reasoningEnabled: reasoningAI,
+          providerType: provider,
         }).catch((err) => {
           console.error(err);
           settlePending();
@@ -293,7 +302,9 @@ export function useChatStream(selectedModels: string[], systemPrompt = "", userN
 
     processingQueueRef.current = true;
     try {
-      const models = selectedModelsRef.current.filter(Boolean);
+      const models = selectedModelsRef.current
+        .map((model, index) => ({ model, provider: selectedProvidersRef.current[index] }))
+        .filter((item): item is SelectedModel => Boolean(item.model && item.provider));
       if (!models.length) return;
 
       useChatStore.getState().actions.dequeueMessage(next.id);
@@ -318,12 +329,14 @@ export function useChatStream(selectedModels: string[], systemPrompt = "", userN
 
   const sendMessage = useCallback(
     async (content: string, attachments?: Attachment[]) => {
-      const models = selectedModels.filter(Boolean);
+      const models = selectedModels
+        .map((model, index) => ({ model, provider: selectedProviders[index] }))
+        .filter((item): item is SelectedModel => Boolean(item.model && item.provider));
       if ((!content.trim() && !attachments?.length) || !models.length) return;
 
       const { state } = useOllamaStore.getState();
       if (state !== "online") {
-        notify.warn("Cannot send message", "Ollama is currently offline");
+        notify.warn("Cannot send message", "No LLM provider is currently online");
         return;
       }
 
@@ -346,7 +359,7 @@ export function useChatStream(selectedModels: string[], systemPrompt = "", userN
       await addMessage({ conversationId, role: "user", content: processed, attachments });
       startStream(conversationId, models);
     },
-    [selectedModels, isStreaming, activeConversationId, addMessage, startStream],
+    [selectedModels, selectedProviders, isStreaming, activeConversationId, addMessage, startStream],
   );
 
   const stopStreaming = useCallback(async () => {
@@ -383,11 +396,13 @@ export function useChatStream(selectedModels: string[], systemPrompt = "", userN
 
   const regenerateMessage = useCallback(
     (conversationId: string) => {
-      const models = selectedModels.filter(Boolean);
+      const models = selectedModels
+        .map((model, index) => ({ model, provider: selectedProviders[index] }))
+        .filter((item): item is SelectedModel => Boolean(item.model && item.provider));
       if (isStreaming || !models.length || !conversationId) return;
       startStream(conversationId, models);
     },
-    [selectedModels, isStreaming, startStream],
+    [selectedModels, selectedProviders, isStreaming, startStream],
   );
 
   const messageQueue = useChatStore((s) => s.messageQueue);

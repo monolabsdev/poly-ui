@@ -49,15 +49,15 @@ pub fn run() {
                 dictation: DictationState::new(),
             });
 
-            if let Some(window) = app.get_webview_window("main") {
+            if let Some(_window) = app.get_webview_window("main") {
                 #[cfg(target_os = "macos")]
                 {
-                    let _ = window.set_title_bar_style(tauri::TitleBarStyle::Overlay);
+                    let _ = _window.set_title_bar_style(tauri::TitleBarStyle::Overlay);
                 }
 
                 #[cfg(target_os = "linux")]
                 {
-                    let _ = window.set_decorations(false);
+                    let _ = _window.set_decorations(false);
                 }
             }
 
@@ -81,6 +81,7 @@ pub fn run() {
             auth::auth_update_status,
             commands::provider_commands::get_providers,
             commands::provider_commands::get_provider_and_models,
+            commands::provider_commands::get_provider_models,
             commands::provider_commands::update_provider_config,
             clear_database,
             execute_sql,

@@ -34,6 +34,7 @@ chrono = { version = "0.4", features = ["serde"] }
 sqlx = { version = "0.8", features = ["sqlite", "runtime-tokio", "macros", "migrate"] }
 reqwest = { version = "0.12", features = ["rustls-tls"] }
 async-trait = "0.1"
+async-stream = "0.3"
 futures = "0.3.32"
 log = "0.4"
 tauri-plugin-fs = "2"

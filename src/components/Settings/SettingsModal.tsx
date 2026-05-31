@@ -26,7 +26,7 @@ import { PersonalisationTab } from "./tabs/PersonalisationTab";
 import { SpeechTab } from "./tabs/SpeechTab";
 import { DataControlsTab } from "./tabs/DataControlsTab";
 import { AboutTab } from "./tabs/AboutTab";
-import { ProviderTab } from "./tabs/ProviderTab";
+import { ConnectionsTab } from "./tabs/ConnectionsTab";
 import { APP_DIALOG_SIDEBAR_WIDTH } from "@/components/ui/appDialog";
 type SettingsModalProps = {
   isOpen: boolean;
@@ -35,7 +35,7 @@ type SettingsModalProps = {
 
 const SIDEBAR_ITEMS = [
   { id: "general", label: "General", icon: Settings },
-  { id: "providers", label: "Providers", icon: Cpu },
+  { id: "connections", label: "Connections", icon: Cpu },
   { id: "personalisation", label: "Personalisation", icon: User },
   { id: "speech", label: "Speech", icon: Volume2 },
   { id: "data-controls", label: "Data Controls", icon: Shield },
@@ -181,7 +181,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           <AppDialogBody>
             <Box key={activeTab}>
               {activeTab === "general" && <GeneralTab />}
-              {activeTab === "providers" && <ProviderTab />}
+              {activeTab === "connections" && <ConnectionsTab />}
               {activeTab === "personalisation" && <PersonalisationTab />}
               {activeTab === "speech" && <SpeechTab />}
               {activeTab === "data-controls" && <DataControlsTab />}
@@ -197,9 +197,9 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
 function DeveloperTab() {
   const notify = useNotify();
-  const [clearing, setClearing] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
   const [sql, setSql] = useState("");
-  const [executing, setExecuting] = useState(false);
+  const [isExecuting, setIsExecuting] = useState(false);
   const [result, setResult] = useState<{
     columns: string[];
     rows: string[][];
@@ -212,7 +212,7 @@ function DeveloperTab() {
       )
     )
       return;
-    setClearing(true);
+    setIsClearing(true);
     try {
       const res = await loggedInvoke<{ success: boolean; message: string }>(
         "clear_database",
@@ -223,13 +223,13 @@ function DeveloperTab() {
     } catch (err) {
       notify.error("Failed to clear database", err as string);
     } finally {
-      setClearing(false);
+      setIsClearing(false);
     }
   };
 
   const handleExecuteSql = async () => {
     if (!sql.trim()) return;
-    setExecuting(true);
+    setIsExecuting(true);
     setResult(null);
     try {
       const res = await loggedInvoke<{
@@ -258,7 +258,7 @@ function DeveloperTab() {
     } catch (err) {
       notify.error("SQL error", err as string);
     } finally {
-      setExecuting(false);
+      setIsExecuting(false);
     }
   };
 
@@ -278,11 +278,11 @@ function DeveloperTab() {
             variant="outlined"
             color="error"
             onClick={handleClearDb}
-            disabled={clearing}
+            disabled={isClearing}
             startIcon={<AlertTriangle size={14} />}
             sx={{ textTransform: "none", fontWeight: 700 }}
           >
-            {clearing ? "Clearing..." : "Clear All Data"}
+            {isClearing ? "Clearing..." : "Clear All Data"}
           </Button>
         }
       />
@@ -315,15 +315,15 @@ function DeveloperTab() {
             variant="contained"
             disableElevation
             onClick={handleExecuteSql}
-            disabled={executing || !sql.trim()}
+            disabled={isExecuting || !sql.trim()}
             startIcon={<Play size={14} />}
             sx={{ textTransform: "none", fontWeight: 700 }}
           >
-            {executing ? "Running..." : "Execute"}
+            {isExecuting ? "Running..." : "Execute"}
           </Button>
         }
       >
-        {result && (
+        {result ? (
           <Box
             sx={{
               p: 1.5,
@@ -395,7 +395,7 @@ function DeveloperTab() {
               ))
             )}
           </Box>
-        )}
+        ) : null}
       </SettingCard>
 
       <SettingCard

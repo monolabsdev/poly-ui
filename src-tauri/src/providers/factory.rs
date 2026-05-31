@@ -1,5 +1,6 @@
 use crate::providers::base::{LLMProvider, ProviderConfig, ProviderType};
 use crate::providers::ollama::OllamaProvider;
+use crate::providers::openai_compatible::OpenAICompatibleProvider;
 
 pub struct ProviderFactory;
 
@@ -19,6 +20,15 @@ impl ProviderFactory {
                     host,
                     ProviderType::OllamaLocal,
                     api_key,
+                )))
+            }
+            ProviderType::OpenAICompatible => {
+                let base_url = config
+                    .api_base_url
+                    .unwrap_or_else(|| "https://api.openai.com/v1".to_string());
+                Some(Box::new(OpenAICompatibleProvider::new(
+                    base_url,
+                    config.api_key.unwrap_or_default(),
                 )))
             }
         }

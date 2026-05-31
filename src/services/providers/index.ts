@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { create } from "zustand";
 
-export type ProviderType = "OllamaLocal";
+export type ProviderType = "OllamaLocal" | "OpenAICompatible";
 export type ProviderStatus = "Online" | "Offline" | "Reconnecting" | "Unavailable";
 
 export interface ProviderConfig {
@@ -10,6 +10,8 @@ export interface ProviderConfig {
   ollama_host?: string;
   ollama_api_key?: string;
   ollama_api_base_url?: string;
+  api_key?: string;
+  api_base_url?: string;
   priority: number;
 }
 
@@ -33,6 +35,8 @@ interface ProviderStore {
       ollama_host?: string;
       ollama_api_key?: string;
       ollama_api_base_url?: string;
+      api_key?: string;
+      api_base_url?: string;
     }) => Promise<void>;
   };
 }
@@ -59,6 +63,8 @@ export const useProviderStore = create<ProviderStore>((set) => ({
       ollama_host?: string;
       ollama_api_key?: string;
       ollama_api_base_url?: string;
+      api_key?: string;
+      api_base_url?: string;
     }) => {
       const current = (await invoke<ProviderStatusResponse[]>("get_providers")).find(
         (p) => p.config.provider_type === config.provider_type,

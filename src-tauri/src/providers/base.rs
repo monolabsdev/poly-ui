@@ -8,6 +8,7 @@ use std::pin::Pin;
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Hash, sqlx::Type)]
 pub enum ProviderType {
     OllamaLocal,
+    OpenAICompatible,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
@@ -25,6 +26,8 @@ pub struct ProviderConfig {
     pub ollama_host: Option<String>,
     pub ollama_api_key: Option<String>,
     pub ollama_api_base_url: Option<String>,
+    pub api_key: Option<String>,
+    pub api_base_url: Option<String>,
     pub priority: i32,
 }
 

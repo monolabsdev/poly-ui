@@ -24,6 +24,8 @@ import { useNotify } from "@/hooks/useNotify";
 import { useShallow } from "zustand/react/shallow";
 import { retryTitleForConversation } from "@/lib/chat/title-generation";
 import "./App.css";
+import { findDefaultModelChoice, modelChoiceId } from "@/lib/models/model-choice";
+import { shouldLoadExternalDefault } from "@/lib/models/model-selector";
 
 const AuthModal = lazy(() =>
   import("@/components/Auth/AuthModal").then((module) => ({
@@ -42,6 +44,7 @@ function App() {
   const notify = useNotify();
   const {
     selectedModels,
+    selectedProviders,
     updateSelectedModel,
     addSelectedModel,
     removeSelectedModel,
@@ -51,6 +54,7 @@ function App() {
   } = useModelStore(
     useShallow((state) => ({
       selectedModels: state.selectedModels,
+      selectedProviders: state.selectedProviders,
       updateSelectedModel: state.updateSelectedModel,
       addSelectedModel: state.addSelectedModel,
       removeSelectedModel: state.removeSelectedModel,
@@ -82,15 +86,34 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (ollama.online && ollama.models.length > 0 && selectedModels.length === 0) {
-      const modelNames = ollama.models.map((m) => m.name);
-      const preferredModel =
-        defaultModel && modelNames.includes(defaultModel)
-          ? defaultModel
-          : modelNames[0];
-      setSelectedModel("ollama", preferredModel);
+    if (!ollama.online || selectedModels.length > 0) return;
+
+    if (
+      shouldLoadExternalDefault(
+        defaultModel,
+        ollama.externalModelsLoaded,
+        ollama.externalModelsLoading,
+      )
+    ) {
+      void ollama.actions.loadExternalModels();
+      return;
     }
-  }, [ollama.online, ollama.models, selectedModels.length, defaultModel, setSelectedModel]);
+
+    const preferredModel =
+      findDefaultModelChoice(ollama.models, defaultModel) ?? ollama.models[0];
+    if (preferredModel) {
+      setSelectedModel(preferredModel.provider_type, preferredModel.name);
+    }
+  }, [
+    defaultModel,
+    ollama.actions,
+    ollama.externalModelsLoaded,
+    ollama.externalModelsLoading,
+    ollama.models,
+    ollama.online,
+    selectedModels.length,
+    setSelectedModel,
+  ]);
 
   const { selectedPromptPreset, general } = useSettingsStore(
     useShallow((s) => ({
@@ -147,9 +170,11 @@ function App() {
   }, [renameConversation]);
 
   const handleSetDefaultModel = useCallback((model: string) => {
-    setDefaultModel(model);
+    const provider = selectedProviders[0];
+    if (!provider) return;
+    setDefaultModel(modelChoiceId(provider, model));
     notify.success(`${model} set as default`);
-  }, [setDefaultModel, notify]);
+  }, [selectedProviders, setDefaultModel, notify]);
 
   const isTemporary = Boolean(conversations.find((c) => c.id === activeConversationId)?.isTemporary);
 
@@ -164,7 +189,8 @@ function App() {
 
   const handleAddModel = useCallback(() => {
     import("@/services/ollama").then(({ useOllamaStore }) => {
-      addSelectedModel("ollama", useOllamaStore.getState().models[0]?.name || "");
+      const first = useOllamaStore.getState().models[0];
+      if (first) addSelectedModel(first.provider_type, first.name);
     });
   }, [addSelectedModel]);
 
@@ -184,6 +210,7 @@ function App() {
       <SidebarInset>
         <Header
           selectedModels={selectedModels}
+          selectedProviders={selectedProviders}
           onModelChange={updateSelectedModel}
           onAddModel={handleAddModel}
           onRemoveModel={removeSelectedModel}
@@ -207,6 +234,7 @@ function App() {
           <Suspense fallback={<Box sx={{ flex: 1 }} />}>
             <ChatWorkspace
               selectedModels={selectedModels}
+              selectedProviders={selectedProviders}
               selectedModel={selectedModel}
               systemPromptContent={systemPromptContent}
               userName={user?.fullName || user?.email}
@@ -217,11 +245,11 @@ function App() {
         </Box>
       </SidebarInset>
 
-      {isSettingsOpen && (
+      {isSettingsOpen ? (
         <Suspense fallback={null}>
           <SettingsModal isOpen={isSettingsOpen} onClose={handleCloseSettings} />
         </Suspense>
-      )}
+      ) : null}
       <Suspense fallback={null}>
         <AuthModal />
       </Suspense>

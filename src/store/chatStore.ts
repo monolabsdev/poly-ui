@@ -43,6 +43,7 @@ type ChatStore = {
       createdAt?: string;
       attachments?: Attachment[];
       model?: string;
+      provider?: Message["provider"];
       thinking?: string;
       thinkingDuration?: number;
       isThinking?: boolean;
@@ -198,6 +199,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         createdAt: now,
         attachments: message.attachments,
         model: message.model,
+        provider: message.provider,
         thinking: message.thinking,
         thinkingDuration: message.thinkingDuration,
         isThinking: message.isThinking,

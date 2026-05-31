@@ -42,6 +42,7 @@ pub struct ModelDetails {
     pub name: String,
     pub families: Vec<String>,
     pub size: u64,
+    pub provider_type: crate::providers::base::ProviderType,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -58,10 +59,14 @@ pub struct ChatMessage {
     pub attachments: Option<Vec<ChatAttachment>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_calls: Option<Vec<ToolCallInfo>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tool_call_id: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ToolCallInfo {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
     pub name: String,
     pub arguments: serde_json::Value,
 }

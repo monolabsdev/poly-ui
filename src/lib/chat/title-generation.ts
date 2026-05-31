@@ -1,6 +1,7 @@
 import { loggedInvoke } from "@/lib/utils";
 import { useChatStore } from "@/store/chatStore";
 import type { ChatMessage } from "@/types/chat";
+import type { ModelProvider } from "@/store/modelStore";
 
 type BackendChatMessage = {
   role: "user" | "assistant";
@@ -15,6 +16,7 @@ type GenerateTitleArgs = {
   conversationId: string;
   model: string;
   userName?: string;
+  providerType?: ModelProvider;
 };
 
 const pendingTitleGenerations = new Set<string>();
@@ -46,10 +48,11 @@ export function shouldGenerateTitle(conversationId: string): boolean {
 export function queueTitleGeneration({
   conversationId,
   model,
+  providerType,
   userName,
 }: GenerateTitleArgs): void {
   if (!model || !shouldGenerateTitle(conversationId)) return;
-  scheduleTitleGeneration(conversationId, model, userName);
+  scheduleTitleGeneration(conversationId, model, providerType, userName);
 }
 
 export function retryTitleForConversation(conversationId: string): void {
@@ -70,20 +73,22 @@ export function retryTitleForConversation(conversationId: string): void {
     .reverse()
     .find((m) => m.role === "assistant");
   const model = lastAssistant?.model ?? "";
+  const providerType = lastAssistant?.provider;
   if (!model) return;
 
-  scheduleTitleGeneration(conversationId, model);
+  scheduleTitleGeneration(conversationId, model, providerType);
 }
 
 function scheduleTitleGeneration(
   conversationId: string,
   model: string,
+  providerType?: ModelProvider,
   userName?: string,
 ): void {
   pendingTitleGenerations.add(conversationId);
 
   window.setTimeout(() => {
-    void generateAndApplyTitle(conversationId, model, userName)
+    void generateAndApplyTitle(conversationId, model, providerType, userName)
       .catch((error) => {
         console.warn("Title generation failed", error);
       })
@@ -96,6 +101,7 @@ function scheduleTitleGeneration(
 async function generateAndApplyTitle(
   conversationId: string,
   model: string,
+  providerType?: ModelProvider,
   userName?: string,
 ): Promise<void> {
   const { messages } = useChatStore.getState();
@@ -107,6 +113,7 @@ async function generateAndApplyTitle(
     model,
     messages: conversationMessages.map(toBackendMessage),
     userName,
+    providerType,
   });
 
   if (!title?.trim()) return;

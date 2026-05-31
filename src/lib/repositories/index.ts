@@ -49,7 +49,7 @@ class SqliteConversationRepository implements ConversationRepository {
   }
 
   async getMessages(conversationId: string, limit: number, offset: number): Promise<Message[]> {
-    const rows = await this.db.select<{ id: string; conversationId: string; role: "user" | "assistant"; content: string; createdAt: string; attachments?: string; model?: string; thinking?: string; thinkingDuration?: number; webSearch?: string }[]>(
+    const rows = await this.db.select<{ id: string; conversationId: string; role: "user" | "assistant"; content: string; createdAt: string; attachments?: string; model?: string; provider?: Message["provider"]; thinking?: string; thinkingDuration?: number; webSearch?: string }[]>(
       "SELECT * FROM messages WHERE conversationId = ? ORDER BY createdAt DESC LIMIT ? OFFSET ?",
       [conversationId, limit, offset]
     );
@@ -57,7 +57,7 @@ class SqliteConversationRepository implements ConversationRepository {
   }
 
   async getAllMessages(): Promise<Message[]> {
-    const rows = await this.db.select<{ id: string; conversationId: string; role: "user" | "assistant"; content: string; createdAt: string; attachments?: string; model?: string; thinking?: string; thinkingDuration?: number; webSearch?: string }[]>(
+    const rows = await this.db.select<{ id: string; conversationId: string; role: "user" | "assistant"; content: string; createdAt: string; attachments?: string; model?: string; provider?: Message["provider"]; thinking?: string; thinkingDuration?: number; webSearch?: string }[]>(
       "SELECT * FROM messages ORDER BY conversationId ASC, createdAt ASC",
     );
     return rows.map(mapRowToMessage);
@@ -65,11 +65,11 @@ class SqliteConversationRepository implements ConversationRepository {
 
   async addMessage(message: Message): Promise<void> {
     await this.db.execute(
-      "INSERT INTO messages (id, conversationId, role, content, createdAt, attachments, model, thinking, thinkingDuration, webSearch) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO messages (id, conversationId, role, content, createdAt, attachments, model, provider, thinking, thinkingDuration, webSearch) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
       [
         message.id, message.conversationId, message.role, message.content, message.createdAt,
         message.attachments ? JSON.stringify(message.attachments) : null,
-        message.model || null, message.thinking || null, message.thinkingDuration || null,
+        message.model || null, message.provider || null, message.thinking || null, message.thinkingDuration || null,
         message.webSearch ? JSON.stringify(message.webSearch) : null,
       ]
     );

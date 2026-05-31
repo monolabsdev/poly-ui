@@ -26,6 +26,7 @@ pub async fn generate_title(
         content: prompt,
         attachments: None,
         tool_calls: None,
+        tool_call_id: None,
     }];
 
     let max_attempts = if title_generation_retry_enabled() {
@@ -483,6 +484,7 @@ mod tests {
             content: content.to_string(),
             attachments: None,
             tool_calls: None,
+            tool_call_id: None,
         }
     }
 

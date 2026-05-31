@@ -1,8 +1,6 @@
 import { memo } from "react";
 import { useShallow } from "zustand/react/shallow";
-import {
-  ModelProvider,
-} from "@/store/modelStore";
+import { ModelProvider } from "@/store/modelStore";
 import { useOllama } from "@/services/ollama";
 import {
   Box,
@@ -18,18 +16,18 @@ import {
 } from "@mui/material";
 import {
   X,
-  ChevronDown,
-  Eye,
   Plus,
   AlertCircle,
   ScrollText,
 } from "lucide-react";
 import { PROMPT_PRESETS } from "@/constants/promptPresets";
 import { useSettingsStore } from "@/store/settingsStore";
+import { ModelSelector } from "@/components/Chat/ModelSelector";
 
 
 interface HeaderProps {
   selectedModels: string[];
+  selectedProviders: ModelProvider[];
   onModelChange: (
     index: number,
     provider: ModelProvider,
@@ -44,6 +42,7 @@ interface HeaderProps {
 
 export const Header = memo(function Header({
   selectedModels,
+  selectedProviders,
   onModelChange,
   onAddModel,
   onRemoveModel,
@@ -59,9 +58,6 @@ export const Header = memo(function Header({
   );
   const ollama = useOllama();
 
-  const hasAnyModels = ollama.models.length > 0;
-  const isOllamaLoading = ollama.state === "loading" || ollama.state === "reconnecting";
-  
   const pullCompleted = ollama.pullProgress?.completed ?? 0;
   const pullTotal = ollama.pullProgress?.total ?? 0;
   const hasPullProgress =
@@ -140,97 +136,27 @@ export const Header = memo(function Header({
                   minWidth: 0,
                 }}
               >
+                {selectedModels.length === 0 ? (
+                  <ModelSelector
+                    model=""
+                    provider="OllamaLocal"
+                    onChange={(provider, model) =>
+                      onModelChange(0, provider, model)
+                    }
+                  />
+                ) : null}
                 {selectedModels.map((selectedModel, index) => (
                   <Box
                     key={`${selectedModel}-${index}`}
                     sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
                   >
-                    <FormControl size="small">
-                      <Select
-                        value={selectedModel}
-                        onChange={(e) =>
-                          onModelChange(
-                            index,
-                            "ollama",
-                            e.target.value as string,
-                          )
-                        }
-                        disabled={!ollama.online || !hasAnyModels}
-                        displayEmpty
-                        IconComponent={(props) => (
-                          <ChevronDown
-                            {...props}
-                            size={14}
-                            style={{ color: "text.secondary" }}
-                          />
-                        )}
-                        sx={{
-                          height: 32,
-                          color: "primary.main",
-                          fontSize: { xs: "14px", sm: "15px" },
-                          fontWeight: 600,
-                          opacity: 1,
-                          "& .MuiOutlinedInput-notchedOutline": {
-                            border: "none",
-                          },
-                          "& .MuiSelect-select": {
-                            p: 0,
-                            pr: "20px !important",
-                            display: "flex",
-                            alignItems: "center",
-                          },
-                          "& .MuiSelect-icon": {
-                            right: 0,
-                            top: "calc(50% - 7px)",
-                          },
-                        }}
-                        MenuProps={{
-                          PaperProps: {
-                            sx: {
-                              bgcolor: "background.paper",
-                              color: "text.primary",
-                              mt: 1,
-                              border: "1px solid",
-                              borderColor: "divider",
-                            },
-                          },
-                        }}
-                      >
-                        {isOllamaLoading ? (
-                          <MenuItem value="" disabled>
-                            <CircularProgress size={16} sx={{ mr: 1 }} />
-                            Connecting to Ollama...
-                          </MenuItem>
-                        ) : !hasAnyModels ? (
-                          <MenuItem value="">No models</MenuItem>
-                        ) : (
-                          ollama.models.map((model) => (
-                            <MenuItem
-                              key={model.name.toString()}
-                              value={model.name.toString()}
-                            >
-                              <Box
-                                sx={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "space-between",
-                                  width: "100%",
-                                }}
-                              >
-                                <Typography variant="body2">
-                                  {model.name}
-                                </Typography>
-                                {model.supports_vision ? (
-                                  <Tooltip title="Supports vision">
-                                    <Eye size={14} style={{ marginLeft: 8 }} />
-                                  </Tooltip>
-                                ) : null}
-                              </Box>
-                            </MenuItem>
-                          ))
-                        )}
-                      </Select>
-                    </FormControl>
+                    <ModelSelector
+                      model={selectedModel}
+                      provider={selectedProviders[index] ?? "OllamaLocal"}
+                      onChange={(provider, model) =>
+                        onModelChange(index, provider, model)
+                      }
+                    />
                     {selectedModels.length > 1 && (
                       <IconButton
                         size="small"
@@ -279,7 +205,7 @@ export const Header = memo(function Header({
 
       <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 0.5, sm: 1.5 }, flexShrink: 0 }}>
         {ollama.state !== "online" && (
-          <Tooltip title={ollama.state === "reconnecting" ? "Reconnecting to Ollama..." : "Ollama Offline"}>
+          <Tooltip title={ollama.state === "reconnecting" ? "Reconnecting to providers..." : "Providers offline"}>
             <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mr: 1 }}>
               {ollama.state === "reconnecting" ? (
                 <CircularProgress size={12} color="inherit" sx={{ opacity: 0.5 }} />

@@ -4,6 +4,7 @@ use crate::stream_emitter::TauriStreamEmitter;
 use crate::tool_loop::ToolLoop;
 use crate::web_search::ExaWebSearchClient;
 use crate::AppState;
+use crate::providers::base::ProviderType;
 use serde_json::Value;
 use std::sync::atomic::Ordering;
 use tauri::{AppHandle, Emitter};
@@ -19,18 +20,18 @@ pub async fn chat_stream(
     system_prompt: Option<String>,
     exa_api_key: Option<String>,
     reasoning_enabled: bool,
+    provider_type: Option<ProviderType>,
 ) -> Result<(), String> {
     let my_generation_id = state.current_generation_id.load(Ordering::SeqCst);
 
     let provider = state
         .provider_selector
-        .get_active_provider()
+        .get_provider(provider_type.unwrap_or(ProviderType::OllamaLocal))
         .await
         .map_err(|e| e.to_string())?;
 
     let emitter = TauriStreamEmitter::new(app_handle.clone());
     let web_search = ExaWebSearchClient;
-    let request_id_str = request_id.clone();
 
     let result = ToolLoop::run(
         provider.as_ref(),
@@ -38,7 +39,7 @@ pub async fn chat_stream(
         messages,
         system_prompt,
         reasoning_enabled,
-        &request_id_str,
+        &request_id,
         &emitter,
         &web_search,
         &exa_api_key,
@@ -72,8 +73,12 @@ pub async fn chat(
     model: String,
     messages: Vec<ChatMessage>,
     options: Option<Value>,
+    provider_type: Option<ProviderType>,
 ) -> Result<String, String> {
-    let provider = state.provider_selector.get_active_provider().await?;
+    let provider = state
+        .provider_selector
+        .get_provider(provider_type.unwrap_or(ProviderType::OllamaLocal))
+        .await?;
     let mut stream = provider
         .chat_completion(model, messages, None, options, None)
         .await?;
@@ -96,8 +101,13 @@ pub async fn generate_chat_title(
     model: String,
     messages: Vec<ChatMessage>,
     user_name: Option<String>,
+    provider_type: Option<ProviderType>,
 ) -> Result<Option<String>, String> {
-    let provider = match state.provider_selector.get_active_provider().await {
+    let provider = match state
+        .provider_selector
+        .get_provider(provider_type.unwrap_or(ProviderType::OllamaLocal))
+        .await
+    {
         Ok(provider) => provider,
         Err(error) => {
             eprintln!("[TitleGeneration] Provider unavailable: {error}");

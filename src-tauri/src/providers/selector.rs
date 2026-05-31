@@ -31,7 +31,7 @@ impl ProviderSelector {
         let mut conn = self.pool.acquire().await.map_err(|e| e.to_string())?;
 
         let configs = sqlx::query_as::<_, ProviderConfig>(
-            "SELECT provider_type, enabled, ollama_host, ollama_api_key, ollama_api_base_url, priority FROM provider_configs ORDER BY priority ASC"
+            "SELECT provider_type, enabled, ollama_host, ollama_api_key, ollama_api_base_url, api_key, api_base_url, priority FROM provider_configs ORDER BY priority ASC"
         )
         .fetch_all(&mut *conn)
         .await
@@ -72,7 +72,9 @@ impl ProviderSelector {
                 let p_type = config.provider_type;
                 futures.push(async move {
                     let status = if let Some(provider) = provider_opt {
-                        provider.health_check().await
+                        tokio::time::timeout(Duration::from_secs(10), provider.health_check())
+                            .await
+                            .unwrap_or(ProviderStatus::Offline)
                     } else {
                         ProviderStatus::Unavailable
                     };
@@ -81,24 +83,18 @@ impl ProviderSelector {
             }
         }
 
-        // Run checks in parallel with a global timeout
+        // Each provider has its own timeout so one slow remote API cannot hide Ollama status.
         if !futures.is_empty() {
-            let check_task = futures::future::join_all(futures);
-            let results_with_timeout =
-                tokio::time::timeout(std::time::Duration::from_secs(10), check_task).await;
-
-            if let Ok(p_results) = results_with_timeout {
-                let mut cache = self.health_cache.lock().await;
-                for (p_type, status) in p_results {
-                    cache.insert(
-                        p_type,
-                        HealthCache {
-                            status,
-                            last_check: now,
-                        },
-                    );
-                    results.insert(p_type, status);
-                }
+            let mut cache = self.health_cache.lock().await;
+            for (p_type, status) in futures::future::join_all(futures).await {
+                cache.insert(
+                    p_type,
+                    HealthCache {
+                        status,
+                        last_check: now,
+                    },
+                );
+                results.insert(p_type, status);
             }
         }
 
@@ -113,19 +109,32 @@ impl ProviderSelector {
             if !config.enabled {
                 continue;
             }
-
-            if let Some(status) = health.get(&config.provider_type) {
-                if *status == ProviderStatus::Online {
-                    if let Some(provider) = ProviderFactory::create(config.clone()) {
-                        let mut active = self.active_provider.lock().await;
-                        *active = Some(config.provider_type);
-                        return Ok(provider);
-                    }
-                }
+            if !matches!(health.get(&config.provider_type), Some(ProviderStatus::Online)) {
+                continue;
+            }
+            if let Some(provider) = ProviderFactory::create(config.clone()) {
+                let mut active = self.active_provider.lock().await;
+                *active = Some(config.provider_type);
+                return Ok(provider);
             }
         }
 
         Err("No available LLM providers found. Please check your settings.".to_string())
+    }
+
+    pub async fn get_provider(
+        &self,
+        provider_type: ProviderType,
+    ) -> Result<Box<dyn LLMProvider>, String> {
+        let config = self
+            .get_provider_configs()
+            .await?
+            .into_iter()
+            .find(|config| config.provider_type == provider_type)
+            .ok_or_else(|| format!("{provider_type:?} provider is not configured."))?;
+
+        ProviderFactory::create(config)
+            .ok_or_else(|| format!("{provider_type:?} provider is disabled."))
     }
 
     pub async fn get_active_provider_type(&self) -> Option<ProviderType> {
@@ -145,6 +154,8 @@ impl ProviderSelector {
         ollama_host: Option<String>,
         ollama_api_key: Option<String>,
         ollama_api_base_url: Option<String>,
+        api_key: Option<String>,
+        api_base_url: Option<String>,
     ) -> Result<(), String> {
         let mut conn = self.pool.acquire().await.map_err(|e| e.to_string())?;
 
@@ -155,14 +166,18 @@ impl ProviderSelector {
                 ollama_host = ?2,
                 ollama_api_key = ?3,
                 ollama_api_base_url = ?4,
+                api_key = ?5,
+                api_base_url = ?6,
                 updated_at = datetime('now')
-            WHERE provider_type = ?5
+            WHERE provider_type = ?7
             "#,
         )
         .bind(enabled)
         .bind(&ollama_host)
         .bind(&ollama_api_key)
         .bind(&ollama_api_base_url)
+        .bind(&api_key)
+        .bind(&api_base_url)
         .bind(provider_type)
         .execute(&mut *conn)
         .await

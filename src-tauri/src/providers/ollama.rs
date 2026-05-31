@@ -187,9 +187,7 @@ impl LLMProvider for OllamaProvider {
         let mut history: Vec<OllamaChatMessage> = Vec::new();
 
         if let Some(prompt) = with_model_thinking_prompt(&model, system_prompt, reasoning_enabled) {
-            if !prompt.trim().is_empty() {
-                history.push(OllamaChatMessage::system(prompt));
-            }
+            history.push(OllamaChatMessage::system(prompt));
         }
 
         for msg in messages {
@@ -306,6 +304,7 @@ impl LLMProvider for OllamaProvider {
                             .tool_calls
                             .into_iter()
                             .map(|tc| ToolCallInfo {
+                                id: None,
                                 name: tc.function.name,
                                 arguments: tc.function.arguments,
                             })
@@ -340,6 +339,7 @@ impl LLMProvider for OllamaProvider {
                         name: m.name,
                         families: Vec::new(),
                         size: m.size,
+                        provider_type: ProviderType::OllamaLocal,
                     })
                     .collect()
             })

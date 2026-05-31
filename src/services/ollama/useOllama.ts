@@ -6,7 +6,11 @@ export function useOllama() {
   const store = useOllamaStore(
     useShallow((state) => ({
       state: state.state,
+      localModels: state.localModels,
       models: state.models,
+      externalModelsLoaded: state.externalModelsLoaded,
+      externalModelsLoading: state.externalModelsLoading,
+      externalModelsError: state.externalModelsError,
       error: state.error,
       pullingModel: state.pullingModel,
       pullProgress: state.pullProgress,

@@ -1,7 +1,12 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   Box,
   Button,
+  Collapse,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   IconButton,
   LinearProgress,
   Stack,
@@ -9,16 +14,15 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { Download, RefreshCw, Trash2, XCircle } from "lucide-react";
-import { useShallow } from "zustand/react/shallow";
-import { SettingCard, SectionHeader, Badge } from "../SettingComponents";
-import { appPanelSx, appTextFieldSx } from "@/components/ui/appDialog";
-import { useProviderStore, type ProviderStatus } from "@/services/providers";
-import { useOllama, type PullProgress } from "@/services/ollama";
-import { useNotify } from "@/hooks/useNotify";
-import { loggedInvoke, formatFileSize } from "@/lib/utils";
-import { invoke } from "@tauri-apps/api/core";
+import { ChevronDown, Download, Plus, RefreshCw, Trash2, X, XCircle } from "lucide-react";
 import { listen } from "@tauri-apps/api/event";
+import { useShallow } from "zustand/react/shallow";
+import { Badge, SectionHeader, SettingCard } from "../SettingComponents";
+import { appPanelSx, appTextFieldSx } from "@/components/ui/appDialog";
+import { useNotify } from "@/hooks/useNotify";
+import { formatFileSize, loggedInvoke } from "@/lib/utils";
+import { useOllama, type PullProgress } from "@/services/ollama";
+import { useProviderStore, type ProviderStatus } from "@/services/providers";
 
 const statusColor: Record<ProviderStatus, string> = {
   Online: "#22c55e",
@@ -38,73 +42,73 @@ export function ProviderTab() {
     })),
   );
   const ollama = useOllama();
-
-  const provider = providers[0];
-  const config = provider?.config;
-  const status = provider?.status;
-
+  const local = providers.find((item) => item.provider_type === "OllamaLocal");
+  const external = providers.find((item) => item.provider_type === "OpenAICompatible");
   const [host, setHost] = useState("");
-  const [enabled, setEnabled] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [testing, setTesting] = useState(false);
-  const [dirty, setDirty] = useState(false);
+  const [localEnabled, setLocalEnabled] = useState(true);
+  const [isLocalDirty, setIsLocalDirty] = useState(false);
+  const [isSavingLocal, setIsSavingLocal] = useState(false);
+  const [isExternalOpen, setIsExternalOpen] = useState(false);
+  const [apiBaseUrl, setApiBaseUrl] = useState("https://api.openai.com/v1");
+  const [apiKey, setApiKey] = useState("");
+  const [externalEnabled, setExternalEnabled] = useState(true);
+  const [isSavingExternal, setIsSavingExternal] = useState(false);
+  const [isInstallerOpen, setIsInstallerOpen] = useState(false);
   const [newModelName, setNewModelName] = useState("");
   const [isPulling, setIsPulling] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  useEffect(() => void actions.refresh(), [actions]);
   useEffect(() => {
-    actions.refresh();
-  }, [actions]);
-
+    if (!local) return;
+    setHost(local.config.ollama_host ?? "http://127.0.0.1:11434");
+    setLocalEnabled(local.config.enabled);
+    setIsLocalDirty(false);
+  }, [local]);
   useEffect(() => {
-    if (config) {
-      setHost(config.ollama_host ?? "http://127.0.0.1:11434");
-      setEnabled(config.enabled);
-      setDirty(false);
-    }
-  }, [config]);
-
+    if (!external) return;
+    setApiBaseUrl(external.config.api_base_url ?? "https://api.openai.com/v1");
+    setApiKey(external.config.api_key ?? "");
+    setExternalEnabled(external.config.enabled);
+  }, [external]);
   useEffect(() => {
-    const unlistenPromise = listen<PullProgress>("pull-progress", (event) => {
+    const unlisten = listen<PullProgress>("pull-progress", (event) => {
       ollama.actions.setPullProgress(event.payload);
     });
-    return () => {
-      unlistenPromise.then((unlisten) => unlisten());
-    };
+    return () => void unlisten.then((stop) => stop());
   }, [ollama.actions]);
 
-  const handleSave = async () => {
-    if (!config) return;
-    setSaving(true);
+  const saveLocal = async () => {
+    setIsSavingLocal(true);
     try {
-      await actions.updateProviderConfig({
-        provider_type: config.provider_type,
-        ollama_host: host,
-        enabled,
-      });
-      setDirty(false);
-      notify.success("Provider settings saved");
+      await actions.updateProviderConfig({ provider_type: "OllamaLocal", ollama_host: host.trim(), enabled: localEnabled });
+    setIsLocalDirty(false);
+      notify.success("Ollama settings saved");
     } catch (err) {
-      notify.error("Failed to save", err as string);
+      notify.error("Failed to save", String(err));
     } finally {
-      setSaving(false);
+      setIsSavingLocal(false);
     }
   };
 
-  const handleTest = async () => {
-    setTesting(true);
+  const saveExternal = async () => {
+    if (!apiBaseUrl.trim()) return;
+    setIsSavingExternal(true);
     try {
-      const result = await invoke<{ provider_type: string; status: string }[]>("get_providers");
-      const p = result.find((r) => r.provider_type === config?.provider_type);
-      if (p?.status === "Online") {
-        notify.success("Connection successful");
-      } else {
-        notify.error("Connection failed", `Status: ${p?.status ?? "unknown"}`);
-      }
+      await actions.updateProviderConfig({
+        provider_type: "OpenAICompatible",
+        api_base_url: apiBaseUrl.trim(),
+        api_key: apiKey.trim(),
+        enabled: externalEnabled,
+      });
+      ollama.actions.clearExternalModels();
+      await ollama.refresh();
+      setIsExternalOpen(false);
+      notify.success("Provider saved");
     } catch (err) {
-      notify.error("Connection test failed", err as string);
+      notify.error("Failed to save", String(err));
     } finally {
-      setTesting(false);
+      setIsSavingExternal(false);
     }
   };
 
@@ -112,318 +116,92 @@ export function ProviderTab() {
     setIsRefreshing(true);
     try {
       await ollama.refresh();
-    } catch {
-      // ignore
     } finally {
       setIsRefreshing(false);
     }
   };
 
-  const handlePullModel = async () => {
-    if (!newModelName.trim()) return;
-    const modelToPull = newModelName.trim();
-    ollama.actions.setPullingModel(modelToPull);
+  const pullModel = async () => {
+    const model = newModelName.trim();
+    if (!model) return;
     setIsPulling(true);
+    ollama.actions.setPullingModel(model);
     ollama.actions.setPullProgress({ status: "Starting..." });
-
     try {
-      await loggedInvoke("pull_model", { model: modelToPull });
+      await loggedInvoke("pull_model", { model });
       setNewModelName("");
-      await new Promise((r) => setTimeout(r, 1000));
       await refreshModels();
-      await new Promise((r) => setTimeout(r, 500));
-      await refreshModels();
-    } catch (error) {
-      if (error !== "Pull cancelled by user") {
-        console.error("Failed to pull model:", error);
-      }
+    } catch (err) {
+      if (err !== "Pull cancelled by user") notify.error("Failed to pull model", String(err));
     } finally {
+      setIsPulling(false);
       ollama.actions.setPullingModel(null);
       ollama.actions.setPullProgress(null);
-      setIsPulling(false);
     }
   };
 
-  const handleCancelPull = async () => {
+  const deleteModel = async (model: string) => {
+    if (!confirm(`Delete ${model}?`)) return;
     try {
-      await ollama.cancelPull();
-    } catch (error) {
-      console.error("Failed to cancel pull:", error);
+      await ollama.deleteModel(model);
+      await refreshModels();
+    } catch (err) {
+      notify.error("Failed to delete model", String(err));
     }
   };
 
-  const handleDeleteModel = async (modelName: string) => {
-    if (!confirm(`Are you sure you want to delete ${modelName}?`)) return;
-    try {
-      await ollama.deleteModel(modelName);
-      refreshModels();
-    } catch (error) {
-      notify.error("Failed to delete model", error as string);
-    }
-  };
-
-  if (loading && providers.length === 0) {
-    return (
-      <Stack spacing={0}>
-        <SectionHeader title="Loading..." />
-      </Stack>
-    );
-  }
-
-  if (error && providers.length === 0) {
-    return (
-      <Stack spacing={0}>
-        <SectionHeader title="Error" description={error} />
-      </Stack>
-    );
-  }
-
-  if (!config) {
-    return (
-      <Stack spacing={0}>
-        <SectionHeader title="No providers configured" />
-        <Typography sx={{ px: 2.5, fontSize: 13, color: "text.secondary" }}>
-          The provider_configs database table is empty. This may happen if the initial database setup didn't run correctly.
-        </Typography>
-        <Stack direction="row" spacing={1.5} sx={{ py: 1.5 }}>
-          <Button
-            size="small"
-            variant="outlined"
-            onClick={() => actions.refresh()}
-            disabled={loading}
-            sx={{ textTransform: "none", fontWeight: 700 }}
-          >
-            {loading ? "Refreshing..." : "Retry"}
-          </Button>
-        </Stack>
-      </Stack>
-    );
-  }
+  if (loading && providers.length === 0) return <SectionHeader title="Loading providers..." />;
+  if (error && providers.length === 0) return <SectionHeader title="Provider error" description={error} />;
 
   return (
     <Stack spacing={0}>
-      <SectionHeader title="LLM Provider" />
-
-      <SettingCard
-        title={config.provider_type}
-        description="Local Ollama instance"
-        action={
-          <Badge
-            label={status ?? "Unknown"}
-            color={statusColor[status ?? "Unavailable"]}
-          />
-        }
+      <SectionHeader
+        title="Providers"
+        description="Connect local or OpenAI-compatible model servers."
+        action={<Button size="small" variant="contained" startIcon={<Plus size={15} />} onClick={() => setIsExternalOpen(true)} sx={{ textTransform: "none", fontWeight: 700 }}>Add provider</Button>}
       />
 
-      <SettingCard
-        title="Enabled"
-        description="Enable or disable this provider"
-        action={
-          <Switch
-            checked={enabled}
-            onChange={(e) => {
-              setEnabled(e.target.checked);
-              setDirty(true);
-            }}
-          />
-        }
-      />
-
-      <SettingCard title="Host URL" description="Ollama server address">
-        <TextField
-          value={host}
-          onChange={(e) => {
-            setHost(e.target.value);
-            setDirty(true);
-          }}
-          placeholder="http://127.0.0.1:11434"
-          fullWidth
-          size="small"
-          sx={appTextFieldSx}
-        />
-      </SettingCard>
-
-      <SettingCard title="Actions">
-        <Stack direction="row" spacing={1.5}>
-          <Button
-            size="small"
-            variant="contained"
-            disableElevation
-            onClick={handleSave}
-            disabled={saving || !dirty}
-            sx={{ textTransform: "none", fontWeight: 700 }}
-          >
-            {saving ? "Saving..." : "Save"}
-          </Button>
-          <Button
-            size="small"
-            variant="outlined"
-            onClick={handleTest}
-            disabled={testing}
-            sx={{ textTransform: "none", fontWeight: 700 }}
-          >
-            {testing ? "Testing..." : "Test Connection"}
-          </Button>
+      <SettingCard title="Ollama" description="Local provider. Configured by default." action={<Badge label={local?.status ?? "Unavailable"} color={statusColor[local?.status ?? "Unavailable"]} />}>
+        <Stack direction="row" spacing={1} alignItems="center">
+          <TextField value={host} onChange={(e) => { setHost(e.target.value); setIsLocalDirty(true); }} placeholder="http://127.0.0.1:11434" fullWidth size="small" sx={appTextFieldSx} />
+          <Switch checked={localEnabled} onChange={(e) => { setLocalEnabled(e.target.checked); setIsLocalDirty(true); }} />
+          <Button size="small" variant="outlined" disabled={!isLocalDirty || isSavingLocal || !host.trim()} onClick={saveLocal} sx={{ textTransform: "none", fontWeight: 700 }}>{isSavingLocal ? "Saving..." : "Save"}</Button>
         </Stack>
       </SettingCard>
 
-      <SectionHeader
-        title="Model Management"
-        description="Download and manage local models."
-      />
-
-      <SettingCard title="Pull Model">
-        <Box sx={{ display: "flex", gap: 1 }}>
-          <TextField
-            fullWidth
-            size="small"
-            placeholder="e.g. llama3, deepseek-r1:7b"
-            value={newModelName}
-            onChange={(e) => setNewModelName(e.target.value)}
-            disabled={isPulling}
-            sx={{
-              ...appTextFieldSx,
-              "& .MuiOutlinedInput-root": {
-                bgcolor: "action.hover",
-              },
-            }}
-          />
-          <Button
-            variant="contained"
-            disableElevation
-            onClick={handlePullModel}
-            disabled={isPulling || !newModelName.trim()}
-            startIcon={<Download size={16} />}
-            sx={{
-              borderRadius: "8px",
-              textTransform: "none",
-              px: 3,
-              bgcolor: "primary.main",
-              fontWeight: 600,
-              "&:hover": { bgcolor: "primary.dark" },
-            }}
-          >
-            Pull
-          </Button>
-        </Box>
-      </SettingCard>
-
-      {isPulling && ollama.pullProgress ? (
-        <Box sx={{ ...appPanelSx, mb: 1 }}>
-          <Box
-            sx={{
-              display: "flex",
-              justifyContent: "space-between",
-              mb: 1,
-              alignItems: "center",
-            }}
-          >
-            <Typography sx={{ fontWeight: 600, fontSize: 13, color: "text.primary" }}>
-              Pulling {ollama.pullingModel}...
-            </Typography>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              <Typography sx={{ color: "text.secondary", fontSize: 12 }}>
-                {ollama.pullProgress.status}
-              </Typography>
-              <IconButton
-                size="small"
-                onClick={handleCancelPull}
-                title="Cancel Pull"
-                sx={{ color: "error.main", p: 0.5, borderRadius: "8px" }}
-              >
-                <XCircle size={14} />
-              </IconButton>
-            </Box>
-          </Box>
-          {ollama.pullProgress.total && ollama.pullProgress.completed ? (
-            <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-              <LinearProgress
-                variant="determinate"
-                value={(ollama.pullProgress.completed / ollama.pullProgress.total) * 100}
-                sx={{
-                  flex: 1,
-                  height: 6,
-                  borderRadius: 3,
-                  bgcolor: "action.selected",
-                  "& .MuiLinearProgress-bar": { borderRadius: 3 },
-                }}
-              />
-              <Typography
-                sx={{
-                  minWidth: 35,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: "text.primary",
-                }}
-              >
-                {Math.round(
-                  (ollama.pullProgress.completed / ollama.pullProgress.total) * 100,
-                )}
-                %
-              </Typography>
-            </Box>
-          ) : (
-            <LinearProgress sx={{ height: 4, borderRadius: 2 }} />
-          )}
-        </Box>
+      {external?.config.enabled ? (
+        <SettingCard title="OpenAI-compatible" description={external.config.api_base_url ?? "External API"} action={<Stack direction="row" spacing={1} alignItems="center"><Badge label={external.status} color={statusColor[external.status]} /><Button size="small" onClick={() => setIsExternalOpen(true)} sx={{ textTransform: "none" }}>Edit</Button></Stack>} />
       ) : null}
 
-      <SettingCard title="Local Models">
-        <Stack spacing={1}>
-          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <Typography sx={{ fontSize: 13, fontWeight: 600, color: "text.primary" }}>
-              Installed
-            </Typography>
-            <IconButton
-              size="small"
-              onClick={refreshModels}
-              disabled={isRefreshing}
-              sx={{ borderRadius: "8px" }}
-            >
-              <RefreshCw size={16} style={isRefreshing ? { animation: "spin 1s linear infinite" } : undefined} />
-            </IconButton>
+      <SectionHeader title="Ollama models" description="Install and remove models from local Ollama." />
+      <Button onClick={() => setIsInstallerOpen((open) => !open)} endIcon={<ChevronDown size={16} style={{ transform: isInstallerOpen ? "rotate(180deg)" : undefined, transition: "transform 150ms ease" }} />} sx={{ justifyContent: "space-between", textTransform: "none", color: "text.primary", fontWeight: 700, px: 0, py: 1 }}>
+        Model installer
+      </Button>
+      <Collapse in={isInstallerOpen}>
+        <Stack spacing={1.5} sx={{ pb: 2 }}>
+          <Box sx={{ display: "flex", gap: 1 }}>
+            <TextField value={newModelName} onChange={(e) => setNewModelName(e.target.value)} placeholder="e.g. llama3, deepseek-r1:7b" fullWidth size="small" disabled={isPulling} sx={appTextFieldSx} />
+            <Button variant="contained" disableElevation onClick={pullModel} disabled={isPulling || !newModelName.trim()} startIcon={<Download size={15} />} sx={{ textTransform: "none", fontWeight: 700 }}>Pull</Button>
           </Box>
-
-          {ollama.models.length === 0 ? (
-            <Typography sx={{ fontSize: 12, color: "text.secondary", py: 2, textAlign: "center" }}>
-              No local models found.
-            </Typography>
-          ) : (
-            ollama.models.map((model) => (
-              <Box
-                key={model.name}
-                sx={{
-                  ...appPanelSx,
-                  p: 1.5,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                }}
-              >
-                <Box>
-                  <Typography sx={{ fontSize: 13, fontWeight: 600, color: "text.primary" }}>
-                    {model.name}
-                  </Typography>
-                  <Typography sx={{ fontSize: 12, color: "text.secondary", mt: 0.25 }}>
-                    {formatFileSize(model.size)}
-                  </Typography>
-                </Box>
-                <IconButton
-                  size="small"
-                  onClick={() => handleDeleteModel(model.name)}
-                  sx={{
-                    color: "text.secondary",
-                    borderRadius: "8px",
-                    "&:hover": { color: "error.main" },
-                  }}
-                >
-                  <Trash2 size={16} />
-                </IconButton>
-              </Box>
-            ))
-          )}
+          {isPulling && ollama.pullProgress ? <Box sx={{ ...appPanelSx, py: 1 }}><Stack direction="row" justifyContent="space-between"><Typography sx={{ fontSize: 12 }}>Pulling {ollama.pullingModel}: {ollama.pullProgress.status}</Typography><IconButton size="small" onClick={() => void ollama.cancelPull()}><XCircle size={15} /></IconButton></Stack><LinearProgress /></Box> : null}
+          <Stack direction="row" justifyContent="space-between" alignItems="center"><Typography sx={{ fontSize: 13, fontWeight: 700 }}>Installed models</Typography><IconButton size="small" onClick={refreshModels} disabled={isRefreshing}><RefreshCw size={15} /></IconButton></Stack>
+          {ollama.localModels.length === 0 ? <Typography sx={{ fontSize: 12, color: "text.secondary" }}>No local models found.</Typography> : null}
+          {ollama.localModels.map((model) => <Stack key={model.name} direction="row" justifyContent="space-between" alignItems="center"><Box><Typography sx={{ fontSize: 13, fontWeight: 600 }}>{model.name}</Typography><Typography sx={{ fontSize: 12, color: "text.secondary" }}>{formatFileSize(model.size)}</Typography></Box><IconButton size="small" onClick={() => void deleteModel(model.name)}><Trash2 size={15} /></IconButton></Stack>)}
         </Stack>
-      </SettingCard>
+      </Collapse>
+
+      <Dialog open={isExternalOpen} onClose={() => setIsExternalOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 18, fontWeight: 700 }}>Add provider<IconButton size="small" onClick={() => setIsExternalOpen(false)}><X size={18} /></IconButton></DialogTitle>
+        <DialogContent>
+          <Typography sx={{ mb: 2, fontSize: 12, color: "text.secondary" }}>OpenAI API-compatible connection. API key optional for local servers.</Typography>
+          <Stack spacing={2}>
+            <TextField label="API base URL" value={apiBaseUrl} onChange={(e) => setApiBaseUrl(e.target.value)} placeholder="https://api.openai.com/v1" required fullWidth size="small" />
+            <TextField label="API key (optional)" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="sk-..." type="password" autoComplete="off" fullWidth size="small" />
+            <SettingCard title="Enabled" description="Show models from this provider." action={<Switch checked={externalEnabled} onChange={(e) => setExternalEnabled(e.target.checked)} />} />
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}><Button onClick={() => setIsExternalOpen(false)} sx={{ textTransform: "none" }}>Cancel</Button><Button variant="contained" disableElevation disabled={!apiBaseUrl.trim() || isSavingExternal} onClick={saveExternal} sx={{ textTransform: "none", fontWeight: 700 }}>{isSavingExternal ? "Saving..." : "Save"}</Button></DialogActions>
+      </Dialog>
     </Stack>
   );
 }

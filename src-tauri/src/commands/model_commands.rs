@@ -1,5 +1,6 @@
 use crate::models::chat::ModelDetails;
 use crate::AppState;
+use crate::providers::base::ProviderType;
 use std::sync::atomic::Ordering;
 use tauri::{AppHandle, Emitter};
 use tokio_stream::StreamExt;
@@ -8,13 +9,13 @@ use tokio_stream::StreamExt;
 pub async fn get_local_models(
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<ModelDetails>, String> {
-    let provider = state.provider_selector.get_active_provider().await?;
+    let provider = state.provider_selector.get_provider(ProviderType::OllamaLocal).await?;
     provider.get_available_models().await
 }
 
 #[tauri::command]
 pub async fn delete_model(state: tauri::State<'_, AppState>, model: String) -> Result<(), String> {
-    let provider = state.provider_selector.get_active_provider().await?;
+    let provider = state.provider_selector.get_provider(ProviderType::OllamaLocal).await?;
     provider.delete_model(model).await
 }
 
@@ -25,7 +26,7 @@ pub async fn pull_model(
     model: String,
 ) -> Result<(), String> {
     state.is_pull_cancelled.store(false, Ordering::SeqCst);
-    let provider = state.provider_selector.get_active_provider().await?;
+    let provider = state.provider_selector.get_provider(ProviderType::OllamaLocal).await?;
 
     let mut stream = provider
         .pull_model(model.clone())
@@ -47,14 +48,15 @@ pub async fn pull_model(
         }
     }
 
-    if !last_error.is_empty() {
-        let lower = last_error.to_lowercase();
-        if lower.contains("decode") {
-            return Err(format!("Failed to pull {}: Ollama returned an invalid response. The model may still have been downloaded - try refreshing the model list.", model));
-        }
-        return Err(format!("Failed to pull {}: {}", model, last_error));
+    if last_error.is_empty() {
+        return Ok(());
     }
-    Ok(())
+
+    let lower = last_error.to_lowercase();
+    if lower.contains("decode") {
+        return Err(format!("Failed to pull {}: Ollama returned an invalid response. The model may still have been downloaded - try refreshing the model list.", model));
+    }
+    Err(format!("Failed to pull {}: {}", model, last_error))
 }
 
 #[tauri::command]

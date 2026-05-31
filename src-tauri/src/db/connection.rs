@@ -28,8 +28,8 @@ pub async fn init_db<R: Runtime>(app: &AppHandle<R>) -> Result<SqlitePool, Strin
     ensure_users_schema(&pool).await?;
     ensure_sessions_schema(&pool).await?;
 
-    // Remove stale rows from earlier provider types (e.g. OpenAI) that were removed
-    sqlx::query("DELETE FROM provider_configs WHERE provider_type NOT IN ('OllamaLocal')")
+    // Remove stale rows from earlier provider types.
+    sqlx::query("DELETE FROM provider_configs WHERE provider_type NOT IN ('OllamaLocal', 'OpenAICompatible')")
         .execute(&pool)
         .await
         .map_err(|e| e.to_string())?;
@@ -39,6 +39,16 @@ pub async fn init_db<R: Runtime>(app: &AppHandle<R>) -> Result<SqlitePool, Strin
         r#"
         INSERT OR IGNORE INTO provider_configs (provider_type, enabled, ollama_host, priority)
         VALUES ('OllamaLocal', 1, 'http://127.0.0.1:11434', 0)
+        "#,
+    )
+    .execute(&pool)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    sqlx::query(
+        r#"
+        INSERT OR IGNORE INTO provider_configs (provider_type, enabled, api_base_url, priority)
+        VALUES ('OpenAICompatible', 0, 'https://api.openai.com/v1', 1)
         "#,
     )
     .execute(&pool)
@@ -72,6 +82,7 @@ async fn ensure_conversations_schema(pool: &SqlitePool) -> Result<(), String> {
             createdAt TEXT,
             attachments TEXT,
             model TEXT,
+            provider TEXT,
             thinking TEXT,
             thinkingDuration REAL,
             webSearch TEXT
@@ -92,6 +103,22 @@ async fn ensure_conversations_schema(pool: &SqlitePool) -> Result<(), String> {
 
     if !has_websearch {
         sqlx::query("ALTER TABLE messages ADD COLUMN webSearch TEXT")
+            .execute(pool)
+            .await
+            .map_err(|e| e.to_string())?;
+    }
+
+    let has_provider = sqlx::query(
+        "SELECT COUNT(*) FROM pragma_table_info('messages') WHERE name = 'provider'",
+    )
+    .fetch_one(pool)
+    .await
+    .map_err(|e| e.to_string())?
+    .get::<i64, _>(0)
+        > 0;
+
+    if !has_provider {
+        sqlx::query("ALTER TABLE messages ADD COLUMN provider TEXT")
             .execute(pool)
             .await
             .map_err(|e| e.to_string())?;
@@ -148,10 +175,10 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), String> {
             .await
             .map_err(|e| e.to_string())?;
 
-        migrator.run(pool).await.map_err(|e| e.to_string())
-    } else {
-        Ok(())
+        return migrator.run(pool).await.map_err(|e| e.to_string());
     }
+
+    Ok(())
 }
 
 async fn ensure_users_schema(pool: &SqlitePool) -> Result<(), String> {

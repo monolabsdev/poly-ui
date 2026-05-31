@@ -152,7 +152,7 @@ impl ToolLoop {
         loop {
             let reasoning_opt = serde_json::json!({"reasoning_enabled": reasoning_enabled});
 
-            let has_api_key = exa_api_key.as_ref().filter(|k| !k.is_empty()).is_some();
+            let has_api_key = exa_api_key.as_ref().is_some_and(|k| !k.is_empty());
             let tools = if has_api_key { Some(vec![web_search_tool.clone()]) } else { None };
 
             let mut stream = provider
@@ -178,13 +178,13 @@ impl ToolLoop {
 
                 chunk.request_id = request_id.to_string();
                 if let Some(ref m) = chunk.metadata { final_metadata = Some(m.clone()); }
-                if let Some(tcs) = chunk.tool_calls { if !tcs.is_empty() { tool_calls_opt = Some(tcs); } }
+                if let Some(tcs) = chunk.tool_calls.filter(|tcs| !tcs.is_empty()) {
+                    tool_calls_opt = Some(tcs);
+                }
 
-                if let Some(ref tc) = chunk.thinking {
-                    if !tc.is_empty() {
-                        thinking_acc.push_str(tc);
-                        emitter.emit_thinking(&ThinkingPayload { request_id: request_id.to_string(), thinking: thinking_acc.clone(), is_thinking: content_acc.is_empty() }).await;
-                    }
+                if let Some(tc) = chunk.thinking.as_ref().filter(|tc| !tc.is_empty()) {
+                    thinking_acc.push_str(tc);
+                    emitter.emit_thinking(&ThinkingPayload { request_id: request_id.to_string(), thinking: thinking_acc.clone(), is_thinking: content_acc.is_empty() }).await;
                 }
 
                 if !chunk.content.is_empty() {
@@ -216,22 +216,21 @@ impl ToolLoop {
 
                             emitter.emit_web_search(&WebSearchEvent { request_id: request_id.to_string(), query: query.clone(), status: "searching".into(), results: None }).await;
 
-                            let (search_results, search_error) = if let Some(ref key) = exa_api_key {
-                                if !key.is_empty() {
-                                    match web_search.search(&query, key).await {
-                                        Ok(r) => (r, None),
-                                        Err(e) => { eprintln!("[WebSearch] Exa error: {e}"); (Vec::new(), Some(e)) }
-                                    }
-                                } else { (Vec::new(), Some("No Exa API key configured".into())) }
-                            } else { (Vec::new(), Some("No Exa API key configured".into())) };
+                            let (search_results, search_error) = match exa_api_key.as_ref().filter(|k| !k.is_empty()) {
+                                Some(key) => match web_search.search(&query, key).await {
+                                    Ok(r) => (r, None),
+                                    Err(e) => { eprintln!("[WebSearch] Exa error: {e}"); (Vec::new(), Some(e)) }
+                                },
+                                None => (Vec::new(), Some("No Exa API key configured".into())),
+                            };
 
                             let results_clone = search_results.clone();
                             emitter.emit_web_search(&WebSearchEvent { request_id: request_id.to_string(), query: query.clone(), status: if search_error.is_some() { "error".into() } else { "complete".into() }, results: Some(search_results) }).await;
 
                             let tool_result = format_search_results(&query, &results_clone, search_error.as_deref());
 
-                            messages.push(ChatMessage { role: "assistant".into(), content: content_acc.clone(), attachments: None, tool_calls: Some(vec![ToolCallInfo { name: tc.name, arguments: tc.arguments }]) });
-                            messages.push(ChatMessage { role: "tool".into(), content: tool_result, attachments: None, tool_calls: None });
+                            messages.push(ChatMessage { role: "assistant".into(), content: content_acc.clone(), attachments: None, tool_calls: Some(vec![tc.clone()]), tool_call_id: None });
+                            messages.push(ChatMessage { role: "tool".into(), content: tool_result, attachments: None, tool_calls: None, tool_call_id: tc.id });
 
                             content_acc.clear();
                             thinking_acc.clear();

@@ -1,3 +1,5 @@
+import type { ModelProvider } from "@/store/modelStore";
+
 export type Role = "user" | "assistant";
 
 export interface Conversation {
@@ -38,6 +40,7 @@ export interface ChatMessage {
   createdAt: string;
   attachments?: Attachment[];
   model?: string;
+  provider?: ModelProvider;
   thinking?: string;
   thinkingDuration?: number;
   isThinking?: boolean;

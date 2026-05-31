@@ -6,9 +6,11 @@ import { ChatInput } from "@/components/Chat/ChatInput";
 import { EmptyState } from "@/components/Chat/EmptyState";
 import { useChatStream } from "@/hooks/useChatStream";
 import { useChatStore } from "@/store/chatStore";
+import type { ModelProvider } from "@/store/modelStore";
 
 type ChatWorkspaceProps = {
   selectedModels: string[];
+  selectedProviders: ModelProvider[];
   selectedModel: string;
   systemPromptContent: string;
   userName?: string;
@@ -18,6 +20,7 @@ type ChatWorkspaceProps = {
 
 export default function ChatWorkspace({
   selectedModels,
+  selectedProviders,
   selectedModel,
   systemPromptContent,
   userName,
@@ -25,7 +28,7 @@ export default function ChatWorkspace({
   onStopStreamingReady,
 }: ChatWorkspaceProps) {
   const { messages, streamingMessagesList, isStreaming, sendMessage, regenerateMessage, stopStreaming, bottomRef, hasMessages } =
-    useChatStream(selectedModels, systemPromptContent, userName);
+    useChatStream(selectedModels, selectedProviders, systemPromptContent, userName);
 
   const { activeConversationId, currentAttachments } = useChatStore(
     useShallow((state) => ({
@@ -125,7 +128,7 @@ export default function ChatWorkspace({
           </EmptyState>
         )}
 
-        {hasMessages && (
+        {hasMessages ? (
           <ChatInput
             onSubmit={handleSend}
             onStop={stopStreaming}
@@ -134,7 +137,7 @@ export default function ChatWorkspace({
             hasMessages={hasMessages}
             isTemporary={isTemporary}
           />
-        )}
+        ) : null}
       </Box>
     </>
   );
