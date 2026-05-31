@@ -16,25 +16,9 @@ import {
   type ThinkingPayload,
   type WebSearchPayload,
 } from "@/lib/chat/event-bus";
-
-// ---------------------------------------------------------------------------
-// Stable handler refs pattern:
-//
-// The core bug was that handleChunk/handleThinking/handleTool closed over
-// `streamingMessages` from the render cycle that created them. Because those
-// callbacks were in the streamEventBus.subscribe() useEffect's dep array,
-// every render (including the ones triggered by streaming patches) caused a
-// re-subscribe, meaning multiple concurrent handlers drained the same events.
-//
-// Fix: keep a single subscription for the lifetime of the hook. Each handler
-// is stored in a ref so the subscription callback always calls the latest
-// version without needing to re-subscribe. Store state is always read via
-// useChatStore.getState() (Zustand escape hatch) instead of closed-over
-// reactive values.
-// ---------------------------------------------------------------------------
+import { StreamAccumulator } from "@/lib/chat/stream-accumulator";
 
 export function useChatStream(selectedModels: string[], systemPrompt = "", userName?: string) {
-  // Use useShallow to prevent re-renders when other messages in the store change
   const { messages, streamingMessages, activeConversationId } = useChatStore(
     useShallow((s) => ({
       messages: s.messages,
@@ -51,9 +35,8 @@ export function useChatStream(selectedModels: string[], systemPrompt = "", userN
 
   const [isStreaming, setIsStreaming] = useState(false);
 
-  // Accumulator refs — never read from reactive state inside stream handlers.
-  const contentAccRef = useRef<Record<string, string>>({});
-  const thinkingAccRef = useRef<Record<string, string>>({});
+  // Accumulator — pure logic, no React deps
+  const accRef = useRef(new StreamAccumulator());
   const requestIdToMessageIdRef = useRef<Record<string, string>>({});
   const requestIdToConversationIdRef = useRef<Record<string, string>>({});
   const thinkingStartTimeRef = useRef<Record<string, number>>({});
@@ -66,37 +49,42 @@ export function useChatStream(selectedModels: string[], systemPrompt = "", userN
   const selectedModelsRef = useRef(selectedModels);
   useEffect(() => { selectedModelsRef.current = selectedModels; }, [selectedModels]);
 
-  // Stable refs for event handlers so the bus subscription never needs to
-  // re-run. Updated on every render via the layout effect below.
   const handleChunkRef = useRef<(p: ChunkPayload) => void>(() => {});
   const handleThinkingRef = useRef<(p: ThinkingPayload) => void>(() => {});
   const handleWebSearchRef = useRef<(p: WebSearchPayload) => void>(() => {});
 
-  // Keep activeConversationIdRef in sync.
   useEffect(() => {
     activeConversationIdRef.current = activeConversationId;
   }, [activeConversationId]);
 
-  // Streaming messages rendered separately (bottom) so persisted messages
-  // array never changes identity during streaming. This prevents ALL
-  // Message components from re-rendering on every streaming chunk.
   const streamingMessagesList = useMemo<ChatMessage[]>(
     () => Object.values(streamingMessages).filter((m) => m.conversationId === activeConversationId),
     [activeConversationId, streamingMessages],
   );
 
-  // -------------------------------------------------------------------------
-  // resetStreamState — clears all per-stream bookkeeping.
-  // -------------------------------------------------------------------------
+  // Wire accumulator flush → store
+  useEffect(() => {
+    const acc = accRef.current;
+    acc.onFlush((updates) => {
+      const storeUpdates: Record<string, Partial<Message>> = {};
+      for (const [messageId, content] of Object.entries(updates)) {
+        if (content) {
+          storeUpdates[messageId] = { content, status: "streaming" };
+        }
+      }
+      if (Object.keys(storeUpdates).length > 0) {
+        useChatStore.getState().actions.patchStreamingMessages(storeUpdates);
+      }
+    });
+  }, []);
+
   const resetStreamState = useCallback(() => {
     const { streamingMessages: current } = useChatStore.getState();
     Object.keys(requestIdToMessageIdRef.current).forEach((rid) => {
       const mid = requestIdToMessageIdRef.current[rid];
       if (current[mid]) setStreamingMessage(mid, null);
-      delete pendingBatchesRef.current[mid];
     });
-    contentAccRef.current = {};
-    thinkingAccRef.current = {};
+    accRef.current.reset();
     webSearchRef.current = {};
     requestIdToMessageIdRef.current = {};
     requestIdToConversationIdRef.current = {};
@@ -112,47 +100,6 @@ export function useChatStream(selectedModels: string[], systemPrompt = "", userN
     }
   }, [setStreamingConversationId]);
 
-  // Token batching: single rAF loop flushes ALL pending streams every frame.
-  // Eliminates multiple setTimeout timers and their GC/timer-overhead.
-  const pendingBatchesRef = useRef<Record<string, string>>({});
-  const hasScheduledFlushRef = useRef(false);
-
-  const flushAllBatches = useCallback(() => {
-    hasScheduledFlushRef.current = false;
-    const batches = pendingBatchesRef.current;
-    if (Object.keys(batches).length === 0) return;
-
-    const updates: Record<string, Partial<Message>> = {};
-    for (const [messageId, content] of Object.entries(batches)) {
-      if (content) {
-        updates[messageId] = { content, status: "streaming" };
-      }
-    }
-    if (Object.keys(updates).length > 0) {
-      useChatStore.getState().actions.patchStreamingMessages(updates);
-    }
-    pendingBatchesRef.current = {};
-  }, []);
-
-  const scheduleBatchFlush = useCallback(() => {
-    if (hasScheduledFlushRef.current) return;
-    hasScheduledFlushRef.current = true;
-    requestAnimationFrame(flushAllBatches);
-  }, [flushAllBatches]);
-
-  const queueTokenBatch = (_requestId: string, messageId: string, newContent: string) => {
-    pendingBatchesRef.current[messageId] = newContent;
-    scheduleBatchFlush();
-  };
-
-  // -------------------------------------------------------------------------
-  // Stream event handlers.
-  //
-  // These are plain functions (not useCallback) because they are only ever
-  // called through the stable ref wrappers registered on the bus. They read
-  // all state via useChatStore.getState() to avoid stale closure problems.
-  // -------------------------------------------------------------------------
-
   const handleChunk = useCallback(
     async (payload: ChunkPayload) => {
       const conversationId = requestIdToConversationIdRef.current[payload.request_id];
@@ -162,38 +109,32 @@ export function useChatStream(selectedModels: string[], systemPrompt = "", userN
       const messageId = requestIdToMessageIdRef.current[request_id];
       if (!messageId) return;
 
-      // Always build content from the ref accumulator — never from reactive
-      // store state — to avoid stale-closure corruption.
-      const acc = (contentAccRef.current[request_id] ?? "") + content;
-      contentAccRef.current[request_id] = acc;
+      const acc = accRef.current;
+      const prev = acc.content[request_id] ?? "";
+      const updated = prev + content;
+      acc.content[request_id] = updated;
 
       if (!done) {
-        // Batch token updates to reduce re-renders
-        queueTokenBatch(request_id, messageId, acc);
+        acc.queueTokenBatch(messageId, updated);
         return;
       }
 
-      // Flush any pending batch before finalizing
-      delete pendingBatchesRef.current[messageId];
-
-      // Finalize: read model from store at call time, not from closure.
       const { streamingMessages: current } = useChatStore.getState();
       const existing = current[messageId];
-      if (!existing) return; // Already finalized by another path (e.g. error)
-      const thinking = thinkingAccRef.current[request_id];
+      if (!existing) return;
+
+      const thinking = acc.thinking[request_id];
       const completedModel = existing.model ?? "";
       const shouldStartTitleGeneration = pendingStreamsRef.current <= 1;
 
-      if (acc.trim() || thinking?.trim()) {
+      if (updated.trim() || thinking?.trim()) {
         const startTime = thinkingStartTimeRef.current[request_id];
-        const thinkingDuration = startTime
-          ? (Date.now() - startTime) / 1000
-          : undefined;
+        const thinkingDuration = startTime ? (Date.now() - startTime) / 1000 : undefined;
         await addMessage({
           id: messageId,
           conversationId,
           role: "assistant",
-          content: acc,
+          content: updated,
           thinking,
           thinkingDuration,
           isThinking: false,
@@ -210,11 +151,7 @@ export function useChatStream(selectedModels: string[], systemPrompt = "", userN
       settlePending();
 
       if (shouldStartTitleGeneration) {
-        queueTitleGeneration({
-          conversationId,
-          model: completedModel,
-          userName,
-        });
+        queueTitleGeneration({ conversationId, model: completedModel, userName });
       }
 
       if (pendingStreamsRef.current === 0) {
@@ -222,18 +159,16 @@ export function useChatStream(selectedModels: string[], systemPrompt = "", userN
       }
     },
     [addMessage, settlePending, setStreamingMessage, userName],
-    // NOTE: streamingMessages intentionally excluded. We use getState() above.
   );
 
   const handleThinking = useCallback(
     (payload: ThinkingPayload) => {
       if (cancelRef.current) return;
-
       const { request_id, thinking, is_thinking } = payload;
       const messageId = requestIdToMessageIdRef.current[request_id];
       if (!messageId) return;
 
-      thinkingAccRef.current[request_id] = thinking;
+      accRef.current.thinking[request_id] = thinking;
       if (is_thinking && !thinkingStartTimeRef.current[request_id]) {
         thinkingStartTimeRef.current[request_id] = Date.now();
       }
@@ -250,17 +185,12 @@ export function useChatStream(selectedModels: string[], systemPrompt = "", userN
   const handleWebSearch = useCallback(
     (payload: WebSearchPayload) => {
       if (cancelRef.current) return;
-
       const { request_id, query, status, results } = payload;
       const messageId = requestIdToMessageIdRef.current[request_id];
       if (!messageId) return;
 
       webSearchRef.current[request_id] = payload;
 
-      // Accumulate results across multiple sequential searches for the same
-      // message (the model may search, get results, then search again).
-      // Each "complete" event merges new results (deduped by URL) into the
-      // existing set so the disclosure never shows stale "0 sources".
       const existing = useChatStore.getState().streamingMessages[messageId];
       const prevResults = existing?.webSearch?.results ?? [];
       const merged = results
@@ -275,23 +205,12 @@ export function useChatStream(selectedModels: string[], systemPrompt = "", userN
     [patchStreamingMessage],
   );
 
-  // Keep stable handler refs up to date on every render.
-  // Using useLayoutEffect ensures refs are updated before any paint-driven
-  // callbacks fire, but a plain useEffect would also be correct here since
-  // the event bus is async.
   useEffect(() => {
     handleChunkRef.current = handleChunk;
     handleThinkingRef.current = handleThinking;
     handleWebSearchRef.current = handleWebSearch;
   });
 
-  // -------------------------------------------------------------------------
-  // Single, stable bus subscription for the lifetime of the hook.
-  //
-  // The empty dep array means this runs once on mount and cleans up on
-  // unmount. The ref wrappers ensure the latest handler versions are always
-  // invoked without triggering a re-subscribe.
-  // -------------------------------------------------------------------------
   useEffect(() => {
     streamEventBus.subscribe({
       onChunk: (p) => handleChunkRef.current(p),
@@ -301,16 +220,12 @@ export function useChatStream(selectedModels: string[], systemPrompt = "", userN
     return () => {
       streamEventBus.unsubscribe();
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
-  // -------------------------------------------------------------------------
-  // startStream — shared streaming logic, reused by sendMessage and regenerate
-  // -------------------------------------------------------------------------
   const startStream = useCallback(
     (conversationId: string, models: string[]) => {
       if (!conversationId || !models.length) return;
 
-      // Read current conversation history from the store
       const history = useChatStore.getState().messages
         .filter((m) => m.conversationId === conversationId)
         .map((m) => ({
@@ -354,40 +269,17 @@ export function useChatStream(selectedModels: string[], systemPrompt = "", userN
         }).catch((err) => {
           console.error(err);
           settlePending();
-
-          // Check if handleChunk already finalised this message (done:true event
-          // raced ahead of the Promise rejection). If so, don't overwrite.
           if (!useChatStore.getState().streamingMessages[mid]) return;
 
-          const errMsg =
-            typeof err === "string"
-              ? err
-              : (err as Error).message || "Unknown error";
-
-          patchStreamingMessage(mid, {
-            status: "error",
-            errorMessage: errMsg,
-            isStreaming: false,
-          });
-
+          const errMsg = typeof err === "string" ? err : (err as Error).message || "Unknown error";
+          patchStreamingMessage(mid, { status: "error", errorMessage: errMsg, isStreaming: false });
           notify.error(`Chat error (${model})`, errMsg);
         });
       }
     },
-    [
-      systemPrompt,
-      resetStreamState,
-      settlePending,
-      setStreamingMessage,
-      patchStreamingMessage,
-      notify,
-    ],
+    [systemPrompt, resetStreamState, settlePending, setStreamingMessage, patchStreamingMessage, notify],
   );
 
-  // -------------------------------------------------------------------------
-  // processNextInQueue — drain queued messages after stream completes.
-  // Last-queued wins (LIFO) so rapid sends always prioritize the latest input.
-  // -------------------------------------------------------------------------
   const processNextInQueue = useCallback(async () => {
     if (processingQueueRef.current) return;
     const conversationId = activeConversationIdRef.current;
@@ -402,7 +294,6 @@ export function useChatStream(selectedModels: string[], systemPrompt = "", userN
       if (!models.length) return;
 
       useChatStore.getState().actions.dequeueMessage(next.id);
-
       cancelRef.current = false;
       await addMessage({
         conversationId: next.conversationId,
@@ -422,9 +313,6 @@ export function useChatStream(selectedModels: string[], systemPrompt = "", userN
   const processNextInQueueRef = useRef(processNextInQueue);
   useEffect(() => { processNextInQueueRef.current = processNextInQueue; });
 
-  // -------------------------------------------------------------------------
-  // sendMessage
-  // -------------------------------------------------------------------------
   const sendMessage = useCallback(
     async (content: string, attachments?: Attachment[]) => {
       const models = selectedModels.filter(Boolean);
@@ -436,14 +324,11 @@ export function useChatStream(selectedModels: string[], systemPrompt = "", userN
         return;
       }
 
-      const conversationId =
-        useChatStore.getState().activeConversationId ?? activeConversationId;
+      const conversationId = useChatStore.getState().activeConversationId ?? activeConversationId;
       if (!conversationId) return;
 
       const processed = defaultPreprocessor.preprocess(content.trim());
 
-      // Backpressure: enqueue instead of blocking when already streaming.
-      // Processes newest-first after current stream completes.
       if (isStreaming) {
         useChatStore.getState().actions.enqueueMessage({
           id: crypto.randomUUID(),
@@ -455,21 +340,12 @@ export function useChatStream(selectedModels: string[], systemPrompt = "", userN
       }
 
       cancelRef.current = false;
-      await addMessage({
-        conversationId,
-        role: "user",
-        content: processed,
-        attachments,
-      });
-
+      await addMessage({ conversationId, role: "user", content: processed, attachments });
       startStream(conversationId, models);
     },
     [selectedModels, isStreaming, activeConversationId, addMessage, startStream],
   );
 
-  // -------------------------------------------------------------------------
-  // stopStreaming
-  // -------------------------------------------------------------------------
   const stopStreaming = useCallback(async () => {
     if (!isStreaming) return;
     cancelRef.current = true;
@@ -480,10 +356,7 @@ export function useChatStream(selectedModels: string[], systemPrompt = "", userN
       console.error(err);
     }
 
-    // Snapshot the streaming messages at call time via getState() to avoid
-    // acting on a stale closure.
     const { streamingMessages: snapshot } = useChatStore.getState();
-
     for (const [mid, msg] of Object.entries(snapshot)) {
       if (!msg.content.trim() && !msg.thinking?.trim()) {
         setStreamingMessage(mid, null);
@@ -496,9 +369,7 @@ export function useChatStream(selectedModels: string[], systemPrompt = "", userN
       await addMessage({
         ...msg,
         isThinking: false,
-        thinkingDuration: startTime
-          ? (Date.now() - startTime) / 1000
-          : undefined,
+        thinkingDuration: startTime ? (Date.now() - startTime) / 1000 : undefined,
         status: "aborted",
       });
       setStreamingMessage(mid, null);
@@ -506,7 +377,6 @@ export function useChatStream(selectedModels: string[], systemPrompt = "", userN
 
     setIsStreaming(false);
   }, [isStreaming, addMessage, setStreamingMessage]);
-  // NOTE: streamingMessages removed from deps; we use getState() above.
 
   const regenerateMessage = useCallback(
     (conversationId: string) => {

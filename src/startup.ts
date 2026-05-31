@@ -1,9 +1,9 @@
 import type { SystemPrompt } from "@/store/modelStore";
 import { useAuthStore } from "@/store/authStore";
-import { useChatStore } from "@/store/chatStore";
 import { useModelStore } from "@/store/modelStore";
 import { useOllamaStore } from "@/services/ollama/monitor";
 import { useProviderStore } from "@/services/providers";
+import { initStoreCoordinator } from "@/store/coordinator";
 
 const SYSTEM_PROMPTS_STORAGE_KEY = "polyui.systemPrompts";
 
@@ -77,6 +77,7 @@ async function preloadVisibleAppChunks() {
 async function initializeStores() {
   restoreSystemPrompts();
   startSystemPromptPersistence();
+  initStoreCoordinator();
 
   const repo = await import("@/lib/repositories");
   await repo.initRepository().catch(() => {});
@@ -85,9 +86,6 @@ async function initializeStores() {
     useProviderStore.getState().actions.refresh().catch(() => {}),
     useAuthStore.getState().actions.restoreSession().catch(() => {}),
   ]).catch(() => {});
-
-  // Load conversations after session restore so userId is available for filtering
-  await useChatStore.getState().actions.loadConversations().catch(() => {});
 
   useOllamaStore.getState().actions.start();
 

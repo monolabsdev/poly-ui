@@ -3,6 +3,35 @@ html, body {
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
+body {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+input, textarea, [contenteditable] {
+  user-select: auto;
+  -webkit-user-select: auto;
+}
+
+/* Borderless chrome: Windows/Linux only */
+html[data-chrome="borderless"],
+html[data-chrome="borderless"] body {
+  background: transparent !important;
+  overflow: hidden !important;
+}
+
+html[data-chrome="borderless"] #root {
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border, var(--mui-palette-divider, #27272a));
+  background: var(--background, var(--mui-palette-background-default, #09090b));
+}
+
+html[data-chrome="borderless"].maximized #root {
+  border-radius: 0;
+  border: none;
+}
+
 /* CSS reset for elements used with Box component="button" et al */
 button {
   all: unset;

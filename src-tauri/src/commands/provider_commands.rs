@@ -1,3 +1,4 @@
+use crate::error::AppError;
 use crate::models::chat::ModelDetails;
 use crate::providers::base::{ProviderConfig, ProviderStatus, ProviderType};
 use crate::providers::factory::ProviderFactory;
@@ -21,22 +22,14 @@ pub async fn get_providers(
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<ProviderStatusResponse>, String> {
     let selector = &state.provider_selector;
-    let configs = selector.get_provider_configs().await?;
+    let configs = selector.get_provider_configs().await.map_err(|e| AppError::Db(e).to_string())?;
     let health = selector.check_all_providers().await;
 
     let mut response = Vec::new();
     for config in configs {
-        let status = health
-            .get(&config.provider_type)
-            .cloned()
-            .unwrap_or(ProviderStatus::Offline);
-        response.push(ProviderStatusResponse {
-            provider_type: config.provider_type,
-            status,
-            config,
-        });
+        let status = health.get(&config.provider_type).cloned().unwrap_or(ProviderStatus::Offline);
+        response.push(ProviderStatusResponse { provider_type: config.provider_type, status, config });
     }
-
     Ok(response)
 }
 
@@ -45,7 +38,7 @@ pub async fn get_provider_and_models(
     state: tauri::State<'_, AppState>,
 ) -> Result<ProviderAndModelsResponse, String> {
     let selector = &state.provider_selector;
-    let configs = selector.get_provider_configs().await?;
+    let configs = selector.get_provider_configs().await.map_err(|e| AppError::Db(e).to_string())?;
     let health = selector.check_all_providers().await;
 
     let mut providers = Vec::new();
@@ -53,29 +46,18 @@ pub async fn get_provider_and_models(
     let mut online_config: Option<ProviderConfig> = None;
 
     for config in configs {
-        let status = health
-            .get(&config.provider_type)
-            .cloned()
-            .unwrap_or(ProviderStatus::Offline);
+        let status = health.get(&config.provider_type).cloned().unwrap_or(ProviderStatus::Offline);
         if status == ProviderStatus::Online && online_config.is_none() {
             online_config = Some(config);
         } else {
-            providers.push(ProviderStatusResponse {
-                provider_type: config.provider_type,
-                status,
-                config,
-            });
+            providers.push(ProviderStatusResponse { provider_type: config.provider_type, status, config });
         }
     }
 
     if let Some(config) = online_config {
-        providers.push(ProviderStatusResponse {
-            provider_type: config.provider_type,
-            status: ProviderStatus::Online,
-            config: config.clone(),
-        });
+        providers.push(ProviderStatusResponse { provider_type: config.provider_type, status: ProviderStatus::Online, config: config.clone() });
         if let Some(provider) = ProviderFactory::create(config) {
-            models = provider.get_available_models().await?;
+            models = provider.get_available_models().await.map_err(|e| AppError::Provider(e).to_string())?;
         }
     }
 
@@ -101,12 +83,7 @@ pub async fn update_provider_config(
 ) -> Result<(), String> {
     state
         .provider_selector
-        .update_provider_config(
-            &request.provider_type,
-            request.enabled,
-            request.ollama_host,
-            request.ollama_api_key,
-            request.ollama_api_base_url,
-        )
+        .update_provider_config(&request.provider_type, request.enabled, request.ollama_host, request.ollama_api_key, request.ollama_api_base_url)
         .await
+        .map_err(|e| AppError::Db(e).to_string())
 }

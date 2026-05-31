@@ -185,3 +185,12 @@ export function getRepository(): ConversationRepository {
   if (!repository) throw new Error("Repository not initialized");
   return repository;
 }
+
+// Injection seam for tests. Pass InMemoryConversationRepository to test without SQLite.
+export function setRepository(repo: ConversationRepository): void {
+  repository = repo;
+}
+
+export function resetRepository(): void {
+  repository = null;
+}

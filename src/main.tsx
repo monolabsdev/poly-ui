@@ -11,7 +11,13 @@ import StartupLoadingScreen from "./components/StartupLoadingScreen";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { WindowTitleBar } from "./components/Layout/WindowTitleBar";
 import { loadAppModule, prepareAppStartup } from "./startup";
+import { USE_CUSTOM_WINDOW_CONTROLS } from "./lib/platform";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import "@fontsource-variable/geist";
+
+if (USE_CUSTOM_WINDOW_CONTROLS) {
+  document.documentElement.dataset.chrome = "borderless";
+}
 
 const App = lazy(loadAppModule);
 
@@ -50,6 +56,16 @@ function Root() {
   }, [isAppReady]);
 
   useEffect(() => {
+    if (!isAppReady) return;
+    const show = () => {
+      getCurrentWindow().show().catch((e) => console.error("window.show failed:", e));
+    };
+    const t1 = setTimeout(show, 50);
+    const t2 = setTimeout(show, 500);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, [isAppReady]);
+
+  useEffect(() => {
     const onError = (event: ErrorEvent) => {
       console.error("[Global]", event.error ?? event.message);
     };
@@ -73,6 +89,20 @@ function Root() {
       document.documentElement.classList.remove('dark');
     }
   }, [mode, prefersDarkMode]);
+
+  useEffect(() => {
+    if (!USE_CUSTOM_WINDOW_CONTROLS || !isAppReady) return;
+    const w = getCurrentWindow();
+    const sync = () => {
+      void w.isMaximized().then((m) => {
+        document.documentElement.classList.toggle("maximized", m);
+      });
+    };
+    sync();
+    const unlisten: (() => void)[] = [];
+    void w.onResized(sync).then((fn) => unlisten.push(fn));
+    return () => { unlisten.forEach((fn) => fn()); };
+  }, [isAppReady]);
 
   return (
     <ThemeProvider theme={theme}>

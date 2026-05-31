@@ -1,6 +1,6 @@
 [package]
 name = "polyui"
-version = "0.8.1"
+version = "0.9.0"
 description = "A Tauri App"
 authors = ["you"]
 edition = "2021"
@@ -15,6 +15,7 @@ tauri-build = { version = "2", features = [] }
 [features]
 default = ["dictation"]
 dictation = ["dep:whisper-rs"]
+dev-sql-console = []
 
 [dependencies]
 tauri = { version = "2", features = [] }
@@ -36,5 +37,6 @@ async-trait = "0.1"
 futures = "0.3.32"
 log = "0.4"
 tauri-plugin-fs = "2"
+tauri-plugin-os = "2"
 tauri-plugin-supertonic = "0.1"
 whisper-rs = { version = "0.16", optional = true }

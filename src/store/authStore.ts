@@ -1,7 +1,6 @@
 import { create } from "zustand";
 import { User, AuthResponse } from "@/types/auth";
 import { loggedInvoke } from "@/lib/utils";
-import { useChatStore } from "@/store/chatStore";
 import { getRepository } from "@/lib/repositories";
 
 const GUEST_ID_KEY = "polyui.guestId";
@@ -51,7 +50,6 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       const id = get().guestId || crypto.randomUUID();
       saveGuestId(id);
       set({ isGuest: true, guestId: id, isLoading: false });
-      useChatStore.getState().actions.loadConversations();
     },
 
     login: async (email, password) => {
@@ -70,7 +68,6 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         }
 
         set({ user: response.user, isAuthenticated: true, isGuest: false, guestId: null, isLoading: false });
-        await useChatStore.getState().actions.loadConversations();
       } catch (err) {
         set({ error: err as string, isLoading: false });
         throw err;
@@ -92,7 +89,6 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         }
 
         set({ user: response.user, isAuthenticated: true, isGuest: false, guestId: null, isLoading: false });
-        await useChatStore.getState().actions.loadConversations();
       } catch (err) {
         set({ error: err as string, isLoading: false });
         throw err;
@@ -107,12 +103,10 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         }
         localStorage.removeItem("session_token");
         set({ user: null, isAuthenticated: false, isLoading: false });
-        await useChatStore.getState().actions.loadConversations();
       } catch (err) {
         console.error("Logout error:", err);
         localStorage.removeItem("session_token");
         set({ user: null, isAuthenticated: false, isLoading: false });
-        await useChatStore.getState().actions.loadConversations();
       }
     },
     updateStatus: async (status) => {

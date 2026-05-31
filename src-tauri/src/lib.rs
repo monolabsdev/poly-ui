@@ -1,9 +1,12 @@
 mod auth;
 mod commands;
 mod db;
+mod error;
 mod models;
 mod providers;
+mod stream_emitter;
 mod title_generator;
+mod tool_loop;
 mod web_search;
 
 use crate::commands::chat_commands::{chat, chat_stream, generate_chat_title};
@@ -33,6 +36,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_supertonic::init())
+        .plugin(tauri_plugin_os::init())
         .setup(|app| {
             let db = tauri::async_runtime::block_on(db::connection::init_db(app.handle()))
                 .map_err(std::io::Error::other)?;
@@ -44,6 +48,18 @@ pub fn run() {
                 provider_selector: ProviderSelector::new(db),
                 dictation: DictationState::new(),
             });
+
+            if let Some(_window) = app.get_webview_window("main") {
+                #[cfg(target_os = "macos")]
+                {
+                    let _ = window.set_title_bar_style(tauri::TitleBarStyle::Overlay);
+                }
+
+                #[cfg(target_os = "linux")]
+                {
+                    let _ = window.set_decorations(false);
+                }
+            }
 
             Ok(())
         })
