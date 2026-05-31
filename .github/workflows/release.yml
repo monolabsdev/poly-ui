@@ -151,3 +151,24 @@ jobs:
           draft: true
           generate_release_notes: true
           files: release-files/*
+
+  # =========================
+  # RELEASE NOTES ONLY
+  # =========================
+
+  release-notes-only:
+    name: Generate Release Notes Only
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create release with generated notes
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          generate_release_notes: true
