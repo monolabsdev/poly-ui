@@ -1,6 +1,6 @@
-import { Square, Plus, ArrowUp, Paperclip, Image as ImageIcon, Mic } from "lucide-react";
+import { Square, Plus, ArrowUp, Paperclip, Image as ImageIcon, Mic, AlertTriangle } from "lucide-react";
 import { useState, memo, useEffect, useCallback, useMemo } from "react";
-import { Box, InputBase, IconButton, Typography } from "@mui/material";
+import { Box, InputBase, IconButton, Typography, Tooltip } from "@mui/material";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -12,7 +12,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { Ring2 } from "ldrs/react";
 import "ldrs/react/Ring2.css";
 import { useTiming, ANIMATION_VARIANTS } from "@/lib/motion";
-import { useFeatures } from "@/lib/featureRegistry";
+import { useFeatures, type FeatureDef } from "@/lib/featureRegistry";
 import { useChatAttachments } from "@/hooks/useChatAttachments";
 import { useChatTextarea } from "@/hooks/useChatTextarea";
 import { useSlashCommand } from "@/hooks/useSlashCommand";
@@ -116,7 +116,7 @@ export const ChatInput = memo(function ChatInput({
     handleSubmit();
   }, [handleSubmit, isStreaming, onStop]);
 
-  const handleSlashSelect = useCallback((feature: (typeof features)[number]) => {
+  const handleSlashSelect = useCallback((feature: FeatureDef & { active: boolean; warning?: string }) => {
     feature.toggle();
     setDraft((prev) => prev.replace(/\s?\/?$/, ""));
     closeSlashMenu();
@@ -319,6 +319,13 @@ export const ChatInput = memo(function ChatInput({
                         <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
                           <Icon size={16} />
                           <Typography variant="body2">{feature.name}</Typography>
+                          {feature.warning && (
+                            <Tooltip title={feature.warning} arrow>
+                              <Box sx={{ display: "flex", alignItems: "center" }}>
+                                <AlertTriangle size={14} style={{ color: "orange" }} />
+                              </Box>
+                            </Tooltip>
+                          )}
                         </Box>
                         {feature.active && (
                           <Box

@@ -13,6 +13,7 @@ export interface FeatureDef {
   useIsActive: () => boolean;
   getIsActive: () => boolean;
   toggle: () => void;
+  getWarning?: () => string | undefined;
 }
 
 export const featureRegistry: FeatureDef[] = [
@@ -27,6 +28,11 @@ export const featureRegistry: FeatureDef[] = [
     toggle: () => {
       const state = useSettingsStore.getState();
       state.actions.updateGeneral({ webSearchEnabled: !state.general.webSearchEnabled });
+    },
+    getWarning: () => {
+      const key = useSettingsStore.getState().general.exaApiKey;
+      if (!key || !key.trim()) return "Exa API key not configured — web search requires an API key";
+      return undefined;
     }
   },
   {
@@ -54,8 +60,9 @@ export function isFeatureAIActive(featureId: string): boolean {
 export function useFeatures() {
   const webSearchEnabled = useSettingsStore((s) => s.general.webSearchEnabled);
   const reasoningEnabled = useSettingsStore((s) => s.general.reasoningEnabled);
+  const exaApiKey = useSettingsStore((s) => s.general.exaApiKey);
   return React.useMemo(
-    () => featureRegistry.map((f) => ({ ...f, active: f.getIsActive() })),
-    [webSearchEnabled, reasoningEnabled],
+    () => featureRegistry.map((f) => ({ ...f, active: f.getIsActive(), warning: f.getWarning?.() })),
+    [exaApiKey, reasoningEnabled, webSearchEnabled],
   );
 }

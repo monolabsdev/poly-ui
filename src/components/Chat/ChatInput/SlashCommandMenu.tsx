@@ -1,11 +1,12 @@
-import { Box, Typography } from "@mui/material";
+import { AlertTriangle } from "lucide-react";
+import { Box, Typography, Tooltip } from "@mui/material";
 import { motion } from "motion/react";
 import { useTiming } from "@/lib/motion";
 import type { FeatureDef } from "@/lib/featureRegistry";
 
 interface SlashCommandMenuProps {
-  features: (FeatureDef & { active: boolean })[];
-  onSelect: (feature: FeatureDef & { active: boolean }) => void;
+  features: (FeatureDef & { active: boolean; warning?: string })[];
+  onSelect: (feature: FeatureDef & { active: boolean; warning?: string }) => void;
   selectedIndex: number;
 }
 
@@ -65,7 +66,7 @@ export function SlashCommandMenu({
               }}
             >
               <Icon size={16} />
-              <Box sx={{ flex: 1 }}>
+              <Box sx={{ flex: 1, display: "flex", alignItems: "center", gap: 1 }}>
                 <Typography
                   variant="body2"
                   sx={{
@@ -75,6 +76,13 @@ export function SlashCommandMenu({
                 >
                   {feature.name}
                 </Typography>
+                {feature.warning && (
+                  <Tooltip title={feature.warning} arrow>
+                    <Box sx={{ display: "flex", alignItems: "center", lineHeight: 0 }}>
+                      <AlertTriangle size={12} style={{ color: "orange" }} />
+                    </Box>
+                  </Tooltip>
+                )}
               </Box>
             </Box>
           );

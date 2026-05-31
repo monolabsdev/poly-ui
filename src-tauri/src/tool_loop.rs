@@ -152,8 +152,11 @@ impl ToolLoop {
         loop {
             let reasoning_opt = serde_json::json!({"reasoning_enabled": reasoning_enabled});
 
+            let has_api_key = exa_api_key.as_ref().filter(|k| !k.is_empty()).is_some();
+            let tools = if has_api_key { Some(vec![web_search_tool.clone()]) } else { None };
+
             let mut stream = provider
-                .chat_completion(model.to_string(), messages.clone(), system_prompt.clone(), Some(reasoning_opt), Some(vec![web_search_tool.clone()]))
+                .chat_completion(model.to_string(), messages.clone(), system_prompt.clone(), Some(reasoning_opt), tools)
                 .await
                 .map_err(|e| AppError::Provider(format!("Generation failed: {e}")))?;
 
