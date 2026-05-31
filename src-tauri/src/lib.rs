@@ -49,7 +49,7 @@ pub fn run() {
                 dictation: DictationState::new(),
             });
 
-            if let Some(_window) = app.get_webview_window("main") {
+            if let Some(window) = app.get_webview_window("main") {
                 #[cfg(target_os = "macos")]
                 {
                     let _ = window.set_title_bar_style(tauri::TitleBarStyle::Overlay);
