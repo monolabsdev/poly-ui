@@ -1,4 +1,9 @@
-# PolyUI
+<p align="center">
+  <img src="public/polyui-logo.png" alt="PolyUI logo" width="144" />
+</p>
+
+<h1 align="center">PolyUI</h1>
+
 ![GitHub repo size](https://img.shields.io/github/repo-size/theoslater/openbench)
 ![GitHub language count](https://img.shields.io/github/languages/count/theoslater/openbench)
 ![GitHub top language](https://img.shields.io/github/languages/top/theoslater/openbench)
