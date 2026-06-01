@@ -116,7 +116,7 @@ jobs:
       # =========================
 
       - name: Build OpenBench + Ollama macOS installer
-        if: matrix.platform == 'macos' && secrets.APPLE_INSTALLER_CERTIFICATE != '' && secrets.APPLE_INSTALLER_CERTIFICATE_PASSWORD != '' && secrets.APPLE_INSTALLER_SIGNING_IDENTITY != '' && secrets.APPLE_ID != '' && secrets.APPLE_PASSWORD != '' && secrets.APPLE_TEAM_ID != ''
+        if: matrix.platform == 'macos'
         env:
           APPLE_INSTALLER_CERTIFICATE: ${{ secrets.APPLE_INSTALLER_CERTIFICATE }}
           APPLE_INSTALLER_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_INSTALLER_CERTIFICATE_PASSWORD }}
@@ -124,11 +124,12 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: bash scripts/macos/build-ollama-pkg.sh
-
-      - name: Skip unsigned macOS Ollama package
-        if: matrix.platform == 'macos' && (secrets.APPLE_INSTALLER_CERTIFICATE == '' || secrets.APPLE_INSTALLER_CERTIFICATE_PASSWORD == '' || secrets.APPLE_INSTALLER_SIGNING_IDENTITY == '' || secrets.APPLE_ID == '' || secrets.APPLE_PASSWORD == '' || secrets.APPLE_TEAM_ID == '')
-        run: echo "Skipping PolyUI-Ollama.pkg because Apple Developer Installer signing and notarization secrets are not configured."
+        run: |
+          if [[ -n "$APPLE_INSTALLER_CERTIFICATE" && -n "$APPLE_INSTALLER_CERTIFICATE_PASSWORD" && -n "$APPLE_INSTALLER_SIGNING_IDENTITY" && -n "$APPLE_ID" && -n "$APPLE_PASSWORD" && -n "$APPLE_TEAM_ID" ]]; then
+            bash scripts/macos/build-ollama-pkg.sh
+          else
+            echo "Skipping PolyUI-Ollama.pkg because Apple Developer Installer signing and notarization secrets are not configured."
+          fi
 
       # =========================
       # UPLOAD ARTIFACTS
