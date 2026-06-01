@@ -104,7 +104,10 @@ export const useUpdateStore = create<UpdateState & { actions: UpdateActions }>()
             assetName: info.asset_name,
           });
         } catch (err: any) {
-          if (typeof err === "string" && err === "rate_limited") return;
+          if (typeof err === "string" && err === "rate_limited") {
+            set({ status: "idle" });
+            return;
+          }
           set({ status: "error", error: typeof err === "string" ? err : (err?.message ?? "Check failed") });
         }
       },

@@ -2,6 +2,7 @@ use crate::AppState;
 use reqwest::Client;
 use serde::Serialize;
 use std::io::Write;
+use std::path::Path;
 use std::thread;
 use std::time::Duration;
 use std::time::Instant;
@@ -75,7 +76,7 @@ pub async fn check_for_updates(state: State<'_, AppState>) -> Result<UpdateInfo,
     let current = env!("CARGO_PKG_VERSION");
     let remote = release.tag_name.trim_start_matches('v');
 
-    if remote <= current {
+    if !is_newer_version(remote, current)? {
         return Ok(UpdateInfo {
             has_update: false,
             version: release.tag_name,
@@ -112,13 +113,14 @@ fn select_update_asset<'a>(
     os: &str,
     arch: &str,
 ) -> Option<&'a GithubAsset> {
-    let arch_suffix = match arch {
-        "x86_64" => "x64",
-        "aarch64" => "aarch64",
-        _ => arch,
+    let arch_aliases: &[&str] = match arch {
+        "x86_64" => &["x64", "amd64", "x86_64"],
+        "aarch64" => &["aarch64", "arm64"],
+        _ => &[arch],
     };
+    let known_arches = ["x64", "amd64", "x86_64", "aarch64", "arm64"];
 
-    assets.iter().find(|a| {
+    let matches_platform = |a: &&GithubAsset| {
         let n = a.name.to_lowercase();
         if n.contains("ollama") {
             return false;
@@ -132,15 +134,45 @@ fn select_update_asset<'a>(
                     || n.ends_with(".dmg")
                     || n.contains(".tar.gz")
             }
-            "linux" => {
-                n.ends_with(".appimage")
-                    || n.ends_with(".deb")
-                    || (n.contains("linux")
-                        && (n.contains(arch_suffix) || n.contains("amd64") || n.contains("arm64")))
-            }
+            "linux" => n.ends_with(".appimage") || n.ends_with(".deb") || n.contains("linux"),
             _ => false,
         }
-    })
+    };
+    let matching_assets = assets.iter().filter(matches_platform);
+    matching_assets
+        .clone()
+        .find(|a| {
+            let name = a.name.to_lowercase();
+            arch_aliases.iter().any(|alias| name.contains(alias))
+        })
+        .or_else(|| {
+            matching_assets.into_iter().find(|a| {
+                let name = a.name.to_lowercase();
+                !known_arches.iter().any(|arch| name.contains(arch))
+            })
+        })
+}
+
+fn is_newer_version(remote: &str, current: &str) -> Result<bool, String> {
+    let remote = semver::Version::parse(remote.trim_start_matches('v'))
+        .map_err(|e| format!("Invalid release version '{}': {}", remote, e))?;
+    let current = semver::Version::parse(current.trim_start_matches('v'))
+        .map_err(|e| format!("Invalid app version '{}': {}", current, e))?;
+    Ok(remote > current)
+}
+
+#[derive(Debug, PartialEq)]
+enum LinuxInstallKind {
+    AppImage,
+    Deb,
+}
+
+fn linux_install_kind(path: &Path) -> Option<LinuxInstallKind> {
+    match path.extension().and_then(|extension| extension.to_str()) {
+        Some("AppImage") => Some(LinuxInstallKind::AppImage),
+        Some("deb") => Some(LinuxInstallKind::Deb),
+        _ => None,
+    }
 }
 
 #[tauri::command]
@@ -156,6 +188,9 @@ pub async fn download_update(
         .map_err(|e| e.to_string())?;
 
     let mut resp = client.get(&url).send().await.map_err(|e| e.to_string())?;
+    if !resp.status().is_success() {
+        return Err(format!("Update download failed: HTTP {}", resp.status()));
+    }
     let total = resp.content_length().unwrap_or(0);
 
     let temp_dir = std::env::temp_dir().join("polyui-update");
@@ -257,7 +292,7 @@ rm -- "$0"
                 .map_err(|e| format!("Failed to start installer: {}", e))?;
         }
         "linux" => {
-            if file_path.extension().is_some_and(|e| e == "AppImage") {
+            if linux_install_kind(&file_path) == Some(LinuxInstallKind::AppImage) {
                 std::process::Command::new("chmod")
                     .args(["+x", fp.as_ref()])
                     .spawn()
@@ -266,7 +301,7 @@ rm -- "$0"
                     .arg("--no-sandbox")
                     .spawn()
                     .map_err(|e| format!("Failed to start installer: {}", e))?;
-            } else if file_path.extension().is_some_and(|e| e == "deb") {
+            } else if linux_install_kind(&file_path) == Some(LinuxInstallKind::Deb) {
                 let install_script = format!("sleep 2\npkexec dpkg -i '{}'\n", fp);
                 let script_path = std::env::temp_dir()
                     .join("polyui-update")
@@ -277,6 +312,8 @@ rm -- "$0"
                     .arg(&script_path)
                     .spawn()
                     .map_err(|e| format!("Failed to start installer: {}", e))?;
+            } else {
+                return Err("Unsupported Linux update package".to_string());
             }
         }
         _ => return Err("Unsupported OS".to_string()),
@@ -325,6 +362,46 @@ mod tests {
         assert_eq!(
             select_update_asset(&assets, "macos", "aarch64").map(|asset| asset.name.as_str()),
             Some("PolyUI_0.10.0_aarch64.dmg")
+        );
+    }
+
+    #[test]
+    fn version_comparison_uses_semver_order() {
+        assert!(is_newer_version("v0.11.0", "0.9.0").unwrap());
+        assert!(!is_newer_version("v0.9.0", "0.11.0").unwrap());
+    }
+
+    #[test]
+    fn version_comparison_handles_prereleases() {
+        assert!(is_newer_version("v0.11.0", "0.11.0-rc.2").unwrap());
+        assert!(!is_newer_version("v0.11.0-rc.1", "0.11.0-rc.2").unwrap());
+    }
+
+    #[test]
+    fn windows_updater_selects_matching_architecture() {
+        let assets = vec![
+            asset("PolyUI_0.11.0_arm64-setup.exe"),
+            asset("PolyUI_0.11.0_x64-setup.exe"),
+        ];
+
+        assert_eq!(
+            select_update_asset(&assets, "windows", "x86_64").map(|asset| asset.name.as_str()),
+            Some("PolyUI_0.11.0_x64-setup.exe")
+        );
+    }
+
+    #[test]
+    fn windows_updater_rejects_wrong_architecture() {
+        let assets = vec![asset("PolyUI_0.11.0_arm64-setup.exe")];
+
+        assert!(select_update_asset(&assets, "windows", "x86_64").is_none());
+    }
+
+    #[test]
+    fn linux_updater_rejects_unknown_package_type() {
+        assert_eq!(
+            linux_install_kind(std::path::Path::new("PolyUI.tar.gz")),
+            None
         );
     }
 }
