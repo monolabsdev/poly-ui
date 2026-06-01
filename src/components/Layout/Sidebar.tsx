@@ -15,18 +15,23 @@ import {
   Check,
   X,
   MoreHorizontal,
-  Archive,
   AlertTriangle,
   Search,
   MessageSquare,
+  Folder,
+  FolderOpen,
+  FolderPlus,
+  Download,
+  ChevronRight,
+  Plus,
 } from "lucide-react";
 import { motion } from "motion/react";
-import { Ring2 } from "ldrs/react";
-import "ldrs/react/Ring2.css";
-import { useTiming, ANIMATION_VARIANTS } from "@/lib/motion";
+import { useTiming } from "@/lib/motion";
 import { useNotify } from "@/hooks/useNotify";
 import { useDevStore } from "@/store/devStore";
 import { useAuthStore } from "@/store/authStore";
+import { useFolderStore } from "@/store/folderStore";
+import { CreateFolderModal } from "@/components/Folders/CreateFolderModal";
 import { Conversation, useChatStore } from "@/store/chatStore";
 import {
   DropdownMenu,
@@ -35,8 +40,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { DeleteConversationDialog } from "@/components/Chat/DeleteConversationDialog";
+import { ConversationItem } from "@/components/Chat/ConversationItem";
 import { ProfileMenu } from "@/components/Profile/ProfileMenu";
-import { TextShimmer } from "@/components/ui/text-shimmer";
 import { isToday, isYesterday, subDays, isAfter } from "date-fns";
 import { useElementBreakpoint, useResizeActivity } from "@/hooks/useResizePerformance";
 
@@ -108,7 +113,7 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
 
 interface SidebarProps {
   onOpenSettings: () => void;
-  onNewChat: (isTemporary?: boolean) => void;
+  onNewChat: () => void;
   onSelectConversation: (id: string) => void;
   onDeleteConversation: (id: string) => void;
   onRenameConversation: (id: string, newTitle: string) => Promise<void>;
@@ -116,196 +121,6 @@ interface SidebarProps {
   activeConversationId: string | null;
   collapsible?: "icon" | "none";
 }
-
-const ConversationItem = React.memo(function ConversationItem({
-  conv,
-  activeConversationId,
-  editingId,
-  editValue,
-  setEditValue,
-  handleConfirmRename,
-  handleCancelRename,
-  handleStartRename,
-  handleArchive,
-  handleStartDelete,
-  isGenerating,
-}: {
-  conv: Conversation;
-  activeConversationId: string | null;
-  editingId: string | null;
-  editValue: string;
-  setEditValue: (v: string) => void;
-  handleConfirmRename: (e: React.MouseEvent, id: string) => void;
-  handleCancelRename: (e: React.MouseEvent) => void;
-  handleStartRename: (e: React.MouseEvent, conv: Conversation) => void;
-  handleArchive: (id: string) => void;
-  handleStartDelete: (conv: Conversation) => void;
-  isGenerating: boolean;
-}) {
-  const { isCollapsed } = useSidebar();
-  return (
-    <Box
-      sx={{
-        display: "flex",
-        alignItems: "center",
-        width: "100%",
-        minWidth: 0,
-        height: "100%",
-      }}
-    >
-      <>
-        {editingId === conv.id ? (
-          <Box
-            style={{
-              display: "flex",
-              alignItems: "center",
-              width: "100%",
-              gap: "4px",
-            }}
-          >
-            <input
-              autoFocus
-              value={editValue}
-              onChange={(e) => setEditValue(e.target.value)}
-              onClick={(e) => e.stopPropagation()}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleConfirmRename(e as any, conv.id);
-                if (e.key === "Escape") handleCancelRename(e as any);
-              }}
-              style={{
-                flex: 1,
-                background: "transparent",
-                border: "none",
-                color: "inherit",
-                outline: "none",
-                fontSize: "inherit",
-                padding: 0,
-                width: "100%",
-              }}
-            />
-            <IconButton
-              size="small"
-              onClick={(e) => handleConfirmRename(e, conv.id)}
-              sx={{ p: 0.5, color: "text.secondary" }}
-            >
-              <Check size={14} />
-            </IconButton>
-            <IconButton
-              size="small"
-              onClick={handleCancelRename}
-              sx={{ p: 0.5, color: "text.secondary" }}
-            >
-              <X size={14} />
-            </IconButton>
-          </Box>
-        ) : (
-          <Box
-            style={{
-              display: "flex",
-              alignItems: "center",
-              width: "100%",
-              minWidth: 0,
-            }}
-          >
-            <Typography
-              variant="body2"
-              noWrap
-              component="div"
-              sx={{
-                flex: 1,
-                color:
-                  activeConversationId === conv.id ? "text.primary" : "inherit",
-                fontSize: "13.5px",
-                fontWeight: activeConversationId === conv.id ? 500 : 400,
-                pr: 1,
-              }}
-            >
-              {isGenerating ? (
-                <TextShimmer duration={1.8} spread={18}>
-                  {conv.title || "Untitled"}
-                </TextShimmer>
-              ) : (
-                conv.title || "Untitled"
-              )}
-            </Typography>
-
-            {isGenerating ? (
-              <Box
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  width: 28,
-                  height: 28,
-                  color: "primary.main",
-                }}
-              >
-                <Ring2
-                  size="14"
-                  stroke="3"
-                  strokeLength="0.28"
-                  bgOpacity="0.14"
-                  speed="0.8"
-                  color="currentColor"
-                />
-              </Box>
-            ) : (
-              <Box
-                className="conversation-actions"
-                sx={{
-                  display: "flex",
-                  gap: 0,
-                  mr: -0.5,
-                  visibility: isCollapsed ? "hidden" : "visible",
-                  width: 28,
-                  height: 28,
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <IconButton
-                      size="small"
-                      onClick={(e) => e.stopPropagation()}
-                      sx={{
-                        p: 0.5,
-                        color: "text.secondary",
-                        "&:hover": {
-                          color: "text.primary",
-                          bgcolor: "action.selected",
-                        },
-                      }}
-                    >
-                      <MoreHorizontal size={14} />
-                    </IconButton>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem
-                      onClick={(e) => handleStartRename(e, conv)}
-                    >
-                      <Edit2 size={14} /> Rename
-                    </DropdownMenuItem>
-
-                    <DropdownMenuItem onClick={() => handleArchive(conv.id)}>
-                      <Archive size={14} /> Archive
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      variant="destructive"
-                      onClick={() => handleStartDelete(conv)}
-                    >
-                      <Trash2 size={14} /> Delete
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </Box>
-            )}
-          </Box>
-        )}
-      </>
-    </Box>
-  );
-});
 
 export const Sidebar = React.memo(function Sidebar({
   onOpenSettings,
@@ -338,6 +153,181 @@ export const Sidebar = React.memo(function Sidebar({
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
   const devTapCount = React.useRef(0);
   const setDevMode = useDevStore((s) => s.actions.setDevMode);
+  const [isFolderModalOpen, setIsFolderModalOpen] = React.useState(false);
+  const [folderParentId, setFolderParentId] = React.useState<string | undefined>();
+  const [folderEditingId, setFolderEditingId] = React.useState<string | null>(null);
+  const [folderEditValue, setFolderEditValue] = React.useState("");
+  const [editingFolder, setEditingFolder] = React.useState<(typeof folders)[number] | null>(null);
+  const folders = useFolderStore((s) => s.folders);
+  const createFolder = useFolderStore((s) => s.actions.createFolder);
+  const loadFolders = useFolderStore((s) => s.actions.loadFolders);
+  const activeFolderId = useFolderStore((s) => s.activeFolderId);
+  const setActiveFolderId = useFolderStore((s) => s.actions.setActiveFolderId);
+  const updateFolder = useFolderStore((s) => s.actions.updateFolder);
+  const deleteFolder = useFolderStore((s) => s.actions.deleteFolder);
+  const setActiveConversationId = useChatStore((s) => s.actions.setActiveConversationId);
+  const folderConversations = React.useMemo(
+    () => conversations.filter((conversation) => conversation.folderId && !conversation.isArchived && !conversation.isTemporary),
+    [conversations],
+  );
+
+  React.useEffect(() => {
+    loadFolders();
+  }, [loadFolders]);
+
+  const handleStartFolderRename = (folder: (typeof folders)[number]) => {
+    setFolderEditingId(folder.id);
+    setFolderEditValue(folder.name);
+  };
+
+  const handleConfirmFolderRename = async () => {
+    if (!folderEditingId) return;
+    const trimmed = folderEditValue.trim();
+    if (trimmed) {
+      await updateFolder(folderEditingId, { name: trimmed });
+    }
+    setFolderEditingId(null);
+  };
+
+  const handleCancelFolderRename = () => {
+    setFolderEditingId(null);
+  };
+
+  const handleOpenFolderEdit = (folder: (typeof folders)[number]) => {
+    setEditingFolder(folder);
+    setFolderParentId(folder.parentId);
+    setIsFolderModalOpen(true);
+  };
+
+  const handleDeleteFolder = async (folder: { id: string; name: string }) => {
+    if (!window.confirm(`Delete folder "${folder.name}"? Chats stay saved.`)) return;
+    await deleteFolder(folder.id);
+  };
+
+  const handleExportFolder = (folder: { id: string; name: string }) => {
+    const folderIds = new Set<string>([folder.id]);
+    let changed = true;
+    while (changed) {
+      changed = false;
+      folders.forEach((candidate) => {
+        if (candidate.parentId && folderIds.has(candidate.parentId) && !folderIds.has(candidate.id)) {
+          folderIds.add(candidate.id);
+          changed = true;
+        }
+      });
+    }
+    const payload = {
+      folder,
+      folders: folders.filter((candidate) => folderIds.has(candidate.id)),
+      conversations: conversations.filter((conversation) => conversation.folderId && folderIds.has(conversation.folderId)),
+    };
+    const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${folder.name.replace(/[^a-z0-9]+/gi, "-").toLowerCase() || "folder"}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const renderFolder = (folder: (typeof folders)[number], depth = 0): React.ReactNode => {
+    const chats = folderConversations.filter((conversation) => conversation.folderId === folder.id);
+    const children = folders.filter((candidate) => candidate.parentId === folder.id);
+    const hasChildren = chats.length > 0 || children.length > 0;
+    const containsActiveFolder = (folderId: string): boolean =>
+      activeFolderId === folderId || folders.some((candidate) => candidate.parentId === folderId && containsActiveFolder(candidate.id));
+    const isOpen = containsActiveFolder(folder.id) || chats.some((conversation) => conversation.id === activeConversationId);
+    const FolderIcon = isOpen ? FolderOpen : Folder;
+    const isEditing = folderEditingId === folder.id;
+    return (
+      <React.Fragment key={folder.id}>
+        <SidebarMenuButton
+          isActive={activeFolderId === folder.id && !activeConversationId}
+          tooltip={folder.name}
+          onClick={() => {
+            if (isEditing) return;
+            setActiveFolderId(folder.id);
+            setActiveConversationId(null);
+            if (isMobile) setOpenMobile(false);
+          }}
+          sx={{ height: 34, pl: 1 + depth * 2, pr: 1, "&:hover .folder-actions": { opacity: 1 }, gap: 1.5 }}
+        >
+          <ChevronRight size={13} style={{ flexShrink: 0, opacity: hasChildren ? 0.5 : 0, transform: isOpen ? "rotate(90deg)" : undefined }} />
+          <FolderIcon size={14} style={{ flexShrink: 0, opacity: 0.7 }} />
+          {isEditing ? (
+            <Box sx={{ display: "flex", alignItems: "center", flex: 1, gap: 0.5 }}>
+              <input
+                autoFocus
+                value={folderEditValue}
+                onChange={(e) => setFolderEditValue(e.target.value)}
+                onClick={(e) => e.stopPropagation()}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") { e.stopPropagation(); handleConfirmFolderRename(); }
+                  if (e.key === "Escape") { e.stopPropagation(); handleCancelFolderRename(); }
+                }}
+                style={{
+                  flex: 1,
+                  background: "transparent",
+                  border: "none",
+                  color: "inherit",
+                  outline: "none",
+                  fontSize: "13px",
+                  padding: 0,
+                  width: "100%",
+                }}
+              />
+              <IconButton size="small" aria-label="Confirm rename" onClick={(e) => { e.stopPropagation(); handleConfirmFolderRename(); }} sx={{ p: 0.25, color: "text.secondary" }}><Check size={13} /></IconButton>
+              <IconButton size="small" aria-label="Cancel rename" onClick={(e) => { e.stopPropagation(); handleCancelFolderRename(); }} sx={{ p: 0.25, color: "text.secondary" }}><X size={13} /></IconButton>
+            </Box>
+          ) : (
+            <Box component="span" sx={{ fontSize: "13px", fontWeight: 450, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{folder.name}</Box>
+          )}
+          <Box className="folder-actions" sx={{ display: "flex", ml: "auto", opacity: 0, transition: "opacity 0.12s" }}>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <IconButton size="small" aria-label={`Actions for ${folder.name}`} onClick={(e) => e.stopPropagation()} sx={{ p: 0.25 }}><MoreHorizontal size={13} /></IconButton>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" sx={{ minWidth: 170 }}>
+                <DropdownMenuItem onClick={() => handleStartFolderRename(folder)}><Edit2 size={14} /> Rename</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleOpenFolderEdit(folder)}><FolderPlus size={14} /> Edit</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => { setFolderParentId(folder.id); setIsFolderModalOpen(true); }}><FolderPlus size={14} /> Create Folder</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExportFolder(folder)}><Download size={14} /> Export</DropdownMenuItem>
+                <DropdownMenuItem variant="destructive" onClick={() => handleDeleteFolder(folder)}><Trash2 size={14} /> Delete</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </Box>
+        </SidebarMenuButton>
+        {isOpen && (
+          <Box sx={{ ml: 2.5, borderLeft: "1px solid", borderColor: "border.light" }}>
+            {children.map((child) => renderFolder(child, depth + 1))}
+            {chats.map((chat) => (
+              <SidebarMenuButton
+                key={chat.id}
+                isActive={activeConversationId === chat.id}
+                tooltip={chat.title || "Untitled"}
+                onClick={() => { setActiveFolderId(folder.id); setActiveConversationId(chat.id); if (isMobile) setOpenMobile(false); }}
+                sx={{ height: 34, pl: 2 + depth * 2, pr: 1, fontSize: "13px" }}
+              >
+                <ConversationItem
+                  conv={chat}
+                  activeConversationId={activeConversationId}
+                  isGenerating={streamingConversationId === chat.id}
+                  variant="folderTree"
+                  editingId={editingId}
+                  editValue={editValue}
+                  setEditValue={setEditValue}
+                  handleConfirmRename={handleConfirmRename}
+                  handleCancelRename={handleCancelRename}
+                  handleStartRename={handleStartRename}
+                  handleArchive={handleArchive}
+                  handleStartDelete={handleStartDelete}
+                />
+              </SidebarMenuButton>
+            ))}
+          </Box>
+        )}
+      </React.Fragment>
+    );
+  };
 
   const handleDevTap = React.useCallback(() => {
     devTapCount.current += 1;
@@ -415,6 +405,7 @@ export const Sidebar = React.memo(function Sidebar({
     const q = searchQuery.toLowerCase().trim();
     const filtered = conversations
       .filter((c) => !c.isArchived && !c.isTemporary)
+      .filter((c) => !c.folderId)
       .filter((c) => !q || c.title?.toLowerCase().includes(q));
 
     const today: Conversation[] = [];
@@ -453,7 +444,6 @@ export const Sidebar = React.memo(function Sidebar({
             justifyContent: isCollapsed ? "center" : "space-between",
             width: "100%",
             px: isCollapsed ? 0 : 2,
-            pt: isCollapsed ? 1 : 0,
           }}
         >
           <Box
@@ -471,10 +461,10 @@ export const Sidebar = React.memo(function Sidebar({
               variant="subtitle2"
               onClick={handleDevTap}
               sx={{
-                fontWeight: 700,
+                fontWeight: 600,
                 color: "primary.main",
-                letterSpacing: "-0.01em",
-                fontSize: "15px",
+                letterSpacing: "-0.02em",
+                fontSize: "14px",
                 whiteSpace: "nowrap",
                 cursor: "pointer",
                 userSelect: "none",
@@ -488,153 +478,148 @@ export const Sidebar = React.memo(function Sidebar({
       </SidebarHeader>
 
       <SidebarContent>
-        <Box sx={{ px: 1.5, mb: 1, mt: 1 }}>
+        {!isCollapsed && (
+          <>
+            <Box sx={{ px: 1.5, mb: 1 }}>
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+                <SidebarMenuButton
+                  onClick={() => onNewChat()}
+                  isActive={false}
+                  tooltip="New Chat"
+                  sx={{
+                    height: 36,
+                    bgcolor: isCollapsed ? "transparent" : "background.paper",
+                    border: isCollapsed ? "none" : "1px solid",
+                    borderColor: "divider",
+                    "&:hover": {
+                      bgcolor: "action.hover",
+                      borderColor: "border.main",
+                    },
+                  }}
+                >
+                  <Edit2 size={16} />
+                  <Box
+                    component="span"
+                    sx={{
+                      fontWeight: 500,
+                      whiteSpace: "nowrap",
+                      opacity: isCollapsed ? 0 : 1,
+                      width: isCollapsed ? 0 : "auto",
+                      overflow: "hidden",
+                      transition: "opacity 0.18s ease",
+                    }}
+                  >
+                    New Chat
+                  </Box>
+                </SidebarMenuButton>
+              </Box>
+            </Box>
 
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
-            <SidebarMenuButton
-              onClick={() => onNewChat(false)}
-              isActive={false}
-              tooltip="New Chat"
-              sx={{
-                bgcolor: isCollapsed ? "transparent" : "background.paper",
-                border: isCollapsed ? "none" : "1px solid",
-                borderColor: "divider",
-                boxShadow: isCollapsed ? "none" : "0 1px 2px rgba(0,0,0,0.05)",
-                "&:hover": {
-                  bgcolor: "action.hover",
-                  borderColor: "border.main",
-                },
-              }}
-            >
-              <Edit2 size={18} />
+            <Box sx={{ px: 1.5, mb: 1.5 }}>
               <Box
-                component="span"
                 sx={{
-                  fontWeight: 600,
-                  whiteSpace: "nowrap",
-                  opacity: isCollapsed ? 0 : 1,
-                  width: isCollapsed ? 0 : "auto",
-                  overflow: "hidden",
-                  transition: "opacity 0.18s ease",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1.5,
+                  px: 1.5,
+                  height: 36,
+                  borderRadius: "8px",
+                  bgcolor: "action.hover",
+                  border: "1px solid",
+                  borderColor: "divider",
+                  transition: "border-color 0.15s",
+                  "&:focus-within": {
+                    borderColor: "primary.main",
+                  },
                 }}
               >
-                New Chat
+                <Search size={16} style={{ flexShrink: 0, opacity: 0.4 }} />
+                <input
+                  placeholder="Search conversations..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === "Escape" && setSearchQuery("")}
+                  style={{
+                    flex: 1,
+                    background: "transparent",
+                    border: "none",
+                    color: "inherit",
+                    outline: "none",
+                    fontSize: "13px",
+                    width: "100%",
+                  }}
+                />
+                {searchQuery && (
+                  <IconButton
+                    size="small"
+                    aria-label="Clear search"
+                    onClick={() => setSearchQuery("")}
+                    sx={{
+                      p: 0.25,
+                      color: "text.secondary",
+                      opacity: 0.65,
+                      "&:hover": { opacity: 1, color: "text.primary" },
+                    }}
+                  >
+                    <X size={14} />
+                  </IconButton>
+                )}
               </Box>
-            </SidebarMenuButton>
+            </Box>
+          </>
+        )}
 
-            <SidebarMenuButton
-              onClick={() => onNewChat(true)}
-              isActive={false}
-              tooltip="Temporary Chat"
-              sx={{
-                bgcolor: "transparent",
-                border: isCollapsed ? "none" : "1px dashed",
-                borderColor: "divider",
-                "&:hover": {
-                  bgcolor: "action.hover",
-                  borderColor: "border.main",
-                },
-              }}
-            >
-              <svg
-                aria-hidden="true"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth="1.5"
-                stroke="currentColor"
-                style={{ width: 18, height: 18 }}
-              >
-                <path
-                  d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 13.8214 2.48697 15.5291 3.33782 17L2.5 21.5L7 20.6622C8.47087 21.513 10.1786 22 12 22Z"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeDasharray="2.5 3.5"
-                ></path>
-              </svg>
+        {!isCollapsed && (
+          <Box sx={{ px: 1.5 }}>
+            <SidebarGroup sx={{ mb: 0 }}>
               <Box
-                component="span"
+                className="folders-header"
                 sx={{
-                  fontWeight: 500,
-                  whiteSpace: "nowrap",
-                  opacity: isCollapsed ? 0 : 1,
-                  width: isCollapsed ? 0 : "auto",
-                  overflow: "hidden",
-                  transition: "opacity 0.18s ease",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  px: 0,
+                  minHeight: 24,
                 }}
               >
-                Temporary Chat
+                <SidebarSectionLabel>Folders</SidebarSectionLabel>
+                <IconButton
+                  size="small"
+                  aria-label="Create folder"
+                  onClick={() => { setFolderParentId(undefined); setIsFolderModalOpen(true); }}
+                  sx={{
+                    p: 0.25,
+                    color: "text.secondary",
+                    "&:hover": { color: "text.primary" },
+                  }}
+                >
+                  <Plus size={16} />
+                </IconButton>
               </Box>
-            </SidebarMenuButton>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {folders.filter((folder) => !folder.parentId).map((folder) => renderFolder(folder))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
           </Box>
-        </Box>
+        )}
+
+        {!isCollapsed && (
+          <Box sx={{ px: 1.5, mt: 0.5, mb: 0.25 }}>
+            <SidebarSectionLabel>Chats</SidebarSectionLabel>
+          </Box>
+        )}
 
         <Box
           sx={{
             display: "flex",
             flexDirection: "column",
-            gap: 1,
-            mt: 1,
             opacity: isCollapsed ? 0 : 1,
             visibility: isCollapsed ? "hidden" : "visible",
             transition: "opacity 0.18s ease",
-            height: isCollapsed ? 0 : "auto",
-            overflowY: "auto",
-            overflowX: "hidden",
           }}
         >
-          <Box sx={{ px: 1.5, mb: 0.5 }}>
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                gap: 1,
-                px: 1.5,
-                height: 36,
-                borderRadius: "8px",
-                bgcolor: "action.hover",
-                border: "1px solid",
-                borderColor: "divider",
-                transition: "border-color 0.15s",
-                "&:focus-within": {
-                  borderColor: "primary.main",
-                },
-              }}
-            >
-              <Search size={14} style={{ flexShrink: 0, opacity: 0.5 }} />
-              <input
-                placeholder="Search conversations..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => e.key === "Escape" && setSearchQuery("")}
-                style={{
-                  flex: 1,
-                  background: "transparent",
-                  border: "none",
-                  color: "inherit",
-                  outline: "none",
-                  fontSize: "13px",
-                  width: "100%",
-                }}
-              />
-              {searchQuery && (
-                <IconButton
-                  size="small"
-                  aria-label="Clear search"
-                  onClick={() => setSearchQuery("")}
-                  sx={{
-                    p: 0.25,
-                    color: "text.secondary",
-                    opacity: 0.65,
-                    "&:hover": { opacity: 1, color: "text.primary" },
-                  }}
-                >
-                  <X size={14} />
-                </IconButton>
-              )}
-            </Box>
-          </Box>
-
           {conversationsLoading ? (
             <ConversationSkeleton />
           ) : groupedConversations.length === 0 ? (
@@ -643,16 +628,17 @@ export const Sidebar = React.memo(function Sidebar({
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
-                gap: 1,
-                px: 2,
-                py: 4,
+                gap: 1.5,
+                px: 3,
+                py: 5,
                 color: "text.secondary",
+                opacity: 0.5,
               }}
             >
-              <MessageSquare size={20} style={{ opacity: 0.4 }} />
+              <MessageSquare size={18} />
               <Typography
                 variant="caption"
-                sx={{ fontSize: "12px", textAlign: "center" }}
+                sx={{ fontSize: "12px", textAlign: "center", lineHeight: 1.4 }}
               >
                 {searchQuery
                   ? "No conversations match your search"
@@ -660,19 +646,9 @@ export const Sidebar = React.memo(function Sidebar({
               </Typography>
             </Box>
           ) : (
-            groupedConversations.map((group, groupIndex) => (
-              <Box
-                key={group.id}
-                component={motion.div}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ 
-                  duration: timing.duration("base"), 
-                  delay: groupIndex * 0.05,
-                  ease: timing.ease 
-                }}
-              >
-                <SidebarGroup sx={{ mb: 1 }}>
+            groupedConversations.map((group) => (
+              <Box key={group.id} sx={{ mb: 1.5 }}>
+                <SidebarGroup sx={{ mb: 0 }}>
                   <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
                   <SidebarGroupContent sx={{ mt: 0.5 }}>
                     <SidebarMenu>
@@ -689,7 +665,7 @@ export const Sidebar = React.memo(function Sidebar({
                           sx={{
                             "&:hover .conversation-actions": { opacity: 1 },
                             contentVisibility: "auto",
-                            containIntrinsicSize: "1px 40px",
+                            containIntrinsicSize: "1px 36px",
                           }}
                         >
                           <ConversationItem
@@ -704,6 +680,7 @@ export const Sidebar = React.memo(function Sidebar({
                             handleArchive={handleArchive}
                             handleStartDelete={handleStartDelete}
                             isGenerating={streamingConversationId === conv.id}
+                            isCollapsed={isCollapsed}
                           />
                         </SidebarMenuButton>
                       ))}
@@ -713,7 +690,7 @@ export const Sidebar = React.memo(function Sidebar({
               </Box>
             ))
           )}
-          </Box>
+        </Box>
       </SidebarContent>
 
       <SidebarFooter>
@@ -726,6 +703,39 @@ export const Sidebar = React.memo(function Sidebar({
         onOpenChange={setIsDeleteDialogOpen}
         onConfirm={handleConfirmDelete}
         title={deleteTitle}
+      />
+
+      <CreateFolderModal
+        open={isFolderModalOpen}
+        onOpenChange={(open) => {
+          setIsFolderModalOpen(open);
+          if (!open) setEditingFolder(null);
+        }}
+        onSave={(data) => {
+          if (editingFolder) {
+            updateFolder(editingFolder.id, {
+              name: data.name,
+              parentId: folderParentId,
+              backgroundImage: data.backgroundImage,
+              systemPrompt: data.systemPrompt,
+              contextFiles: data.contextFiles,
+            });
+          } else {
+            createFolder(data.name, {
+              parentId: folderParentId,
+              backgroundImage: data.backgroundImage,
+              systemPrompt: data.systemPrompt,
+              contextFiles: data.contextFiles,
+            });
+          }
+          setEditingFolder(null);
+        }}
+        initialData={editingFolder ? {
+          name: editingFolder.name,
+          backgroundImage: editingFolder.backgroundImage,
+          systemPrompt: editingFolder.systemPrompt,
+          contextFiles: editingFolder.contextFiles,
+        } : undefined}
       />
     </>
   );
@@ -798,7 +808,7 @@ export function SidebarHeader({
         p: 0,
         display: "flex",
         alignItems: "center",
-        minHeight: 64,
+        minHeight: 56,
         borderBottom: "1px solid",
         borderColor: "transparent",
         ...sx,
@@ -836,10 +846,10 @@ export function SidebarFooter({
   return (
     <Box
       sx={{
-        p: isCollapsed ? 1 : 1.5,
+        p: isCollapsed ? 1 : 1.25,
         display: "flex",
         flexDirection: "column",
-        gap: 1,
+        gap: 0.75,
         borderTop: "1px solid",
         borderColor: "divider",
         transition: "padding 0.2s",
@@ -863,20 +873,38 @@ export function SidebarGroup({
 
 export function SidebarGroupLabel({ children }: { children: React.ReactNode }) {
   return (
-    <Box sx={{ px: 2.5, mb: 0, mt: 0 }}>
+    <Box sx={{ px: 2.5, mb: 0.25, mt: 1.5 }}>
       <Box
         component="span"
         sx={{
-          fontSize: "11px",
+          fontSize: "10px",
           fontWeight: 600,
           color: "text.secondary",
           textTransform: "uppercase",
-          letterSpacing: "0.05em",
+          letterSpacing: "0.1em",
+          opacity: 0.6,
         }}
       >
         {children}
       </Box>
     </Box>
+  );
+}
+
+function SidebarSectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <Typography
+      sx={{
+        fontSize: "10px",
+        fontWeight: 600,
+        color: "text.secondary",
+        textTransform: "uppercase",
+        letterSpacing: "0.1em",
+        opacity: 0.65,
+      }}
+    >
+      {children}
+    </Typography>
   );
 }
 
@@ -934,11 +962,8 @@ export function SidebarMenuButton({
 
   const content = (
     <Box
-      component={motion.button}
+      component="button"
       type="button"
-      variants={ANIMATION_VARIANTS.interactive}
-      whileHover="hover"
-      whileTap="tap"
       onClick={onClick}
       aria-current={ariaCurrent ? "page" : undefined}
       sx={{
@@ -948,19 +973,23 @@ export function SidebarMenuButton({
         gap: isCollapsed ? 0 : 1.5,
         px: isCollapsed ? 0 : 1.5,
         width: "100%",
-        height: 40,
-        borderRadius: "10px",
+        height: 36,
+        borderRadius: "8px",
         cursor: "pointer",
         bgcolor: isActive ? "action.selected" : "transparent",
         color: isActive ? "text.primary" : "text.secondary",
-        fontSize: "13.5px",
-        fontWeight: 500,
+        fontSize: "13px",
+        fontWeight: isActive ? 500 : 400,
         overflow: "hidden",
         position: "relative",
-        transition: "background-color 0.18s ease, color 0.18s ease",
         "&:hover": {
           bgcolor: "action.hover",
           color: "text.primary",
+        },
+        "&:focus-visible": {
+          outline: "2px solid",
+          outlineColor: "primary.main",
+          outlineOffset: "2px",
         },
         ...sx,
       }}
@@ -998,18 +1027,15 @@ export function SidebarTrigger({ sx }: { sx?: CSSObject }) {
       placement="right"
     >
       <IconButton
-        component={motion.button}
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
+        aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
         onClick={handleClick}
         size="small"
         sx={{
           color: "text.secondary",
-          width: 40,
-          height: 40,
-          borderRadius: "10px",
+          width: 36,
+          height: 36,
+          borderRadius: "8px",
           bgcolor: isCollapsed ? "action.hover" : "transparent",
-          transition: "background-color 0.18s ease, color 0.18s ease",
           "&:hover": {
             color: "text.primary",
             bgcolor: "action.selected",
@@ -1017,15 +1043,7 @@ export function SidebarTrigger({ sx }: { sx?: CSSObject }) {
           ...sx,
         }}
       >
-        <Box
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <PanelLeft size={20} />
-        </Box>
+        <PanelLeft size={18} />
       </IconButton>
     </Tooltip>
   );
@@ -1033,6 +1051,7 @@ export function SidebarTrigger({ sx }: { sx?: CSSObject }) {
 
 function GuestWarning() {
   const isGuest = useAuthStore((s) => s.isGuest);
+  const openAuth = useAuthStore((s) => s.actions.openAuth);
   const { isCollapsed } = useSidebar();
 
   if (!isGuest || isCollapsed) return null;
@@ -1041,30 +1060,40 @@ function GuestWarning() {
     <Box
       sx={{
         display: "flex",
-        alignItems: "flex-start",
+        alignItems: "center",
         gap: 1,
-        px: 1,
-        py: 0.75,
-        mx: 0.5,
+        px: 1.5,
+        py: 1,
         borderRadius: "8px",
-        bgcolor: "rgba(245, 158, 11, 0.1)",
-        border: "1px solid rgba(245, 158, 11, 0.2)",
+        bgcolor: "action.hover",
+        border: "1px solid",
+        borderColor: "divider",
       }}
     >
-      <Box component="span" sx={{ color: "warning.main", mt: 0.5, flexShrink: 0, display: "flex" }}>
-        <AlertTriangle size={14} />
+      <Box
+        component="span"
+        sx={{ flexShrink: 0, display: "flex", color: "text.secondary", opacity: 0.5 }}
+      >
+        <AlertTriangle size={12} />
       </Box>
       <Typography
         variant="caption"
+        sx={{ flex: 1, color: "text.secondary", fontSize: "0.7rem", lineHeight: 1.3 }}
+      >
+        Guest chats won't be saved.
+      </Typography>
+      <IconButton
+        size="small"
+        aria-label="Sign in"
+        onClick={() => openAuth()}
         sx={{
+          p: 0.25,
           color: "text.secondary",
-          fontSize: "0.7rem",
-          lineHeight: 1.4,
-          flex: 1,
+          "&:hover": { color: "text.primary", bgcolor: "action.selected" },
         }}
       >
-        Chats won't be saved unless you sign up or log in.
-      </Typography>
+        <Box component="span" sx={{ fontSize: "11px", fontWeight: 600, px: 0.5 }}>Sign in</Box>
+      </IconButton>
     </Box>
   );
 }
@@ -1078,8 +1107,8 @@ function ConversationSkeleton() {
         <Box
           key={i}
           sx={{
-            height: 40,
-            borderRadius: "10px",
+            height: 36,
+            borderRadius: "8px",
             mb: 0.5,
             bgcolor: "action.hover",
             animation: "pulse 1.5s ease-in-out infinite",
@@ -1094,7 +1123,7 @@ function ConversationSkeleton() {
   );
 }
 
-export function SidebarInset({ children }: { children: React.ReactNode }) {
+export function SidebarInset({ children, backgroundImage }: { children: React.ReactNode; backgroundImage?: string }) {
   return (
     <Box
       sx={{
@@ -1104,9 +1133,34 @@ export function SidebarInset({ children }: { children: React.ReactNode }) {
         height: "100%",
         overflow: "hidden",
         position: "relative",
+        bgcolor: backgroundImage ? "transparent" : undefined,
+        "&::before": backgroundImage ? {
+          content: '""',
+          position: "absolute",
+          inset: 0,
+          backgroundImage: `url(${backgroundImage})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat",
+          filter: "blur(16px)",
+          opacity: 0.25,
+          zIndex: 0,
+        } : undefined,
       }}
     >
-      {children}
+      <Box
+        sx={{
+          position: "relative",
+          zIndex: 1,
+          display: "flex",
+          flexDirection: "column",
+          flex: 1,
+          overflow: "hidden",
+          bgcolor: backgroundImage ? "rgba(0,0,0,0.4)" : undefined,
+        }}
+      >
+        {children}
+      </Box>
     </Box>
   );
 }
