@@ -214,19 +214,30 @@ async fn ensure_folders_schema(pool: &SqlitePool) -> Result<(), String> {
     .await
     .map_err(|e| e.to_string())?;
 
-    let has_parent_id =
-        sqlx::query("SELECT COUNT(*) FROM pragma_table_info('folders') WHERE name = 'parentId'")
-            .fetch_one(pool)
-            .await
-            .map_err(|e| e.to_string())?
-            .get::<i64, _>(0)
+    for column in [
+        "parentId TEXT",
+        "backgroundImage TEXT",
+        "systemPrompt TEXT",
+        "contextFiles TEXT",
+        "userId TEXT DEFAULT ''",
+    ] {
+        let name = column.split_whitespace().next().unwrap();
+        let exists = sqlx::query(
+            "SELECT COUNT(*) FROM pragma_table_info('folders') WHERE name = ?",
+        )
+        .bind(name)
+        .fetch_one(pool)
+        .await
+        .map_err(|e| e.to_string())?
+        .get::<i64, _>(0)
             > 0;
 
-    if !has_parent_id {
-        sqlx::query("ALTER TABLE folders ADD COLUMN parentId TEXT")
-            .execute(pool)
-            .await
-            .map_err(|e| e.to_string())?;
+        if !exists {
+            sqlx::query(&format!("ALTER TABLE folders ADD COLUMN {column}"))
+                .execute(pool)
+                .await
+                .map_err(|e| e.to_string())?;
+        }
     }
 
     sqlx::query("CREATE INDEX IF NOT EXISTS idx_folders_user ON folders(userId)")

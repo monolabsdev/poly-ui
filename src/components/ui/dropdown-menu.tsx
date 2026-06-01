@@ -79,7 +79,11 @@ function DropdownMenuContent({
       className={className}
       anchorEl={anchorEl}
       open={isOpen}
-      onClose={handleClose}
+      onClick={(event) => event.stopPropagation()}
+      onClose={(event) => {
+        event.stopPropagation();
+        handleClose();
+      }}
       transformOrigin={{
         vertical: "top",
         horizontal: align === "end" ? "right" : "left",

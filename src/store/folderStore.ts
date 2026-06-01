@@ -69,6 +69,10 @@ export const useFolderStore = create<FolderStore>((set) => ({
         }
       } catch (error) {
         console.error("Failed to persist folder:", error);
+        set((state) => ({
+          folders: state.folders.filter((candidate) => candidate.id !== id),
+        }));
+        throw error;
       }
       return folder;
     },

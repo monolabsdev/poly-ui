@@ -8,6 +8,7 @@ import { useChatStore } from "@/store/chatStore";
 import { useNotify } from "@/hooks/useNotify";
 import { getRepository } from "@/lib/repositories";
 import type { Folder as FolderType, Conversation } from "@/types/chat";
+import { FolderSources } from "./FolderSources";
 
 type FolderHomeProps = {
   folder: FolderType;
@@ -37,6 +38,7 @@ export function FolderHome({ folder, onSubmit, onStop, isStreaming, selectedMode
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
   const [isBatchDeleteDialogOpen, setIsBatchDeleteDialogOpen] = React.useState(false);
+  const [activeTab, setActiveTab] = React.useState<"chats" | "sources">("chats");
 
   const handleStartRename = (e: React.MouseEvent, conv: Conversation) => {
     e.stopPropagation();
@@ -149,7 +151,8 @@ export function FolderHome({ folder, onSubmit, onStop, isStreaming, selectedMode
   };
 
   return (
-    <Box sx={{ flex: 1, width: "100%", maxWidth: 720, mx: "auto", px: 2, pt: { xs: 5, sm: 9 } }}>
+    <Box sx={{ flex: 1, minHeight: 0, width: "100%", overflowY: "auto", px: 2 }}>
+    <Box sx={{ width: "100%", maxWidth: 720, mx: "auto", pt: { xs: 5, sm: 9 }, pb: 5 }}>
       <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
         <Folder size={20} />
         <Typography variant="h6" sx={{ fontSize: "18px", fontWeight: 500 }}>{folder.name}</Typography>
@@ -162,8 +165,34 @@ export function FolderHome({ folder, onSubmit, onStop, isStreaming, selectedMode
         hasMessages={false}
       />
       <Box sx={{ display: "flex", gap: 1, mt: 1.5, mb: 5 }}>
-        <Box sx={{ px: 1.5, py: 0.75, borderRadius: "16px", bgcolor: "action.selected", fontSize: "12px" }}>Chats</Box>
+        {(["chats", "sources"] as const).map((tab) => (
+          <Box
+            key={tab}
+            component="button"
+            type="button"
+            onClick={() => setActiveTab(tab)}
+            sx={{
+              px: 1.5,
+              py: 0.75,
+              borderRadius: "16px",
+              border: "none",
+              bgcolor: activeTab === tab ? "action.selected" : "transparent",
+              color: activeTab === tab ? "text.primary" : "text.secondary",
+              cursor: "pointer",
+              fontFamily: "inherit",
+              fontSize: "12px",
+              textTransform: "capitalize",
+              "&:hover": { bgcolor: "action.hover" },
+            }}
+          >
+            {tab}
+          </Box>
+        ))}
       </Box>
+      {activeTab === "sources" ? (
+        <FolderSources folder={folder} />
+      ) : (
+      <>
       {selectedIds.size > 0 && (
         <Box
           sx={{
@@ -255,6 +284,9 @@ export function FolderHome({ folder, onSubmit, onStop, isStreaming, selectedMode
         onConfirm={handleConfirmBatchDelete}
         count={selectedIds.size}
       />
+      </>
+      )}
+    </Box>
     </Box>
   );
 }

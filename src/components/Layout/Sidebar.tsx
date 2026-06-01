@@ -24,6 +24,7 @@ import {
   Download,
   ChevronRight,
   Plus,
+  SquarePen,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useTiming } from "@/lib/motion";
@@ -478,43 +479,43 @@ export const Sidebar = React.memo(function Sidebar({
       </SidebarHeader>
 
       <SidebarContent>
+        <Box sx={{ px: isCollapsed ? 1 : 1.5, mb: 1 }}>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+            <SidebarMenuButton
+              onClick={() => onNewChat()}
+              isActive={false}
+              tooltip="New Chat"
+              sx={{
+                height: 38,
+                bgcolor: isCollapsed ? "transparent" : "background.paper",
+                border: isCollapsed ? "none" : "1px solid",
+                borderColor: "divider",
+                "&:hover": {
+                  bgcolor: "action.hover",
+                  borderColor: "border.main",
+                },
+              }}
+            >
+              <SquarePen size={16} />
+              <Box
+                component="span"
+                sx={{
+                  fontWeight: 500,
+                  whiteSpace: "nowrap",
+                  opacity: isCollapsed ? 0 : 1,
+                  width: isCollapsed ? 0 : "auto",
+                  overflow: "hidden",
+                  transition: "opacity 0.18s ease",
+                }}
+              >
+                New Chat
+              </Box>
+            </SidebarMenuButton>
+          </Box>
+        </Box>
+
         {!isCollapsed && (
           <>
-            <Box sx={{ px: 1.5, mb: 1 }}>
-              <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
-                <SidebarMenuButton
-                  onClick={() => onNewChat()}
-                  isActive={false}
-                  tooltip="New Chat"
-                  sx={{
-                    height: 38,
-                    bgcolor: isCollapsed ? "transparent" : "background.paper",
-                    border: isCollapsed ? "none" : "1px solid",
-                    borderColor: "divider",
-                    "&:hover": {
-                      bgcolor: "action.hover",
-                      borderColor: "border.main",
-                    },
-                  }}
-                >
-                  <Edit2 size={16} />
-                  <Box
-                    component="span"
-                    sx={{
-                      fontWeight: 500,
-                      whiteSpace: "nowrap",
-                      opacity: isCollapsed ? 0 : 1,
-                      width: isCollapsed ? 0 : "auto",
-                      overflow: "hidden",
-                      transition: "opacity 0.18s ease",
-                    }}
-                  >
-                    New Chat
-                  </Box>
-                </SidebarMenuButton>
-              </Box>
-            </Box>
-
             <Box sx={{ px: 1.5, mb: 2.25 }}>
               <Box
                 sx={{
@@ -712,22 +713,26 @@ export const Sidebar = React.memo(function Sidebar({
           setIsFolderModalOpen(open);
           if (!open) setEditingFolder(null);
         }}
-        onSave={(data) => {
-          if (editingFolder) {
-            updateFolder(editingFolder.id, {
-              name: data.name,
-              parentId: folderParentId,
-              backgroundImage: data.backgroundImage,
-              systemPrompt: data.systemPrompt,
-              contextFiles: data.contextFiles,
-            });
-          } else {
-            createFolder(data.name, {
-              parentId: folderParentId,
-              backgroundImage: data.backgroundImage,
-              systemPrompt: data.systemPrompt,
-              contextFiles: data.contextFiles,
-            });
+        onSave={async (data) => {
+          try {
+            if (editingFolder) {
+              await updateFolder(editingFolder.id, {
+                name: data.name,
+                parentId: folderParentId,
+                backgroundImage: data.backgroundImage,
+                systemPrompt: data.systemPrompt,
+                contextFiles: data.contextFiles,
+              });
+            } else {
+              await createFolder(data.name, {
+                parentId: folderParentId,
+                backgroundImage: data.backgroundImage,
+                systemPrompt: data.systemPrompt,
+                contextFiles: data.contextFiles,
+              });
+            }
+          } catch (error) {
+            notify.error("Failed to save folder", error instanceof Error ? error.message : String(error));
           }
           setEditingFolder(null);
         }}
