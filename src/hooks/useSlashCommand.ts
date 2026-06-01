@@ -1,18 +1,23 @@
 import { useState, useEffect } from "react";
 
-/**
- * Detects when the user has typed a slash command trigger in the draft
- * and manages the open/close state of the slash command menu.
- */
+const SLASH_REGEX = /(?:^|\s)\/(\w*)$/;
+
 export function useSlashCommand(draft: string) {
   const [showSlashMenu, setShowSlashMenu] = useState(false);
+  const [slashQuery, setSlashQuery] = useState("");
 
   useEffect(() => {
-    const isSlashTrigger = draft === "/" || draft.endsWith(" /");
-    setShowSlashMenu(isSlashTrigger);
+    const match = draft.match(SLASH_REGEX);
+    if (match) {
+      setShowSlashMenu(true);
+      setSlashQuery(match[1] ?? "");
+    } else {
+      setShowSlashMenu(false);
+      setSlashQuery("");
+    }
   }, [draft]);
 
   const closeSlashMenu = () => setShowSlashMenu(false);
 
-  return { showSlashMenu, closeSlashMenu };
+  return { showSlashMenu, slashQuery, closeSlashMenu };
 }

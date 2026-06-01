@@ -1,6 +1,7 @@
-import { Globe, Brain } from "lucide-react";
-import { useSettingsStore } from "@/store/settingsStore";
+import { Brain, Globe } from "lucide-react";
 import React from "react";
+import { getWebSearchWarning } from "@/features/web-search/useWebSearchConfig";
+import { useSettingsStore } from "@/store/settingsStore";
 
 export type FeatureKind = "toggle" | "forced_toggle";
 
@@ -23,17 +24,13 @@ export const featureRegistry: FeatureDef[] = [
     kind: "forced_toggle",
     description: "Search the web for real-time information",
     icon: Globe,
-    useIsActive: () => useSettingsStore((s) => s.general.webSearchEnabled),
+    useIsActive: () => useSettingsStore((state) => state.general.webSearchEnabled),
     getIsActive: () => useSettingsStore.getState().general.webSearchEnabled,
     toggle: () => {
       const state = useSettingsStore.getState();
       state.actions.updateGeneral({ webSearchEnabled: !state.general.webSearchEnabled });
     },
-    getWarning: () => {
-      const key = useSettingsStore.getState().general.exaApiKey;
-      if (!key || !key.trim()) return "Exa API key not configured — web search requires an API key";
-      return undefined;
-    }
+    getWarning: getWebSearchWarning,
   },
   {
     id: "reasoning",
@@ -41,28 +38,32 @@ export const featureRegistry: FeatureDef[] = [
     kind: "toggle",
     description: "Enable thinking for reasoning models (DeepSeek, Qwen3, GPT-OSS)",
     icon: Brain,
-    useIsActive: () => useSettingsStore((s) => s.general.reasoningEnabled),
+    useIsActive: () => useSettingsStore((state) => state.general.reasoningEnabled),
     getIsActive: () => useSettingsStore.getState().general.reasoningEnabled,
     toggle: () => {
       const state = useSettingsStore.getState();
       state.actions.updateGeneral({ reasoningEnabled: !state.general.reasoningEnabled });
-    }
-  }
+    },
+  },
 ];
 
 export function isFeatureAIActive(featureId: string): boolean {
-  const feature = featureRegistry.find((f) => f.id === featureId);
+  const feature = featureRegistry.find((item) => item.id === featureId);
   if (!feature) return false;
   if (feature.kind === "forced_toggle") return true;
   return feature.getIsActive();
 }
 
 export function useFeatures() {
-  const webSearchEnabled = useSettingsStore((s) => s.general.webSearchEnabled);
-  const reasoningEnabled = useSettingsStore((s) => s.general.reasoningEnabled);
-  const exaApiKey = useSettingsStore((s) => s.general.exaApiKey);
+  const webSearchEnabled = useSettingsStore((state) => state.general.webSearchEnabled);
+  const webSearch = useSettingsStore((state) => state.general.webSearch);
+  const reasoningEnabled = useSettingsStore((state) => state.general.reasoningEnabled);
   return React.useMemo(
-    () => featureRegistry.map((f) => ({ ...f, active: f.getIsActive(), warning: f.getWarning?.() })),
-    [exaApiKey, reasoningEnabled, webSearchEnabled],
+    () => featureRegistry.map((feature) => ({
+      ...feature,
+      active: feature.getIsActive(),
+      warning: feature.getWarning?.(),
+    })),
+    [reasoningEnabled, webSearch, webSearchEnabled],
   );
 }

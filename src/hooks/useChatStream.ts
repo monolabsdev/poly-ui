@@ -3,7 +3,6 @@ import { invoke } from "@tauri-apps/api/core";
 import { useShallow } from "zustand/react/shallow";
 import type { ChatMessage, Attachment, Message } from "@/types/chat";
 import { useChatStore } from "@/store/chatStore";
-import { useSettingsStore } from "@/store/settingsStore";
 import { loggedInvoke } from "@/lib/utils";
 import { useNotify } from "@/hooks/useNotify";
 import { useOllamaStore } from "@/services/ollama/monitor";
@@ -19,6 +18,7 @@ import {
 } from "@/lib/chat/event-bus";
 import { StreamAccumulator } from "@/lib/chat/stream-accumulator";
 import type { ModelProvider } from "@/store/modelStore";
+import { getWebSearchConfig } from "@/features/web-search/useWebSearchConfig";
 
 type SelectedModel = { model: string; provider: ModelProvider };
 
@@ -247,10 +247,11 @@ export function useChatStream(selectedModels: string[], selectedProviders: Model
       resetStreamState();
       pendingStreamsRef.current = models.length;
 
-      const { exaApiKey } = useSettingsStore.getState().general;
+      const webSearchConfig = getWebSearchConfig();
       const webSearchAI = isFeatureAIActive("web_search");
       const reasoningAI = isFeatureAIActive("reasoning");
-      const system = buildSystemPrompt(systemPrompt, webSearchAI ? exaApiKey : undefined, webSearchAI);
+      const activeWebSearchConfig = webSearchAI ? webSearchConfig : undefined;
+      const system = buildSystemPrompt(systemPrompt, Boolean(activeWebSearchConfig), webSearchAI);
 
       for (const { model, provider } of models) {
         const rid = crypto.randomUUID();
@@ -275,7 +276,7 @@ export function useChatStream(selectedModels: string[], selectedProviders: Model
           model,
           messages: history,
           systemPrompt: system,
-          exaApiKey: webSearchAI ? (exaApiKey || null) : null,
+          webSearchConfig: activeWebSearchConfig ?? null,
           reasoningEnabled: reasoningAI,
           providerType: provider,
         }).catch((err) => {

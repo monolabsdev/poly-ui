@@ -2,7 +2,7 @@ use crate::error::AppError;
 use crate::models::chat::ChatMessage;
 use crate::stream_emitter::TauriStreamEmitter;
 use crate::tool_loop::ToolLoop;
-use crate::web_search::ExaWebSearchClient;
+use crate::web_search::{create_web_search_client, WebSearchConfig};
 use crate::AppState;
 use crate::providers::base::ProviderType;
 use serde_json::Value;
@@ -18,7 +18,7 @@ pub async fn chat_stream(
     model: String,
     messages: Vec<ChatMessage>,
     system_prompt: Option<String>,
-    exa_api_key: Option<String>,
+    web_search_config: Option<WebSearchConfig>,
     reasoning_enabled: bool,
     provider_type: Option<ProviderType>,
 ) -> Result<(), String> {
@@ -31,7 +31,10 @@ pub async fn chat_stream(
         .map_err(|e| e.to_string())?;
 
     let emitter = TauriStreamEmitter::new(app_handle.clone());
-    let web_search = ExaWebSearchClient;
+    let web_search = web_search_config.as_ref().map(create_web_search_client);
+    let web_search = web_search
+        .as_deref()
+        .zip(web_search_config.as_ref());
 
     let result = ToolLoop::run(
         provider.as_ref(),
@@ -41,8 +44,7 @@ pub async fn chat_stream(
         reasoning_enabled,
         &request_id,
         &emitter,
-        &web_search,
-        &exa_api_key,
+        web_search,
         || state.current_generation_id.load(Ordering::SeqCst) != my_generation_id,
     )
     .await;

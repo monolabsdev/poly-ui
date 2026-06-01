@@ -86,7 +86,7 @@ pub struct WebSearchEvent {
     pub results: Option<Vec<SearchResultItem>>,
 }
 
-#[derive(Serialize, Clone, Debug)]
+#[derive(Serialize, Clone, Debug, PartialEq)]
 pub struct SearchResultItem {
     pub title: String,
     pub url: String,

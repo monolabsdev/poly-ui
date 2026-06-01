@@ -62,9 +62,19 @@ export const ChatInput = memo(function ChatInput({
   } = useChatAttachments();
 
   const textareaRef = useChatTextarea(draft);
-  const { showSlashMenu, closeSlashMenu } = useSlashCommand(draft);
+  const { showSlashMenu, slashQuery, closeSlashMenu } = useSlashCommand(draft);
   const features = useFeatures();
   const [slashMenuIndex, setSlashMenuIndex] = useState(0);
+  const filteredFeatures = useMemo(() => {
+    const query = slashQuery.toLowerCase().trim();
+    return query
+      ? features.filter((f) =>
+          [f.name, f.description, f.id].some((field) =>
+            field?.toLowerCase().includes(query),
+          ),
+        )
+      : features;
+  }, [features, slashQuery]);
   const appendTranscript = useCallback((text: string) => {
     setDraft((prev) => {
       const cleanText = text.trim();
@@ -88,8 +98,8 @@ export const ChatInput = memo(function ChatInput({
   });
 
   useEffect(() => {
-    if (showSlashMenu) setSlashMenuIndex(0);
-  }, [showSlashMenu]);
+    setSlashMenuIndex(0);
+  }, [slashQuery]);
 
   // Derived state
   const activeFeatures = useMemo(
@@ -121,23 +131,25 @@ export const ChatInput = memo(function ChatInput({
     setDraft((prev) => prev.replace(/\s?\/?$/, ""));
     closeSlashMenu();
     textareaRef.current?.focus();
-  }, [closeSlashMenu, features, textareaRef]);
+  }, [closeSlashMenu, textareaRef]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (showSlashMenu) {
       if (e.key === "ArrowDown") {
         e.preventDefault();
-        setSlashMenuIndex((prev) => (prev + 1) % features.length);
+        setSlashMenuIndex((prev) => (prev + 1) % (filteredFeatures.length || 1));
         return;
       }
       if (e.key === "ArrowUp") {
         e.preventDefault();
-        setSlashMenuIndex((prev) => (prev - 1 + features.length) % features.length);
+        setSlashMenuIndex((prev) => (prev - 1 + (filteredFeatures.length || 1)) % (filteredFeatures.length || 1));
         return;
       }
       if (e.key === "Enter") {
         e.preventDefault();
-        handleSlashSelect(features[slashMenuIndex]);
+        if (filteredFeatures[slashMenuIndex]) {
+          handleSlashSelect(filteredFeatures[slashMenuIndex]);
+        }
         return;
       }
       if (e.key === "Escape") {
@@ -151,7 +163,7 @@ export const ChatInput = memo(function ChatInput({
       e.preventDefault();
       handleSubmit();
     }
-  }, [closeSlashMenu, features, handleSlashSelect, handleSubmit, showSlashMenu, slashMenuIndex]);
+  }, [closeSlashMenu, filteredFeatures, handleSlashSelect, handleSubmit, showSlashMenu, slashMenuIndex]);
 
   return (
     <Box
@@ -177,7 +189,7 @@ export const ChatInput = memo(function ChatInput({
         {/* Slash command menu */}
         <AnimatePresence>
           {showSlashMenu && (
-            <SlashCommandMenu features={features} onSelect={handleSlashSelect} selectedIndex={slashMenuIndex} />
+            <SlashCommandMenu features={filteredFeatures} onSelect={handleSlashSelect} selectedIndex={slashMenuIndex} slashQuery={slashQuery} />
           )}
         </AnimatePresence>
 

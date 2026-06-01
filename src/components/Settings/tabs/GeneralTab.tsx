@@ -4,13 +4,12 @@ import {
   Select,
   Stack,
   Switch,
-  TextField,
 } from "@mui/material";
 import { useShallow } from "zustand/react/shallow";
 import { SettingCard, SectionHeader } from "../SettingComponents";
-import { appTextFieldSx } from "@/components/ui/appDialog";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useThemeStore } from "@/store/themeStore";
+import { WebSearchSettings } from "@/features/web-search/WebSearchSettings";
 
 const selectSx = {
   fontSize: 13,
@@ -91,22 +90,11 @@ export function GeneralTab() {
         }
       />
 
-      <SectionHeader title="API Keys" />
-
-      <SettingCard
-        title="Exa API Key"
-        description="Required for web search. Get one at https://dashboard.exa.ai"
-      >
-        <TextField
-          value={general.exaApiKey}
-          onChange={(e) => actions.updateGeneral({ exaApiKey: e.target.value })}
-          placeholder="Enter your Exa API key..."
-          type="password"
-          fullWidth
-          size="small"
-          sx={appTextFieldSx}
-        />
-      </SettingCard>
+      <SectionHeader
+        title="Web Search"
+        description="Optional live results. Provider credentials stay local."
+      />
+      <WebSearchSettings />
     </Stack>
   );
 }

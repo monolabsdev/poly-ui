@@ -1,12 +1,13 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { PromptPresetId } from "@/constants/promptPresets";
+import type { WebSearchSettings } from "@/features/web-search/types";
 
 export type GeneralSettings = {
   language: string;
   notifications: boolean;
   systemPrompt: string;
-  exaApiKey: string;
+  webSearch: WebSearchSettings;
   webSearchEnabled: boolean;
   reasoningEnabled: boolean;
 };
@@ -54,6 +55,13 @@ const defaultTts: TtsSettings = {
   },
 };
 
+function createDefaultWebSearchSettings(): WebSearchSettings {
+  return {
+    provider: "exa",
+    apiKeys: { exa: "", ollama: "", tavily: "" },
+  };
+}
+
 export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
@@ -61,7 +69,7 @@ export const useSettingsStore = create<SettingsState>()(
         language: "en",
         notifications: true,
         systemPrompt: "",
-        exaApiKey: "",
+        webSearch: createDefaultWebSearchSettings(),
         webSearchEnabled: true,
         reasoningEnabled: true,
       },
@@ -87,23 +95,36 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: "polyui:settings",
-      version: 5,
+      version: 7,
       migrate: (persisted, version) => {
         const state = persisted as any;
-        if (!state?.tts) return state as SettingsState;
-        if (version < 1 && state.tts.supertonic) {
-          state.tts.stTts = state.tts.supertonic;
-          delete state.tts.supertonic;
-          if (state.tts.engine === "supertonic") {
-            state.tts.engine = "stTts";
+        if (state?.tts) {
+          if (version < 1 && state.tts.supertonic) {
+            state.tts.stTts = state.tts.supertonic;
+            delete state.tts.supertonic;
+            if (state.tts.engine === "supertonic") {
+              state.tts.engine = "stTts";
+            }
           }
-        }
-        if (version < 2) {
-          state.tts.stTts = { ...defaultTts.stTts, ...state.tts.stTts };
-          state.tts.browser = { ...defaultTts.browser, ...state.tts.browser };
+          if (version < 2) {
+            state.tts.stTts = { ...defaultTts.stTts, ...state.tts.stTts };
+            state.tts.browser = { ...defaultTts.browser, ...state.tts.browser };
+          }
         }
         if (version < 5) {
           delete state.account;
+        }
+        if (version < 6 && state?.general) {
+          const webSearch = createDefaultWebSearchSettings();
+          webSearch.apiKeys.exa = state.general.exaApiKey ?? "";
+          state.general.webSearch = webSearch;
+          delete state.general.exaApiKey;
+        }
+        if (version < 7 && state?.general?.webSearch) {
+          state.general.webSearch.apiKeys = {
+            ...state.general.webSearch.apiKeys,
+            ollama: "",
+          };
         }
         return state as SettingsState;
       },

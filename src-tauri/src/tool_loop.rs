@@ -5,7 +5,7 @@ use crate::models::chat::{
 };
 use crate::providers::base::LLMProvider;
 use crate::stream_emitter::StreamEmitter;
-use crate::web_search::WebSearchClient;
+use crate::web_search::{WebSearchClient, WebSearchConfig};
 use tokio_stream::StreamExt;
 
 fn format_search_results(query: &str, results: &[SearchResultItem], error: Option<&str>) -> String {
@@ -129,8 +129,7 @@ impl ToolLoop {
         reasoning_enabled: bool,
         request_id: &str,
         emitter: &dyn StreamEmitter,
-        web_search: &dyn WebSearchClient,
-        exa_api_key: &Option<String>,
+        web_search: Option<(&dyn WebSearchClient, &WebSearchConfig)>,
         is_cancelled: impl Fn() -> bool,
     ) -> Result<ToolLoopResult, AppError> {
         let web_search_tool = ToolDefinition {
@@ -152,8 +151,9 @@ impl ToolLoop {
         loop {
             let reasoning_opt = serde_json::json!({"reasoning_enabled": reasoning_enabled});
 
-            let has_api_key = exa_api_key.as_ref().is_some_and(|k| !k.is_empty());
-            let tools = if has_api_key { Some(vec![web_search_tool.clone()]) } else { None };
+            let tools = web_search
+                .filter(|(_, config)| config.is_configured())
+                .map(|_| vec![web_search_tool.clone()]);
 
             let mut stream = provider
                 .chat_completion(model.to_string(), messages.clone(), system_prompt.clone(), Some(reasoning_opt), tools)
@@ -216,12 +216,15 @@ impl ToolLoop {
 
                             emitter.emit_web_search(&WebSearchEvent { request_id: request_id.to_string(), query: query.clone(), status: "searching".into(), results: None }).await;
 
-                            let (search_results, search_error) = match exa_api_key.as_ref().filter(|k| !k.is_empty()) {
-                                Some(key) => match web_search.search(&query, key).await {
+                            let (search_results, search_error) = match web_search.filter(|(_, config)| config.is_configured()) {
+                                Some((client, config)) => match client.search(&query, &config.api_key).await {
                                     Ok(r) => (r, None),
-                                    Err(e) => { eprintln!("[WebSearch] Exa error: {e}"); (Vec::new(), Some(e)) }
+                                    Err(e) => {
+                                        eprintln!("[WebSearch] {:?} error: {e}", client.provider());
+                                        (Vec::new(), Some(e))
+                                    }
                                 },
-                                None => (Vec::new(), Some("No Exa API key configured".into())),
+                                None => (Vec::new(), Some("No web search provider configured".into())),
                             };
 
                             let results_clone = search_results.clone();
