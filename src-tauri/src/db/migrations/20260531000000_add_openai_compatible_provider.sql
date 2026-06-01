@@ -1,5 +1,4 @@
-ALTER TABLE provider_configs ADD COLUMN api_key TEXT;
-ALTER TABLE provider_configs ADD COLUMN api_base_url TEXT;
-
-INSERT OR IGNORE INTO provider_configs (provider_type, enabled, api_base_url, priority)
-VALUES ('OpenAICompatible', 0, 'https://api.openai.com/v1', 1);
+-- Columns are added by init_db after migrations. SQLite does not support
+-- ALTER TABLE ADD COLUMN IF NOT EXISTS, so keeping that repair in Rust makes
+-- startup safe for databases created by development builds.
+SELECT 1;

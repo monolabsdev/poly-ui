@@ -1,11 +1,14 @@
-# PolyUI
+<p align="center">
+  <img src="public/polyui-logo.png" alt="PolyUI logo" width="144" />
+</p>
+
+<h1 align="center">PolyUI</h1>
+
 ![GitHub repo size](https://img.shields.io/github/repo-size/theoslater/openbench)
 ![GitHub language count](https://img.shields.io/github/languages/count/theoslater/openbench)
 ![GitHub top language](https://img.shields.io/github/languages/top/theoslater/openbench)
 ![GitHub last commit](https://img.shields.io/github/last-commit/theoslater/openbench?color=red)
 ![GitHub stars](https://img.shields.io/github/stars/theoslater/openbench?style=social)
-
-![polyui_banner](public/Poly_UI.png)
 
 PolyUI is a small, high performance and user-friendly AI desktop application designed to be able to operate entirely offline. One calm window for your models — use Ollama, OpenAI-compatible APIs, and more from a simple interface built for private, everyday conversations with local LLMs.
 

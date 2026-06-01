@@ -27,6 +27,7 @@ pub async fn init_db<R: Runtime>(app: &AppHandle<R>) -> Result<SqlitePool, Strin
 
     ensure_users_schema(&pool).await?;
     ensure_sessions_schema(&pool).await?;
+    ensure_provider_schema(&pool).await?;
 
     // Remove stale rows from earlier provider types.
     sqlx::query("DELETE FROM provider_configs WHERE provider_type NOT IN ('OllamaLocal', 'OpenAICompatible')")
@@ -56,6 +57,31 @@ pub async fn init_db<R: Runtime>(app: &AppHandle<R>) -> Result<SqlitePool, Strin
     .map_err(|e| e.to_string())?;
 
     Ok(pool)
+}
+
+async fn ensure_provider_schema(pool: &SqlitePool) -> Result<(), String> {
+    for column in ["api_key", "api_base_url"] {
+        let exists = sqlx::query(
+            "SELECT COUNT(*) FROM pragma_table_info('provider_configs') WHERE name = ?",
+        )
+        .bind(column)
+        .fetch_one(pool)
+        .await
+        .map_err(|e| e.to_string())?
+        .get::<i64, _>(0)
+            > 0;
+
+        if !exists {
+            sqlx::query(&format!(
+                "ALTER TABLE provider_configs ADD COLUMN {column} TEXT"
+            ))
+            .execute(pool)
+            .await
+            .map_err(|e| e.to_string())?;
+        }
+    }
+
+    Ok(())
 }
 
 async fn ensure_conversations_schema(pool: &SqlitePool) -> Result<(), String> {
@@ -184,6 +210,16 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), String> {
                 .await
                 .map_err(|e| e.to_string())?;
         }
+        // Dev repair: migrations were edited during development. Removing
+        // stale checksums lets sqlx record the current files and continue.
+        sqlx::query("DELETE FROM _sqlx_migrations WHERE version IN (?, ?, ?, ?)")
+            .bind(20260501000000_i64)
+            .bind(20260509000000_i64)
+            .bind(20260510000000_i64)
+            .bind(20260531000000_i64)
+            .execute(pool)
+            .await
+            .map_err(|e| e.to_string())?;
 
         return migrator.run(pool).await.map_err(|e| e.to_string());
     }
