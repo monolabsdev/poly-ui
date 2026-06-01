@@ -132,7 +132,6 @@ export function useChatStream(selectedModels: string[], selectedProviders: Model
       const thinking = acc.thinking[request_id];
       const completedModel = existing.model ?? "";
       const completedProvider = existing.provider ?? "OllamaLocal";
-      const shouldStartTitleGeneration = pendingStreamsRef.current <= 1;
 
       if (updated.trim() || thinking?.trim()) {
         const startTime = thinkingStartTimeRef.current[request_id];
@@ -157,10 +156,6 @@ export function useChatStream(selectedModels: string[], selectedProviders: Model
       delete requestIdToMessageIdRef.current[request_id];
       delete requestIdToConversationIdRef.current[request_id];
       settlePending();
-
-      if (shouldStartTitleGeneration) {
-        queueTitleGeneration({ conversationId, model: completedModel, providerType: completedProvider, userName });
-      }
 
       if (pendingStreamsRef.current === 0) {
         processNextInQueueRef.current?.();
@@ -358,9 +353,13 @@ export function useChatStream(selectedModels: string[], selectedProviders: Model
 
       cancelRef.current = false;
       await addMessage({ conversationId, role: "user", content: processed, attachments });
+
+      const firstModel = models[0];
+      queueTitleGeneration({ conversationId, model: firstModel.model, providerType: firstModel.provider, userName });
+
       startStream(conversationId, models);
     },
-    [selectedModels, selectedProviders, isStreaming, activeConversationId, addMessage, startStream],
+    [selectedModels, selectedProviders, isStreaming, activeConversationId, addMessage, startStream, userName],
   );
 
   const stopStreaming = useCallback(async () => {

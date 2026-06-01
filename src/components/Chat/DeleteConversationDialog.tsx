@@ -6,7 +6,8 @@ interface DeleteConversationDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onConfirm: () => void;
-  title: string;
+  title?: string;
+  count?: number;
 }
 
 export function DeleteConversationDialog({
@@ -14,12 +15,13 @@ export function DeleteConversationDialog({
   onOpenChange,
   onConfirm,
   title,
+  count,
 }: DeleteConversationDialogProps) {
   return (
     <Modal 
       open={open} 
       onOpenChange={onOpenChange} 
-      title="Delete chat?"
+      title={count ? "Delete chats?" : "Delete chat?"}
       maxWidth={400}
       contentSx={{ p: 3 }}
       footer={
@@ -60,7 +62,11 @@ export function DeleteConversationDialog({
       }
     >
       <Typography variant="body2" sx={{ color: "text.secondary", lineHeight: 1.6 }}>
-        This will delete <Box component="span" sx={{ fontWeight: 600, color: "text.primary" }}>{title}</Box>. This action cannot be undone.
+        {count ? (
+          <>This will delete <Box component="span" sx={{ fontWeight: 600, color: "text.primary" }}>{count} chats</Box>. This action cannot be undone.</>
+        ) : (
+          <>This will delete <Box component="span" sx={{ fontWeight: 600, color: "text.primary" }}>{title}</Box>. This action cannot be undone.</>
+        )}
       </Typography>
     </Modal>
   );

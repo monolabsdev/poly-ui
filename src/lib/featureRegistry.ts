@@ -50,7 +50,6 @@ export const featureRegistry: FeatureDef[] = [
 export function isFeatureAIActive(featureId: string): boolean {
   const feature = featureRegistry.find((item) => item.id === featureId);
   if (!feature) return false;
-  if (feature.kind === "forced_toggle") return true;
   return feature.getIsActive();
 }
 

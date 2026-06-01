@@ -2,6 +2,7 @@ import * as React from "react";
 import { Box, IconButton, Typography } from "@mui/material";
 import {
   Check,
+  Circle,
   X,
   MoreHorizontal,
   Edit2,
@@ -25,6 +26,8 @@ interface ConversationItemProps {
   activeConversationId: string | null;
   isGenerating: boolean;
   onClick?: () => void;
+  selected?: boolean;
+  onToggleSelect?: (e: React.MouseEvent, id: string) => void;
   editingId?: string | null;
   editValue?: string;
   setEditValue?: (v: string) => void;
@@ -43,6 +46,8 @@ export const ConversationItem = React.memo(function ConversationItem({
   activeConversationId,
   isGenerating,
   onClick,
+  selected = false,
+  onToggleSelect,
   editingId,
   editValue = "",
   setEditValue,
@@ -74,6 +79,7 @@ export const ConversationItem = React.memo(function ConversationItem({
     fontFamily: "inherit",
     fontSize: "inherit",
     "&:hover": { bgcolor: "action.hover" },
+    "&:hover .checkbox-icon": { opacity: "1 !important" },
   } : {
     display: "flex",
     alignItems: "center",
@@ -129,6 +135,27 @@ export const ConversationItem = React.memo(function ConversationItem({
         </Box>
       ) : (
         <Box sx={{ display: "flex", alignItems: "center", width: "100%", minWidth: 0, gap: isFolder ? 1 : 0 }}>
+          {onToggleSelect && (
+            <Box
+              className="checkbox-icon"
+              onClick={(e) => onToggleSelect(e, conv.id)}
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: 20,
+                height: 20,
+                flexShrink: 0,
+                opacity: selected ? 1 : 0,
+                transition: "opacity 0.1s",
+                "&:hover": { opacity: "1 !important" },
+                cursor: "pointer",
+                color: selected ? "primary.main" : "text.disabled",
+              }}
+            >
+              {selected ? <Check size={14} strokeWidth={3} /> : <Circle size={14} />}
+            </Box>
+          )}
           <Typography
             variant="body2"
             noWrap

@@ -78,7 +78,11 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           if [[ -z "$APPLE_CERTIFICATE" || -z "$APPLE_CERTIFICATE_PASSWORD" || -z "$APPLE_SIGNING_IDENTITY" ]]; then
-            echo "Apple Developer signing secrets are not configured; using the ad-hoc signature fallback."
+            if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+              echo "Apple Developer signing secrets are required for tagged releases."
+              exit 1
+            fi
+            echo "Apple Developer signing secrets are not configured; using the ad-hoc signature fallback for this manual build."
             exit 0
           fi
 
@@ -174,6 +178,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           draft: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
           generate_release_notes: true
           files: release-files/*
 
@@ -196,4 +201,5 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           draft: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
           generate_release_notes: true

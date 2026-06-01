@@ -20,7 +20,7 @@ type GenerateTitleArgs = {
 };
 
 const pendingTitleGenerations = new Set<string>();
-const TITLE_GENERATION_DELAY_MS = 250;
+const TITLE_GENERATION_DELAY_MS = 0;
 
 function hasCustomTitle(conversation: { title: string }): boolean {
   return Boolean(conversation.title) && conversation.title !== "New Chat";
@@ -38,11 +38,8 @@ export function shouldGenerateTitle(conversationId: string): boolean {
     (message) => message.conversationId === conversationId,
   );
   const userCount = conversationMessages.filter((message) => message.role === "user").length;
-  const assistantCount = conversationMessages.filter(
-    (message) => message.role === "assistant",
-  ).length;
 
-  return userCount === 1 && assistantCount >= 1;
+  return userCount === 1;
 }
 
 export function queueTitleGeneration({

@@ -15,9 +15,9 @@ struct HealthCache {
 fn health_cache_ttl(status: ProviderStatus) -> Duration {
     match status {
         ProviderStatus::Online => Duration::from_secs(10),
-        ProviderStatus::Offline
-        | ProviderStatus::Reconnecting
-        | ProviderStatus::Unavailable => Duration::from_secs(1),
+        ProviderStatus::Offline | ProviderStatus::Reconnecting | ProviderStatus::Unavailable => {
+            Duration::from_secs(1)
+        }
     }
 }
 
@@ -119,7 +119,10 @@ impl ProviderSelector {
             if !config.enabled {
                 continue;
             }
-            if !matches!(health.get(&config.provider_type), Some(ProviderStatus::Online)) {
+            if !matches!(
+                health.get(&config.provider_type),
+                Some(ProviderStatus::Online)
+            ) {
                 continue;
             }
             if let Some(provider) = ProviderFactory::create(config.clone()) {
@@ -157,6 +160,7 @@ impl ProviderSelector {
         self.check_all_providers().await
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn update_provider_config(
         &self,
         provider_type: &ProviderType,

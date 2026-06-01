@@ -44,6 +44,13 @@ class SqliteConversationRepository implements ConversationRepository {
     await this.db.execute("DELETE FROM conversations WHERE id = ?", [id]);
   }
 
+  async deleteConversations(ids: string[]): Promise<void> {
+    if (ids.length === 0) return;
+    const placeholders = ids.map(() => "?").join(",");
+    await this.db.execute(`DELETE FROM messages WHERE conversationId IN (${placeholders})`, ids);
+    await this.db.execute(`DELETE FROM conversations WHERE id IN (${placeholders})`, ids);
+  }
+
   async deleteAllConversations(userId: string): Promise<void> {
     await this.db.execute("DELETE FROM messages WHERE conversationId IN (SELECT id FROM conversations WHERE userId = ?)", [userId]);
     await this.db.execute("DELETE FROM conversations WHERE userId = ?", [userId]);
@@ -164,6 +171,13 @@ class InMemoryConversationRepository implements ConversationRepository {
   async deleteConversation(id: string): Promise<void> {
     delete this.conversations[id];
     delete this.messages[id];
+  }
+
+  async deleteConversations(ids: string[]): Promise<void> {
+    for (const id of ids) {
+      delete this.conversations[id];
+      delete this.messages[id];
+    }
   }
 
   async deleteAllConversations(userId: string): Promise<void> {

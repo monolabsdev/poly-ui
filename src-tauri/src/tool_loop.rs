@@ -15,10 +15,17 @@ fn format_search_results(query: &str, results: &[SearchResultItem], error: Optio
         return output;
     }
     if results.is_empty() {
-        output.push_str(&format!("Web search for \"{}\" returned no results.\n", query));
+        output.push_str(&format!(
+            "Web search for \"{}\" returned no results.\n",
+            query
+        ));
         return output;
     }
-    output.push_str(&format!("Web search results for \"{}\" ({} sources):\n\n", query, results.len()));
+    output.push_str(&format!(
+        "Web search results for \"{}\" ({} sources):\n\n",
+        query,
+        results.len()
+    ));
     for (i, r) in results.iter().enumerate() {
         output.push_str(&format!("[{}. {}]({})\n", i + 1, r.title, r.url));
         for h in &r.highlights {
@@ -40,17 +47,25 @@ struct ThinkingTagParser {
 
 impl ThinkingTagParser {
     fn new(enabled: bool) -> Self {
-        Self { enabled, in_thinking: false, buffer: String::new() }
+        Self {
+            enabled,
+            in_thinking: false,
+            buffer: String::new(),
+        }
     }
 
     fn push(&mut self, chunk: &str) -> (String, String) {
-        if !self.enabled { return (chunk.to_string(), String::new()); }
+        if !self.enabled {
+            return (chunk.to_string(), String::new());
+        }
         self.buffer.push_str(chunk);
         self.drain(false)
     }
 
     fn finish(&mut self) -> (String, String) {
-        if !self.enabled { return (String::new(), String::new()); }
+        if !self.enabled {
+            return (String::new(), String::new());
+        }
         let drained = self.drain(true);
         self.in_thinking = false;
         drained
@@ -67,7 +82,16 @@ impl ThinkingTagParser {
                     self.in_thinking = false;
                     continue;
                 }
-                let keep = if finish { 0 } else { THINK_END_TAGS.iter().map(|t| t.len()).max().unwrap_or(0).saturating_sub(1) };
+                let keep = if finish {
+                    0
+                } else {
+                    THINK_END_TAGS
+                        .iter()
+                        .map(|t| t.len())
+                        .max()
+                        .unwrap_or(0)
+                        .saturating_sub(1)
+                };
                 if self.buffer.len() > keep {
                     let split_at = safe_split_index(&self.buffer, self.buffer.len() - keep);
                     thinking.push_str(&self.buffer[..split_at]);
@@ -79,10 +103,21 @@ impl ThinkingTagParser {
                 content.push_str(&self.buffer[..idx]);
                 self.buffer.drain(..idx + tag.len());
                 self.in_thinking = true;
-                if self.buffer.starts_with('\n') { self.buffer.drain(..1); }
+                if self.buffer.starts_with('\n') {
+                    self.buffer.drain(..1);
+                }
                 continue;
             }
-            let keep = if finish { 0 } else { THINK_START_TAGS.iter().map(|t| t.len()).max().unwrap_or(0).saturating_sub(1) };
+            let keep = if finish {
+                0
+            } else {
+                THINK_START_TAGS
+                    .iter()
+                    .map(|t| t.len())
+                    .max()
+                    .unwrap_or(0)
+                    .saturating_sub(1)
+            };
             if self.buffer.len() > keep {
                 let split_at = safe_split_index(&self.buffer, self.buffer.len() - keep);
                 content.push_str(&self.buffer[..split_at]);
@@ -91,8 +126,11 @@ impl ThinkingTagParser {
             break;
         }
         if finish && !self.buffer.is_empty() {
-            if self.in_thinking { thinking.push_str(&self.buffer); }
-            else { content.push_str(&self.buffer); }
+            if self.in_thinking {
+                thinking.push_str(&self.buffer);
+            } else {
+                content.push_str(&self.buffer);
+            }
             self.buffer.clear();
         }
         (content, thinking)
@@ -107,7 +145,9 @@ fn find_first_tag<'a>(haystack: &str, tags: &'a [&str]) -> Option<(usize, &'a st
 
 fn safe_split_index(value: &str, max: usize) -> usize {
     let mut idx = max.min(value.len());
-    while idx > 0 && !value.is_char_boundary(idx) { idx -= 1; }
+    while idx > 0 && !value.is_char_boundary(idx) {
+        idx -= 1;
+    }
     idx
 }
 
@@ -121,6 +161,7 @@ pub struct ToolLoopResult {
 pub struct ToolLoop;
 
 impl ToolLoop {
+    #[allow(clippy::too_many_arguments)]
     pub async fn run(
         provider: &dyn LLMProvider,
         model: &str,
@@ -156,7 +197,13 @@ impl ToolLoop {
                 .map(|_| vec![web_search_tool.clone()]);
 
             let mut stream = provider
-                .chat_completion(model.to_string(), messages.clone(), system_prompt.clone(), Some(reasoning_opt), tools)
+                .chat_completion(
+                    model.to_string(),
+                    messages.clone(),
+                    system_prompt.clone(),
+                    Some(reasoning_opt),
+                    tools,
+                )
                 .await
                 .map_err(|e| AppError::Provider(format!("Generation failed: {e}")))?;
 
@@ -164,38 +211,79 @@ impl ToolLoop {
 
             while let Some(result) = stream.next().await {
                 if is_cancelled() {
-                    emitter.emit_chunk(&StreamPayload { request_id: request_id.to_string(), content: String::new(), thinking: None, done: true, metadata: None, tool_calls: None }).await;
+                    emitter
+                        .emit_chunk(&StreamPayload {
+                            request_id: request_id.to_string(),
+                            content: String::new(),
+                            thinking: None,
+                            done: true,
+                            metadata: None,
+                            tool_calls: None,
+                        })
+                        .await;
                     return Err(AppError::Cancelled);
                 }
 
                 let mut chunk = match result {
                     Ok(c) => c,
                     Err(e) => {
-                        emitter.emit_chunk(&StreamPayload { request_id: request_id.to_string(), content: format!("\n\n*Stream error: {e}*"), thinking: None, done: true, metadata: None, tool_calls: None }).await;
+                        emitter
+                            .emit_chunk(&StreamPayload {
+                                request_id: request_id.to_string(),
+                                content: format!("\n\n*Stream error: {e}*"),
+                                thinking: None,
+                                done: true,
+                                metadata: None,
+                                tool_calls: None,
+                            })
+                            .await;
                         return Err(AppError::Provider(e));
                     }
                 };
 
                 chunk.request_id = request_id.to_string();
-                if let Some(ref m) = chunk.metadata { final_metadata = Some(m.clone()); }
+                if let Some(ref m) = chunk.metadata {
+                    final_metadata = Some(m.clone());
+                }
                 if let Some(tcs) = chunk.tool_calls.filter(|tcs| !tcs.is_empty()) {
                     tool_calls_opt = Some(tcs);
                 }
 
                 if let Some(tc) = chunk.thinking.as_ref().filter(|tc| !tc.is_empty()) {
                     thinking_acc.push_str(tc);
-                    emitter.emit_thinking(&ThinkingPayload { request_id: request_id.to_string(), thinking: thinking_acc.clone(), is_thinking: content_acc.is_empty() }).await;
+                    emitter
+                        .emit_thinking(&ThinkingPayload {
+                            request_id: request_id.to_string(),
+                            thinking: thinking_acc.clone(),
+                            is_thinking: content_acc.is_empty(),
+                        })
+                        .await;
                 }
 
                 if !chunk.content.is_empty() {
                     let (cc, tc) = thinking_parser.push(&chunk.content);
                     if !tc.is_empty() {
                         thinking_acc.push_str(&tc);
-                        emitter.emit_thinking(&ThinkingPayload { request_id: request_id.to_string(), thinking: thinking_acc.clone(), is_thinking: content_acc.is_empty() }).await;
+                        emitter
+                            .emit_thinking(&ThinkingPayload {
+                                request_id: request_id.to_string(),
+                                thinking: thinking_acc.clone(),
+                                is_thinking: content_acc.is_empty(),
+                            })
+                            .await;
                     }
                     content_acc.push_str(&cc);
                     if !cc.is_empty() {
-                        emitter.emit_chunk(&StreamPayload { request_id: request_id.to_string(), content: cc, thinking: None, done: false, metadata: None, tool_calls: None }).await;
+                        emitter
+                            .emit_chunk(&StreamPayload {
+                                request_id: request_id.to_string(),
+                                content: cc,
+                                thinking: None,
+                                done: false,
+                                metadata: None,
+                                tool_calls: None,
+                            })
+                            .await;
                     }
                 }
 
@@ -203,37 +291,98 @@ impl ToolLoop {
                     let (cc, tc) = thinking_parser.finish();
                     if !tc.is_empty() {
                         thinking_acc.push_str(&tc);
-                        emitter.emit_thinking(&ThinkingPayload { request_id: request_id.to_string(), thinking: thinking_acc.clone(), is_thinking: false }).await;
+                        emitter
+                            .emit_thinking(&ThinkingPayload {
+                                request_id: request_id.to_string(),
+                                thinking: thinking_acc.clone(),
+                                is_thinking: false,
+                            })
+                            .await;
                     }
                     if !cc.is_empty() {
                         content_acc.push_str(&cc);
-                        emitter.emit_chunk(&StreamPayload { request_id: request_id.to_string(), content: cc, thinking: None, done: false, metadata: None, tool_calls: None }).await;
+                        emitter
+                            .emit_chunk(&StreamPayload {
+                                request_id: request_id.to_string(),
+                                content: cc,
+                                thinking: None,
+                                done: false,
+                                metadata: None,
+                                tool_calls: None,
+                            })
+                            .await;
                     }
 
                     if let Some(Some(tc)) = tool_calls_opt.map(|tcs| tcs.into_iter().next()) {
                         if tc.name == "web_search" {
-                            let query = tc.arguments.get("query").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                            let query = tc
+                                .arguments
+                                .get("query")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("")
+                                .to_string();
 
-                            emitter.emit_web_search(&WebSearchEvent { request_id: request_id.to_string(), query: query.clone(), status: "searching".into(), results: None }).await;
+                            emitter
+                                .emit_web_search(&WebSearchEvent {
+                                    request_id: request_id.to_string(),
+                                    query: query.clone(),
+                                    status: "searching".into(),
+                                    results: None,
+                                })
+                                .await;
 
-                            let (search_results, search_error) = match web_search.filter(|(_, config)| config.is_configured()) {
-                                Some((client, config)) => match client.search(&query, &config.api_key).await {
+                            let (search_results, search_error) = match web_search
+                                .filter(|(_, config)| config.is_configured())
+                            {
+                                Some((client, config)) => match client
+                                    .search(&query, &config.api_key)
+                                    .await
+                                {
                                     Ok(r) => (r, None),
                                     Err(e) => {
                                         eprintln!("[WebSearch] {:?} error: {e}", client.provider());
                                         (Vec::new(), Some(e))
                                     }
                                 },
-                                None => (Vec::new(), Some("No web search provider configured".into())),
+                                None => {
+                                    (Vec::new(), Some("No web search provider configured".into()))
+                                }
                             };
 
                             let results_clone = search_results.clone();
-                            emitter.emit_web_search(&WebSearchEvent { request_id: request_id.to_string(), query: query.clone(), status: if search_error.is_some() { "error".into() } else { "complete".into() }, results: Some(search_results) }).await;
+                            emitter
+                                .emit_web_search(&WebSearchEvent {
+                                    request_id: request_id.to_string(),
+                                    query: query.clone(),
+                                    status: if search_error.is_some() {
+                                        "error".into()
+                                    } else {
+                                        "complete".into()
+                                    },
+                                    results: Some(search_results),
+                                })
+                                .await;
 
-                            let tool_result = format_search_results(&query, &results_clone, search_error.as_deref());
+                            let tool_result = format_search_results(
+                                &query,
+                                &results_clone,
+                                search_error.as_deref(),
+                            );
 
-                            messages.push(ChatMessage { role: "assistant".into(), content: content_acc.clone(), attachments: None, tool_calls: Some(vec![tc.clone()]), tool_call_id: None });
-                            messages.push(ChatMessage { role: "tool".into(), content: tool_result, attachments: None, tool_calls: None, tool_call_id: tc.id });
+                            messages.push(ChatMessage {
+                                role: "assistant".into(),
+                                content: content_acc.clone(),
+                                attachments: None,
+                                tool_calls: Some(vec![tc.clone()]),
+                                tool_call_id: None,
+                            });
+                            messages.push(ChatMessage {
+                                role: "tool".into(),
+                                content: tool_result,
+                                attachments: None,
+                                tool_calls: None,
+                                tool_call_id: tc.id,
+                            });
 
                             content_acc.clear();
                             thinking_acc.clear();
@@ -244,10 +393,29 @@ impl ToolLoop {
                     }
 
                     if !thinking_acc.is_empty() && content_acc.is_empty() {
-                        emitter.emit_thinking(&ThinkingPayload { request_id: request_id.to_string(), thinking: thinking_acc.clone(), is_thinking: false }).await;
+                        emitter
+                            .emit_thinking(&ThinkingPayload {
+                                request_id: request_id.to_string(),
+                                thinking: thinking_acc.clone(),
+                                is_thinking: false,
+                            })
+                            .await;
                     }
-                    emitter.emit_chunk(&StreamPayload { request_id: request_id.to_string(), content: String::new(), thinking: None, done: true, metadata: final_metadata.clone(), tool_calls: None }).await;
-                    return Ok(ToolLoopResult { content: content_acc, thinking: thinking_acc, metadata: final_metadata });
+                    emitter
+                        .emit_chunk(&StreamPayload {
+                            request_id: request_id.to_string(),
+                            content: String::new(),
+                            thinking: None,
+                            done: true,
+                            metadata: final_metadata.clone(),
+                            tool_calls: None,
+                        })
+                        .await;
+                    return Ok(ToolLoopResult {
+                        content: content_acc,
+                        thinking: thinking_acc,
+                        metadata: final_metadata,
+                    });
                 }
             }
         }

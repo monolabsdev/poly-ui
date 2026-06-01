@@ -12,8 +12,8 @@ mod web_search;
 
 use crate::commands::chat_commands::{chat, chat_stream, generate_chat_title};
 use crate::commands::config_commands::cancel_chat;
-use crate::commands::dictation::{is_dictation_available, transcribe_audio, DictationState};
 use crate::commands::db_commands::{clear_database, execute_sql};
+use crate::commands::dictation::{is_dictation_available, transcribe_audio, DictationState};
 use crate::commands::model_commands::{cancel_pull, delete_model, get_local_models, pull_model};
 use crate::updater::{check_for_updates, download_update, install_update};
 use providers::ProviderSelector;

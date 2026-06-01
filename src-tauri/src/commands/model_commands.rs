@@ -1,6 +1,6 @@
 use crate::models::chat::ModelDetails;
-use crate::AppState;
 use crate::providers::base::ProviderType;
+use crate::AppState;
 use std::sync::atomic::Ordering;
 use tauri::{AppHandle, Emitter};
 use tokio_stream::StreamExt;
@@ -9,13 +9,19 @@ use tokio_stream::StreamExt;
 pub async fn get_local_models(
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<ModelDetails>, String> {
-    let provider = state.provider_selector.get_provider(ProviderType::OllamaLocal).await?;
+    let provider = state
+        .provider_selector
+        .get_provider(ProviderType::OllamaLocal)
+        .await?;
     provider.get_available_models().await
 }
 
 #[tauri::command]
 pub async fn delete_model(state: tauri::State<'_, AppState>, model: String) -> Result<(), String> {
-    let provider = state.provider_selector.get_provider(ProviderType::OllamaLocal).await?;
+    let provider = state
+        .provider_selector
+        .get_provider(ProviderType::OllamaLocal)
+        .await?;
     provider.delete_model(model).await
 }
 
@@ -26,7 +32,10 @@ pub async fn pull_model(
     model: String,
 ) -> Result<(), String> {
     state.is_pull_cancelled.store(false, Ordering::SeqCst);
-    let provider = state.provider_selector.get_provider(ProviderType::OllamaLocal).await?;
+    let provider = state
+        .provider_selector
+        .get_provider(ProviderType::OllamaLocal)
+        .await?;
 
     let mut stream = provider
         .pull_model(model.clone())

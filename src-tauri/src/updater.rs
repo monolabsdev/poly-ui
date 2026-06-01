@@ -3,8 +3,8 @@ use reqwest::Client;
 use serde::Serialize;
 use std::io::Write;
 use std::thread;
-use std::time::Instant;
 use std::time::Duration;
+use std::time::Instant;
 use tauri::{AppHandle, Emitter, State};
 
 const GITHUB_REPO: &str = "monolabsdev/poly-ui";
@@ -60,7 +60,10 @@ pub async fn check_for_updates(state: State<'_, AppState>) -> Result<UpdateInfo,
         .build()
         .map_err(|e| e.to_string())?;
 
-    let url = format!("https://api.github.com/repos/{}/releases/latest", GITHUB_REPO);
+    let url = format!(
+        "https://api.github.com/repos/{}/releases/latest",
+        GITHUB_REPO
+    );
     let resp = client.get(&url).send().await.map_err(|e| e.to_string())?;
     if !resp.status().is_success() {
         let status = resp.status();
@@ -122,15 +125,18 @@ fn select_update_asset<'a>(
         }
 
         match os {
-            "windows" => {
-                n.contains("setup") || n.ends_with(".exe")
-            }
+            "windows" => n.contains("setup") || n.ends_with(".exe"),
             "macos" => {
-                n.contains("macos") || n.contains("darwin") || n.ends_with(".dmg") || n.contains(".tar.gz")
+                n.contains("macos")
+                    || n.contains("darwin")
+                    || n.ends_with(".dmg")
+                    || n.contains(".tar.gz")
             }
             "linux" => {
-                n.ends_with(".appimage") || n.ends_with(".deb")
-                    || (n.contains("linux") && (n.contains(arch_suffix) || n.contains("amd64") || n.contains("arm64")))
+                n.ends_with(".appimage")
+                    || n.ends_with(".deb")
+                    || (n.contains("linux")
+                        && (n.contains(arch_suffix) || n.contains("amd64") || n.contains("arm64")))
             }
             _ => false,
         }
@@ -168,29 +174,38 @@ pub async fn download_update(
             0.0
         };
 
-        let _ = app.emit("update-progress", UpdateProgress {
-            status: "downloading".into(),
-            percent,
-            bytes: downloaded,
-            total,
-            file_path: None,
-            error: None,
-        });
+        let _ = app.emit(
+            "update-progress",
+            UpdateProgress {
+                status: "downloading".into(),
+                percent,
+                bytes: downloaded,
+                total,
+                file_path: None,
+                error: None,
+            },
+        );
     }
 
     {
-        let mut path = state.update_download_path.lock().map_err(|e| e.to_string())?;
+        let mut path = state
+            .update_download_path
+            .lock()
+            .map_err(|e| e.to_string())?;
         *path = Some(file_path.clone());
     }
 
-    let _ = app.emit("update-progress", UpdateProgress {
-        status: "downloaded".into(),
-        percent: 100.0,
-        bytes: downloaded,
-        total,
-        file_path: Some(file_path.to_string_lossy().to_string()),
-        error: None,
-    });
+    let _ = app.emit(
+        "update-progress",
+        UpdateProgress {
+            status: "downloaded".into(),
+            percent: 100.0,
+            bytes: downloaded,
+            total,
+            file_path: Some(file_path.to_string_lossy().to_string()),
+            error: None,
+        },
+    );
 
     Ok(())
 }
@@ -198,8 +213,12 @@ pub async fn download_update(
 #[tauri::command]
 pub async fn install_update(app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
     let file_path = {
-        let p = state.update_download_path.lock().map_err(|e| e.to_string())?;
-        p.clone().ok_or_else(|| "No update downloaded".to_string())?
+        let p = state
+            .update_download_path
+            .lock()
+            .map_err(|e| e.to_string())?;
+        p.clone()
+            .ok_or_else(|| "No update downloaded".to_string())?
     };
 
     let os = std::env::consts::OS;
@@ -238,7 +257,7 @@ rm -- "$0"
                 .map_err(|e| format!("Failed to start installer: {}", e))?;
         }
         "linux" => {
-            if file_path.extension().map_or(false, |e| e == "AppImage") {
+            if file_path.extension().is_some_and(|e| e == "AppImage") {
                 std::process::Command::new("chmod")
                     .args(["+x", fp.as_ref()])
                     .spawn()
@@ -247,11 +266,8 @@ rm -- "$0"
                     .arg("--no-sandbox")
                     .spawn()
                     .map_err(|e| format!("Failed to start installer: {}", e))?;
-            } else if file_path.extension().map_or(false, |e| e == "deb") {
-                let install_script = format!(
-                    "sleep 2\npkexec dpkg -i '{}'\n",
-                    fp
-                );
+            } else if file_path.extension().is_some_and(|e| e == "deb") {
+                let install_script = format!("sleep 2\npkexec dpkg -i '{}'\n", fp);
                 let script_path = std::env::temp_dir()
                     .join("polyui-update")
                     .join("install.sh");

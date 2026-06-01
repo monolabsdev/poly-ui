@@ -104,7 +104,7 @@ pub async fn signup(
     .bind(&display_name)
     .bind(&email)
     .bind(&password_hash)
-    .bind(&full_name)
+    .bind(full_name)
     .bind("Active")
     .bind(&now)
     .bind(&now)

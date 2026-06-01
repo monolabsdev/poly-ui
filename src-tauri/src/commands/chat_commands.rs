@@ -1,16 +1,17 @@
 use crate::error::AppError;
 use crate::models::chat::ChatMessage;
+use crate::providers::base::ProviderType;
 use crate::stream_emitter::TauriStreamEmitter;
+use crate::title_generator;
 use crate::tool_loop::ToolLoop;
 use crate::web_search::{create_web_search_client, WebSearchConfig};
 use crate::AppState;
-use crate::providers::base::ProviderType;
 use serde_json::Value;
 use std::sync::atomic::Ordering;
 use tauri::{AppHandle, Emitter};
-use crate::title_generator;
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn chat_stream(
     app_handle: AppHandle,
     state: tauri::State<'_, AppState>,
@@ -32,9 +33,7 @@ pub async fn chat_stream(
 
     let emitter = TauriStreamEmitter::new(app_handle.clone());
     let web_search = web_search_config.as_ref().map(create_web_search_client);
-    let web_search = web_search
-        .as_deref()
-        .zip(web_search_config.as_ref());
+    let web_search = web_search.as_deref().zip(web_search_config.as_ref());
 
     let result = ToolLoop::run(
         provider.as_ref(),

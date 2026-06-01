@@ -1,6 +1,4 @@
-use crate::models::chat::{
-    StreamPayload, ThinkingPayload, WebSearchEvent,
-};
+use crate::models::chat::{StreamPayload, ThinkingPayload, WebSearchEvent};
 use async_trait::async_trait;
 use tauri::{AppHandle, Emitter};
 
@@ -37,6 +35,7 @@ impl StreamEmitter for TauriStreamEmitter {
 }
 
 #[cfg(test)]
+#[allow(dead_code)]
 pub mod test {
     use super::*;
     use std::sync::Mutex;

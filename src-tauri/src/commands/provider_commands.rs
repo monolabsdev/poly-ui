@@ -95,9 +95,7 @@ pub async fn get_provider_and_models(
             .cloned()
             .unwrap_or(ProviderStatus::Offline);
         if status == ProviderStatus::Online && should_preload_models(config.provider_type) {
-            if let Some((preloaded_models, preload_status)) =
-                try_preload_models(&config).await
-            {
+            if let Some((preloaded_models, preload_status)) = try_preload_models(&config).await {
                 models.extend(preloaded_models);
                 status = preload_status;
             }

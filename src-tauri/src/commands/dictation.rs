@@ -88,7 +88,9 @@ pub async fn transcribe_audio(
     }
 
     if sample_rate != 16_000 {
-        return Err(format!("Unsupported sample rate: {sample_rate}. Expected 16000."));
+        return Err(format!(
+            "Unsupported sample rate: {sample_rate}. Expected 16000."
+        ));
     }
 
     let model_path = ensure_model(&app_handle).await?;
@@ -97,9 +99,10 @@ pub async fn transcribe_audio(
 
     let samples: Vec<f32> = samples.into_iter().map(|s| (s as f32) / 32768.0).collect();
 
-    let transcript = tokio::task::spawn_blocking(move || transcribe_samples(context, samples, language))
-        .await
-        .map_err(|err| format!("Dictation task failed: {err}"))??;
+    let transcript =
+        tokio::task::spawn_blocking(move || transcribe_samples(context, samples, language))
+            .await
+            .map_err(|err| format!("Dictation task failed: {err}"))??;
     Ok(transcript)
 }
 

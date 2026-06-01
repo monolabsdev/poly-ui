@@ -1,6 +1,6 @@
 import * as React from "react";
-import { Box, Typography } from "@mui/material";
-import { Folder } from "lucide-react";
+import { Box, Typography, IconButton } from "@mui/material";
+import { Folder, Trash2, X } from "lucide-react";
 import { ChatInput } from "@/components/Chat/ChatInput";
 import { ConversationItem } from "@/components/Chat/ConversationItem";
 import { DeleteConversationDialog } from "@/components/Chat/DeleteConversationDialog";
@@ -23,6 +23,7 @@ export function FolderHome({ folder, onSubmit, onStop, isStreaming, selectedMode
   const setActiveConversationId = useChatStore((state) => state.actions.setActiveConversationId);
   const streamingConversationId = useChatStore((state) => state.streamingConversationId);
   const deleteConversation = useChatStore((state) => state.actions.deleteConversation);
+  const deleteConversations = useChatStore((state) => state.actions.deleteConversations);
   const renameConversation = useChatStore((state) => state.actions.renameConversation);
   const archiveConversation = useChatStore((state) => state.actions.archiveConversation);
   const notify = useNotify();
@@ -34,6 +35,8 @@ export function FolderHome({ folder, onSubmit, onStop, isStreaming, selectedMode
   const [deleteId, setDeleteId] = React.useState<string | null>(null);
   const [deleteTitle, setDeleteTitle] = React.useState("");
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
+  const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
+  const [isBatchDeleteDialogOpen, setIsBatchDeleteDialogOpen] = React.useState(false);
 
   const handleStartRename = (e: React.MouseEvent, conv: Conversation) => {
     e.stopPropagation();
@@ -90,6 +93,40 @@ export function FolderHome({ folder, onSubmit, onStop, isStreaming, selectedMode
     }
   };
 
+  const toggleSelect = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const handleClearSelection = () => setSelectedIds(new Set());
+
+  const handleSelectAll = () => {
+    setSelectedIds(new Set(chats.map((c) => c.id)));
+  };
+
+  const handleBatchDelete = () => {
+    setIsBatchDeleteDialogOpen(true);
+  };
+
+  const handleConfirmBatchDelete = async () => {
+    if (selectedIds.size === 0) return;
+    try {
+      await deleteConversations(Array.from(selectedIds));
+      notify.success(`Deleted ${selectedIds.size} conversation${selectedIds.size > 1 ? "s" : ""}`);
+    } catch {
+      notify.error("Failed to delete conversations");
+    }
+    setSelectedIds(new Set());
+  };
+
   const handleExport = async (conv: Conversation) => {
     try {
       const repo = await getRepository();
@@ -127,6 +164,54 @@ export function FolderHome({ folder, onSubmit, onStop, isStreaming, selectedMode
       <Box sx={{ display: "flex", gap: 1, mt: 1.5, mb: 5 }}>
         <Box sx={{ px: 1.5, py: 0.75, borderRadius: "16px", bgcolor: "action.selected", fontSize: "12px" }}>Chats</Box>
       </Box>
+      {selectedIds.size > 0 && (
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 1.5,
+            mb: 1.5,
+            px: 1,
+            py: 1,
+            borderRadius: "8px",
+            bgcolor: "action.selected",
+          }}
+        >
+          <Typography sx={{ fontSize: "13px", flex: 1 }}>
+            {selectedIds.size} selected
+          </Typography>
+          <Typography
+            component="button"
+            onClick={selectedIds.size === chats.length ? handleClearSelection : handleSelectAll}
+            sx={{
+              fontSize: "12px",
+              color: "primary.main",
+              cursor: "pointer",
+              bgcolor: "transparent",
+              border: "none",
+              p: 0,
+              fontFamily: "inherit",
+              "&:hover": { textDecoration: "underline" },
+            }}
+          >
+            {selectedIds.size === chats.length ? "Deselect all" : "Select all"}
+          </Typography>
+          <IconButton
+            size="small"
+            onClick={handleBatchDelete}
+            sx={{ color: "error.main", p: 0.5 }}
+          >
+            <Trash2 size={16} />
+          </IconButton>
+          <IconButton
+            size="small"
+            onClick={handleClearSelection}
+            sx={{ color: "text.secondary", p: 0.5 }}
+          >
+            <X size={16} />
+          </IconButton>
+        </Box>
+      )}
       {chats.length === 0 ? (
         <Box sx={{ textAlign: "center", color: "text.secondary", pt: 7 }}>
           <Typography sx={{ fontSize: "13px", color: "text.primary" }}>No chats yet</Typography>
@@ -142,6 +227,8 @@ export function FolderHome({ folder, onSubmit, onStop, isStreaming, selectedMode
               isGenerating={streamingConversationId === chat.id}
               onClick={() => setActiveConversationId(chat.id)}
               variant="folder"
+              selected={selectedIds.has(chat.id)}
+              onToggleSelect={toggleSelect}
               editingId={editingId}
               editValue={editValue}
               setEditValue={setEditValue}
@@ -161,6 +248,12 @@ export function FolderHome({ folder, onSubmit, onStop, isStreaming, selectedMode
         onOpenChange={setIsDeleteDialogOpen}
         onConfirm={handleConfirmDelete}
         title={deleteTitle}
+      />
+      <DeleteConversationDialog
+        open={isBatchDeleteDialogOpen}
+        onOpenChange={setIsBatchDeleteDialogOpen}
+        onConfirm={handleConfirmBatchDelete}
+        count={selectedIds.size}
       />
     </Box>
   );

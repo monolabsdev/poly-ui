@@ -277,7 +277,7 @@ impl LLMProvider for OllamaProvider {
             .client
             .send_chat_messages_stream(request)
             .await
-            .map_err(|e| normalize_ollama_error(e))?;
+            .map_err(normalize_ollama_error)?;
 
         let model_clone = model.clone();
         let mapped_stream = stream.map(move |result| match result {
@@ -331,7 +331,7 @@ impl LLMProvider for OllamaProvider {
         self.client
             .list_local_models()
             .await
-            .map_err(|e| normalize_ollama_error(e))
+            .map_err(normalize_ollama_error)
             .map(|models| {
                 models
                     .into_iter()
@@ -358,7 +358,7 @@ impl LLMProvider for OllamaProvider {
             .client
             .pull_model_stream(model, false)
             .await
-            .map_err(|e| normalize_ollama_error(e))?;
+            .map_err(normalize_ollama_error)?;
 
         let mapped = stream.map(|result| match result {
             Ok(response) => Ok(crate::models::chat::PullProgressPayload {
@@ -377,7 +377,7 @@ impl LLMProvider for OllamaProvider {
         self.client
             .delete_model(model)
             .await
-            .map_err(|e| normalize_ollama_error(e))
+            .map_err(normalize_ollama_error)
     }
 
     fn get_provider_name(&self) -> String {

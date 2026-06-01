@@ -29,9 +29,7 @@ impl OpenAICompatibleProvider {
     }
 
     async fn models(&self) -> Result<Vec<OpenAIModel>, String> {
-        let request = self
-            .client
-            .get(format!("{}/models", self.base_url));
+        let request = self.client.get(format!("{}/models", self.base_url));
         let response = self
             .with_optional_auth(request)
             .send()
@@ -73,8 +71,7 @@ impl LLMProvider for OpenAICompatibleProvider {
         let request = self
             .client
             .post(format!("{}/chat/completions", self.base_url))
-            .json(&request)
-            ;
+            .json(&request);
         let response = self
             .with_optional_auth(request)
             .send()

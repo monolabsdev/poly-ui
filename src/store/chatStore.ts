@@ -54,6 +54,7 @@ type ChatStore = {
     }) => Promise<Message>;
     loadConversations: () => Promise<void>;
     deleteConversation: (id: string) => Promise<void>;
+    deleteConversations: (ids: string[]) => Promise<void>;
     deleteAllConversations: () => Promise<void>;
     archiveConversation: (id: string) => Promise<void>;
     unarchiveConversation: (id: string) => Promise<void>;
@@ -265,6 +266,31 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           conversations: newConversations,
           activeConversationId: newActiveId,
           messages: newMessages,
+        };
+      });
+    },
+    deleteConversations: async (ids) => {
+      const { conversations } = useChatStore.getState();
+      const toDelete = ids.filter((id) => {
+        const conv = conversations.find((c) => c.id === id);
+        return conv && !conv.isTemporary;
+      });
+
+      if (toDelete.length > 0) {
+        const r = await getRepo();
+        await r.deleteConversations(toDelete);
+      }
+
+      set((state) => {
+        const newConversations = state.conversations.filter((c) => !ids.includes(c.id));
+        const wasActive = ids.includes(state.activeConversationId ?? "");
+        const newActiveId = wasActive
+          ? (newConversations.find((c) => !c.isArchived)?.id ?? null)
+          : state.activeConversationId;
+        return {
+          conversations: newConversations,
+          activeConversationId: newActiveId,
+          messages: wasActive ? [] : state.messages,
         };
       });
     },

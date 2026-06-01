@@ -84,11 +84,7 @@ pub fn strip_thinking_blocks(content: &str) -> String {
         ("<think>", "</think>"),
         ("<|channel|thought>", "</|channel|thought>"),
     ] {
-        loop {
-            let start = match result.find(start_tag) {
-                Some(pos) => pos,
-                None => break,
-            };
+        while let Some(start) = result.find(start_tag) {
             let end = match result[start..].find(end_tag) {
                 Some(pos) => start + pos + end_tag.len(),
                 None => break,
@@ -335,7 +331,7 @@ fn parse_title_json_value(raw_json: &str) -> Option<String> {
 
     if let Some(obj) = value.as_object() {
         for (key, val) in obj {
-            if key.to_ascii_lowercase() == "title" {
+            if key.eq_ignore_ascii_case("title") {
                 if let Some(title) = val.as_str() {
                     return clean_generated_title(title);
                 }

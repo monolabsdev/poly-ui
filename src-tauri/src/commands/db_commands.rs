@@ -32,24 +32,39 @@ pub async fn execute_sql(state: State<'_, AppState>, sql: String) -> Result<SqlR
     let pool = &state.db;
     let trimmed = sql.trim().to_uppercase();
 
-    if trimmed.starts_with("SELECT") || trimmed.starts_with("PRAGMA") || trimmed.starts_with("EXPLAIN") {
+    if trimmed.starts_with("SELECT")
+        || trimmed.starts_with("PRAGMA")
+        || trimmed.starts_with("EXPLAIN")
+    {
         let rows = sqlx::query(&sql)
             .fetch_all(pool)
             .await
             .map_err(|e| format!("Query error: {e}"))?;
 
         if rows.is_empty() {
-            return Ok(SqlResult { success: true, message: "Query returned 0 rows.".into(), rows_affected: None });
+            return Ok(SqlResult {
+                success: true,
+                message: "Query returned 0 rows.".into(),
+                rows_affected: None,
+            });
         }
 
-        Ok(SqlResult { success: true, message: format!("Query returned {} rows.", rows.len()), rows_affected: None })
+        Ok(SqlResult {
+            success: true,
+            message: format!("Query returned {} rows.", rows.len()),
+            rows_affected: None,
+        })
     } else {
         let result = sqlx::raw_sql(&sql)
             .execute(pool)
             .await
             .map_err(|e| format!("Execute error: {e}"))?;
 
-        Ok(SqlResult { success: true, message: "Query executed successfully.".into(), rows_affected: Some(result.rows_affected()) })
+        Ok(SqlResult {
+            success: true,
+            message: "Query executed successfully.".into(),
+            rows_affected: Some(result.rows_affected()),
+        })
     }
 }
 

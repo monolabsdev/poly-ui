@@ -249,7 +249,7 @@ export const Sidebar = React.memo(function Sidebar({
             setActiveConversationId(null);
             if (isMobile) setOpenMobile(false);
           }}
-          sx={{ height: 34, pl: 1 + depth * 2, pr: 1, "&:hover .folder-actions": { opacity: 1 }, gap: 1.5 }}
+          sx={{ height: 38, pl: 1 + depth * 2, pr: 1, "&:hover .folder-actions": { opacity: 1 }, gap: 1.5 }}
         >
           <ChevronRight size={13} style={{ flexShrink: 0, opacity: hasChildren ? 0.5 : 0, transform: isOpen ? "rotate(90deg)" : undefined }} />
           <FolderIcon size={14} style={{ flexShrink: 0, opacity: 0.7 }} />
@@ -305,7 +305,7 @@ export const Sidebar = React.memo(function Sidebar({
                 isActive={activeConversationId === chat.id}
                 tooltip={chat.title || "Untitled"}
                 onClick={() => { setActiveFolderId(folder.id); setActiveConversationId(chat.id); if (isMobile) setOpenMobile(false); }}
-                sx={{ height: 34, pl: 2 + depth * 2, pr: 1, fontSize: "13px" }}
+                sx={{ height: 38, pl: 2 + depth * 2, pr: 1, fontSize: "13px" }}
               >
                 <ConversationItem
                   conv={chat}
@@ -487,7 +487,7 @@ export const Sidebar = React.memo(function Sidebar({
                   isActive={false}
                   tooltip="New Chat"
                   sx={{
-                    height: 36,
+                    height: 38,
                     bgcolor: isCollapsed ? "transparent" : "background.paper",
                     border: isCollapsed ? "none" : "1px solid",
                     borderColor: "divider",
@@ -515,14 +515,14 @@ export const Sidebar = React.memo(function Sidebar({
               </Box>
             </Box>
 
-            <Box sx={{ px: 1.5, mb: 1.5 }}>
+            <Box sx={{ px: 1.5, mb: 2.25 }}>
               <Box
                 sx={{
                   display: "flex",
                   alignItems: "center",
                   gap: 1.5,
                   px: 1.5,
-                  height: 36,
+                  height: 38,
                   borderRadius: "8px",
                   bgcolor: "action.hover",
                   border: "1px solid",
@@ -570,7 +570,7 @@ export const Sidebar = React.memo(function Sidebar({
         )}
 
         {!isCollapsed && (
-          <Box sx={{ px: 1.5 }}>
+          <Box sx={{ mb: 2.5 }}>
             <SidebarGroup sx={{ mb: 0 }}>
               <Box
                 className="folders-header"
@@ -578,8 +578,9 @@ export const Sidebar = React.memo(function Sidebar({
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
-                  px: 0,
-                  minHeight: 24,
+                  px: 1.5,
+                  minHeight: 28,
+                  mb: 1,
                 }}
               >
                 <SidebarSectionLabel>Folders</SidebarSectionLabel>
@@ -606,7 +607,7 @@ export const Sidebar = React.memo(function Sidebar({
         )}
 
         {!isCollapsed && (
-          <Box sx={{ px: 1.5, mt: 0.5, mb: 0.25 }}>
+          <Box sx={{ px: 1.5, mt: 2.5, mb: 0.75 }}>
             <SidebarSectionLabel>Chats</SidebarSectionLabel>
           </Box>
         )}
@@ -647,7 +648,7 @@ export const Sidebar = React.memo(function Sidebar({
             </Box>
           ) : (
             groupedConversations.map((group) => (
-              <Box key={group.id} sx={{ mb: 1.5 }}>
+              <Box key={group.id} sx={{ mb: 1 }}>
                 <SidebarGroup sx={{ mb: 0 }}>
                   <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
                   <SidebarGroupContent sx={{ mt: 0.5 }}>
@@ -873,16 +874,16 @@ export function SidebarGroup({
 
 export function SidebarGroupLabel({ children }: { children: React.ReactNode }) {
   return (
-    <Box sx={{ px: 2.5, mb: 0.25, mt: 1.5 }}>
+    <Box sx={{ pl: 3, pr: 1.5, mb: 0.5, mt: 1.75 }}>
       <Box
         component="span"
         sx={{
           fontSize: "10px",
-          fontWeight: 600,
+          fontWeight: 500,
           color: "text.secondary",
           textTransform: "uppercase",
           letterSpacing: "0.1em",
-          opacity: 0.6,
+          opacity: 0.45,
         }}
       >
         {children}
@@ -895,12 +896,12 @@ function SidebarSectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <Typography
       sx={{
-        fontSize: "10px",
-        fontWeight: 600,
+        fontSize: "11px",
+        fontWeight: 700,
         color: "text.secondary",
         textTransform: "uppercase",
-        letterSpacing: "0.1em",
-        opacity: 0.65,
+        letterSpacing: "0.08em",
+        opacity: 0.8,
       }}
     >
       {children}
@@ -931,7 +932,7 @@ export function SidebarMenu({
       sx={{
         display: "flex",
         flexDirection: "column",
-        gap: 0.5,
+        gap: 0.75,
         px: isCollapsed ? 0 : 1.5,
         alignItems: "stretch",
         width: "100%",
@@ -973,7 +974,7 @@ export function SidebarMenuButton({
         gap: isCollapsed ? 0 : 1.5,
         px: isCollapsed ? 0 : 1.5,
         width: "100%",
-        height: 36,
+        height: 38,
         borderRadius: "8px",
         cursor: "pointer",
         bgcolor: isActive ? "action.selected" : "transparent",

@@ -1,5 +1,5 @@
-use crate::models::chat::{ChatMessage, StreamPayload};
 use crate::models::chat::ToolDefinition;
+use crate::models::chat::{ChatMessage, StreamPayload};
 use async_trait::async_trait;
 use futures::Stream;
 use serde::{Deserialize, Serialize};
