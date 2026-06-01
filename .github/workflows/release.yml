@@ -112,25 +112,6 @@ jobs:
         run: bun run ollama-setup
 
       # =========================
-      # MACOS OLLAMA INSTALLER
-      # =========================
-
-      - name: Build OpenBench + Ollama macOS installer
-        if: matrix.platform == 'macos' && secrets.APPLE_INSTALLER_CERTIFICATE != '' && secrets.APPLE_INSTALLER_CERTIFICATE_PASSWORD != '' && secrets.APPLE_INSTALLER_SIGNING_IDENTITY != '' && secrets.APPLE_ID != '' && secrets.APPLE_PASSWORD != '' && secrets.APPLE_TEAM_ID != ''
-        env:
-          APPLE_INSTALLER_CERTIFICATE: ${{ secrets.APPLE_INSTALLER_CERTIFICATE }}
-          APPLE_INSTALLER_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_INSTALLER_CERTIFICATE_PASSWORD }}
-          APPLE_INSTALLER_SIGNING_IDENTITY: ${{ secrets.APPLE_INSTALLER_SIGNING_IDENTITY }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: bash scripts/macos/build-ollama-pkg.sh
-
-      - name: Skip unsigned macOS Ollama package
-        if: matrix.platform == 'macos' && (secrets.APPLE_INSTALLER_CERTIFICATE == '' || secrets.APPLE_INSTALLER_CERTIFICATE_PASSWORD == '' || secrets.APPLE_INSTALLER_SIGNING_IDENTITY == '' || secrets.APPLE_ID == '' || secrets.APPLE_PASSWORD == '' || secrets.APPLE_TEAM_ID == '')
-        run: echo "Skipping PolyUI-Ollama.pkg because Apple Developer Installer signing and notarization secrets are not configured."
-
-      # =========================
       # UPLOAD ARTIFACTS
       # =========================
 
@@ -143,7 +124,6 @@ jobs:
           path: |
             src-tauri/target/release/bundle/dmg/*.dmg
             src-tauri/target/release/bundle/macos/*.app
-            src-tauri/target/release/bundle/pkg/*.pkg
 
       - name: Upload Windows artifacts
         if: matrix.platform == 'windows'
