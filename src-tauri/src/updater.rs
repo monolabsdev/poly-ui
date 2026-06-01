@@ -2,7 +2,9 @@ use crate::AppState;
 use reqwest::Client;
 use serde::Serialize;
 use std::io::Write;
+use std::thread;
 use std::time::Instant;
+use std::time::Duration;
 use tauri::{AppHandle, Emitter, State};
 
 const GITHUB_REPO: &str = "monolabsdev/poly-ui";
@@ -82,28 +84,7 @@ pub async fn check_for_updates(state: State<'_, AppState>) -> Result<UpdateInfo,
 
     let os = std::env::consts::OS;
     let arch = std::env::consts::ARCH;
-    let arch_suffix = match arch {
-        "x86_64" => "x64",
-        "aarch64" => "aarch64",
-        _ => arch,
-    };
-
-    let asset = release.assets.iter().find(|a| {
-        let n = a.name.to_lowercase();
-        match os {
-            "windows" => {
-                n.contains("setup") || n.ends_with(".exe")
-            }
-            "macos" => {
-                n.contains("macos") || n.contains("darwin") || n.ends_with(".dmg") || n.contains(".tar.gz")
-            }
-            "linux" => {
-                n.ends_with(".appimage") || n.ends_with(".deb")
-                    || (n.contains("linux") && (n.contains(arch_suffix) || n.contains("amd64") || n.contains("arm64")))
-            }
-            _ => false,
-        }
-    });
+    let asset = select_update_asset(&release.assets, os, arch);
 
     match asset {
         Some(a) => Ok(UpdateInfo {
@@ -121,6 +102,39 @@ pub async fn check_for_updates(state: State<'_, AppState>) -> Result<UpdateInfo,
             size: None,
         }),
     }
+}
+
+fn select_update_asset<'a>(
+    assets: &'a [GithubAsset],
+    os: &str,
+    arch: &str,
+) -> Option<&'a GithubAsset> {
+    let arch_suffix = match arch {
+        "x86_64" => "x64",
+        "aarch64" => "aarch64",
+        _ => arch,
+    };
+
+    assets.iter().find(|a| {
+        let n = a.name.to_lowercase();
+        if n.contains("ollama") {
+            return false;
+        }
+
+        match os {
+            "windows" => {
+                n.contains("setup") || n.ends_with(".exe")
+            }
+            "macos" => {
+                n.contains("macos") || n.contains("darwin") || n.ends_with(".dmg") || n.contains(".tar.gz")
+            }
+            "linux" => {
+                n.ends_with(".appimage") || n.ends_with(".deb")
+                    || (n.contains("linux") && (n.contains(arch_suffix) || n.contains("amd64") || n.contains("arm64")))
+            }
+            _ => false,
+        }
+    })
 }
 
 #[tauri::command]
@@ -182,7 +196,7 @@ pub async fn download_update(
 }
 
 #[tauri::command]
-pub fn install_update(app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
+pub async fn install_update(app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
     let file_path = {
         let p = state.update_download_path.lock().map_err(|e| e.to_string())?;
         p.clone().ok_or_else(|| "No update downloaded".to_string())?
@@ -252,6 +266,49 @@ rm -- "$0"
         _ => return Err("Unsupported OS".to_string()),
     }
 
-    app.exit(0);
+    thread::spawn(move || {
+        thread::sleep(Duration::from_millis(500));
+        app.exit(0);
+    });
+
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn asset(name: &str) -> GithubAsset {
+        GithubAsset {
+            name: name.to_string(),
+            browser_download_url: String::new(),
+            size: None,
+        }
+    }
+
+    #[test]
+    fn windows_updater_ignores_ollama_bundle() {
+        let assets = vec![
+            asset("PolyUI_0.10.0_x64-setup-Ollama.exe"),
+            asset("PolyUI_0.10.0_x64-setup.exe"),
+        ];
+
+        assert_eq!(
+            select_update_asset(&assets, "windows", "x86_64").map(|asset| asset.name.as_str()),
+            Some("PolyUI_0.10.0_x64-setup.exe")
+        );
+    }
+
+    #[test]
+    fn macos_updater_uses_dmg_instead_of_ollama_pkg() {
+        let assets = vec![
+            asset("PolyUI-Ollama.pkg"),
+            asset("PolyUI_0.10.0_aarch64.dmg"),
+        ];
+
+        assert_eq!(
+            select_update_asset(&assets, "macos", "aarch64").map(|asset| asset.name.as_str()),
+            Some("PolyUI_0.10.0_aarch64.dmg")
+        );
+    }
 }

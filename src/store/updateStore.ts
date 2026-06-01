@@ -8,6 +8,7 @@ export type UpdateStatus =
   | "available"
   | "downloading"
   | "downloaded"
+  | "installing"
   | "error";
 
 type UpdateState = {
@@ -109,6 +110,9 @@ export const useUpdateStore = create<UpdateState & { actions: UpdateActions }>()
       },
 
       install: async () => {
+        if (get().status !== "downloaded") return;
+        set({ status: "installing", error: null });
+
         try {
           await invoke("install_update");
         } catch (err: any) {

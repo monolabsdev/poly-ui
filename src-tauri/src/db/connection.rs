@@ -164,16 +164,26 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), String> {
             return Err(message);
         }
 
-        // Dev repair: this branch exists because migrations were edited
-        // during development. Migration SQL is idempotent, so removing the
-        // stale checksum lets sqlx record the current file and continue.
-        sqlx::query("DELETE FROM _sqlx_migrations WHERE version IN (?, ?, ?)")
-            .bind(20260501000000_i64)
-            .bind(20260509000000_i64)
-            .bind(20260510000000_i64)
-            .execute(pool)
-            .await
-            .map_err(|e| e.to_string())?;
+        // Dev repair: these migrations were edited after being applied.
+        // Keep the existing schema and record the bundled checksums.
+        const REPAIRABLE_VERSIONS: [i64; 4] = [
+            20260501000000,
+            20260509000000,
+            20260510000000,
+            20260531000000,
+        ];
+
+        for migration in migrator
+            .iter()
+            .filter(|migration| REPAIRABLE_VERSIONS.contains(&migration.version))
+        {
+            sqlx::query("UPDATE _sqlx_migrations SET checksum = ? WHERE version = ?")
+                .bind(migration.checksum.as_ref())
+                .bind(migration.version)
+                .execute(pool)
+                .await
+                .map_err(|e| e.to_string())?;
+        }
 
         return migrator.run(pool).await.map_err(|e| e.to_string());
     }

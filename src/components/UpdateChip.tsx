@@ -10,11 +10,11 @@ export function UpdateChip() {
 
   if (status === "idle" || status === "checking" || status === "available") return null;
 
-  const isDownloading = status === "downloading";
+  const isBusy = status === "downloading" || status === "installing";
 
   return (
     <Box
-      onClick={isDownloading ? undefined : install}
+      onClick={isBusy ? undefined : install}
       onMouseDown={(e: React.MouseEvent) => e.stopPropagation()}
       onDoubleClick={(e: React.MouseEvent) => e.stopPropagation()}
       sx={{
@@ -28,15 +28,15 @@ export function UpdateChip() {
         color: status === "error" ? "error.contrastText" : "primary.contrastText",
         fontSize: 12,
         fontWeight: 600,
-        cursor: isDownloading ? "default" : "pointer",
+        cursor: isBusy ? "default" : "pointer",
         userSelect: "none",
         whiteSpace: "nowrap",
-        "&:hover": isDownloading
+        "&:hover": isBusy
           ? {}
           : { opacity: 0.85 },
       }}
     >
-      {isDownloading ? (
+      {isBusy ? (
         <>
           <Ring2
             size="12"
@@ -47,7 +47,7 @@ export function UpdateChip() {
             color="currentColor"
           />
           <Typography variant="caption" sx={{ color: "inherit", fontSize: 11, fontWeight: 600 }}>
-            {progress}%
+            {status === "installing" ? "Installing..." : `${progress}%`}
           </Typography>
         </>
       ) : status === "downloaded" ? (
