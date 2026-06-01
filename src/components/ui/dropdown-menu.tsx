@@ -81,7 +81,12 @@ function DropdownMenuContent({
       open={isOpen}
       onClick={(event) => event.stopPropagation()}
       onClose={(event) => {
-        event.stopPropagation();
+        if (
+          "stopPropagation" in event &&
+          typeof event.stopPropagation === "function"
+        ) {
+          event.stopPropagation();
+        }
         handleClose();
       }}
       transformOrigin={{
