@@ -52,12 +52,22 @@ const baseThemeOptions: ThemeOptions = {
   },
   spacing: 8,
   components: {
+    MuiButtonBase: {
+      defaultProps: {
+        disableRipple: true,
+      },
+    },
     MuiButton: {
       styleOverrides: {
-        root: {
+        root: ({ theme }) => ({
           borderRadius: "8px",
           padding: "6px 16px",
-        },
+          "&.Mui-disabled": {
+            color: theme.palette.text.disabled,
+            backgroundColor: theme.palette.action.disabledBackground,
+            borderColor: theme.palette.divider,
+          },
+        }),
       },
     },
     MuiPaper: {
@@ -81,8 +91,40 @@ const baseThemeOptions: ThemeOptions = {
   },
 };
 
+const darkSugarHighVariables = {
+  "--sh-keyword": "#c084fc",
+  "--sh-class": "#60a5fa",
+  "--sh-identifier": "#ececec",
+  "--sh-string": "#4ade80",
+  "--sh-comment": "#a3a3a3",
+  "--sh-sign": "#a3a3a3",
+  "--sh-jsxliterals": "#fbbf24",
+  "--sh-entity": "#60a5fa",
+  "--sh-property": "#f87171",
+};
+
+const lightSugarHighVariables = {
+  "--sh-keyword": "#9333ea",
+  "--sh-class": "#0288d1",
+  "--sh-identifier": "#1a1a1a",
+  "--sh-string": "#15803d",
+  "--sh-comment": "#737373",
+  "--sh-sign": "#737373",
+  "--sh-jsxliterals": "#b45309",
+  "--sh-entity": "#0288d1",
+  "--sh-property": "#dc2626",
+};
+
 export const darkTheme = createTheme({
   ...baseThemeOptions,
+  components: {
+    ...baseThemeOptions.components,
+    MuiCssBaseline: {
+      styleOverrides: {
+        ":root": darkSugarHighVariables,
+      },
+    },
+  },
   palette: {
     mode: "dark",
     primary: {
@@ -136,6 +178,14 @@ export const darkTheme = createTheme({
 
 export const lightTheme = createTheme({
   ...baseThemeOptions,
+  components: {
+    ...baseThemeOptions.components,
+    MuiCssBaseline: {
+      styleOverrides: {
+        ":root": lightSugarHighVariables,
+      },
+    },
+  },
   palette: {
     mode: "light",
     primary: {

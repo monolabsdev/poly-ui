@@ -9,6 +9,7 @@ export interface Conversation {
   updatedAt: string;
   isArchived: boolean;
   isTemporary?: boolean;
+  folderId?: string;
 }
 
 export interface Attachment {
@@ -17,6 +18,11 @@ export interface Attachment {
   type: string; // mime type
   size: number;
   content?: string; // base64 for images, text content for text files
+  previewUrl?: string; // object URL for draft preview only
+  width?: number;
+  height?: number;
+  status?: "previewing" | "ready" | "processing" | "error";
+  error?: string;
 }
 
 export interface SearchResultItem {
@@ -51,6 +57,17 @@ export interface ChatMessage {
 }
 
 export interface Message extends ChatMessage {}
+
+export interface Folder {
+  id: string;
+  name: string;
+  parentId?: string;
+  backgroundImage?: string;
+  systemPrompt?: string;
+  contextFiles?: Attachment[];
+  createdAt: string;
+  updatedAt: string;
+}
 
 export interface StreamPayload {
   request_id: string;

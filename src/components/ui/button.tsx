@@ -56,6 +56,11 @@ export function Button({ variant = "default", size = "default", sx, ...props }: 
         textTransform: "none",
         fontWeight: 600,
         borderRadius: "8px",
+        "&.Mui-disabled": {
+          color: "text.disabled",
+          bgcolor: "action.disabledBackground",
+          borderColor: "divider",
+        },
         ...getVariantStyles(),
         ...getSizeStyles(),
         ...sx,

@@ -38,6 +38,7 @@ interface HeaderProps {
   onSetDefault: (model: string) => void;
   isTemporary?: boolean;
   onToggleTemporaryChat: () => void;
+  transparent?: boolean;
 }
 
 export const Header = memo(function Header({
@@ -49,6 +50,7 @@ export const Header = memo(function Header({
   onSetDefault,
   isTemporary,
   onToggleTemporaryChat,
+  transparent = false,
 }: HeaderProps) {
   const { selectedPromptPreset, actions } = useSettingsStore(
     useShallow((state) => ({
@@ -77,7 +79,7 @@ export const Header = memo(function Header({
         flexShrink: 0,
         alignItems: "flex-start",
         justifyContent: "space-between",
-        bgcolor: "background.default",
+        bgcolor: transparent ? "transparent" : "background.default",
         backdropFilter: "blur(12px)",
         px: { xs: 2, md: 3 },
         py: { xs: 1.5, sm: 1 },
@@ -238,8 +240,6 @@ export const Header = memo(function Header({
                 bgcolor: "action.hover",
                 color: "text.primary",
               },
-              transition:
-                "background-color 0.18s ease, color 0.18s ease, transform 0.18s ease",
             }}
           >
             <svg
@@ -299,8 +299,6 @@ export const Header = memo(function Header({
                     bgcolor: "action.hover",
                     color: "text.primary",
                   },
-                  transition:
-                    "background-color 0.18s ease, color 0.18s ease, transform 0.18s ease",
                   minHeight: "unset !important",
                   height: "30px !important",
                   boxSizing: "border-box",

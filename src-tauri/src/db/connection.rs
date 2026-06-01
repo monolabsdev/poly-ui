@@ -23,6 +23,7 @@ pub async fn init_db<R: Runtime>(app: &AppHandle<R>) -> Result<SqlitePool, Strin
         .map_err(|e| e.to_string())?;
 
     ensure_conversations_schema(&pool).await?;
+    ensure_folders_schema(&pool).await?;
     run_migrations(&pool).await?;
 
     ensure_users_schema(&pool).await?;
@@ -92,12 +93,29 @@ async fn ensure_conversations_schema(pool: &SqlitePool) -> Result<(), String> {
             createdAt TEXT,
             updatedAt TEXT,
             isArchived INTEGER DEFAULT 0,
-            userId TEXT DEFAULT ''
+            userId TEXT DEFAULT '',
+            folderId TEXT
         )",
     )
     .execute(pool)
     .await
     .map_err(|e| e.to_string())?;
+
+    let has_folder_id = sqlx::query(
+        "SELECT COUNT(*) FROM pragma_table_info('conversations') WHERE name = 'folderId'",
+    )
+    .fetch_one(pool)
+    .await
+    .map_err(|e| e.to_string())?
+    .get::<i64, _>(0)
+        > 0;
+
+    if !has_folder_id {
+        sqlx::query("ALTER TABLE conversations ADD COLUMN folderId TEXT")
+            .execute(pool)
+            .await
+            .map_err(|e| e.to_string())?;
+    }
 
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS messages (
@@ -173,6 +191,48 @@ async fn ensure_conversations_schema(pool: &SqlitePool) -> Result<(), String> {
     .map_err(|e| e.to_string())?;
 
     sqlx::query("CREATE INDEX IF NOT EXISTS idx_conversations_user ON conversations(userId)")
+        .execute(pool)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+async fn ensure_folders_schema(pool: &SqlitePool) -> Result<(), String> {
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS folders (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            parentId TEXT,
+            backgroundImage TEXT,
+            systemPrompt TEXT,
+            contextFiles TEXT,
+            userId TEXT DEFAULT '',
+            createdAt TEXT NOT NULL,
+            updatedAt TEXT NOT NULL
+        )",
+    )
+    .execute(pool)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    let has_parent_id = sqlx::query(
+        "SELECT COUNT(*) FROM pragma_table_info('folders') WHERE name = 'parentId'",
+    )
+    .fetch_one(pool)
+    .await
+    .map_err(|e| e.to_string())?
+    .get::<i64, _>(0)
+        > 0;
+
+    if !has_parent_id {
+        sqlx::query("ALTER TABLE folders ADD COLUMN parentId TEXT")
+            .execute(pool)
+            .await
+            .map_err(|e| e.to_string())?;
+    }
+
+    sqlx::query("CREATE INDEX IF NOT EXISTS idx_folders_user ON folders(userId)")
         .execute(pool)
         .await
         .map_err(|e| e.to_string())?;

@@ -12,8 +12,6 @@ import type { ChatMessage } from "@/types/chat";
 import { Message } from "./Message";
 import { Box, CircularProgress, Typography, IconButton, Fade } from "@mui/material";
 import { useChatStore } from "@/store/chatStore";
-import { motion } from "motion/react";
-import { useTiming, ANIMATION_VARIANTS } from "@/lib/motion";
 import { ChevronDown } from "lucide-react";
 
 interface ChatAreaProps {
@@ -49,7 +47,6 @@ const TurnItem = memo(function TurnItem({
   onHeightChange: (index: number, height: number) => void;
   streamingForTurn?: ChatMessage[];
 }) {
-  const timing = useTiming();
   const turnRef = useRef<HTMLDivElement>(null);
   const onHeightRef = useRef(onHeightChange);
   onHeightRef.current = onHeightChange;
@@ -77,15 +74,6 @@ const TurnItem = memo(function TurnItem({
   return (
     <Box
       ref={turnRef}
-      component={motion.div}
-      variants={ANIMATION_VARIANTS.messageTurn}
-      initial="initial"
-      animate="animate"
-      transition={{
-        duration: timing.duration("base"),
-        ease: timing.ease,
-        delay: isNewest ? 0.05 : 0,
-      }}
       key={
         turn.userMessage?.id ||
         turn.assistantMessages[0]?.id ||

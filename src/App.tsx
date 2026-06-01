@@ -26,6 +26,7 @@ import { retryTitleForConversation } from "@/lib/chat/title-generation";
 import "./App.css";
 import { findDefaultModelChoice, modelChoiceId } from "@/lib/models/model-choice";
 import { shouldLoadExternalDefault } from "@/lib/models/model-selector";
+import { useFolderStore } from "@/store/folderStore";
 
 const AuthModal = lazy(() =>
   import("@/components/Auth/AuthModal").then((module) => ({
@@ -142,16 +143,13 @@ function App() {
     renameConversation,
   } = useChatStore((state) => state.actions);
 
-  const handleNewChat = useCallback((isTemporary = false) => {
-    if (isTemporary) {
-      void createConversation("Temporary Chat", true);
-      return;
-    }
-
+  const handleNewChat = useCallback(() => {
+    useFolderStore.getState().actions.setActiveFolderId(null);
     setActiveConversationId(null);
-  }, [createConversation, setActiveConversationId]);
+  }, [setActiveConversationId]);
 
   const handleSelectConversation = useCallback((id: string) => {
+    useFolderStore.getState().actions.setActiveFolderId(null);
     const currentId = useChatStore.getState().activeConversationId;
     if (currentId && currentId !== id) {
       retryTitleForConversation(currentId);
@@ -177,6 +175,9 @@ function App() {
   }, [selectedProviders, setDefaultModel, notify]);
 
   const isTemporary = Boolean(conversations.find((c) => c.id === activeConversationId)?.isTemporary);
+  const activeFolderBackground = useFolderStore((state) =>
+    state.folders.find((folder) => folder.id === state.activeFolderId)?.backgroundImage,
+  );
 
   const handleToggleTemporaryChat = useCallback(async () => {
     if (isTemporary) {
@@ -207,7 +208,7 @@ function App() {
         collapsible="icon"
       />
 
-      <SidebarInset>
+      <SidebarInset backgroundImage={activeFolderBackground}>
         <Header
           selectedModels={selectedModels}
           selectedProviders={selectedProviders}
@@ -217,6 +218,7 @@ function App() {
           onSetDefault={handleSetDefaultModel}
           isTemporary={isTemporary}
           onToggleTemporaryChat={handleToggleTemporaryChat}
+          transparent={Boolean(activeFolderBackground)}
         />
 
         <Box
@@ -227,7 +229,7 @@ function App() {
             flexDirection: "row",
             overflow: "hidden",
             position: "relative",
-            bgcolor: "background.default",
+            bgcolor: activeFolderBackground ? "transparent" : "background.default",
             pt: { xs: "64px", sm: "56px" },
           }}
         >

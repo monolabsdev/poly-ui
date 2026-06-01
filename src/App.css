@@ -1,8 +1,3 @@
-/* Theme transition */
-html, body {
-  transition: background-color 0.2s ease, color 0.2s ease;
-}
-
 body {
   user-select: none;
   -webkit-user-select: none;
@@ -89,7 +84,6 @@ code {
 /* Hover visibility for copy button */
 .copy-button {
   opacity: 0;
-  transition: opacity 0.18s ease;
 }
 
 *:hover > .copy-button {
@@ -105,7 +99,6 @@ code {
 /* Action bar visibility */
 .action-bar {
   opacity: 0;
-  transition: opacity 0.2s;
 }
 
 *:hover > .action-bar,
@@ -125,20 +118,9 @@ code {
   to { transform: rotate(360deg); }
 }
 
-/* Utility Animations */
-@keyframes premium-in {
-  from { opacity: 0; transform: translateY(4px) scale(0.99); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-.animate-premium-in {
-  animation: premium-in var(--duration-base, 180ms) var(--ease-premium, cubic-bezier(0.2, 0.8, 0.2, 1)) forwards;
-}
-
 /* Conversation actions in sidebar */
 .conversation-actions {
   opacity: 0;
-  transition: opacity 0.15s ease;
 }
 
 *:hover > .conversation-actions,

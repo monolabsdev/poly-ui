@@ -136,10 +136,10 @@ export function MarkdownProse({ content }: { content: string }) {
         const match = /language-(\w+)/.exec(className || "");
         const codeValue = String(children).replace(/\n$/, "");
         if (!inline && match) {
-          return <CodeBlock language={match[1]} value={codeValue} />;
+          return <CodeBlock language={match[1]} code={codeValue} />;
         }
         if (!inline) {
-          return <CodeBlock language={null} value={codeValue} />;
+          return <CodeBlock language={null} code={codeValue} />;
         }
 
         return (

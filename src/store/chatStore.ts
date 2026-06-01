@@ -27,7 +27,7 @@ type ChatStore = {
   currentAttachments: Attachment[];
   messageQueue: QueuedMessage[];
   actions: {
-    createConversation: (title?: string, isTemporary?: boolean) => Promise<Conversation>;
+    createConversation: (title?: string, isTemporary?: boolean, folderId?: string) => Promise<Conversation>;
     setActiveConversationId: (id: string | null) => Promise<void>;
     setStreamingConversationId: (id: string | null) => void;
     setMessages: (messages: Message[]) => void;
@@ -125,7 +125,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       if (!changed) return state;
       return { streamingMessages: { ...state.streamingMessages } };
     }),
-    createConversation: async (title = "New Chat", isTemporary = false) => {
+    createConversation: async (title = "New Chat", isTemporary = false, folderId) => {
       const id = crypto.randomUUID();
       const now = new Date().toISOString();
       const conversation: Conversation = {
@@ -135,6 +135,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         updatedAt: now,
         isArchived: false,
         isTemporary,
+        folderId,
       };
       set((state) => ({
         conversations: [conversation, ...state.conversations],
@@ -147,7 +148,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           const r = await getRepo();
           const auth = useAuthStore.getState();
           const userId = auth.user?.id || auth.guestId;
-          await r.createConversation(id, title, userId || undefined);
+          await r.createConversation(id, title, userId || undefined, folderId);
         } catch (error) {
           console.error("Failed to persist conversation:", error);
         }

@@ -22,8 +22,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { motion, AnimatePresence } from "motion/react";
-import { useTiming, ANIMATION_VARIANTS } from "@/lib/motion";
 import { useNotify } from "@/hooks/useNotify";
 
 import { ThinkingDisclosure } from "./ThinkingDisclosure";
@@ -56,7 +54,6 @@ export function AssistantMessage(props: MessageProps) {
 
   const [copied, setCopied] = useState(false);
   const [webSearchExpanded, setWebSearchExpanded] = useState(false);
-  const timing = useTiming();
   const notify = useNotify();
 
   const streamingDisplayContent = useMessageStreaming(content, isStreaming);
@@ -94,12 +91,6 @@ export function AssistantMessage(props: MessageProps) {
 
   return (
     <Box
-      component={motion.div}
-      variants={ANIMATION_VARIANTS.messageTurn}
-      initial="initial"
-      animate="animate"
-      exit="exit"
-      transition={{ duration: timing.duration("base"), ease: timing.ease }}
       sx={{
         display: "flex",
         flexDirection: "column",
@@ -107,7 +98,6 @@ export function AssistantMessage(props: MessageProps) {
         py: 0.5,
         "& .action-bar": {
           opacity: 0,
-          transition: "opacity 0.2s",
         },
         "&:hover .action-bar, &:focus-within .action-bar": {
           opacity: 1,
@@ -260,29 +250,14 @@ export function AssistantMessage(props: MessageProps) {
                 {streamingDisplayContent || ""}
               </Typography>
             ) : (
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key="markdown"
-                  initial={{ opacity: 0.3, y: 3 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.18, ease: "easeOut" }}
-                >
-                  <MarkdownProse content={processedContent} />
-                </motion.div>
-              </AnimatePresence>
+              <MarkdownProse content={processedContent} />
             )}
           </Box>
         ) : null}
 
         {/* ── Source Badges ── */}
-        <AnimatePresence>
-          {!isStreaming && webSearch?.results && webSearch.results.length > 0 && (
+        {!isStreaming && webSearch?.results && webSearch.results.length > 0 && (
             <Box
-              component={motion.div}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4 }}
-              transition={{ duration: 0.2, ease: "easeOut" }}
               sx={{
                 display: "flex",
                 flexWrap: "wrap",
@@ -302,7 +277,6 @@ export function AssistantMessage(props: MessageProps) {
               ))}
             </Box>
           )}
-        </AnimatePresence>
 
         {/* ── Contextual Action Toolbar ── */}
         <Box
@@ -314,17 +288,12 @@ export function AssistantMessage(props: MessageProps) {
             ...(isLastMessage
               ? {
                   opacity: isStreaming ? 0 : 1,
-                  transition: "opacity 0.3s ease",
                 }
               : {}),
           }}
         >
           <Tooltip title={copied ? "Copied" : "Copy"}>
             <IconButton
-              component={motion.button}
-              variants={ANIMATION_VARIANTS.interactive}
-              whileHover="hover"
-              whileTap="tap"
               size="small"
               onClick={handleCopy}
               sx={{
@@ -335,13 +304,7 @@ export function AssistantMessage(props: MessageProps) {
                 },
               }}
             >
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={copied ? "check" : "copy"}
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.8 }}
-                  transition={{ duration: 0.12 }}
+                <Box
                   style={{
                     display: "flex",
                     alignItems: "center",
@@ -351,18 +314,13 @@ export function AssistantMessage(props: MessageProps) {
                   }}
                 >
                   {copied ? <Check size={14} /> : <Copy size={14} />}
-                </motion.div>
-              </AnimatePresence>
+                </Box>
             </IconButton>
           </Tooltip>
 
           {typeof messageIndex === "number" && (
             <Tooltip title={isSpeaking ? "Stop reading" : "Read message"}>
               <IconButton
-                component={motion.button}
-                variants={ANIMATION_VARIANTS.interactive}
-                whileHover="hover"
-                whileTap="tap"
                 size="small"
                 onClick={handleSpeak}
                 disabled={isStreaming || (isGenerating && !isSpeaking)}
@@ -388,10 +346,6 @@ export function AssistantMessage(props: MessageProps) {
           {canRegenerate && (
             <Tooltip title="Regenerate">
               <IconButton
-                component={motion.button}
-                variants={ANIMATION_VARIANTS.interactive}
-                whileHover="hover"
-                whileTap="tap"
                 size="small"
                 onClick={() => onRegenerate(messageIndex)}
                 sx={{
@@ -407,10 +361,6 @@ export function AssistantMessage(props: MessageProps) {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <IconButton
-                component={motion.button}
-                variants={ANIMATION_VARIANTS.interactive}
-                whileHover="hover"
-                whileTap="tap"
                 size="small"
                 sx={{
                   color: "text.secondary",

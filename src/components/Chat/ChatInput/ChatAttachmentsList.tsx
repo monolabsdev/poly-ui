@@ -61,7 +61,7 @@ export const ChatAttachmentsList = memo(function ChatAttachmentsList({
           >
             {att.type.startsWith("image/") ? (
               <img
-                src={createDataUrl(att.type, att.content || "")}
+                src={att.previewUrl ?? createDataUrl(att.type, att.content || "")}
                 alt={att.name}
                 style={{
                   width: "100%",

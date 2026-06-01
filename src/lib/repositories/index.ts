@@ -1,6 +1,6 @@
 import Database from "@tauri-apps/plugin-sql";
 import { ConversationRepository, mapRowToConversation, mapRowToMessage } from "./types";
-import { Message, Conversation } from "@/types/chat";
+import { Message, Conversation, Folder } from "@/types/chat";
 
 export type { ConversationRepository } from "./types";
 
@@ -17,22 +17,23 @@ class SqliteConversationRepository implements ConversationRepository {
     return rows.map(mapRowToConversation);
   }
 
-  async createConversation(id: string, title: string, userId?: string): Promise<void> {
+  async createConversation(id: string, title: string, userId?: string, folderId?: string): Promise<void> {
     const now = new Date().toISOString();
     await this.db.execute(
       userId
-        ? "INSERT INTO conversations (id, title, createdAt, updatedAt, isArchived, userId) VALUES (?, ?, ?, ?, 0, ?)"
-        : "INSERT INTO conversations (id, title, createdAt, updatedAt, isArchived) VALUES (?, ?, ?, ?, 0)",
-      userId ? [id, title, now, now, userId] : [id, title, now, now]
+        ? "INSERT INTO conversations (id, title, createdAt, updatedAt, isArchived, userId, folderId) VALUES (?, ?, ?, ?, 0, ?, ?)"
+        : "INSERT INTO conversations (id, title, createdAt, updatedAt, isArchived, folderId) VALUES (?, ?, ?, ?, 0, ?)",
+      userId ? [id, title, now, now, userId, folderId || null] : [id, title, now, now, folderId || null]
     );
   }
 
-  async updateConversation(id: string, updates: { title?: string; updatedAt?: string; isArchived?: boolean }): Promise<void> {
+  async updateConversation(id: string, updates: { title?: string; updatedAt?: string; isArchived?: boolean; folderId?: string | null }): Promise<void> {
     const clauses: string[] = [];
     const vals: unknown[] = [];
     if (updates.title !== undefined) { clauses.push("title = ?"); vals.push(updates.title); }
     if (updates.updatedAt !== undefined) { clauses.push("updatedAt = ?"); vals.push(updates.updatedAt); }
     if (updates.isArchived !== undefined) { clauses.push("isArchived = ?"); vals.push(updates.isArchived ? 1 : 0); }
+    if (updates.folderId !== undefined) { clauses.push("folderId = ?"); vals.push(updates.folderId); }
     if (clauses.length === 0) return;
     vals.push(id);
     await this.db.execute(`UPDATE conversations SET ${clauses.join(", ")} WHERE id = ?`, vals);
@@ -85,11 +86,59 @@ class SqliteConversationRepository implements ConversationRepository {
   async transferConversations(fromUserId: string, toUserId: string): Promise<void> {
     await this.db.execute("UPDATE conversations SET userId = ? WHERE userId = ?", [toUserId, fromUserId]);
   }
+
+  async getFolders(userId?: string): Promise<Folder[]> {
+    const rows = await this.db.select<{ id: string; name: string; parentId?: string; backgroundImage?: string; systemPrompt?: string; contextFiles?: string; userId?: string; createdAt: string; updatedAt: string }[]>(
+      userId
+        ? "SELECT * FROM folders WHERE userId = ? ORDER BY createdAt ASC"
+        : "SELECT * FROM folders ORDER BY createdAt ASC",
+      userId ? [userId] : []
+    );
+    return rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      parentId: row.parentId || undefined,
+      backgroundImage: row.backgroundImage || undefined,
+      systemPrompt: row.systemPrompt || undefined,
+      contextFiles: row.contextFiles ? JSON.parse(row.contextFiles) : undefined,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+    }));
+  }
+
+  async createFolder(id: string, name: string, userId?: string, parentId?: string): Promise<void> {
+    const now = new Date().toISOString();
+    await this.db.execute(
+      userId
+        ? "INSERT INTO folders (id, name, createdAt, updatedAt, userId, parentId) VALUES (?, ?, ?, ?, ?, ?)"
+        : "INSERT INTO folders (id, name, createdAt, updatedAt, parentId) VALUES (?, ?, ?, ?, ?)",
+      userId ? [id, name, now, now, userId, parentId || null] : [id, name, now, now, parentId || null]
+    );
+  }
+
+  async updateFolder(id: string, updates: { name?: string; parentId?: string | null; backgroundImage?: string | null; systemPrompt?: string | null; contextFiles?: string | null; updatedAt?: string }): Promise<void> {
+    const clauses: string[] = [];
+    const vals: unknown[] = [];
+    if (updates.name !== undefined) { clauses.push("name = ?"); vals.push(updates.name); }
+    if (updates.parentId !== undefined) { clauses.push("parentId = ?"); vals.push(updates.parentId); }
+    if (updates.backgroundImage !== undefined) { clauses.push("backgroundImage = ?"); vals.push(updates.backgroundImage); }
+    if (updates.systemPrompt !== undefined) { clauses.push("systemPrompt = ?"); vals.push(updates.systemPrompt); }
+    if (updates.contextFiles !== undefined) { clauses.push("contextFiles = ?"); vals.push(updates.contextFiles); }
+    if (updates.updatedAt !== undefined) { clauses.push("updatedAt = ?"); vals.push(updates.updatedAt); }
+    if (clauses.length === 0) return;
+    vals.push(id);
+    await this.db.execute(`UPDATE folders SET ${clauses.join(", ")} WHERE id = ?`, vals);
+  }
+
+  async deleteFolder(id: string): Promise<void> {
+    await this.db.execute("DELETE FROM folders WHERE id = ?", [id]);
+  }
 }
 
 class InMemoryConversationRepository implements ConversationRepository {
-  private conversations: Record<string, { id: string; title: string; createdAt: string; updatedAt: string; isArchived: boolean; userId?: string }> = {};
+  private conversations: Record<string, { id: string; title: string; createdAt: string; updatedAt: string; isArchived: boolean; userId?: string; folderId?: string }> = {};
   private messages: Record<string, Message[]> = {};
+  private folders: Record<string, Folder & { userId?: string }> = {};
 
   async getConversations(userId?: string): Promise<Conversation[]> {
     return Object.values(this.conversations)
@@ -97,18 +146,19 @@ class InMemoryConversationRepository implements ConversationRepository {
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   }
 
-  async createConversation(id: string, title: string, userId?: string): Promise<void> {
+  async createConversation(id: string, title: string, userId?: string, folderId?: string): Promise<void> {
     const now = new Date().toISOString();
-    this.conversations[id] = { id, title, createdAt: now, updatedAt: now, isArchived: false, userId };
+    this.conversations[id] = { id, title, createdAt: now, updatedAt: now, isArchived: false, userId, folderId };
     this.messages[id] = [];
   }
 
-  async updateConversation(id: string, updates: { title?: string; updatedAt?: string; isArchived?: boolean }): Promise<void> {
+  async updateConversation(id: string, updates: { title?: string; updatedAt?: string; isArchived?: boolean; folderId?: string | null }): Promise<void> {
     const conv = this.conversations[id];
     if (!conv) return;
     if (updates.title !== undefined) conv.title = updates.title;
     if (updates.updatedAt !== undefined) conv.updatedAt = updates.updatedAt;
     if (updates.isArchived !== undefined) conv.isArchived = updates.isArchived;
+    if (updates.folderId !== undefined) conv.folderId = updates.folderId ?? undefined;
   }
 
   async deleteConversation(id: string): Promise<void> {
@@ -161,6 +211,32 @@ class InMemoryConversationRepository implements ConversationRepository {
         this.conversations[id] = { ...conv, userId: toUserId };
       }
     }
+  }
+
+  async getFolders(userId?: string): Promise<Folder[]> {
+    return Object.values(this.folders)
+      .filter((f) => !userId || f.userId === userId)
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  }
+
+  async createFolder(id: string, name: string, userId?: string, parentId?: string): Promise<void> {
+    const now = new Date().toISOString();
+    this.folders[id] = { id, name, parentId, createdAt: now, updatedAt: now, userId };
+  }
+
+  async updateFolder(id: string, updates: { name?: string; parentId?: string | null; backgroundImage?: string | null; systemPrompt?: string | null; contextFiles?: string | null; updatedAt?: string }): Promise<void> {
+    const f = this.folders[id];
+    if (!f) return;
+    if (updates.name !== undefined) f.name = updates.name;
+    if (updates.parentId !== undefined) f.parentId = updates.parentId ?? undefined;
+    if (updates.backgroundImage !== undefined) f.backgroundImage = updates.backgroundImage ?? undefined;
+    if (updates.systemPrompt !== undefined) f.systemPrompt = updates.systemPrompt ?? undefined;
+    if (updates.contextFiles !== undefined) f.contextFiles = updates.contextFiles ? JSON.parse(updates.contextFiles) : undefined;
+    if (updates.updatedAt !== undefined) f.updatedAt = updates.updatedAt;
+  }
+
+  async deleteFolder(id: string): Promise<void> {
+    delete this.folders[id];
   }
 }
 

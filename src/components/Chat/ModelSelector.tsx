@@ -62,6 +62,7 @@ export function ModelSelector({
     count: visibleModels.length,
     getScrollElement: () => listRef.current,
     estimateSize: () => ROW_HEIGHT,
+    initialRect: { width: 480, height: 280 },
     overscan: 6,
     useFlushSync: false,
   });
@@ -98,8 +99,12 @@ export function ModelSelector({
 
   const close = () => {
     setAnchorEl(null);
+  };
+
+  const resetClosedState = () => {
     setFilter("all");
     setQuery("");
+    setHighlightedIndex(0);
   };
 
   const select = (option: OllamaModel) => {
@@ -145,9 +150,11 @@ export function ModelSelector({
         open={isOpen}
         anchorEl={anchorEl}
         onClose={close}
-        anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
-        transformOrigin={{ vertical: "top", horizontal: "left" }}
+        transitionDuration={{ enter: 100, exit: 80 }}
         slotProps={{
+          transition: {
+            onExited: resetClosedState,
+          },
           paper: {
             sx: {
               width: { xs: "calc(100vw - 24px)", sm: 480 },
@@ -163,6 +170,8 @@ export function ModelSelector({
             },
           },
         }}
+        anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+        transformOrigin={{ vertical: "top", horizontal: "left" }}
       >
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, px: 1.5, pt: 1.25 }}>
           <Search size={16} />
@@ -210,7 +219,9 @@ export function ModelSelector({
           ))}
         </Box>
 
-        {visibleModels.length === 0 && !ollama.externalModelsLoading && ollama.state !== "loading" ? (
+        {ollama.state === "loading" || (ollama.externalModelsLoading && visibleModels.length === 0) ? (
+          <ModelSelectorSkeleton count={4} />
+        ) : visibleModels.length === 0 ? (
           <ModelSelectorStatus
             text={
               filter === "external" && ollama.externalModelsError
@@ -240,14 +251,10 @@ export function ModelSelector({
                 );
               })}
             </Box>
-            {(ollama.externalModelsLoading || ollama.state === "loading") && (
-              <ModelSelectorSkeleton count={4} />
-            )}
           </Box>
         )}
       </Popover>
     </>
   );
 }
-
 

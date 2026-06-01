@@ -11,7 +11,7 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import { Ring2 } from "ldrs/react";
 import "ldrs/react/Ring2.css";
-import { useTiming, ANIMATION_VARIANTS } from "@/lib/motion";
+import { useTiming } from "@/lib/motion";
 import { useFeatures, type FeatureDef } from "@/lib/featureRegistry";
 import { useChatAttachments } from "@/hooks/useChatAttachments";
 import { useChatTextarea } from "@/hooks/useChatTextarea";
@@ -207,8 +207,6 @@ export const ChatInput = memo(function ChatInput({
             borderRadius: "24px",
             bgcolor: isDragging ? "action.selected" : "background.paper",
             p: 1.5,
-            transition:
-              "background-color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease",
             border: isDragging ? "2px dashed" : isTemporary ? "1px dashed" : "1px solid",
             borderColor: isDragging || isTemporary ? "border.main" : "divider",
             "&:focus-within": {
@@ -359,10 +357,6 @@ export const ChatInput = memo(function ChatInput({
             {/* Right: send / stop button */}
             <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 0.5, sm: 1 }, flexShrink: 0 }}>
               <IconButton
-                component={motion.button}
-                variants={ANIMATION_VARIANTS.interactive}
-                whileHover="hover"
-                whileTap="tap"
                 onClick={toggle}
                 disabled={!isDictationAvailable || isStreaming || isTranscribing}
                 aria-label={isRecording ? "Stop dictation" : "Start dictation"}
@@ -434,15 +428,6 @@ export const ChatInput = memo(function ChatInput({
                 </AnimatePresence>
               </IconButton>
               <IconButton
-                component={motion.button}
-                variants={ANIMATION_VARIANTS.interactive}
-                whileHover="hover"
-                whileTap="tap"
-                animate={{
-                  scale: hasContent || isStreaming ? 1 : 0.95,
-                  opacity: hasContent || isStreaming ? 1 : 0.3,
-                }}
-                transition={{ duration: timing.duration("fast"), ease: timing.ease }}
                 onClick={handleAction}
                 disabled={isStreaming ? false : !hasContent || isInputDisabled || isRecording || isTranscribing}
                 aria-label={isStreaming ? "Stop generation" : "Send message"}

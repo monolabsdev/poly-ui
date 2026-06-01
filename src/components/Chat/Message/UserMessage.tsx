@@ -1,23 +1,14 @@
 import { Box, Typography, useTheme } from "@mui/material";
 import { Paperclip } from "lucide-react";
-import { motion } from "motion/react";
-import { useTiming, ANIMATION_VARIANTS } from "@/lib/motion";
 import { isImageAttachment, createDataUrl, formatFileSize } from "@/lib/utils";
 import type { MessageProps } from "./types";
 
 export function UserMessage({ content, attachments }: MessageProps) {
-  const timing = useTiming();
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
 
   return (
     <Box
-      component={motion.div}
-      variants={ANIMATION_VARIANTS.messageTurn}
-      initial="initial"
-      animate="animate"
-      exit="exit"
-      transition={{ duration: timing.duration("base"), ease: timing.ease }}
       sx={{
         display: "flex",
         flexDirection: "column",
@@ -52,8 +43,6 @@ export function UserMessage({ content, attachments }: MessageProps) {
                 alignItems: "center",
                 p: isImageAttachment(att.type) ? 0 : 1.5,
                 gap: 1.5,
-                transition:
-                  "background-color 0.18s ease, border-color 0.18s ease",
               }}
             >
               {isImageAttachment(att.type) ? (
@@ -117,7 +106,6 @@ export function UserMessage({ content, attachments }: MessageProps) {
           borderColor: "border.light",
           px: 2.5,
           py: 1.5,
-          transition: "background-color 0.18s ease, border-color 0.18s ease",
         }}
       >
         <Typography

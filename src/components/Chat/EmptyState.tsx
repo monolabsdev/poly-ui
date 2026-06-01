@@ -1,7 +1,5 @@
 import { Box, Typography } from "@mui/material";
 import { EyeOff } from "lucide-react";
-import { motion } from "motion/react";
-import { useTiming } from "@/lib/motion";
 
 interface EmptyStateProps {
   children?: React.ReactNode;
@@ -17,7 +15,6 @@ export function EmptyState({
   isTemporary,
 }: EmptyStateProps) {
   const isMultiModel = selectedModels.length >= 2;
-  const timing = useTiming();
 
   return (
     <Box
@@ -36,10 +33,6 @@ export function EmptyState({
       }}
     >
       <Box
-        component={motion.div}
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: timing.duration("slow"), ease: timing.ease }}
         sx={{
           display: "flex",
           flexDirection: "column",
@@ -86,14 +79,6 @@ export function EmptyState({
 
       {/* Input area */}
       <Box 
-        component={motion.div}
-        initial={{ opacity: 0, scale: 0.98 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ 
-          duration: timing.duration("base"), 
-          delay: 0.1,
-          ease: timing.ease 
-        }}
         sx={{ width: "100%", maxWidth: 768 }}
       >
         {children}

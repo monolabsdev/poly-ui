@@ -79,9 +79,9 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
           alignItems: "center",
           justifyContent: isCollapsed ? "center" : "flex-start",
           gap: isCollapsed ? 0 : 1.5,
-          p: 1,
-          px: isCollapsed ? 0 : 1,
-          borderRadius: "12px",
+          p: 0.75,
+          px: isCollapsed ? 0 : 0.75,
+          borderRadius: "10px",
           textTransform: "none",
           color: "text.secondary",
           textAlign: "left",
@@ -89,13 +89,13 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
           "&:hover": { bgcolor: "action.hover" },
         }}
       >
-        <Box sx={{ display: "flex", flexShrink: 0, position: "relative" }}>
-          <Avatar sx={{ width: isCollapsed ? 28 : 36, height: isCollapsed ? 28 : 36 }}>
+        <Box sx={{ display: "flex", flexShrink: 0 }}>
+          <Avatar sx={{ width: isCollapsed ? 28 : 32, height: isCollapsed ? 28 : 32 }}>
             <AvatarFallback
               sx={{
                 bgcolor: "action.selected",
                 color: "text.secondary",
-                fontSize: isCollapsed ? "0.65rem" : "0.75rem",
+                fontSize: isCollapsed ? "0.65rem" : "0.7rem",
               }}
             >
               ?
@@ -112,16 +112,16 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
             >
               <Typography
                 variant="body2"
-                sx={{ fontWeight: 600, fontSize: "13.5px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                sx={{ fontWeight: 500, fontSize: "13px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "text.primary" }}
               >
-                Guest
+                Guest mode
               </Typography>
               <Typography
                 variant="caption"
                 color="text.secondary"
-                sx={{ display: "block", mt: -0.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                sx={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", opacity: 0.6 }}
               >
-                Signed out
+                Not signed in
               </Typography>
             </motion.div>
           )}
@@ -195,9 +195,9 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
         alignItems: "center",
         justifyContent: isCollapsed ? "center" : "flex-start",
         gap: isCollapsed ? 0 : 1.5,
-        p: 1,
-        px: isCollapsed ? 0 : 1,
-        borderRadius: "12px",
+        p: 0.75,
+        px: isCollapsed ? 0 : 0.75,
+        borderRadius: "10px",
         textTransform: "none",
         color: "text.primary",
         textAlign: "left",
@@ -208,13 +208,13 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
       }}
     >
       <Box sx={{ display: "flex", flexShrink: 0, position: "relative" }}>
-        <Avatar sx={{ width: isCollapsed ? 28 : 36, height: isCollapsed ? 28 : 36 }}>
+        <Avatar sx={{ width: isCollapsed ? 28 : 32, height: isCollapsed ? 28 : 32 }}>
 
           <AvatarFallback
             sx={{
               bgcolor: "action.selected",
               color: "text.primary",
-              fontSize: isCollapsed ? "0.65rem" : "0.75rem",
+              fontSize: isCollapsed ? "0.65rem" : "0.7rem",
             }}
           >
             {initials}
@@ -226,8 +226,8 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
               position: "absolute",
               bottom: 0,
               right: 0,
-              width: 12,
-              height: 12,
+              width: 10,
+              height: 10,
               bgcolor: "success.main",
               border: "2px solid",
               borderColor: "background.sidebar",
@@ -246,14 +246,14 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
           >
             <Typography
               variant="body2"
-              sx={{ fontWeight: 600, fontSize: "13.5px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+              sx={{ fontWeight: 500, fontSize: "13px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
             >
               {user.fullName || "User"}
             </Typography>
             <Typography
               variant="caption"
               color="text.secondary"
-              sx={{ display: "block", mt: -0.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+              sx={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", opacity: 0.6 }}
             >
               Active
             </Typography>

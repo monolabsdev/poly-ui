@@ -1,0 +1,225 @@
+import * as React from "react";
+import { Box, IconButton, Typography } from "@mui/material";
+import {
+  Check,
+  X,
+  MoreHorizontal,
+  Edit2,
+  Archive,
+  Trash2,
+  Download,
+} from "lucide-react";
+import { Ring2 } from "ldrs/react";
+import "ldrs/react/Ring2.css";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { TextShimmer } from "@/components/ui/text-shimmer";
+import type { Conversation } from "@/store/chatStore";
+
+interface ConversationItemProps {
+  conv: Conversation;
+  activeConversationId: string | null;
+  isGenerating: boolean;
+  onClick?: () => void;
+  editingId?: string | null;
+  editValue?: string;
+  setEditValue?: (v: string) => void;
+  handleConfirmRename?: (e: React.MouseEvent, id: string) => void;
+  handleCancelRename?: (e: React.MouseEvent) => void;
+  handleStartRename?: (e: React.MouseEvent, conv: Conversation) => void;
+  handleArchive?: (id: string) => void;
+  handleStartDelete?: (conv: Conversation) => void;
+  onExport?: (conv: Conversation) => void;
+  isCollapsed?: boolean;
+  variant?: "sidebar" | "folder" | "folderTree";
+}
+
+export const ConversationItem = React.memo(function ConversationItem({
+  conv,
+  activeConversationId,
+  isGenerating,
+  onClick,
+  editingId,
+  editValue = "",
+  setEditValue,
+  handleConfirmRename,
+  handleCancelRename,
+  handleStartRename,
+  handleArchive,
+  handleStartDelete,
+  onExport,
+  isCollapsed = false,
+  variant = "sidebar",
+}: ConversationItemProps) {
+  const isFolder = variant === "folder";
+  const isFolderTree = variant === "folderTree";
+
+  const rootSx = isFolder ? {
+    display: "flex",
+    alignItems: "center",
+    width: "100%",
+    minWidth: 0,
+    p: 1.25,
+    borderRadius: "8px",
+    gap: 1,
+    border: 0,
+    bgcolor: activeConversationId === conv.id ? "action.selected" : "transparent" as const,
+    color: "inherit",
+    cursor: "pointer",
+    textAlign: "left" as const,
+    fontFamily: "inherit",
+    fontSize: "inherit",
+    "&:hover": { bgcolor: "action.hover" },
+  } : {
+    display: "flex",
+    alignItems: "center",
+    width: "100%",
+    minWidth: 0,
+    height: "100%",
+  };
+
+  const Root = isFolder ? "button" : "div";
+
+  return (
+    <Box
+      component={Root}
+      {...(isFolder ? { type: "button" as const, onClick } : {})}
+      sx={rootSx}
+    >
+      {editingId === conv.id ? (
+        <Box sx={{ display: "flex", alignItems: "center", width: "100%", gap: 0.5 }}>
+          <input
+            autoFocus
+            value={editValue}
+            onChange={(e) => setEditValue?.(e.target.value)}
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleConfirmRename?.(e as any, conv.id);
+              if (e.key === "Escape") handleCancelRename?.(e as any);
+            }}
+            style={{
+              flex: 1,
+              background: "transparent",
+              border: "none",
+              color: "inherit",
+              outline: "none",
+              fontSize: isFolder ? "13px" : "inherit",
+              padding: 0,
+              width: "100%",
+            }}
+          />
+          <IconButton
+            size="small"
+            onClick={(e) => handleConfirmRename?.(e, conv.id)}
+            sx={{ p: 0.5, color: "text.secondary" }}
+          >
+            <Check size={14} />
+          </IconButton>
+          <IconButton
+            size="small"
+            onClick={handleCancelRename}
+            sx={{ p: 0.5, color: "text.secondary" }}
+          >
+            <X size={14} />
+          </IconButton>
+        </Box>
+      ) : (
+        <Box sx={{ display: "flex", alignItems: "center", width: "100%", minWidth: 0, gap: isFolder ? 1 : 0 }}>
+          <Typography
+            variant="body2"
+            noWrap
+            component="div"
+            sx={{
+              flex: 1,
+              minWidth: 0,
+              color: activeConversationId === conv.id ? "text.primary" : "text.secondary",
+              fontSize: "13px",
+              fontWeight: activeConversationId === conv.id ? 500 : 400,
+              pr: 1,
+            }}
+          >
+            {isGenerating ? (
+              <TextShimmer duration={1.8} spread={18}>
+                {conv.title || "Untitled"}
+              </TextShimmer>
+            ) : (
+              conv.title || "Untitled"
+            )}
+          </Typography>
+
+          {isGenerating && (
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: isFolderTree ? 18 : isFolder ? 20 : 28,
+                height: isFolderTree ? 18 : isFolder ? 20 : 28,
+                color: "primary.main",
+              }}
+            >
+              <Ring2
+                size={isFolderTree ? "11" : isFolder ? "12" : "14"}
+                stroke="3"
+                strokeLength="0.28"
+                bgOpacity="0.14"
+                speed="0.8"
+                color="currentColor"
+              />
+            </Box>
+          )}
+
+          {!isGenerating && (
+            <Box
+              className="conversation-actions"
+              sx={{
+                display: "flex",
+                gap: 0,
+                mr: -0.5,
+                visibility: isCollapsed ? "hidden" : "visible",
+                width: isFolderTree ? 22 : 28,
+                height: isFolderTree ? 22 : 28,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <IconButton
+                    size="small"
+                    onClick={(e) => e.stopPropagation()}
+                    sx={{
+                      p: 0.5,
+                      color: "text.secondary",
+                      "&:hover": { color: "text.primary", bgcolor: "action.selected" },
+                    }}
+                  >
+                    <MoreHorizontal size={14} />
+                  </IconButton>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={(e) => handleStartRename?.(e, conv)}>
+                    <Edit2 size={14} /> Rename
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleArchive?.(conv.id)}>
+                    <Archive size={14} /> Archive
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onExport?.(conv)}>
+                    <Download size={14} /> Export
+                  </DropdownMenuItem>
+                  <DropdownMenuItem variant="destructive" onClick={() => handleStartDelete?.(conv)}>
+                    <Trash2 size={14} /> Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </Box>
+          )}
+        </Box>
+      )}
+    </Box>
+  );
+});

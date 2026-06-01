@@ -12,6 +12,15 @@ struct HealthCache {
     last_check: Instant,
 }
 
+fn health_cache_ttl(status: ProviderStatus) -> Duration {
+    match status {
+        ProviderStatus::Online => Duration::from_secs(10),
+        ProviderStatus::Offline
+        | ProviderStatus::Reconnecting
+        | ProviderStatus::Unavailable => Duration::from_secs(1),
+    }
+}
+
 pub struct ProviderSelector {
     pool: SqlitePool,
     health_cache: Arc<TokioMutex<HashMap<ProviderType, HealthCache>>>,
@@ -61,7 +70,7 @@ impl ProviderSelector {
                 }
 
                 if let Some(cached) = cache.get(&config.provider_type) {
-                    if cached.last_check.elapsed() < Duration::from_secs(30) {
+                    if cached.last_check.elapsed() < health_cache_ttl(cached.status) {
                         results.insert(config.provider_type, cached.status);
                         continue;
                     }
@@ -85,8 +94,9 @@ impl ProviderSelector {
 
         // Each provider has its own timeout so one slow remote API cannot hide Ollama status.
         if !futures.is_empty() {
+            let checked = futures::future::join_all(futures).await;
             let mut cache = self.health_cache.lock().await;
-            for (p_type, status) in futures::future::join_all(futures).await {
+            for (p_type, status) in checked {
                 cache.insert(
                     p_type,
                     HealthCache {
@@ -185,5 +195,34 @@ impl ProviderSelector {
 
         self.health_cache.lock().await.clear();
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn offline_provider_cache_expires_quickly() {
+        assert_eq!(
+            health_cache_ttl(ProviderStatus::Offline),
+            Duration::from_secs(1)
+        );
+        assert_eq!(
+            health_cache_ttl(ProviderStatus::Unavailable),
+            Duration::from_secs(1)
+        );
+    }
+
+    #[test]
+    fn online_provider_cache_limits_background_work() {
+        assert_eq!(
+            health_cache_ttl(ProviderStatus::Online),
+            Duration::from_secs(10)
+        );
+        assert_eq!(
+            health_cache_ttl(ProviderStatus::Reconnecting),
+            Duration::from_secs(1)
+        );
     }
 }

@@ -1,22 +1,43 @@
-import { useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useChatStore } from "@/store/chatStore";
 import { Attachment } from "@/types/chat";
 import { isImageAttachment } from "@/lib/utils";
+import { validateImageFiles } from "@/lib/image-upload/validation";
+import { readImageDimensions } from "@/lib/image-upload/metadata";
+import { registerImageAttachment, releaseImageAttachment } from "@/lib/image-upload/attachments";
+import { imageUploadConfig } from "@/lib/image-upload/config";
+import { useNotify } from "@/hooks/useNotify";
+import { optimizeImage } from "@/lib/image-upload/worker";
 
 export function useChatAttachments() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [fileAccept, setFileAccept] = useState<string>("*");
   const [isDragging, setIsDragging] = useState(false);
   const dragCounter = useRef(0);
+  const notify = useNotify();
 
   const currentAttachments = useChatStore((state) => state.currentAttachments);
   const addCurrentAttachment = useChatStore((state) => state.actions.addCurrentAttachment);
   const removeCurrentAttachment = useChatStore((state) => state.actions.removeCurrentAttachment);
+  const clearCurrentAttachments = useChatStore((state) => state.actions.clearCurrentAttachments);
+  const attachmentsRef = useRef(currentAttachments);
+  useEffect(() => { attachmentsRef.current = currentAttachments; }, [currentAttachments]);
+  useEffect(() => () => {
+    attachmentsRef.current.forEach(releaseImageAttachment);
+    clearCurrentAttachments();
+  }, [clearCurrentAttachments]);
 
   const processFiles = useCallback(
     async (files: FileList | File[]) => {
-      for (const file of Array.from(files)) {
-        const reader = new FileReader();
+      const selected = Array.from(files);
+      const imageFiles = selected.filter((file) => isImageAttachment(file.type));
+      const validation = validateImageFiles(imageFiles, {
+        maxFiles: Math.max(0, imageUploadConfig.maxFiles - currentAttachments.filter((item) => isImageAttachment(item.type)).length),
+      });
+      validation.errors.forEach((error) => notify.error("Image upload failed", error.message));
+      const acceptedImages = new Set(validation.accepted);
+      for (const selectedFile of selected) {
+        let file = selectedFile;
         const attachment: Attachment = {
           id: crypto.randomUUID(),
           name: file.name,
@@ -25,6 +46,33 @@ export function useChatAttachments() {
         };
 
         const isImage = isImageAttachment(file.type);
+        if (isImage) {
+          if (!acceptedImages.has(file)) continue;
+          file = await optimizeImage(file);
+          attachment.name = file.name;
+          attachment.type = file.type;
+          attachment.size = file.size;
+          attachment.status = "previewing";
+          attachment.previewUrl = registerImageAttachment(attachment, file);
+          addCurrentAttachment(attachment);
+          try {
+            const dimensions = await readImageDimensions(file);
+            if (dimensions.width > imageUploadConfig.maxDimension || dimensions.height > imageUploadConfig.maxDimension) {
+              notify.error("Image upload failed", `${file.name}: image dimensions exceed ${imageUploadConfig.maxDimension}px limit.`);
+              releaseImageAttachment(attachment);
+              removeCurrentAttachment(attachment.id);
+            } else {
+              attachment.status = "ready";
+              Object.assign(attachment, dimensions);
+            }
+          } catch {
+            notify.error("Image upload failed", `${file.name}: image could not be decoded.`);
+            releaseImageAttachment(attachment);
+            removeCurrentAttachment(attachment.id);
+          }
+          continue;
+        }
+        const reader = new FileReader();
         reader.onload = (e) => {
           const result = e.target?.result as string;
           attachment.content = isImage ? result.split(",")[1] : result;
@@ -38,7 +86,7 @@ export function useChatAttachments() {
         }
       }
     },
-    [addCurrentAttachment],
+    [addCurrentAttachment, currentAttachments, notify, removeCurrentAttachment],
   );
 
   const openFilePicker = (accept: string) => {
@@ -47,6 +95,12 @@ export function useChatAttachments() {
       fileInputRef.current?.click();
     }, 0);
   };
+
+  const removeAttachment = useCallback((id: string) => {
+    const attachment = currentAttachments.find((item) => item.id === id);
+    if (attachment) releaseImageAttachment(attachment);
+    removeCurrentAttachment(id);
+  }, [currentAttachments, removeCurrentAttachment]);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -94,7 +148,7 @@ export function useChatAttachments() {
     fileAccept,
     isDragging,
     currentAttachments,
-    removeCurrentAttachment,
+    removeCurrentAttachment: removeAttachment,
     openFilePicker,
     handleFileChange,
     handleDragEnter,

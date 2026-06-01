@@ -1,9 +1,9 @@
-import { Message, Conversation } from "@/types/chat";
+import { Message, Conversation, Folder } from "@/types/chat";
 
 export interface ConversationRepository {
   getConversations(userId?: string): Promise<Conversation[]>;
-  createConversation(id: string, title: string, userId?: string): Promise<void>;
-  updateConversation(id: string, updates: { title?: string; updatedAt?: string; isArchived?: boolean }): Promise<void>;
+  createConversation(id: string, title: string, userId?: string, folderId?: string): Promise<void>;
+  updateConversation(id: string, updates: { title?: string; updatedAt?: string; isArchived?: boolean; folderId?: string | null }): Promise<void>;
   deleteConversation(id: string): Promise<void>;
   deleteAllConversations(userId: string): Promise<void>;
 
@@ -12,15 +12,21 @@ export interface ConversationRepository {
   addMessage(message: Message): Promise<void>;
   deleteMessagesAfter(conversationId: string, messageId: string): Promise<void>;
   transferConversations(fromUserId: string, toUserId: string): Promise<void>;
+
+  getFolders(userId?: string): Promise<Folder[]>;
+  createFolder(id: string, name: string, userId?: string, parentId?: string): Promise<void>;
+  updateFolder(id: string, updates: { name?: string; parentId?: string | null; backgroundImage?: string | null; systemPrompt?: string | null; contextFiles?: string | null; updatedAt?: string }): Promise<void>;
+  deleteFolder(id: string): Promise<void>;
 }
 
-export function mapRowToConversation(row: { id: string; title: string; createdAt: string; updatedAt: string; isArchived: number }): Conversation {
+export function mapRowToConversation(row: { id: string; title: string; createdAt: string; updatedAt: string; isArchived: number; folderId?: string }): Conversation {
   return {
     id: row.id,
     title: row.title,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     isArchived: Boolean(row.isArchived),
+    folderId: row.folderId || undefined,
   };
 }
 

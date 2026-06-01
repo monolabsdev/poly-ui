@@ -7,6 +7,9 @@ import { EmptyState } from "@/components/Chat/EmptyState";
 import { useChatStream } from "@/hooks/useChatStream";
 import { useChatStore } from "@/store/chatStore";
 import type { ModelProvider } from "@/store/modelStore";
+import { materializeAttachments, releaseImageAttachment } from "@/lib/image-upload/attachments";
+import { useFolderStore } from "@/store/folderStore";
+import { FolderHome } from "@/components/Folders/FolderHome";
 
 type ChatWorkspaceProps = {
   selectedModels: string[];
@@ -27,8 +30,12 @@ export default function ChatWorkspace({
   isTemporary,
   onStopStreamingReady,
 }: ChatWorkspaceProps) {
+  const activeFolder = useFolderStore((state) => state.folders.find((folder) => folder.id === state.activeFolderId));
+  const effectiveSystemPrompt = activeFolder?.systemPrompt
+    ? `${systemPromptContent}\n${activeFolder.systemPrompt}`
+    : systemPromptContent;
   const { messages, streamingMessagesList, isStreaming, sendMessage, regenerateMessage, stopStreaming, bottomRef, hasMessages } =
-    useChatStream(selectedModels, selectedProviders, systemPromptContent, userName);
+    useChatStream(selectedModels, selectedProviders, effectiveSystemPrompt, userName);
 
   const { activeConversationId, currentAttachments } = useChatStore(
     useShallow((state) => ({
@@ -49,9 +56,9 @@ export default function ChatWorkspace({
 
   const ensureConversation = useCallback(async (): Promise<string> => {
     if (activeConversationId) return activeConversationId;
-    const created = await createConversation("New Chat", false);
+    const created = await createConversation("New Chat", false, activeFolder?.id);
     return created.id;
-  }, [activeConversationId, createConversation]);
+  }, [activeConversationId, activeFolder?.id, createConversation]);
 
   const handleSend = useCallback(
     async (content: string) => {
@@ -59,11 +66,17 @@ export default function ChatWorkspace({
       if (!trimmed && currentAttachments.length === 0) return;
       if (!selectedModel) return;
       await ensureConversation();
-      sendMessage(trimmed, currentAttachments);
+      const attachments = await materializeAttachments([
+        ...(activeFolder?.contextFiles ?? []),
+        ...currentAttachments,
+      ]);
+      await sendMessage(trimmed, attachments);
+      currentAttachments.forEach(releaseImageAttachment);
       clearCurrentAttachments();
     },
     [
       selectedModel,
+      activeFolder?.contextFiles,
       currentAttachments,
       ensureConversation,
       sendMessage,
@@ -102,7 +115,9 @@ export default function ChatWorkspace({
           width: "100%",
         }}
       >
-        {hasMessages ? (
+        {activeFolder && !activeConversationId ? (
+          <FolderHome folder={activeFolder} onSubmit={handleSend} onStop={stopStreaming} isStreaming={isStreaming} selectedModel={selectedModel} />
+        ) : hasMessages ? (
           <ChatArea
             key={activeConversationId ?? "no-conv"}
             messages={messages}

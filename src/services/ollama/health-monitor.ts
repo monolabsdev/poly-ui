@@ -51,15 +51,14 @@ function createHealthMonitor(deps: HealthMonitorDeps) {
 
       if (!activeProvider) {
         notify("offline", undefined, "No active provider");
-        return;
-      }
+      } else {
+        if (currentState !== "online") {
+          deps.onOnline?.();
+          currentBackoff = 2000;
+        }
 
-      if (currentState !== "online") {
-        deps.onOnline?.();
-        currentBackoff = 2000;
+        notify("online", result.models);
       }
-
-      notify("online", result.models);
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
       const isProviderError =

@@ -42,7 +42,9 @@ export function Modal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         sx={{
-          width: "100%",
+          width: typeof maxWidth === "number"
+            ? `min(${maxWidth}px, calc(100vw - 32px))`
+            : `min(${maxWidth}, calc(100vw - 32px))`,
           maxWidth: maxWidth,
           height: height,
           display: "flex",
