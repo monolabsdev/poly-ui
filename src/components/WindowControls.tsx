@@ -1,7 +1,7 @@
 import { Box } from "@mui/material";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useEffect, useState } from "react";
-import { Minus, Maximize2, X } from "lucide-react";
+import { Minus, Square, Copy, X } from "lucide-react";
 import { USE_CUSTOM_WINDOW_CONTROLS } from "@/lib/platform";
 
 export function WindowControls({ closeOnly = false }: { closeOnly?: boolean }) {
@@ -29,7 +29,7 @@ export function WindowControls({ closeOnly = false }: { closeOnly?: boolean }) {
             <Minus size={15} strokeWidth={1.5} />
           </WinButton>
           <WinButton onClick={() => void w.toggleMaximize()} title={maximized ? "Restore" : "Maximize"}>
-            <Maximize2 size={13} strokeWidth={1.5} />
+            {maximized ? <Copy size={13} strokeWidth={1.5} /> : <Square size={13} strokeWidth={1.5} />}
           </WinButton>
         </>
       )}

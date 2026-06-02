@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Box, Typography, IconButton } from "@mui/material";
-import { Folder, Trash2, X } from "lucide-react";
+import { Folder, MessageSquare, Trash2, X } from "lucide-react";
 import { ChatInput } from "@/components/Chat/ChatInput";
 import { ConversationItem } from "@/components/Chat/ConversationItem";
 import { DeleteConversationDialog } from "@/components/Chat/DeleteConversationDialog";
@@ -152,7 +152,7 @@ export function FolderHome({ folder, onSubmit, onStop, isStreaming, selectedMode
 
   return (
     <Box sx={{ flex: 1, minHeight: 0, width: "100%", overflowY: "auto", px: 2 }}>
-    <Box sx={{ width: "100%", maxWidth: 720, mx: "auto", pt: { xs: 5, sm: 9 }, pb: 5 }}>
+      <Box sx={{ width: "100%", maxWidth: 720, mx: "auto", pt: { xs: 5, sm: 9 }, pb: 5 }}>
       <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
         <Folder size={20} />
         <Typography variant="h6" sx={{ fontSize: "18px", fontWeight: 500 }}>{folder.name}</Typography>
@@ -164,12 +164,14 @@ export function FolderHome({ folder, onSubmit, onStop, isStreaming, selectedMode
         selectedModel={selectedModel}
         hasMessages={false}
       />
-      <Box sx={{ display: "flex", gap: 1, mt: 1.5, mb: 5 }}>
+      <Box role="tablist" sx={{ display: "flex", gap: 1, mt: 1.5, mb: 5 }}>
         {(["chats", "sources"] as const).map((tab) => (
           <Box
             key={tab}
+            role="tab"
             component="button"
             type="button"
+            aria-selected={activeTab === tab}
             onClick={() => setActiveTab(tab)}
             sx={{
               px: 1.5,
@@ -190,9 +192,9 @@ export function FolderHome({ folder, onSubmit, onStop, isStreaming, selectedMode
         ))}
       </Box>
       {activeTab === "sources" ? (
-        <FolderSources folder={folder} />
+        <Box role="tabpanel"><FolderSources folder={folder} /></Box>
       ) : (
-      <>
+      <Box role="tabpanel" sx={{ width: "100%" }}>
       {selectedIds.size > 0 && (
         <Box
           sx={{
@@ -227,6 +229,7 @@ export function FolderHome({ folder, onSubmit, onStop, isStreaming, selectedMode
           </Typography>
           <IconButton
             size="small"
+            aria-label="Delete selected conversations"
             onClick={handleBatchDelete}
             sx={{ color: "error.main", p: 0.5 }}
           >
@@ -234,6 +237,7 @@ export function FolderHome({ folder, onSubmit, onStop, isStreaming, selectedMode
           </IconButton>
           <IconButton
             size="small"
+            aria-label="Clear selection"
             onClick={handleClearSelection}
             sx={{ color: "text.secondary", p: 0.5 }}
           >
@@ -242,9 +246,10 @@ export function FolderHome({ folder, onSubmit, onStop, isStreaming, selectedMode
         </Box>
       )}
       {chats.length === 0 ? (
-        <Box sx={{ textAlign: "center", color: "text.secondary", pt: 7 }}>
+        <Box sx={{ textAlign: "center", pt: 9 }}>
+          <MessageSquare size={32} style={{ opacity: 0.3, marginBottom: 12 }} />
           <Typography sx={{ fontSize: "13px", color: "text.primary" }}>No chats yet</Typography>
-          <Typography sx={{ fontSize: "12px", mt: 0.5 }}>Chats in {folder.name} will live here</Typography>
+          <Typography sx={{ fontSize: "12px", mt: 0.5, color: "text.secondary" }}>Chats in {folder.name} will live here</Typography>
         </Box>
       ) : (
         <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
@@ -284,9 +289,9 @@ export function FolderHome({ folder, onSubmit, onStop, isStreaming, selectedMode
         onConfirm={handleConfirmBatchDelete}
         count={selectedIds.size}
       />
-      </>
+      </Box>
       )}
-    </Box>
+      </Box>
     </Box>
   );
 }
