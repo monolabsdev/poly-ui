@@ -48,7 +48,6 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
             justifyContent: "flex-start",
             gap: 1.5,
             p: 1,
-            borderRadius: 2,
             textTransform: "none",
           }}
         >
@@ -81,7 +80,6 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
           gap: isCollapsed ? 0 : 1.5,
           p: 0.75,
           px: isCollapsed ? 0 : 0.75,
-          borderRadius: "10px",
           textTransform: "none",
           color: "text.secondary",
           textAlign: "left",
@@ -197,7 +195,6 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
         gap: isCollapsed ? 0 : 1.5,
         p: 0.75,
         px: isCollapsed ? 0 : 0.75,
-        borderRadius: "10px",
         textTransform: "none",
         color: "text.primary",
         textAlign: "left",

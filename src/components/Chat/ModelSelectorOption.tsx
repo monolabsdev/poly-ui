@@ -66,7 +66,7 @@ export function ModelSelectorOption({
         px: 1.5,
         textAlign: "left",
         bgcolor: highlighted ? "action.hover" : "transparent",
-        borderRadius: "8px",
+
       }}
     >
       <Box sx={{ minWidth: 0, display: "flex", alignItems: "center", gap: 1 }}>

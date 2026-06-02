@@ -4,6 +4,7 @@ import { useModelStore } from "@/store/modelStore";
 import { useOllamaStore } from "@/services/ollama/monitor";
 import { useProviderStore } from "@/services/providers";
 import { initStoreCoordinator } from "@/store/coordinator";
+import { isPermissionGranted, requestPermission } from "@tauri-apps/plugin-notification";
 
 const SYSTEM_PROMPTS_STORAGE_KEY = "polyui.systemPrompts";
 
@@ -79,6 +80,8 @@ async function initializeStores() {
   startSystemPromptPersistence();
   initStoreCoordinator();
 
+  requestNotificationPermission();
+
   const repo = await import("@/lib/repositories");
   await repo.initRepository().catch(() => {});
 
@@ -95,6 +98,16 @@ async function initializeStores() {
   const { isLoading } = useAuthStore.getState();
   if (isLoading) {
     useAuthStore.setState({ isLoading: false });
+  }
+}
+
+async function requestNotificationPermission() {
+  try {
+    if (!(await isPermissionGranted())) {
+      await requestPermission();
+    }
+  } catch {
+    // Notification permission not available (e.g. non-Tauri or Linux without .desktop file)
   }
 }
 

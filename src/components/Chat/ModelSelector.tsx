@@ -135,7 +135,7 @@ export function ModelSelector({
           color: "primary.main",
           fontSize: { xs: 14, sm: 15 },
           fontWeight: 600,
-          borderRadius: 1,
+
           px: 0.25,
           "&:hover": { bgcolor: "transparent" },
         }}

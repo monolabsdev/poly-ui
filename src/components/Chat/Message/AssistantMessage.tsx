@@ -169,7 +169,6 @@ export function AssistantMessage(props: MessageProps) {
                     mt: 1,
                     color: "error.main",
                     bgcolor: "rgba(248, 113, 113, 0.1)",
-                    borderRadius: "8px",
                     px: 2,
                     py: 0.5,
                     gap: 1,
@@ -237,21 +236,10 @@ export function AssistantMessage(props: MessageProps) {
               containIntrinsicSize: "1px 5000px",
             }}
           >
-            {isStreaming ? (
-              <Typography
-                sx={{
-                  whiteSpace: "pre-wrap",
-                  wordBreak: "break-word",
-                  lineHeight: 1.6,
-                  fontSize: "15px",
-                  color: "text.primary",
-                }}
-              >
-                {streamingDisplayContent || ""}
-              </Typography>
-            ) : (
-              <MarkdownProse content={processedContent} />
-            )}
+            <MarkdownProse
+              content={isStreaming ? streamingDisplayContent || "" : processedContent}
+              streaming={isStreaming}
+            />
           </Box>
         ) : null}
 

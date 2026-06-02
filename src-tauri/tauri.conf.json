@@ -41,6 +41,15 @@
     },
     "windows": {
       "nsis": {}
+    },
+    "linux": {
+      "deb": {
+        "depends": []
+      },
+      "appimage": {},
+      "rpm": {
+        "depends": []
+      }
     }
   }
 }

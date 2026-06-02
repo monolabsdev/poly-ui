@@ -111,7 +111,6 @@ export function ReasoningTrigger({
         fontSize: "inherit",
         color: "inherit",
         minHeight: 24,
-        borderRadius: "6px",
         "&:focus-visible": {
           outline: "2px solid",
           outlineColor: "primary.main",

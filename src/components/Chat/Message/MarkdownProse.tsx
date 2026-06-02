@@ -12,6 +12,8 @@ import {
 } from "@mui/material";
 import "katex/dist/katex.min.css";
 import { CodeBlock } from "./CodeBlock";
+import { parseProgressive } from "@/lib/streamMarkdown";
+import { isInlineMarkdownCode } from "@/lib/markdownCode";
 
 const ALERT_CONFIG = {
   note: { border: "info.main", bg: "info.soft" },
@@ -125,16 +127,21 @@ const MemoizedMarkdownBlock = memo(
 
 MemoizedMarkdownBlock.displayName = "MemoizedMarkdownBlock";
 
-export function MarkdownProse({ content }: { content: string }) {
+export function MarkdownProse({ content, streaming = false }: { content: string; streaming?: boolean }) {
   const id = useId();
-  const blocks = useMemo(() => parseMarkdownIntoBlocks(content), [content]);
+  const progressive = useMemo(
+    () => streaming ? parseProgressive(content) : { safe: content, pending: false },
+    [content, streaming],
+  );
+  const blocks = useMemo(() => parseMarkdownIntoBlocks(progressive.safe), [progressive.safe]);
   const components = useMemo<Partial<Components>>(
     () => ({
       pre: ({ children }) => <>{children}</>,
 
-      code({ inline, className, children, ...props }: any) {
+      code({ className, children, ...props }: any) {
         const match = /language-(\w+)/.exec(className || "");
         const codeValue = String(children).replace(/\n$/, "");
+        const inline = isInlineMarkdownCode(className, children);
         if (!inline && match) {
           return <CodeBlock language={match[1]} code={codeValue} />;
         }
@@ -353,6 +360,13 @@ export function MarkdownProse({ content }: { content: string }) {
           components={components}
         />
       ))}
+      {progressive.pendingCode && (
+        <CodeBlock
+          language={progressive.pendingCode.language}
+          code={progressive.pendingCode.code}
+          pending
+        />
+      )}
     </Box>
   );
 }

@@ -98,7 +98,6 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     gap: 1.5,
                     px: 1.5,
                     py: 0.85,
-                    borderRadius: "8px",
                     cursor: "pointer",
                     textAlign: "left",
                     color: isActive ? "text.primary" : "text.secondary",
@@ -162,7 +161,6 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   sx={{
                     px: { xs: 1.5, sm: 1.25 },
                     py: { xs: 1, sm: 0.75 },
-                    borderRadius: "8px",
                     bgcolor: isActive ? "action.hover" : "transparent",
                     color: isActive ? "text.primary" : "text.secondary",
                     whiteSpace: "nowrap",

@@ -1,5 +1,5 @@
 // Pure accumulator — no React, no Tauri. Testable standalone.
-// Batches content updates and flushes on rAF.
+// Batches content updates and flushes on a short debounce.
 
 export type BatchUpdate = Record<string, string>;
 
@@ -9,6 +9,7 @@ export class StreamAccumulator {
   private pending: Record<string, string> = {};
   private hasScheduledFlush = false;
   private flushCallback: ((updates: BatchUpdate) => void) | null = null;
+  private flushTimer: ReturnType<typeof setTimeout> | null = null;
 
   onFlush(cb: (updates: BatchUpdate) => void) {
     this.flushCallback = cb;
@@ -22,13 +23,12 @@ export class StreamAccumulator {
   private scheduleFlush() {
     if (this.hasScheduledFlush) return;
     this.hasScheduledFlush = true;
-    if (typeof requestAnimationFrame !== "undefined") {
-      requestAnimationFrame(() => this.flush());
-    }
+    this.flushTimer = setTimeout(() => this.flush(), 175);
   }
 
   flush() {
     this.hasScheduledFlush = false;
+    this.flushTimer = null;
     const batches = this.pending;
     if (Object.keys(batches).length === 0) return;
     this.pending = {};
@@ -45,5 +45,9 @@ export class StreamAccumulator {
       this.content = {};
       this.thinking = {};
     }
+    if (this.flushTimer) clearTimeout(this.flushTimer);
+    this.flushTimer = null;
+    this.hasScheduledFlush = false;
+    this.pending = {};
   }
 }

@@ -132,6 +132,14 @@ export function useChatAttachments() {
     e.stopPropagation();
   };
 
+  const handlePaste = useCallback((e: React.ClipboardEvent) => {
+    const files = e.clipboardData.files;
+    if (files.length > 0) {
+      e.preventDefault();
+      processFiles(files);
+    }
+  }, [processFiles]);
+
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -155,5 +163,6 @@ export function useChatAttachments() {
     handleDragLeave,
     handleDragOver,
     handleDrop,
+    handlePaste,
   };
 }

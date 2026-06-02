@@ -11,11 +11,14 @@ import StartupLoadingScreen from "./components/StartupLoadingScreen";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { WindowTitleBar } from "./components/Layout/WindowTitleBar";
 import { loadAppModule, prepareAppStartup } from "./startup";
-import { USE_CUSTOM_WINDOW_CONTROLS } from "./lib/platform";
+import { USE_CUSTOM_WINDOW_CONTROLS, IS_LINUX } from "./lib/platform";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import "@fontsource-variable/geist";
+import "./App.css";
 
-if (USE_CUSTOM_WINDOW_CONTROLS) {
+if (IS_LINUX) {
+  document.documentElement.dataset.chrome = "native";
+} else if (USE_CUSTOM_WINDOW_CONTROLS) {
   document.documentElement.dataset.chrome = "borderless";
 }
 

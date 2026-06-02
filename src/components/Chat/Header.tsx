@@ -232,7 +232,6 @@ export const Header = memo(function Header({
             size="small"
             sx={{
               p: 0.75,
-              borderRadius: "6px",
               cursor: "pointer",
               color: isTemporary ? "primary.main" : "text.secondary",
               bgcolor: isTemporary ? "action.selected" : "transparent",
@@ -285,7 +284,7 @@ export const Header = memo(function Header({
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  borderRadius: "6px",
+                  borderRadius: "9999px",
                   cursor: "pointer",
                   color:
                     selectedPromptPreset !== "default"

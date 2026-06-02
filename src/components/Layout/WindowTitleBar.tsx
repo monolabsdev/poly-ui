@@ -1,11 +1,12 @@
 import { Box } from "@mui/material";
-import { IS_MAC, USE_CUSTOM_WINDOW_CONTROLS } from "@/lib/platform";
+import { IS_MAC, IS_LINUX, USE_CUSTOM_WINDOW_CONTROLS } from "@/lib/platform";
 import { WindowControls } from "@/components/WindowControls";
 import { UpdateChip } from "@/components/UpdateChip";
 
 const TITLE_BAR_HEIGHT = 36;
 
 function WindowTitleBar() {
+  if (IS_LINUX) return null;
   if (!IS_MAC && !USE_CUSTOM_WINDOW_CONTROLS) return null;
 
   return (

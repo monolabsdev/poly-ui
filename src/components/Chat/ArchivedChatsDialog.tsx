@@ -225,7 +225,6 @@ const emptyIconSx = {
 const actionButtonSx = {
   width: 32,
   height: 32,
-  borderRadius: "8px",
   color: "text.secondary",
   "&:hover": {
     bgcolor: "primary.main",

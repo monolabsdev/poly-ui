@@ -33,6 +33,8 @@
     "sql:allow-load",
     "window-state:default",
     "fs:default",
-    "supertonic:default"
+    "supertonic:default",
+    "notification:default",
+    "dialog:default"
   ]
 }

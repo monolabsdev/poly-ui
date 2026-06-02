@@ -168,6 +168,7 @@ export const ChatArea = memo(function ChatArea({
     scrollTop: number;
     pending: boolean;
   } | null>(null);
+  const stickToBottomRef = useRef(true);
   const handleHeightChange = useCallback((index: number, height: number) => {
     turnHeightsRef.current.set(index, height);
   }, []);
@@ -189,10 +190,25 @@ export const ChatArea = memo(function ChatArea({
     if (!el) return;
     const threshold = 150;
     const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    stickToBottomRef.current = distFromBottom <= threshold;
     if (distFromBottom <= threshold && distFromBottom >= 0) {
       el.scrollTop = el.scrollHeight;
     }
   }, [messages, streamingMessagesList]);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    const bottom = bottomRef.current;
+    if (!el || !bottom) return;
+
+    const observer = new ResizeObserver(() => {
+      if (stickToBottomRef.current) {
+        el.scrollTop = el.scrollHeight;
+      }
+    });
+    observer.observe(bottom.parentElement ?? bottom);
+    return () => observer.disconnect();
+  }, [bottomRef]);
 
   // Scroll anchoring for load-more: restore position after prepending
   useLayoutEffect(() => {
@@ -269,16 +285,24 @@ export const ChatArea = memo(function ChatArea({
       scrollFrameRef.current = requestAnimationFrame(updateViewport);
     };
 
+    const updateStickToBottom = () => {
+      const distFromBottom =
+        element.scrollHeight - element.scrollTop - element.clientHeight;
+      stickToBottomRef.current = distFromBottom <= 150;
+    };
+
     updateViewport();
     const resizeObserver = new ResizeObserver(scheduleViewportUpdate);
     resizeObserver.observe(element);
     element.addEventListener("scroll", scheduleViewportUpdate, {
       passive: true,
     });
+    element.addEventListener("scroll", updateStickToBottom, { passive: true });
 
     return () => {
       resizeObserver.disconnect();
       element.removeEventListener("scroll", scheduleViewportUpdate);
+      element.removeEventListener("scroll", updateStickToBottom);
       if (scrollFrameRef.current !== null) {
         cancelAnimationFrame(scrollFrameRef.current);
       }

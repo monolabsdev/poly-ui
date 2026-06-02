@@ -38,9 +38,11 @@ function getHighlightedHtml(value: string, language?: string | null): string | n
 export const CodeBlock = memo(function CodeBlock({
   code,
   language,
+  pending = false,
 }: {
   code: string;
   language?: string | null;
+  pending?: boolean;
 }) {
   const [copied, setCopied] = useState(false);
   const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -55,7 +57,10 @@ export const CodeBlock = memo(function CodeBlock({
     themeKey === "dark" ? "rgba(255, 255, 255, 0.6)" : "rgba(17, 24, 39, 0.68)";
   const overlayHoverColor =
     themeKey === "dark" ? "rgba(255, 255, 255, 0.95)" : "rgba(17, 24, 39, 0.95)";
-  const highlightedHtml = useMemo(() => getHighlightedHtml(code, language), [code, language]);
+  const highlightedHtml = useMemo(
+    () => pending ? null : getHighlightedHtml(code, language),
+    [code, language, pending],
+  );
 
   useEffect(() => {
     return () => {
@@ -163,6 +168,21 @@ export const CodeBlock = memo(function CodeBlock({
           }}
         >
           <code>{code}</code>
+        </Box>
+      )}
+      {pending && (
+        <Box
+          sx={{
+            position: "absolute",
+            right: 10,
+            bottom: 6,
+            color: "text.secondary",
+            fontFamily: "'JetBrains Mono', 'Fira Code', 'Consolas', monospace",
+            fontSize: "11px",
+            opacity: 0.7,
+          }}
+        >
+          rendering...
         </Box>
       )}
     </Box>

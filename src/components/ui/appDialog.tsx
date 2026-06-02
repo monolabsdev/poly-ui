@@ -95,7 +95,6 @@ export function AppDialogHeader({
         sx={{
           width: 32,
           height: 32,
-          borderRadius: "8px",
           color: "text.secondary",
           "&:hover": { bgcolor: "action.hover", color: "text.primary" },
           ...closeSx,

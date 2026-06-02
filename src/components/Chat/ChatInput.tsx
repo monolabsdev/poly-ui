@@ -59,6 +59,7 @@ export const ChatInput = memo(function ChatInput({
     handleDragLeave,
     handleDragOver,
     handleDrop,
+    handlePaste,
   } = useChatAttachments();
 
   const textareaRef = useChatTextarea(draft);
@@ -251,6 +252,7 @@ export const ChatInput = memo(function ChatInput({
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
             onFocus={() => onFocusChange?.(true)}
             onBlur={() => onFocusChange?.(false)}
             disabled={isInputDisabled}
@@ -372,7 +374,6 @@ export const ChatInput = memo(function ChatInput({
                   height: 32,
                   p: 0,
                   color: isRecording ? "error.main" : "text.secondary",
-                  borderRadius: "50%",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -437,7 +438,6 @@ export const ChatInput = memo(function ChatInput({
                   p: 0,
                   bgcolor: "primary.main",
                   color: "primary.contrastText",
-                  borderRadius: "50%",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",

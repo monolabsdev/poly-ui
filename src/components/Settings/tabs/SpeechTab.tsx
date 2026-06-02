@@ -331,7 +331,7 @@ export function SpeechTab() {
                       <Download size={14} />
                     )
                   }
-                  sx={{ textTransform: "none", fontWeight: 600, fontSize: 12, borderRadius: "8px" }}
+                  sx={{ textTransform: "none", fontWeight: 600, fontSize: 12 }}
                 >
                   {loadProgress ? "Cancel" : ttsPlayback.engineLoaded ? "Loaded" : "Load Model"}
                 </Button>
@@ -397,7 +397,6 @@ export function SpeechTab() {
             fontWeight: 700,
             fontSize: 13,
             px: 3,
-            borderRadius: "8px",
           }}
         >
           {ttsPlayback.isGenerating && isTesting

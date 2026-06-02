@@ -7,6 +7,7 @@ import {
   Typography,
   Tooltip,
   useTheme,
+  ButtonBase,
 } from "@mui/material";
 import {
   PanelLeft,
@@ -45,6 +46,12 @@ import { ConversationItem } from "@/components/Chat/ConversationItem";
 import { ProfileMenu } from "@/components/Profile/ProfileMenu";
 import { isToday, isYesterday, subDays, isAfter } from "date-fns";
 import { useElementBreakpoint, useResizeActivity } from "@/hooks/useResizePerformance";
+
+const ConversationSearchModal = React.lazy(() =>
+  import("@/components/Chat/ConversationSearchModal").then((module) => ({
+    default: module.ConversationSearchModal,
+  })),
+);
 
 interface SidebarContextValue {
   isOpen: boolean;
@@ -106,7 +113,7 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
           bgcolor: "background.default",
         }}
       >
-        {children}
+      {children}
       </Box>
     </SidebarContext.Provider>
   );
@@ -147,7 +154,7 @@ export const Sidebar = React.memo(function Sidebar({
     (state) => state.actions.archiveConversation,
   );
   const [editingId, setEditingId] = React.useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = React.useState("");
+  const [isSearchOpen, setIsSearchOpen] = React.useState(false);
   const [editValue, setEditValue] = React.useState("");
   const [deleteId, setDeleteId] = React.useState<string | null>(null);
   const [deleteTitle, setDeleteTitle] = React.useState("");
@@ -175,6 +182,17 @@ export const Sidebar = React.memo(function Sidebar({
   React.useEffect(() => {
     loadFolders();
   }, [loadFolders]);
+
+  React.useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLocaleLowerCase() === "k") {
+        event.preventDefault();
+        setIsSearchOpen(true);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   const handleStartFolderRename = (folder: (typeof folders)[number]) => {
     setFolderEditingId(folder.id);
@@ -403,11 +421,9 @@ export const Sidebar = React.memo(function Sidebar({
     const now = new Date();
     const sevenDaysAgo = subDays(now, 7);
 
-    const q = searchQuery.toLowerCase().trim();
     const filtered = conversations
       .filter((c) => !c.isArchived && !c.isTemporary)
-      .filter((c) => !c.folderId)
-      .filter((c) => !q || c.title?.toLowerCase().includes(q));
+      .filter((c) => !c.folderId);
 
     const today: Conversation[] = [];
     const yesterday: Conversation[] = [];
@@ -433,7 +449,7 @@ export const Sidebar = React.memo(function Sidebar({
       { id: "last7days", label: "Previous 7 Days", items: last7Days },
       { id: "older", label: "Older", items: older },
     ].filter((group) => group.items.length > 0);
-  }, [conversations, searchQuery]);
+  }, [conversations]);
 
   const sidebarContent = (
     <>
@@ -517,55 +533,25 @@ export const Sidebar = React.memo(function Sidebar({
         {!isCollapsed && (
           <>
             <Box sx={{ px: 1.5, mb: 2.25 }}>
-              <Box
+              <ButtonBase
+                onClick={() => setIsSearchOpen(true)}
                 sx={{
                   display: "flex",
                   alignItems: "center",
                   gap: 1.5,
                   px: 1.5,
                   height: 38,
-                  borderRadius: "8px",
+                  width: "100%",
+                  borderRadius: "9999px",
                   bgcolor: "action.hover",
-                  border: "1px solid",
-                  borderColor: "divider",
-                  transition: "border-color 0.15s",
-                  "&:focus-within": {
-                    borderColor: "primary.main",
-                  },
+                  color: "text.secondary",
+                  "&:hover": { bgcolor: "action.selected", color: "text.primary" },
                 }}
               >
-                <Search size={16} style={{ flexShrink: 0, opacity: 0.4 }} />
-                <input
-                  placeholder="Search conversations..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyDown={(e) => e.key === "Escape" && setSearchQuery("")}
-                  style={{
-                    flex: 1,
-                    background: "transparent",
-                    border: "none",
-                    color: "inherit",
-                    outline: "none",
-                    fontSize: "13px",
-                    width: "100%",
-                  }}
-                />
-                {searchQuery && (
-                  <IconButton
-                    size="small"
-                    aria-label="Clear search"
-                    onClick={() => setSearchQuery("")}
-                    sx={{
-                      p: 0.25,
-                      color: "text.secondary",
-                      opacity: 0.65,
-                      "&:hover": { opacity: 1, color: "text.primary" },
-                    }}
-                  >
-                    <X size={14} />
-                  </IconButton>
-                )}
-              </Box>
+                <Search size={16} style={{ flexShrink: 0 }} />
+                <Typography sx={{ flex: 1, textAlign: "left", fontSize: 13 }}>Search</Typography>
+                <Typography sx={{ fontSize: 12, opacity: 0.6 }}>Ctrl+K</Typography>
+              </ButtonBase>
             </Box>
           </>
         )}
@@ -642,9 +628,7 @@ export const Sidebar = React.memo(function Sidebar({
                 variant="caption"
                 sx={{ fontSize: "12px", textAlign: "center", lineHeight: 1.4 }}
               >
-                {searchQuery
-                  ? "No conversations match your search"
-                  : "No conversations yet"}
+                No conversations yet
               </Typography>
             </Box>
           ) : (
@@ -706,6 +690,21 @@ export const Sidebar = React.memo(function Sidebar({
         onConfirm={handleConfirmDelete}
         title={deleteTitle}
       />
+
+      {isSearchOpen && (
+        <React.Suspense fallback={null}>
+          <ConversationSearchModal
+            open
+            onOpenChange={setIsSearchOpen}
+            conversations={conversations}
+            onNewChat={onNewChat}
+            onOpenConversation={(id) => {
+              onSelectConversation(id);
+              if (isMobile) setOpenMobile(false);
+            }}
+          />
+        </React.Suspense>
+      )}
 
       <CreateFolderModal
         open={isFolderModalOpen}
@@ -967,9 +966,7 @@ export function SidebarMenuButton({
   const { isCollapsed } = useSidebar();
 
   const content = (
-    <Box
-      component="button"
-      type="button"
+    <ButtonBase
       onClick={onClick}
       aria-current={ariaCurrent ? "page" : undefined}
       sx={{
@@ -980,8 +977,6 @@ export function SidebarMenuButton({
         px: isCollapsed ? 0 : 1.5,
         width: "100%",
         height: 38,
-        borderRadius: "8px",
-        cursor: "pointer",
         bgcolor: isActive ? "action.selected" : "transparent",
         color: isActive ? "text.primary" : "text.secondary",
         fontSize: "13px",
@@ -1001,7 +996,7 @@ export function SidebarMenuButton({
       }}
     >
       {children}
-    </Box>
+    </ButtonBase>
   );
 
   if (isCollapsed && tooltip) {
@@ -1040,7 +1035,6 @@ export function SidebarTrigger({ sx }: { sx?: CSSObject }) {
           color: "text.secondary",
           width: 36,
           height: 36,
-          borderRadius: "8px",
           bgcolor: isCollapsed ? "action.hover" : "transparent",
           "&:hover": {
             color: "text.primary",

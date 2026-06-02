@@ -23,7 +23,6 @@ import { useAuthStore } from "@/store/authStore";
 import { useNotify } from "@/hooks/useNotify";
 import { useShallow } from "zustand/react/shallow";
 import { retryTitleForConversation } from "@/lib/chat/title-generation";
-import "./App.css";
 import { findDefaultModelChoice, modelChoiceId } from "@/lib/models/model-choice";
 import { shouldLoadExternalDefault } from "@/lib/models/model-selector";
 import { useFolderStore } from "@/store/folderStore";

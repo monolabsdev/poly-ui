@@ -44,6 +44,8 @@ pub fn run() {
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_supertonic::init())
         .plugin(tauri_plugin_os::init())
+        .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             let db = tauri::async_runtime::block_on(db::connection::init_db(app.handle()))
                 .map_err(std::io::Error::other)?;
@@ -64,10 +66,7 @@ pub fn run() {
                     let _ = _window.set_title_bar_style(tauri::TitleBarStyle::Overlay);
                 }
 
-                #[cfg(target_os = "linux")]
-                {
-                    let _ = _window.set_decorations(false);
-                }
+
             }
 
             Ok(())

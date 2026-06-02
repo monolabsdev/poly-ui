@@ -56,18 +56,38 @@ const baseThemeOptions: ThemeOptions = {
       defaultProps: {
         disableRipple: true,
       },
+      styleOverrides: {
+        root: {
+          borderRadius: "9999px",
+        },
+      },
     },
     MuiButton: {
       styleOverrides: {
         root: ({ theme }) => ({
-          borderRadius: "8px",
+          borderRadius: "9999px",
           padding: "6px 16px",
+          border: "none",
           "&.Mui-disabled": {
             color: theme.palette.text.disabled,
             backgroundColor: theme.palette.action.disabledBackground,
-            borderColor: theme.palette.divider,
           },
         }),
+      },
+    },
+    MuiIconButton: {
+      styleOverrides: {
+        root: {
+          borderRadius: "9999px",
+        },
+      },
+    },
+    MuiToggleButton: {
+      styleOverrides: {
+        root: {
+          borderRadius: "9999px",
+          border: "none",
+        },
       },
     },
     MuiPaper: {
@@ -80,11 +100,18 @@ const baseThemeOptions: ThemeOptions = {
     MuiMenuItem: {
       styleOverrides: {
         root: {
-          borderRadius: "8px",
+          borderRadius: "9999px",
           margin: "4px 8px",
           padding: "8px 12px",
           fontSize: "14px",
           gap: "12px",
+        },
+      },
+    },
+    MuiMenu: {
+      styleOverrides: {
+        paper: {
+          borderRadius: "18px",
         },
       },
     },

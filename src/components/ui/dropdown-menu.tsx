@@ -106,6 +106,7 @@ function DropdownMenuContent({
             color: "text.primary",
             mt: 0.5,
             minWidth: 160,
+            borderRadius: "18px",
             boxShadow: 3,
           },
           ...(Array.isArray(sx) ? sx : [sx]),
@@ -147,7 +148,7 @@ function DropdownMenuItem({
         gap: 1.5,
         mx: 1,
         my: 0.5,
-        borderRadius: "8px",
+        borderRadius: "9999px",
         color: variant === "destructive" ? "error.main" : "inherit",
         "&:hover": {
           bgcolor: variant === "destructive" ? "error.dark" : "action.hover",

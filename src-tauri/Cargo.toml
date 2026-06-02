@@ -41,4 +41,6 @@ log = "0.4"
 tauri-plugin-fs = "2"
 tauri-plugin-os = "2"
 tauri-plugin-supertonic = "0.1"
+tauri-plugin-notification = "2"
+tauri-plugin-dialog = "2"
 whisper-rs = { version = "0.16", optional = true }

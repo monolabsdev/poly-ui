@@ -176,8 +176,6 @@ export function FolderHome({ folder, onSubmit, onStop, isStreaming, selectedMode
             sx={{
               px: 1.5,
               py: 0.75,
-              borderRadius: "16px",
-              border: "none",
               bgcolor: activeTab === tab ? "action.selected" : "transparent",
               color: activeTab === tab ? "text.primary" : "text.secondary",
               cursor: "pointer",
