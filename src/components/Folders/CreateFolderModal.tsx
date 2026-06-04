@@ -1,10 +1,26 @@
 import * as React from "react";
-import { Box, Typography, TextField, Input } from "@mui/material";
+import { Alert, Box, Typography, TextField, Input } from "@mui/material";
 import { Upload, X } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@mui/material";
 import { Attachment } from "@/types/chat";
+
+const MAX_CONTEXT_FILES = 5;
+const MAX_CONTEXT_FILE_SIZE = 1024 * 1024;
+const MAX_CONTEXT_TOTAL_SIZE = 3 * 1024 * 1024;
+const MAX_BACKGROUND_IMAGE_SIZE = 2 * 1024 * 1024;
+const ALLOWED_CONTEXT_TYPES = new Set([
+  "text/plain",
+  "text/markdown",
+  "text/csv",
+  "application/json",
+]);
+
+function isAllowedContextFile(file: File) {
+  if (ALLOWED_CONTEXT_TYPES.has(file.type)) return true;
+  return /\.(txt|md|markdown|csv|json)$/i.test(file.name);
+}
 
 interface CreateFolderModalProps {
   open: boolean;
@@ -33,6 +49,7 @@ export function CreateFolderModal({
   const [backgroundImage, setBackgroundImage] = React.useState("");
   const [systemPrompt, setSystemPrompt] = React.useState("");
   const [contextFiles, setContextFiles] = React.useState<Attachment[]>([]);
+  const [fileError, setFileError] = React.useState("");
 
   React.useEffect(() => {
     if (open) {
@@ -41,11 +58,13 @@ export function CreateFolderModal({
         setBackgroundImage(initialData.backgroundImage || "");
         setSystemPrompt(initialData.systemPrompt || "");
         setContextFiles(initialData.contextFiles || []);
+        setFileError("");
       } else {
         setName("");
         setBackgroundImage("");
         setSystemPrompt("");
         setContextFiles([]);
+        setFileError("");
       }
     }
   }, [open, initialData]);
@@ -53,7 +72,34 @@ export function CreateFolderModal({
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
-    for (const file of Array.from(files)) {
+    setFileError("");
+    const selected = Array.from(files);
+    const existingSize = contextFiles.reduce((total, file) => total + file.size, 0);
+    const accepted: File[] = [];
+    let nextSize = existingSize;
+
+    for (const file of selected) {
+      if (contextFiles.length + accepted.length >= MAX_CONTEXT_FILES) {
+        setFileError(`Maximum ${MAX_CONTEXT_FILES} context files per folder.`);
+        break;
+      }
+      if (!isAllowedContextFile(file)) {
+        setFileError("Context files must be text, Markdown, CSV, or JSON.");
+        continue;
+      }
+      if (file.size > MAX_CONTEXT_FILE_SIZE) {
+        setFileError(`Each context file must be ${MAX_CONTEXT_FILE_SIZE / 1024 / 1024} MB or smaller.`);
+        continue;
+      }
+      if (nextSize + file.size > MAX_CONTEXT_TOTAL_SIZE) {
+        setFileError(`Context files must total ${MAX_CONTEXT_TOTAL_SIZE / 1024 / 1024} MB or less.`);
+        continue;
+      }
+      accepted.push(file);
+      nextSize += file.size;
+    }
+
+    for (const file of accepted) {
       const reader = new FileReader();
       reader.onload = () => {
         const attachment: Attachment = {
@@ -67,6 +113,28 @@ export function CreateFolderModal({
       };
       reader.readAsDataURL(file);
     }
+    e.target.value = "";
+  };
+
+  const handleBackgroundUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setFileError("");
+    if (!file.type.startsWith("image/")) {
+      setFileError("Background must be an image file.");
+      e.target.value = "";
+      return;
+    }
+    if (file.size > MAX_BACKGROUND_IMAGE_SIZE) {
+      setFileError(`Background image must be ${MAX_BACKGROUND_IMAGE_SIZE / 1024 / 1024} MB or smaller.`);
+      e.target.value = "";
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setBackgroundImage(reader.result as string);
+    };
+    reader.readAsDataURL(file);
     e.target.value = "";
   };
 
@@ -119,6 +187,11 @@ export function CreateFolderModal({
       }
     >
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5, p: 3 }}>
+        {fileError && (
+          <Alert severity="warning" variant="outlined">
+            {fileError}
+          </Alert>
+        )}
         <TextField
           autoFocus
           label="Folder name"
@@ -166,6 +239,7 @@ export function CreateFolderModal({
             >
               <IconButton
                 size="small"
+                aria-label="Remove folder background image"
                 onClick={() => setBackgroundImage("")}
                 sx={{
                   position: "absolute",
@@ -207,16 +281,7 @@ export function CreateFolderModal({
               </Typography>
               <Input
                 type="file"
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                  const file = e.target.files?.[0];
-                  if (!file) return;
-                  const reader = new FileReader();
-                  reader.onload = () => {
-                    setBackgroundImage(reader.result as string);
-                  };
-                  reader.readAsDataURL(file);
-                  e.target.value = "";
-                }}
+                onChange={handleBackgroundUpload}
                 sx={{ display: "none" }}
                 inputProps={{ accept: "image/*" }}
               />
@@ -296,6 +361,7 @@ export function CreateFolderModal({
                   </Typography>
                   <IconButton
                     size="small"
+                    aria-label={`Remove ${file.name}`}
                     onClick={() => removeFile(file.id)}
                     sx={{ p: 0.25, color: "text.secondary", "&:hover": { color: "error.main" } }}
                   >
@@ -329,15 +395,21 @@ export function CreateFolderModal({
           >
             <Upload size={16} />
             <Typography variant="caption" sx={{ fontSize: "12px" }}>
-              Upload file
+              Upload text files
             </Typography>
             <Input
               type="file"
               onChange={handleFileUpload}
               sx={{ display: "none" }}
-              inputProps={{ multiple: true }}
+              inputProps={{
+                accept: ".txt,.md,.markdown,.csv,.json,text/plain,text/markdown,text/csv,application/json",
+                multiple: true,
+              }}
             />
           </Box>
+          <Typography variant="caption" sx={{ display: "block", mt: 0.75, color: "text.secondary" }}>
+            Up to {MAX_CONTEXT_FILES} files, {MAX_CONTEXT_FILE_SIZE / 1024 / 1024} MB each, {MAX_CONTEXT_TOTAL_SIZE / 1024 / 1024} MB total.
+          </Typography>
         </Box>
       </Box>
     </Modal>

@@ -6,26 +6,10 @@ import {
   Switch,
 } from "@mui/material";
 import { useShallow } from "zustand/react/shallow";
-import { SettingCard, SectionHeader } from "../SettingComponents";
+import { SettingCard, SectionHeader, selectSx } from "../SettingComponents";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useThemeStore } from "@/store/themeStore";
 import { WebSearchSettings } from "@/features/web-search/WebSearchSettings";
-
-const selectSx = {
-  fontSize: 13,
-  fontWeight: 500,
-  bgcolor: "transparent",
-  color: "text.secondary",
-  "& .MuiSelect-select": {
-    pr: "32px !important",
-    pb: 0.5,
-    pt: 0.5,
-  },
-  "& .MuiOutlinedInput-notchedOutline": { border: "none" },
-  "&:hover .MuiOutlinedInput-notchedOutline": { border: "none" },
-  "&.Mui-focused .MuiOutlinedInput-notchedOutline": { border: "none" },
-  "&:hover": { color: "text.primary" },
-} as const;
 
 export function GeneralTab() {
   const { general, actions } = useSettingsStore(

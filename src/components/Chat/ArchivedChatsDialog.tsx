@@ -9,6 +9,7 @@ import { useChatStore } from "@/store/chatStore";
 import { Box, IconButton, InputBase, Stack, Tooltip, Typography } from "@mui/material";
 import { ArchiveRestore, MessageSquare, Search, Trash2 } from "lucide-react";
 import { useState } from "react";
+import { DeleteConversationDialog } from "@/components/Chat/DeleteConversationDialog";
 
 interface ArchivedChatsDialogProps {
   open: boolean;
@@ -22,6 +23,7 @@ export function ArchivedChatsDialog({
   const conversations = useChatStore((s) => s.conversations);
   const actions = useChatStore((s) => s.actions);
   const [searchQuery, setSearchQuery] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null);
 
   const archivedConversations = conversations
     .filter((conversation) => conversation.isArchived)
@@ -80,6 +82,7 @@ export function ArchivedChatsDialog({
                       <Tooltip title="Restore">
                         <IconButton
                           size="small"
+                          aria-label={`Restore ${conversation.title || "Untitled"}`}
                           onClick={(event) => {
                             event.stopPropagation();
                             actions.unarchiveConversation(conversation.id);
@@ -92,9 +95,10 @@ export function ArchivedChatsDialog({
                       <Tooltip title="Delete">
                         <IconButton
                           size="small"
+                          aria-label={`Delete ${conversation.title || "Untitled"}`}
                           onClick={(event) => {
                             event.stopPropagation();
-                            actions.deleteConversation(conversation.id);
+                            setDeleteTarget({ id: conversation.id, title: conversation.title || "Untitled" });
                           }}
                           sx={{
                             ...actionButtonSx,
@@ -111,6 +115,14 @@ export function ArchivedChatsDialog({
             )}
           </Stack>
         </AppDialogBody>
+        <DeleteConversationDialog
+          open={Boolean(deleteTarget)}
+          onOpenChange={(nextOpen) => !nextOpen && setDeleteTarget(null)}
+          onConfirm={() => {
+            if (deleteTarget) void actions.deleteConversation(deleteTarget.id);
+          }}
+          title={deleteTarget?.title}
+        />
       </Box>
     </AppDialogFrame>
   );

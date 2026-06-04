@@ -66,6 +66,7 @@ export function ModelSelectorOption({
         px: 1.5,
         textAlign: "left",
         bgcolor: highlighted ? "action.hover" : "transparent",
+        borderRadius: 0,
 
       }}
     >

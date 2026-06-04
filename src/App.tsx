@@ -16,7 +16,7 @@ import {
   Sidebar,
   SidebarInset,
   SidebarProvider,
-} from "@/components/Layout/Sidebar";
+} from "@/components/Sidebar";
 import { Box } from "@mui/material";
 import { useChatStore } from "@/store/chatStore";
 import { useAuthStore } from "@/store/authStore";
@@ -40,6 +40,7 @@ const SettingsModal = lazy(() =>
 );
 function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [settingsInitialTab, setSettingsInitialTab] = useState<"general" | "connections">("general");
   const stopStreamingRef = useRef<(() => void) | null>(null);
   const notify = useNotify();
   const {
@@ -66,9 +67,14 @@ function App() {
 
   const ollama = useOllama();
 
-  const selectedModel = selectedModels[0] ?? "";
-
-  const handleOpenSettings = useCallback(() => setIsSettingsOpen(true), []);
+  const handleOpenSettings = useCallback(() => {
+    setSettingsInitialTab("general");
+    setIsSettingsOpen(true);
+  }, []);
+  const handleOpenConnections = useCallback(() => {
+    setSettingsInitialTab("connections");
+    setIsSettingsOpen(true);
+  }, []);
   const handleCloseSettings = useCallback(() => setIsSettingsOpen(false), []);
   const handleStopStreamingReady = useCallback((stopStreaming: (() => void) | null) => {
     stopStreamingRef.current = stopStreaming;
@@ -188,10 +194,7 @@ function App() {
   }, [createConversation, isTemporary, setActiveConversationId]);
 
   const handleAddModel = useCallback(() => {
-    import("@/services/ollama").then(({ useOllamaStore }) => {
-      const first = useOllamaStore.getState().models[0];
-      if (first) addSelectedModel(first.provider_type, first.name);
-    });
+    addSelectedModel("OllamaLocal", "");
   }, [addSelectedModel]);
 
   return (
@@ -229,18 +232,17 @@ function App() {
             overflow: "hidden",
             position: "relative",
             bgcolor: activeFolderBackground ? "transparent" : "background.default",
-            pt: { xs: "64px", sm: "56px" },
           }}
         >
           <Suspense fallback={<Box sx={{ flex: 1 }} />}>
             <ChatWorkspace
               selectedModels={selectedModels}
               selectedProviders={selectedProviders}
-              selectedModel={selectedModel}
               systemPromptContent={systemPromptContent}
               userName={user?.fullName || user?.email}
               isTemporary={isTemporary}
               onStopStreamingReady={handleStopStreamingReady}
+              onOpenConnections={handleOpenConnections}
             />
           </Suspense>
         </Box>
@@ -248,7 +250,7 @@ function App() {
 
       {isSettingsOpen ? (
         <Suspense fallback={null}>
-          <SettingsModal isOpen={isSettingsOpen} onClose={handleCloseSettings} />
+          <SettingsModal isOpen={isSettingsOpen} onClose={handleCloseSettings} initialTab={settingsInitialTab} />
         </Suspense>
       ) : null}
       <Suspense fallback={null}>

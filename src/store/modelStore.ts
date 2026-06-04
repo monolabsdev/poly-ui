@@ -99,10 +99,16 @@ export const useModelStore = create<ModelStore>((set) => ({
       selectedModel: models[0]?.model || "",
     }),
   addSelectedModel: (provider: ModelProvider, model: string) =>
-    set((state) => ({
-      selectedProviders: [...state.selectedProviders, provider],
-      selectedModels: [...state.selectedModels, model],
-    })),
+    set((state) => {
+      if (!model && state.selectedModels.includes("")) return state;
+      if (model && state.selectedModels.some((item, index) =>
+        item === model && state.selectedProviders[index] === provider
+      )) return state;
+      return {
+        selectedProviders: [...state.selectedProviders, provider],
+        selectedModels: [...state.selectedModels, model],
+      };
+    }),
   removeSelectedModel: (index: number) =>
     set((state) => {
       const nextProviders = state.selectedProviders.filter(
@@ -118,6 +124,9 @@ export const useModelStore = create<ModelStore>((set) => ({
     }),
   updateSelectedModel: (index, provider, model) =>
     set((state) => {
+      if (state.selectedModels.some((item, itemIndex) =>
+        itemIndex !== index && item === model && state.selectedProviders[itemIndex] === provider
+      )) return state;
       const nextProviders = [...state.selectedProviders];
       const nextModels = [...state.selectedModels];
       nextProviders[index] = provider;

@@ -86,7 +86,7 @@ PolyUI focuses on simplicity and ease of setup.
 Unlike platforms that commonly rely on Python, Docker, Kubernetes, or more complex deployment infrastructure, PolyUI is designed to be lightweight and straightforward to install and run locally.
 
 ## What's next? 🌟
-Discover upcoming features on our roadmap in the [PolyUI backlog](https://github.com/orgs/monolabsdev/projects/1/)
+Discover upcoming features on our [roadmap](https://sites.plane.so/issues/df577f6cf07948c492b06948e45a79c7)
 
 ## License
 This project contains licenced code. Please refer to [LICENSE](LICENSE.md)

@@ -222,15 +222,14 @@ async fn ensure_folders_schema(pool: &SqlitePool) -> Result<(), String> {
         "userId TEXT DEFAULT ''",
     ] {
         let name = column.split_whitespace().next().unwrap();
-        let exists = sqlx::query(
-            "SELECT COUNT(*) FROM pragma_table_info('folders') WHERE name = ?",
-        )
-        .bind(name)
-        .fetch_one(pool)
-        .await
-        .map_err(|e| e.to_string())?
-        .get::<i64, _>(0)
-            > 0;
+        let exists =
+            sqlx::query("SELECT COUNT(*) FROM pragma_table_info('folders') WHERE name = ?")
+                .bind(name)
+                .fetch_one(pool)
+                .await
+                .map_err(|e| e.to_string())?
+                .get::<i64, _>(0)
+                > 0;
 
         if !exists {
             sqlx::query(&format!("ALTER TABLE folders ADD COLUMN {column}"))

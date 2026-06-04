@@ -17,7 +17,6 @@
     "core:window:allow-set-focus",
     "core:event:allow-listen",
     "core:event:allow-unlisten",
-    "http:default",
     {
       "identifier": "http:allow-fetch",
       "allow": [
@@ -26,14 +25,11 @@
         }
       ]
     },
-    "opener:default",
     "sql:default",
     "sql:allow-execute",
     "sql:allow-select",
     "sql:allow-load",
     "window-state:default",
-    "fs:default",
-    "supertonic:default",
     "notification:default",
     "dialog:default"
   ]

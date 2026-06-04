@@ -13,6 +13,7 @@ import {
 import { Trash2, Archive, Download, AlertTriangle } from "lucide-react";
 import { SettingCard, SectionHeader } from "../SettingComponents";
 import { useChatStore } from "@/store/chatStore";
+import { useAuthStore } from "@/store/authStore";
 import { useNotify } from "@/hooks/useNotify";
 
 function toCsvCell(value: unknown): string {
@@ -115,8 +116,11 @@ export function DataControlsTab() {
     try {
       const repoModule = await import("@/lib/repositories");
       const repo = repoModule.getRepository();
-      const conversations = await repo.getConversations();
-      const messages = await repo.getAllMessages();
+      const auth = useAuthStore.getState();
+      const userId = auth.user?.id || auth.guestId;
+      if (!userId) throw new Error("No active user scope");
+      const conversations = await repo.getConversations(userId);
+      const messages = await repo.getAllMessages(userId);
       const messagesByConversation = new Map<string, typeof messages>();
       for (const message of messages) {
         const list = messagesByConversation.get(message.conversationId);

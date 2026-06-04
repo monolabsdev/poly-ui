@@ -161,6 +161,7 @@ export function ChainOfThoughtTrigger({
         fontSize: "13px",
         fontWeight: 500,
         color: "text.secondary",
+        borderRadius: "9999px",
         transition: "color 0.15s",
         "&:hover": {
           color: isActive ? "text.secondary" : "text.primary",

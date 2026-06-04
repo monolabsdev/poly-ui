@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { getRepository } from "@/lib/repositories";
+import { collectDescendantFolderIds } from "@/lib/folders";
 import { Folder, Attachment } from "@/types/chat";
 import { useAuthStore } from "@/store/authStore";
 import { useChatStore } from "@/store/chatStore";
@@ -31,7 +32,11 @@ export const useFolderStore = create<FolderStore>((set) => ({
       try {
         const r = await getRepo();
         const auth = useAuthStore.getState();
-        const userId = auth.user?.id || auth.guestId || undefined;
+        const userId = auth.user?.id || auth.guestId;
+        if (!userId) {
+          set({ folders: [], activeFolderId: null, foldersLoading: false });
+          return;
+        }
         const folders = await r.getFolders(userId);
         set({ folders, foldersLoading: false });
       } catch {
@@ -78,6 +83,7 @@ export const useFolderStore = create<FolderStore>((set) => ({
     },
     updateFolder: async (id, updates) => {
       const now = new Date().toISOString();
+      const previous = useFolderStore.getState().folders;
       set((state) => ({
         folders: state.folders.map((f) =>
           f.id === id
@@ -97,22 +103,17 @@ export const useFolderStore = create<FolderStore>((set) => ({
         });
       } catch (error) {
         console.error("Failed to update folder:", error);
+        set({ folders: previous });
+        throw error;
       }
     },
     deleteFolder: async (id) => {
       const state = useFolderStore.getState();
-      const descendantIds = new Set<string>([id]);
-      let changed = true;
-      while (changed) {
-        changed = false;
-        state.folders.forEach((folder) => {
-          if (folder.parentId && descendantIds.has(folder.parentId) && !descendantIds.has(folder.id)) {
-            descendantIds.add(folder.id);
-            changed = true;
-          }
-        });
-      }
-      const chats = useChatStore.getState().conversations.filter((chat) => chat.folderId && descendantIds.has(chat.folderId));
+      const previousFolders = state.folders;
+      const previousActiveFolderId = state.activeFolderId;
+      const previousConversations = useChatStore.getState().conversations;
+      const descendantIds = collectDescendantFolderIds(state.folders, id);
+      const chats = previousConversations.filter((chat) => chat.folderId && descendantIds.has(chat.folderId));
       set((state) => ({
         folders: state.folders.filter((f) => !descendantIds.has(f.id)),
         activeFolderId: state.activeFolderId && descendantIds.has(state.activeFolderId) ? null : state.activeFolderId,
@@ -126,6 +127,9 @@ export const useFolderStore = create<FolderStore>((set) => ({
         }));
       } catch (error) {
         console.error("Failed to delete folder:", error);
+        set({ folders: previousFolders, activeFolderId: previousActiveFolderId });
+        useChatStore.setState({ conversations: previousConversations });
+        throw error;
       }
     },
     setActiveFolderId: (id) => set({ activeFolderId: id }),

@@ -223,14 +223,20 @@ pub async fn get_current_user(pool: &SqlitePool, token: &str) -> Result<User, Au
 pub async fn update_status(pool: &SqlitePool, token: &str, status: &str) -> Result<(), AuthError> {
     let now = Utc::now().to_rfc3339();
 
-    sqlx::query(
-        "UPDATE users SET status = ?, updatedAt = ? WHERE id = (SELECT userId FROM sessions WHERE token = ?)",
+    let result = sqlx::query(
+        "UPDATE users SET status = ?, updatedAt = ?
+         WHERE id = (SELECT userId FROM sessions WHERE token = ? AND expiresAt > ?)",
     )
     .bind(status)
     .bind(&now)
     .bind(token)
+    .bind(&now)
     .execute(pool)
     .await?;
+
+    if result.rows_affected() == 0 {
+        return Err(AuthError::SessionExpired);
+    }
 
     Ok(())
 }

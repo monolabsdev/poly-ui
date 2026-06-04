@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { useDevStore } from "@/store/devStore";
 
 export type UpdateStatus =
   | "idle"
@@ -43,7 +44,8 @@ export const useUpdateStore = create<UpdateState & { actions: UpdateActions }>()
 
     actions: {
       check: async () => {
-        if (get().status === "downloading" || get().status === "downloaded") return;
+        const { status } = get();
+        if (status === "downloading" || status === "downloaded") return;
         set({ status: "checking", error: null });
 
         try {
@@ -104,7 +106,7 @@ export const useUpdateStore = create<UpdateState & { actions: UpdateActions }>()
             assetName: info.asset_name,
           });
         } catch (err: any) {
-          if (typeof err === "string" && err === "rate_limited") {
+          if (err === "rate_limited") {
             set({ status: "idle" });
             return;
           }
@@ -115,6 +117,12 @@ export const useUpdateStore = create<UpdateState & { actions: UpdateActions }>()
       install: async () => {
         if (get().status !== "downloaded") return;
         set({ status: "installing", error: null });
+
+        if (useDevStore.getState().devMode) {
+          await new Promise((r) => setTimeout(r, 800));
+          clearUpdateState();
+          return;
+        }
 
         try {
           await invoke("install_update");

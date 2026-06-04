@@ -89,6 +89,8 @@ export const CodeBlock = memo(function CodeBlock({
     <Box
       sx={{
         position: "relative",
+        userSelect: "text",
+        WebkitUserSelect: "text",
         my: 2,
         borderRadius: "8px",
         overflow: "hidden",
@@ -114,6 +116,7 @@ export const CodeBlock = memo(function CodeBlock({
       <Tooltip title={copied ? "Copied!" : "Copy code"}>
         <IconButton
           className="copy-button"
+          aria-label={copied ? "Code copied" : "Copy code"}
           size="small"
           onClick={handleCopy}
           sx={{

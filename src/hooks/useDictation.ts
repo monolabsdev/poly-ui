@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { loggedInvoke } from "@/lib/utils";
+import { useSettingsStore } from "@/store/settingsStore";
 import { markDictationMounted } from "./dictationLifecycle";
 import { runDictationTranscription } from "./dictationSession";
 
@@ -104,6 +105,7 @@ async function decodeRecording(blob: Blob): Promise<Float32Array> {
 export function useDictation({ onTranscript, onError }: UseDictationOptions) {
   const [status, setStatus] = useState<DictationStatus>("idle");
   const [isAvailable, setIsAvailable] = useState(true);
+  const dictationEnabled = useSettingsStore((state) => state.performance.dictationEnabled);
   const streamRef = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -127,6 +129,12 @@ export function useDictation({ onTranscript, onError }: UseDictationOptions) {
 
   useEffect(() => {
     let cancelled = false;
+    if (!dictationEnabled) {
+      setIsAvailable(false);
+      return () => {
+        cancelled = true;
+      };
+    }
 
     loggedInvoke<boolean>("is_dictation_available")
       .then((available) => {
@@ -143,7 +151,7 @@ export function useDictation({ onTranscript, onError }: UseDictationOptions) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [dictationEnabled]);
 
   const transcribeRecording = useCallback(
     async (blob: Blob) => {

@@ -26,9 +26,6 @@ interface ChatInputProps {
   onSubmit: (value: string) => void | Promise<void>;
   onStop: () => void;
   isStreaming: boolean;
-  selectedModel: string;
-  hasMessages: boolean;
-  allowEmptyModel?: boolean;
   onFocusChange?: (focused: boolean) => void;
   isTemporary?: boolean;
 }
@@ -37,8 +34,6 @@ export const ChatInput = memo(function ChatInput({
   onSubmit,
   onStop,
   isStreaming,
-  selectedModel,
-  allowEmptyModel = false,
   onFocusChange,
   isTemporary,
 }: ChatInputProps) {
@@ -46,7 +41,6 @@ export const ChatInput = memo(function ChatInput({
   const timing = useTiming();
   const notify = useNotify();
 
-  // Hooks
   const {
     fileInputRef,
     fileAccept,
@@ -102,22 +96,19 @@ export const ChatInput = memo(function ChatInput({
     setSlashMenuIndex(0);
   }, [slashQuery]);
 
-  // Derived state
   const activeFeatures = useMemo(
     () => features.filter((feature) => feature.active),
     [features],
   );
   const hasContent = draft.trim() || currentAttachments.length > 0;
-  const isInputDisabled = isStreaming || (!selectedModel && !allowEmptyModel);
+  // Feature flag: toggle to disable image uploads in the attachment menu.
   const canUploadImages = true;
 
-  // Handlers
   const handleSubmit = useCallback(() => {
-    const hasMsg = draft.trim().length > 0 || currentAttachments.length > 0;
-    if (!hasMsg || isStreaming) return;
+    if (!hasContent) return;
     onSubmit(draft);
     setDraft("");
-  }, [currentAttachments.length, draft, isStreaming, onSubmit]);
+  }, [hasContent, draft, onSubmit]);
 
   const handleAction = useCallback(() => {
     if (isStreaming) {
@@ -187,14 +178,12 @@ export const ChatInput = memo(function ChatInput({
         onChange={handleFileChange}
       />
       <Box sx={{ mx: "auto", width: "100%", maxWidth: 840, position: "relative" }}>
-        {/* Slash command menu */}
         <AnimatePresence>
           {showSlashMenu && (
             <SlashCommandMenu features={filteredFeatures} onSelect={handleSlashSelect} selectedIndex={slashMenuIndex} slashQuery={slashQuery} />
           )}
         </AnimatePresence>
 
-        {/* Main input container */}
         <Box
           onDragEnter={handleDragEnter}
           onDragOver={handleDragOver}
@@ -216,7 +205,6 @@ export const ChatInput = memo(function ChatInput({
             },
           }}
         >
-          {/* Active feature badges */}
           <AnimatePresence>
             {activeFeatures.length > 0 && (
               <motion.div
@@ -234,7 +222,6 @@ export const ChatInput = memo(function ChatInput({
             )}
           </AnimatePresence>
 
-          {/* Attachments */}
           <AnimatePresence>
             {currentAttachments.length > 0 && (
               <ChatAttachmentsList
@@ -244,7 +231,6 @@ export const ChatInput = memo(function ChatInput({
             )}
           </AnimatePresence>
 
-          {/* Textarea */}
           <InputBase
             multiline
             inputRef={textareaRef}
@@ -255,7 +241,6 @@ export const ChatInput = memo(function ChatInput({
             onPaste={handlePaste}
             onFocus={() => onFocusChange?.(true)}
             onBlur={() => onFocusChange?.(false)}
-            disabled={isInputDisabled}
             sx={{
               flex: 1,
               color: "text.primary",
@@ -272,7 +257,6 @@ export const ChatInput = memo(function ChatInput({
             }}
           />
 
-          {/* Bottom toolbar */}
           <Box
             sx={{
               display: "flex",
@@ -283,7 +267,6 @@ export const ChatInput = memo(function ChatInput({
               gap: 1,
             }}
           >
-            {/* Left: plus menu */}
             <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 0, sm: 0.5 }, flexShrink: 0 }}>
               <DropdownMenu>
                 <DropdownMenuTrigger>
@@ -356,7 +339,6 @@ export const ChatInput = memo(function ChatInput({
               </DropdownMenu>
             </Box>
 
-            {/* Right: send / stop button */}
             <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 0.5, sm: 1 }, flexShrink: 0 }}>
               <IconButton
                 onClick={toggle}
@@ -430,7 +412,7 @@ export const ChatInput = memo(function ChatInput({
               </IconButton>
               <IconButton
                 onClick={handleAction}
-                disabled={isStreaming ? false : !hasContent || isInputDisabled || isRecording || isTranscribing}
+                disabled={isStreaming ? false : !hasContent || isRecording || isTranscribing}
                 aria-label={isStreaming ? "Stop generation" : "Send message"}
                 sx={{
                   width: 32,

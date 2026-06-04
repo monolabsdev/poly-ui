@@ -1,7 +1,17 @@
 #[cfg(feature = "dictation")]
 use crate::AppState;
 #[cfg(feature = "dictation")]
+use moonshine_sys::{
+    moonshine_error_to_string, moonshine_free_transcriber, moonshine_get_version,
+    moonshine_load_transcriber_from_files, moonshine_transcribe_without_streaming, transcript_t,
+    MOONSHINE_HEADER_VERSION, MOONSHINE_MODEL_ARCH_BASE,
+};
+#[cfg(feature = "dictation")]
+use std::ffi::{CStr, CString};
+#[cfg(feature = "dictation")]
 use std::path::PathBuf;
+#[cfg(feature = "dictation")]
+use std::ptr;
 #[cfg(feature = "dictation")]
 use std::sync::Arc;
 #[cfg(feature = "dictation")]
@@ -16,18 +26,93 @@ use tokio::fs;
 use tokio::io::AsyncWriteExt;
 #[cfg(feature = "dictation")]
 use tokio_stream::StreamExt;
-#[cfg(feature = "dictation")]
-use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextParameters};
 
 #[cfg(feature = "dictation")]
-const WHISPER_MODEL_NAME: &str = "ggml-tiny.en.bin";
+const MOONSHINE_MODEL_URL_BASE: &str =
+    "https://download.moonshine.ai/model/base-en/quantized/base-en";
 #[cfg(feature = "dictation")]
-const WHISPER_MODEL_URL: &str =
-    "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en.bin";
+const MOONSHINE_MODEL_FILES: &[&str] = &[
+    "encoder_model.ort",
+    "decoder_model_merged.ort",
+    "tokenizer.bin",
+];
 
 #[cfg(feature = "dictation")]
 pub struct DictationState {
-    context: OnceLock<Arc<WhisperContext>>,
+    context: OnceLock<Arc<MoonshineContext>>,
+}
+
+#[cfg(feature = "dictation")]
+pub struct MoonshineContext {
+    handle: i32,
+}
+
+#[cfg(feature = "dictation")]
+unsafe impl Send for MoonshineContext {}
+
+#[cfg(feature = "dictation")]
+unsafe impl Sync for MoonshineContext {}
+
+#[cfg(feature = "dictation")]
+impl MoonshineContext {
+    fn load(model_dir: PathBuf) -> Result<Self, String> {
+        let model_dir = CString::new(model_dir.to_string_lossy().as_bytes())
+            .map_err(|_| "Dictation model path contains null byte".to_string())?;
+        let version = unsafe { moonshine_get_version() };
+        if version != MOONSHINE_HEADER_VERSION {
+            return Err(format!(
+                "Moonshine library version mismatch: runtime {version}, header {MOONSHINE_HEADER_VERSION}."
+            ));
+        }
+
+        let handle = unsafe {
+            moonshine_load_transcriber_from_files(
+                model_dir.as_ptr(),
+                MOONSHINE_MODEL_ARCH_BASE,
+                ptr::null(),
+                0,
+                MOONSHINE_HEADER_VERSION,
+            )
+        };
+
+        if handle < 0 {
+            return Err(format!(
+                "Failed to load dictation model: {}",
+                error_message(handle)
+            ));
+        }
+
+        Ok(Self { handle })
+    }
+
+    fn transcribe(&self, mut samples: Vec<f32>) -> Result<String, String> {
+        let mut transcript: *mut transcript_t = ptr::null_mut();
+        let result = unsafe {
+            moonshine_transcribe_without_streaming(
+                self.handle,
+                samples.as_mut_ptr(),
+                samples.len() as u64,
+                16_000,
+                0,
+                &mut transcript,
+            )
+        };
+
+        if result != 0 {
+            return Err(format!("Dictation failed: {}", error_message(result)));
+        }
+
+        transcript_to_string(transcript)
+    }
+}
+
+#[cfg(feature = "dictation")]
+impl Drop for MoonshineContext {
+    fn drop(&mut self) {
+        unsafe {
+            moonshine_free_transcriber(self.handle);
+        }
+    }
 }
 
 #[cfg(not(feature = "dictation"))]
@@ -41,18 +126,15 @@ impl DictationState {
         }
     }
 
-    async fn context(&self, model_path: PathBuf) -> Result<Arc<WhisperContext>, String> {
+    async fn context(&self, model_dir: PathBuf) -> Result<Arc<MoonshineContext>, String> {
         if let Some(context) = self.context.get() {
             return Ok(context.clone());
         }
 
-        let loaded_context = tokio::task::spawn_blocking(move || {
-            WhisperContext::new_with_params(&model_path, WhisperContextParameters::default())
-                .map(Arc::new)
-                .map_err(|err| format!("Failed to load dictation model: {err}"))
-        })
-        .await
-        .map_err(|err| format!("Dictation model load task failed: {err}"))??;
+        let loaded_context =
+            tokio::task::spawn_blocking(move || MoonshineContext::load(model_dir).map(Arc::new))
+                .await
+                .map_err(|err| format!("Dictation model load task failed: {err}"))??;
 
         self.context
             .set(loaded_context.clone())
@@ -93,16 +175,15 @@ pub async fn transcribe_audio(
         ));
     }
 
-    let model_path = ensure_model(&app_handle).await?;
-    let context = state.dictation.context(model_path).await?;
-    let language = language.unwrap_or_else(|| "en".to_string());
+    let model_dir = ensure_model(&app_handle).await?;
+    let context = state.dictation.context(model_dir).await?;
+    let _ = language;
 
     let samples: Vec<f32> = samples.into_iter().map(|s| (s as f32) / 32768.0).collect();
 
-    let transcript =
-        tokio::task::spawn_blocking(move || transcribe_samples(context, samples, language))
-            .await
-            .map_err(|err| format!("Dictation task failed: {err}"))??;
+    let transcript = tokio::task::spawn_blocking(move || context.transcribe(samples))
+        .await
+        .map_err(|err| format!("Dictation task failed: {err}"))??;
     Ok(transcript)
 }
 
@@ -118,63 +199,6 @@ pub async fn transcribe_audio(
 }
 
 #[cfg(feature = "dictation")]
-fn transcribe_samples(
-    context: Arc<WhisperContext>,
-    samples: Vec<f32>,
-    language: String,
-) -> Result<String, String> {
-    let mut state = context
-        .create_state()
-        .map_err(|err| format!("Failed to create dictation state: {err}"))?;
-
-    let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
-    params.set_n_threads(thread_count());
-    params.set_translate(false);
-    params.set_language(Some(language.as_str()));
-    params.set_no_context(true);
-    params.set_no_timestamps(true);
-    params.set_print_special(false);
-    params.set_print_progress(false);
-    params.set_print_realtime(false);
-    params.set_print_timestamps(false);
-    params.set_token_timestamps(false);
-
-    state
-        .full(params, &samples[..])
-        .map_err(|err| format!("Dictation failed: {err}"))?;
-
-    let num_segments = state.full_n_segments();
-
-    if num_segments == 0 {
-        return Ok(String::new());
-    }
-
-    let mut segments = Vec::with_capacity(num_segments as usize);
-    for index in 0..num_segments {
-        let segment = state
-            .get_segment(index)
-            .ok_or_else(|| format!("Missing dictation segment at index {index}"))?;
-        let text = segment
-            .to_str_lossy()
-            .map_err(|err| format!("Failed to read dictation text: {err}"))?;
-        let clean = text.trim();
-        if !clean.is_empty() {
-            segments.push(clean.to_string());
-        }
-    }
-
-    let transcript = segments.join(" ");
-    Ok(transcript)
-}
-
-#[cfg(feature = "dictation")]
-fn thread_count() -> i32 {
-    std::thread::available_parallelism()
-        .map(|count| count.get() as i32)
-        .unwrap_or(4)
-}
-
-#[cfg(feature = "dictation")]
 async fn ensure_model(app_handle: &AppHandle) -> Result<PathBuf, String> {
     let app_dir = app_handle
         .path()
@@ -185,58 +209,112 @@ async fn ensure_model(app_handle: &AppHandle) -> Result<PathBuf, String> {
         .await
         .map_err(|err| err.to_string())?;
 
-    let model_path = model_dir.join(WHISPER_MODEL_NAME);
-    if fs::metadata(&model_path).await.is_ok() {
-        return Ok(model_path);
+    let mut missing = Vec::new();
+    for filename in MOONSHINE_MODEL_FILES {
+        if fs::metadata(model_dir.join(filename)).await.is_err() {
+            missing.push(*filename);
+        }
     }
 
-    let download_path = model_dir.join(format!("{WHISPER_MODEL_NAME}.download"));
+    if missing.is_empty() {
+        return Ok(model_dir);
+    }
+
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(300))
         .build()
         .map_err(|err| format!("Failed to create HTTP client: {err}"))?;
 
-    let response = client
-        .get(WHISPER_MODEL_URL)
-        .send()
-        .await
-        .map_err(|err| format!("Failed to download dictation model: {err}"))?
-        .error_for_status()
-        .map_err(|err| format!("Failed to download dictation model: {err}"))?;
-
-    let total_size = response.content_length().unwrap_or(0);
-    let mut downloaded: u64 = 0;
-
-    let mut file = fs::File::create(&download_path)
-        .await
-        .map_err(|err| format!("Failed to create model file: {err}"))?;
-
-    let mut stream = response.bytes_stream();
-    while let Some(chunk) = stream.next().await {
-        let chunk = chunk.map_err(|err| format!("Failed to download dictation model: {err}"))?;
-        downloaded += chunk.len() as u64;
-        file.write_all(&chunk)
+    for filename in missing {
+        let download_path = model_dir.join(format!("{filename}.download"));
+        let model_path = model_dir.join(filename);
+        let response = client
+            .get(format!("{MOONSHINE_MODEL_URL_BASE}/{filename}"))
+            .send()
             .await
-            .map_err(|err| format!("Failed to write dictation model: {err}"))?;
+            .map_err(|err| format!("Failed to download dictation model: {err}"))?
+            .error_for_status()
+            .map_err(|err| format!("Failed to download dictation model: {err}"))?;
 
-        if total_size > 0 {
-            let _ = app_handle.emit(
-                "dictation-progress",
-                serde_json::json!({
-                    "downloaded": downloaded,
-                    "total": total_size,
-                }),
-            );
+        let total_size = response.content_length().unwrap_or(0);
+        let mut downloaded: u64 = 0;
+
+        let mut file = fs::File::create(&download_path)
+            .await
+            .map_err(|err| format!("Failed to create model file: {err}"))?;
+
+        let mut stream = response.bytes_stream();
+        while let Some(chunk) = stream.next().await {
+            let chunk =
+                chunk.map_err(|err| format!("Failed to download dictation model: {err}"))?;
+            downloaded += chunk.len() as u64;
+            file.write_all(&chunk)
+                .await
+                .map_err(|err| format!("Failed to write dictation model: {err}"))?;
+
+            if total_size > 0 {
+                let _ = app_handle.emit(
+                    "dictation-progress",
+                    serde_json::json!({
+                        "file": filename,
+                        "downloaded": downloaded,
+                        "total": total_size,
+                    }),
+                );
+            }
+        }
+
+        file.flush()
+            .await
+            .map_err(|err| format!("Failed to finalize dictation model: {err}"))?;
+
+        fs::rename(&download_path, &model_path)
+            .await
+            .map_err(|err| format!("Failed to install dictation model: {err}"))?;
+    }
+
+    Ok(model_dir)
+}
+
+#[cfg(feature = "dictation")]
+fn transcript_to_string(transcript: *mut transcript_t) -> Result<String, String> {
+    if transcript.is_null() {
+        return Ok(String::new());
+    }
+
+    let transcript = unsafe { &*transcript };
+    if transcript.lines.is_null() || transcript.line_count == 0 {
+        return Ok(String::new());
+    }
+
+    let lines =
+        unsafe { std::slice::from_raw_parts(transcript.lines, transcript.line_count as usize) };
+    let mut segments = Vec::with_capacity(lines.len());
+    for line in lines {
+        if line.text.is_null() {
+            continue;
+        }
+
+        let text = unsafe { CStr::from_ptr(line.text) }
+            .to_str()
+            .map_err(|err| format!("Failed to read dictation text: {err}"))?
+            .trim();
+        if !text.is_empty() {
+            segments.push(text.to_string());
         }
     }
 
-    file.flush()
-        .await
-        .map_err(|err| format!("Failed to finalize dictation model: {err}"))?;
+    Ok(segments.join(" "))
+}
 
-    fs::rename(&download_path, &model_path)
-        .await
-        .map_err(|err| format!("Failed to install dictation model: {err}"))?;
+#[cfg(feature = "dictation")]
+fn error_message(error: i32) -> String {
+    let message = unsafe { moonshine_error_to_string(error) };
+    if message.is_null() {
+        return format!("Moonshine error {error}");
+    }
 
-    Ok(model_path)
+    unsafe { CStr::from_ptr(message) }
+        .to_string_lossy()
+        .into_owned()
 }

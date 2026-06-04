@@ -100,7 +100,7 @@ const baseThemeOptions: ThemeOptions = {
     MuiMenuItem: {
       styleOverrides: {
         root: {
-          borderRadius: "9999px",
+          borderRadius: "10px",
           margin: "4px 8px",
           padding: "8px 12px",
           fontSize: "14px",

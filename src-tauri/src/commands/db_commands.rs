@@ -9,6 +9,7 @@ pub struct SqlResult {
     pub rows_affected: Option<u64>,
 }
 
+#[cfg(feature = "dev-sql-console")]
 #[tauri::command]
 pub async fn clear_database(state: State<'_, AppState>) -> Result<SqlResult, String> {
     let pool = &state.db;

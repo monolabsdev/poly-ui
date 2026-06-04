@@ -161,6 +161,7 @@ export const Header = memo(function Header({
                     />
                     {selectedModels.length > 1 && (
                       <IconButton
+                        aria-label={`Remove ${selectedModel || "empty"} model selector`}
                         size="small"
                         onClick={() => onRemoveModel(index)}
                         sx={{ p: 0.5, color: "text.secondary" }}
@@ -170,36 +171,43 @@ export const Header = memo(function Header({
                     )}
                   </Box>
                 ))}
-                <Box
+                <IconButton
+                  aria-label="Add model selector"
                   onClick={onAddModel}
+                  size="small"
                   sx={{
                     color: "text.secondary",
                     display: "flex",
                     alignItems: "center",
                     cursor: "pointer",
-                    ml: 1,
+                    ml: 0.5,
                     "&:hover": { color: "text.primary" },
                   }}
                 >
                   <Plus size={16} />
-                </Box>
+                  <Typography component="span" sx={{ ml: 0.5, fontSize: 12, fontWeight: 600 }}>
+                    Add model
+                  </Typography>
+                </IconButton>
               </Box>
-              <Link
+                {selectedModels[0] ? <Link
                 component="button"
                 variant="caption"
                 underline="none"
                 onClick={() => onSetDefault(selectedModels[0])}
-                disabled={!selectedModels[0]}
                 sx={{
                   color: "text.secondary",
                   fontSize: "11px",
                   textAlign: "left",
+                  borderRadius: "9999px",
                   ml: 0.2,
+                  px: 0.5,
                   "&:hover": { color: "text.primary" },
                 }}
               >
                 Set as default
               </Link>
+              : null}
             </>
           )}
         </Box>
@@ -228,6 +236,7 @@ export const Header = memo(function Header({
           }
         >
           <IconButton
+            aria-label={isTemporary ? "Disable temporary chat" : "Enable temporary chat"}
             onClick={onToggleTemporaryChat}
             size="small"
             sx={{

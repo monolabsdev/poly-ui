@@ -182,7 +182,7 @@ export function ConnectionsTab() {
   };
 
   const deleteModel = async (model: string) => {
-    if (!confirm(`Delete ${model}?`)) return;
+    if (!confirm(`Delete installed model "${model}"? You will need to download it again to use it.`)) return;
     try {
       await ollama.deleteModel(model);
       await refreshModels();
@@ -218,7 +218,7 @@ export function ConnectionsTab() {
       )}
       {error && providers.length === 0 && (
         <Typography sx={{ fontSize: 13, color: "text.secondary", py: theme.spacing(1) }}>
-          Connection error: {error}
+          Connection error: {String(error)}
         </Typography>
       )}
 
@@ -241,6 +241,7 @@ export function ConnectionsTab() {
                 <Box sx={{ flexGrow: 1 }} />
                 <IconButton
                   size="small"
+                  aria-label={`Edit ${label} connection`}
                   onClick={() => {
                     if (isOllama) {
                       setOllamaEditing(!ollamaEditing);
@@ -313,7 +314,7 @@ export function ConnectionsTab() {
                         slotProps={{
                           input: {
                             endAdornment: (
-                              <IconButton size="small" onClick={() => setShowExternalKey(!showExternalKey)} tabIndex={-1}>
+                              <IconButton size="small" aria-label={showExternalKey ? "Hide API key" : "Show API key"} onClick={() => setShowExternalKey(!showExternalKey)}>
                                 {showExternalKey ? <EyeOff size={15} /> : <Eye size={15} />}
                               </IconButton>
                             ),
@@ -385,7 +386,7 @@ export function ConnectionsTab() {
                 <Typography sx={{ fontSize: 12 }}>
                   Pulling {ollama.pullingModel}: {ollama.pullProgress.status}
                 </Typography>
-                <IconButton size="small" onClick={() => void ollama.cancelPull()}>
+                <IconButton size="small" aria-label="Cancel model download" onClick={() => void ollama.cancelPull()}>
                   <XCircle size={15} />
                 </IconButton>
               </Stack>
@@ -394,7 +395,7 @@ export function ConnectionsTab() {
           )}
           <Stack direction="row" justifyContent="space-between" alignItems="center">
             <Typography sx={{ fontSize: 13, fontWeight: 700 }}>Installed models</Typography>
-            <IconButton size="small" onClick={refreshModels} disabled={isRefreshing}>
+            <IconButton size="small" aria-label="Refresh installed models" onClick={refreshModels} disabled={isRefreshing}>
               <RefreshCw size={15} />
             </IconButton>
           </Stack>
@@ -409,7 +410,7 @@ export function ConnectionsTab() {
                 <Typography sx={{ fontSize: 13, fontWeight: 600 }}>{model.name}</Typography>
                 <Typography sx={{ fontSize: 12, color: "text.secondary" }}>{formatFileSize(model.size)}</Typography>
               </Box>
-              <IconButton size="small" onClick={() => void deleteModel(model.name)}>
+              <IconButton size="small" aria-label={`Delete ${model.name}`} onClick={() => void deleteModel(model.name)}>
                 <Trash2 size={15} />
               </IconButton>
             </Stack>
@@ -420,7 +421,7 @@ export function ConnectionsTab() {
       <Dialog open={addOpen} onClose={() => setAddOpen(false)} maxWidth="xs" fullWidth>
         <DialogTitle sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 18, fontWeight: 700 }}>
           Add connection
-          <IconButton size="small" onClick={() => setAddOpen(false)}><X size={18} /></IconButton>
+          <IconButton size="small" aria-label="Close add connection dialog" onClick={() => setAddOpen(false)}><X size={18} /></IconButton>
         </DialogTitle>
         <DialogContent>
           <Typography sx={{ mb: 2, fontSize: 12, color: "text.secondary" }}>
@@ -448,7 +449,7 @@ export function ConnectionsTab() {
               slotProps={{
                 input: {
                   endAdornment: (
-                    <IconButton size="small" onClick={() => setShowAddKey(!showAddKey)} tabIndex={-1}>
+                    <IconButton size="small" aria-label={showAddKey ? "Hide API key" : "Show API key"} onClick={() => setShowAddKey(!showAddKey)}>
                       {showAddKey ? <EyeOff size={15} /> : <Eye size={15} />}
                     </IconButton>
                   ),

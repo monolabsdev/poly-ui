@@ -1,4 +1,4 @@
-import { Box, Stack, TextField, Typography } from "@mui/material";
+import { Box, ButtonBase, Stack, TextField, Typography } from "@mui/material";
 import { Circle } from "lucide-react";
 import { SectionHeader, SettingCard } from "../SettingComponents";
 import { appTextFieldSx } from "@/components/ui/appDialog";
@@ -26,7 +26,7 @@ export function PersonalisationTab() {
         {PROMPT_PRESETS.map((preset) => {
           const isSelected = selectedPromptPreset === preset.id;
           return (
-            <Box
+            <ButtonBase
               key={preset.id}
               onClick={() => actions.setPromptPreset(preset.id)}
               sx={{
@@ -35,6 +35,9 @@ export function PersonalisationTab() {
                 gap: 1.5,
                 px: 1.5,
                 py: 1.25,
+                width: "100%",
+                justifyContent: "flex-start",
+                textAlign: "left",
                 borderRadius: "8px",
                 cursor: "pointer",
                 bgcolor: isSelected ? "action.selected" : "transparent",
@@ -64,7 +67,7 @@ export function PersonalisationTab() {
                   {preset.content}
                 </Typography>
               </Box>
-            </Box>
+            </ButtonBase>
           );
         })}
       </Stack>

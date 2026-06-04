@@ -13,7 +13,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Box, Typography, Button as MuiButton, Tooltip } from "@mui/material";
 import { Settings, Archive, LogOut, LogIn } from "lucide-react";
 
-import { useSidebar } from "@/components/Layout/Sidebar";
+import { useSidebar } from "@/components/Sidebar";
 import { ArchivedChatsDialog } from "@/components/Chat/ArchivedChatsDialog";
 
 import { motion, AnimatePresence } from "motion/react";

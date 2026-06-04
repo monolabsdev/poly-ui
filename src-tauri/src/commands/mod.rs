@@ -4,3 +4,4 @@ pub mod db_commands;
 pub mod dictation;
 pub mod model_commands;
 pub mod provider_commands;
+pub mod system_commands;

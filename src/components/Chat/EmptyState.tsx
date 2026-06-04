@@ -1,4 +1,4 @@
-import { Box, Typography } from "@mui/material";
+import { Box, Button, Typography } from "@mui/material";
 import { EyeOff } from "lucide-react";
 
 interface EmptyStateProps {
@@ -6,6 +6,8 @@ interface EmptyStateProps {
   selectedModels: string[];
   userName?: string;
   isTemporary?: boolean;
+  providerOnline: boolean;
+  onOpenConnections: () => void;
 }
 
 export function EmptyState({
@@ -13,8 +15,15 @@ export function EmptyState({
   selectedModels,
   userName,
   isTemporary,
+  providerOnline,
+  onOpenConnections,
 }: EmptyStateProps) {
   const isMultiModel = selectedModels.length >= 2;
+  const headingText = (() => {
+    if (!providerOnline) return "No provider connected";
+    if (isMultiModel) return `Hello, ${userName || "User"}`;
+    return selectedModels[0] || "PolyUI";
+  })();
 
   return (
     <Box
@@ -29,7 +38,6 @@ export function EmptyState({
         mx: "auto",
         width: "100%",
         height: "100%",
-        mt: -8,
       }}
     >
       <Box
@@ -38,7 +46,7 @@ export function EmptyState({
           flexDirection: "column",
           alignItems: "center",
           gap: 1,
-          mb: 6,
+          mb: providerOnline ? 6 : 3,
         }}
       >
         {isTemporary && (
@@ -71,14 +79,21 @@ export function EmptyState({
             textAlign: "center",
           }}
         >
-          {isMultiModel
-            ? `Hello, ${userName || "User"}`
-            : selectedModels[0] || "PolyUI"}
+          {headingText}
         </Typography>
+        {!providerOnline ? (
+          <>
+            <Typography sx={{ color: "text.secondary", fontSize: 14, textAlign: "center", maxWidth: 460 }}>
+              Start Ollama, then connect it here. Ollama runs local models on your machine at localhost:11434.
+            </Typography>
+            <Button variant="contained" onClick={onOpenConnections} sx={{ mt: 1, textTransform: "none", fontWeight: 700 }}>
+              Open Connections
+            </Button>
+          </>
+        ) : null}
       </Box>
 
-      {/* Input area */}
-      <Box 
+      <Box
         sx={{ width: "100%", maxWidth: 768 }}
       >
         {children}

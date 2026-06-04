@@ -2,9 +2,21 @@ import { create } from "zustand";
 import { getRepository } from "@/lib/repositories";
 import { Message, Conversation, Attachment, WebSearchEvent } from "@/types/chat";
 import { useAuthStore } from "@/store/authStore";
+import { getNextQueuedMessage } from "@/lib/chat/queue";
 
 async function getRepo() {
   return getRepository();
+}
+
+function mergeMessage(
+  messages: Message[],
+  activeConversationId: string | null,
+  payload: Message,
+): Message[] {
+  if (payload.conversationId !== activeConversationId) return messages;
+  const exists = messages.some((m) => m.id === payload.id);
+  if (!exists) return [...messages, payload];
+  return messages.map((m) => (m.id === payload.id ? payload : m));
 }
 
 export type { Conversation, Message };
@@ -215,24 +227,14 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       const conversation = conversations.find(c => c.id === message.conversationId);
       const isTemporary = conversation?.isTemporary ?? false;
 
-      set((state) => {
-        const exists = state.messages.some(m => m.id === payload.id);
-        const shouldShowMessage = payload.conversationId === state.activeConversationId;
-        const nextMessages = shouldShowMessage
-          ? exists
-            ? state.messages.map(m => m.id === payload.id ? payload : m)
-            : [...state.messages, payload]
-          : state.messages;
-
-        return {
-          messages: nextMessages,
-          conversations: state.conversations.map((c) =>
-            c.id === payload.conversationId
-              ? { ...c, updatedAt: payload.createdAt }
-              : c,
-          ),
-        };
-      });
+      set((state) => ({
+        messages: mergeMessage(state.messages, state.activeConversationId, payload),
+        conversations: state.conversations.map((c) =>
+          c.id === payload.conversationId
+            ? { ...c, updatedAt: payload.createdAt }
+            : c,
+        ),
+      }));
 
       if (!isTemporary) {
         try {
@@ -408,12 +410,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           (m) => m.conversationId !== conversationId,
         ),
       })),
-    // LIFO: returns most recently enqueued (last item) so rapid sends
-    // always drain the latest user input first.
     getNextQueued: (conversationId) => {
-      const queue = get().messageQueue;
-      const convMsgs = queue.filter((m) => m.conversationId === conversationId);
-      return convMsgs.length > 0 ? convMsgs[convMsgs.length - 1] : undefined;
+      return getNextQueuedMessage(get().messageQueue, conversationId);
     },
     addCurrentAttachment: (attachment) =>
       set((state) => ({

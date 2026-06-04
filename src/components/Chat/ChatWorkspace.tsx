@@ -10,26 +10,28 @@ import type { ModelProvider } from "@/store/modelStore";
 import { materializeAttachments, releaseImageAttachment } from "@/lib/image-upload/attachments";
 import { useFolderStore } from "@/store/folderStore";
 import { FolderHome } from "@/components/Folders/FolderHome";
+import { useOllama } from "@/services/ollama";
 
 type ChatWorkspaceProps = {
   selectedModels: string[];
   selectedProviders: ModelProvider[];
-  selectedModel: string;
   systemPromptContent: string;
   userName?: string;
   isTemporary: boolean;
   onStopStreamingReady: (stopStreaming: (() => void) | null) => void;
+  onOpenConnections: () => void;
 };
 
 export default function ChatWorkspace({
   selectedModels,
   selectedProviders,
-  selectedModel,
   systemPromptContent,
   userName,
   isTemporary,
   onStopStreamingReady,
+  onOpenConnections,
 }: ChatWorkspaceProps) {
+  const ollama = useOllama();
   const activeFolder = useFolderStore((state) => state.folders.find((folder) => folder.id === state.activeFolderId));
   const effectiveSystemPrompt = activeFolder?.systemPrompt
     ? `${systemPromptContent}\n${activeFolder.systemPrompt}`
@@ -64,7 +66,6 @@ export default function ChatWorkspace({
     async (content: string) => {
       const trimmed = content.trim();
       if (!trimmed && currentAttachments.length === 0) return;
-      if (!selectedModel) return;
       await ensureConversation();
       const attachments = await materializeAttachments([
         ...(activeFolder?.contextFiles ?? []),
@@ -75,7 +76,6 @@ export default function ChatWorkspace({
       clearCurrentAttachments();
     },
     [
-      selectedModel,
       activeFolder?.contextFiles,
       currentAttachments,
       ensureConversation,
@@ -104,56 +104,59 @@ export default function ChatWorkspace({
   );
 
   return (
-    <>
-      <Box
-        sx={{
-          flex: 1,
-          display: "flex",
-          flexDirection: "column",
-          overflow: "hidden",
-          justifyContent: "flex-start",
-          width: "100%",
-        }}
-      >
-        {activeFolder && !activeConversationId ? (
-          <FolderHome folder={activeFolder} onSubmit={handleSend} onStop={stopStreaming} isStreaming={isStreaming} selectedModel={selectedModel} />
-        ) : hasMessages ? (
-          <ChatArea
-            key={activeConversationId ?? "no-conv"}
-            messages={messages}
-            streamingMessagesList={streamingMessagesList}
-            bottomRef={bottomRef}
-            onRegenerate={handleRegenerate}
-            isTemporary={isTemporary}
-          />
-        ) : (
-          <EmptyState
-            selectedModels={selectedModels}
-            userName={userName}
-            isTemporary={isTemporary}
-          >
-            <ChatInput
-              onSubmit={handleSend}
-              onStop={stopStreaming}
-              isStreaming={isStreaming}
-              selectedModel={selectedModel}
-              hasMessages={hasMessages}
-              isTemporary={isTemporary}
-            />
-          </EmptyState>
-        )}
-
-        {hasMessages ? (
+    <Box
+      sx={{
+        flex: 1,
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
+        justifyContent: "flex-start",
+        width: "100%",
+      }}
+    >
+      {activeFolder && !activeConversationId ? (
+        <FolderHome
+          folder={activeFolder}
+          onSubmit={handleSend}
+          onStop={stopStreaming}
+          isStreaming={isStreaming}
+          providerOnline={ollama.online}
+          onOpenConnections={onOpenConnections}
+        />
+      ) : hasMessages ? (
+        <ChatArea
+          key={activeConversationId ?? "no-conv"}
+          messages={messages}
+          streamingMessagesList={streamingMessagesList}
+          bottomRef={bottomRef}
+          onRegenerate={handleRegenerate}
+          isTemporary={isTemporary}
+        />
+      ) : (
+        <EmptyState
+          selectedModels={selectedModels}
+          userName={userName}
+          isTemporary={isTemporary}
+          providerOnline={ollama.online}
+          onOpenConnections={onOpenConnections}
+        >
           <ChatInput
             onSubmit={handleSend}
             onStop={stopStreaming}
             isStreaming={isStreaming}
-            selectedModel={selectedModel}
-            hasMessages={hasMessages}
             isTemporary={isTemporary}
           />
-        ) : null}
-      </Box>
-    </>
+        </EmptyState>
+      )}
+
+      {hasMessages ? (
+        <ChatInput
+          onSubmit={handleSend}
+          onStop={stopStreaming}
+          isStreaming={isStreaming}
+          isTemporary={isTemporary}
+        />
+      ) : null}
+    </Box>
   );
 }

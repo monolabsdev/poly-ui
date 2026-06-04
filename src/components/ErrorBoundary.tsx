@@ -50,6 +50,7 @@ export class ErrorBoundary extends Component<Props, State> {
             onClick={this.handleReset}
             style={{
               padding: "8px 24px",
+              borderRadius: "9999px",
               border: "1px solid var(--color-border, #ddd)",
               background: "var(--color-surface, #fff)",
               cursor: "pointer",

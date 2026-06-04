@@ -12,9 +12,10 @@ mod web_search;
 
 use crate::commands::chat_commands::{chat, chat_stream, generate_chat_title};
 use crate::commands::config_commands::cancel_chat;
-use crate::commands::db_commands::{clear_database, execute_sql};
+use crate::commands::db_commands::execute_sql;
 use crate::commands::dictation::{is_dictation_available, transcribe_audio, DictationState};
 use crate::commands::model_commands::{cancel_pull, delete_model, get_local_models, pull_model};
+use crate::commands::system_commands::get_system_profile;
 use crate::updater::{check_for_updates, download_update, install_update};
 use providers::ProviderSelector;
 use sqlx::SqlitePool;
@@ -42,7 +43,6 @@ pub fn run() {
         .plugin(tauri_plugin_sql::Builder::default().build())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
-        .plugin(tauri_plugin_supertonic::init())
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_dialog::init())
@@ -91,11 +91,13 @@ pub fn run() {
             commands::provider_commands::get_provider_and_models,
             commands::provider_commands::get_provider_models,
             commands::provider_commands::update_provider_config,
-            clear_database,
             execute_sql,
+            #[cfg(feature = "dev-sql-console")]
+            commands::db_commands::clear_database,
             check_for_updates,
             download_update,
             install_update,
+            get_system_profile,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

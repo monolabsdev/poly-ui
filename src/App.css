@@ -15,6 +15,13 @@ html[data-chrome="borderless"] body {
   overflow: hidden !important;
 }
 
+html.reduce-transparency,
+html.reduce-transparency body,
+html.reduce-transparency[data-chrome="borderless"],
+html.reduce-transparency[data-chrome="borderless"] body {
+  background: var(--mui-palette-background-default, #171717) !important;
+}
+
 html[data-chrome="borderless"] #root {
   border-radius: 12px;
   overflow: hidden;
@@ -22,13 +29,17 @@ html[data-chrome="borderless"] #root {
   background: var(--background, var(--mui-palette-background-default, #09090b));
 }
 
+html.reduce-transparency[data-chrome="borderless"] #root {
+  border-radius: 0;
+}
+
 html[data-chrome="borderless"].maximized #root {
   border-radius: 0;
   border: none;
 }
 
-/* CSS reset for elements used with Box component="button" et al */
-button {
+/* CSS reset for native button elements */
+button:where(:not(.MuiButtonBase-root)) {
   all: unset;
   box-sizing: border-box;
 }
@@ -140,4 +151,13 @@ code {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+html.reduce-motion *,
+html.reduce-motion *::before,
+html.reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
 }

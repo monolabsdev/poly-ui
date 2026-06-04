@@ -6,6 +6,7 @@ import { useMediaQuery } from "@mui/material";
 import { motion } from "motion/react";
 import { darkTheme, lightTheme } from "./theme";
 import { useThemeStore } from "./store/themeStore";
+import { useSettingsStore } from "./store/settingsStore";
 import { NotificationProvider } from "./components/ui/Toast/NotificationProvider";
 import StartupLoadingScreen from "./components/StartupLoadingScreen";
 import { ErrorBoundary } from "./components/ErrorBoundary";
@@ -33,6 +34,7 @@ function getTheme(mode: string, prefersDark: boolean) {
 
 function Root() {
   const mode = useThemeStore((state) => state.mode);
+  const performance = useSettingsStore((state) => state.performance);
   const prefersDarkMode = useMediaQuery("(prefers-color-scheme: dark)");
   const [isAppReady, setIsAppReady] = useState(false);
   const [showStartupScreen, setShowStartupScreen] = useState(true);
@@ -92,6 +94,12 @@ function Root() {
       document.documentElement.classList.remove('dark');
     }
   }, [mode, prefersDarkMode]);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("reduce-motion", performance.reduceMotion);
+    document.documentElement.classList.toggle("reduce-transparency", performance.reduceTransparency);
+    document.documentElement.dataset.performanceProfile = performance.profile;
+  }, [performance.profile, performance.reduceMotion, performance.reduceTransparency]);
 
   useEffect(() => {
     if (!USE_CUSTOM_WINDOW_CONTROLS || !isAppReady) return;

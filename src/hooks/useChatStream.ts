@@ -19,8 +19,15 @@ import {
 import { StreamAccumulator } from "@/lib/chat/stream-accumulator";
 import type { ModelProvider } from "@/store/modelStore";
 import { getWebSearchConfig } from "@/features/web-search/useWebSearchConfig";
+import { clearRequestBookkeeping } from "@/lib/chat/stream-cleanup";
 
 type SelectedModel = { model: string; provider: ModelProvider };
+
+function toSelectedModels(models: string[], providers: ModelProvider[]): SelectedModel[] {
+  return models
+    .map((model, index) => ({ model, provider: providers[index] }))
+    .filter((item): item is SelectedModel => Boolean(item.model && item.provider));
+}
 
 export function useChatStream(selectedModels: string[], selectedProviders: ModelProvider[], systemPrompt = "", userName?: string) {
   const { messages, streamingMessages, activeConversationId } = useChatStore(
@@ -35,6 +42,7 @@ export function useChatStream(selectedModels: string[], selectedProviders: Model
   const setStreamingConversationId = useChatStore((s) => s.actions.setStreamingConversationId);
   const setStreamingMessage = useChatStore((s) => s.actions.setStreamingMessage);
   const patchStreamingMessage = useChatStore((s) => s.actions.patchStreamingMessage);
+  const clearQueue = useChatStore((s) => s.actions.clearQueue);
   const notify = useNotify();
 
   const [isStreaming, setIsStreaming] = useState(false);
@@ -98,8 +106,15 @@ export function useChatStream(selectedModels: string[], selectedProviders: Model
     pendingStreamsRef.current = 0;
   }, [setStreamingMessage]);
 
-  const settlePending = useCallback(() => {
-    pendingStreamsRef.current = Math.max(0, pendingStreamsRef.current - 1);
+  const settlePending = useCallback((requestId?: string) => {
+    pendingStreamsRef.current = requestId
+      ? clearRequestBookkeeping(
+          requestId,
+          requestIdToMessageIdRef.current,
+          requestIdToConversationIdRef.current,
+          pendingStreamsRef.current,
+        )
+      : Math.max(0, pendingStreamsRef.current - 1);
     if (pendingStreamsRef.current === 0) {
       setIsStreaming(false);
       setStreamingConversationId(null);
@@ -153,15 +168,13 @@ export function useChatStream(selectedModels: string[], selectedProviders: Model
       }
 
       setStreamingMessage(messageId, null);
-      delete requestIdToMessageIdRef.current[request_id];
-      delete requestIdToConversationIdRef.current[request_id];
-      settlePending();
+      settlePending(request_id);
 
       if (pendingStreamsRef.current === 0) {
-        processNextInQueueRef.current?.();
+        processNextInQueueRef.current?.(conversationId);
       }
     },
-    [addMessage, settlePending, setStreamingMessage, userName],
+    [addMessage, settlePending, setStreamingMessage],
   );
 
   const handleThinking = useCallback(
@@ -274,23 +287,36 @@ export function useChatStream(selectedModels: string[], selectedProviders: Model
           webSearchConfig: activeWebSearchConfig ?? null,
           reasoningEnabled: reasoningAI,
           providerType: provider,
-        }).catch((err) => {
+        }).catch(async (err) => {
           console.error(err);
-          settlePending();
-          if (!useChatStore.getState().streamingMessages[mid]) return;
-
           const errMsg = typeof err === "string" ? err : (err as Error).message || "Unknown error";
-          patchStreamingMessage(mid, { status: "error", errorMessage: errMsg, isStreaming: false });
+          if (useChatStore.getState().streamingMessages[mid]) {
+            await addMessage({
+              id: mid,
+              conversationId,
+              role: "assistant",
+              content: "",
+              model,
+              provider,
+              status: "error",
+              errorMessage: errMsg,
+            });
+            setStreamingMessage(mid, null);
+          }
+          settlePending(rid);
           notify.error(`Chat error (${model})`, errMsg);
+          if (pendingStreamsRef.current === 0) {
+            processNextInQueueRef.current?.(conversationId);
+          }
         });
       }
     },
-    [systemPrompt, resetStreamState, settlePending, setStreamingMessage, patchStreamingMessage, notify],
+    [systemPrompt, resetStreamState, settlePending, setStreamingMessage, addMessage, notify],
   );
 
-  const processNextInQueue = useCallback(async () => {
+  const processNextInQueue = useCallback(async (completedConversationId?: string) => {
     if (processingQueueRef.current) return;
-    const conversationId = activeConversationIdRef.current;
+    const conversationId = completedConversationId ?? activeConversationIdRef.current;
     if (!conversationId) return;
 
     const next = useChatStore.getState().actions.getNextQueued(conversationId);
@@ -298,9 +324,7 @@ export function useChatStream(selectedModels: string[], selectedProviders: Model
 
     processingQueueRef.current = true;
     try {
-      const models = selectedModelsRef.current
-        .map((model, index) => ({ model, provider: selectedProvidersRef.current[index] }))
-        .filter((item): item is SelectedModel => Boolean(item.model && item.provider));
+      const models = toSelectedModels(selectedModelsRef.current, selectedProvidersRef.current);
       if (!models.length) return;
 
       useChatStore.getState().actions.dequeueMessage(next.id);
@@ -320,14 +344,12 @@ export function useChatStream(selectedModels: string[], selectedProviders: Model
     }
   }, [addMessage, startStream]);
 
-  const processNextInQueueRef = useRef(processNextInQueue);
+  const processNextInQueueRef = useRef<(conversationId?: string) => Promise<void>>(processNextInQueue);
   useEffect(() => { processNextInQueueRef.current = processNextInQueue; });
 
   const sendMessage = useCallback(
     async (content: string, attachments?: Attachment[]) => {
-      const models = selectedModels
-        .map((model, index) => ({ model, provider: selectedProviders[index] }))
-        .filter((item): item is SelectedModel => Boolean(item.model && item.provider));
+      const models = toSelectedModels(selectedModels, selectedProviders);
       if ((!content.trim() && !attachments?.length) || !models.length) return;
 
       const { state } = useOllamaStore.getState();
@@ -391,14 +413,20 @@ export function useChatStream(selectedModels: string[], selectedProviders: Model
       setStreamingMessage(mid, null);
     }
 
+    const queueConversationId =
+      useChatStore.getState().streamingConversationId ??
+      activeConversationIdRef.current;
+    if (queueConversationId) {
+      clearQueue(queueConversationId);
+    }
+    resetStreamState();
     setIsStreaming(false);
-  }, [isStreaming, addMessage, setStreamingMessage]);
+    setStreamingConversationId(null);
+  }, [isStreaming, addMessage, clearQueue, resetStreamState, setStreamingConversationId, setStreamingMessage]);
 
   const regenerateMessage = useCallback(
     (conversationId: string) => {
-      const models = selectedModels
-        .map((model, index) => ({ model, provider: selectedProviders[index] }))
-        .filter((item): item is SelectedModel => Boolean(item.model && item.provider));
+      const models = toSelectedModels(selectedModels, selectedProviders);
       if (isStreaming || !models.length || !conversationId) return;
       startStream(conversationId, models);
     },

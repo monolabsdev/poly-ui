@@ -18,41 +18,57 @@ export type BrowserTtsSettings = {
   pitch: number;
 };
 
-export type StTtsSettings = {
-  modelId: string;
-  voiceStyle: string;
-  speed: number;
+export type TtsSettings = {
+  browser: BrowserTtsSettings;
 };
 
-export type TtsSettings = {
-  engine: "browser" | "stTts";
-  browser: BrowserTtsSettings;
-  stTts: StTtsSettings;
+export type PerformanceProfile = "auto" | "low" | "balanced" | "high";
+
+export type SystemProfile = {
+  totalMemoryMb: number;
+  availableMemoryMb: number;
+  cpuCount: number;
+};
+
+export type PerformanceSettings = {
+  autoOptimize: boolean;
+  profile: PerformanceProfile;
+  reduceMotion: boolean;
+  reduceTransparency: boolean;
+  dictationEnabled: boolean;
+  lastHardwareScan: SystemProfile | null;
+  optimizedAt: string | null;
 };
 
 type SettingsState = {
   general: GeneralSettings;
   tts: TtsSettings;
+  performance: PerformanceSettings;
   selectedPromptPreset: PromptPresetId;
   actions: {
     updateGeneral: (update: Partial<GeneralSettings>) => void;
     updateTts: (update: Partial<TtsSettings>) => void;
+    updatePerformance: (update: Partial<PerformanceSettings>) => void;
     setPromptPreset: (id: PromptPresetId) => void;
   };
 };
 
 const defaultTts: TtsSettings = {
-  engine: "browser",
   browser: {
     voiceURI: "",
     speed: 1.0,
     pitch: 1.0,
   },
-  stTts: {
-    modelId: "Supertone/supertonic-3",
-    voiceStyle: "M1",
-    speed: 1.0,
-  },
+};
+
+export const defaultPerformance: PerformanceSettings = {
+  autoOptimize: true,
+  profile: "auto",
+  reduceMotion: false,
+  reduceTransparency: false,
+  dictationEnabled: false,
+  lastHardwareScan: null,
+  optimizedAt: null,
 };
 
 function createDefaultWebSearchSettings(): WebSearchSettings {
@@ -74,6 +90,7 @@ export const useSettingsStore = create<SettingsState>()(
         reasoningEnabled: false,
       },
       tts: { ...defaultTts },
+      performance: { ...defaultPerformance },
       selectedPromptPreset: "default" as PromptPresetId,
       actions: {
         updateGeneral: (update) =>
@@ -86,30 +103,24 @@ export const useSettingsStore = create<SettingsState>()(
               ...s.tts,
               ...update,
               browser: { ...defaultTts.browser, ...s.tts.browser, ...(update.browser ?? {}) },
-              stTts: { ...defaultTts.stTts, ...s.tts.stTts, ...(update.stTts ?? {}) },
             },
           })),
+
+        updatePerformance: (update) =>
+          set((s) => ({ performance: { ...s.performance, ...update } })),
 
         setPromptPreset: (id) => set({ selectedPromptPreset: id }),
       },
     }),
     {
       name: "polyui:settings",
-      version: 7,
+      version: 9,
       migrate: (persisted, version) => {
         const state = persisted as any;
         if (state?.tts) {
-          if (version < 1 && state.tts.supertonic) {
-            state.tts.stTts = state.tts.supertonic;
-            delete state.tts.supertonic;
-            if (state.tts.engine === "supertonic") {
-              state.tts.engine = "stTts";
-            }
-          }
-          if (version < 2) {
-            state.tts.stTts = { ...defaultTts.stTts, ...state.tts.stTts };
-            state.tts.browser = { ...defaultTts.browser, ...state.tts.browser };
-          }
+          state.tts = {
+            browser: { ...defaultTts.browser, ...state.tts.browser },
+          };
         }
         if (version < 5) {
           delete state.account;
@@ -126,10 +137,13 @@ export const useSettingsStore = create<SettingsState>()(
             ollama: "",
           };
         }
+        if (version < 9) {
+          state.performance = { ...defaultPerformance, ...state.performance };
+        }
         return state as SettingsState;
       },
-      partialize: ({ general, tts, selectedPromptPreset }) => ({
-        general, tts, selectedPromptPreset,
+      partialize: ({ general, tts, performance, selectedPromptPreset }) => ({
+        general, tts, performance, selectedPromptPreset,
       }) as SettingsState,
     },
   ),

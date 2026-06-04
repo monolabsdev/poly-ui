@@ -131,11 +131,11 @@ export function ModelSelector({
         aria-expanded={isOpen}
         sx={{
           minHeight: 32,
+          borderRadius: "9999px",
           gap: 0.5,
           color: "primary.main",
           fontSize: { xs: 14, sm: 15 },
           fontWeight: 600,
-
           px: 0.25,
           "&:hover": { bgcolor: "transparent" },
         }}
@@ -208,6 +208,10 @@ export function ModelSelector({
               aria-selected={filter === item.id}
               onClick={() => setFilter(item.id)}
               sx={{
+                px: 1.5,
+                py: 0.5,
+                borderRadius: "9999px",
+                justifyContent: "flex-start",
                 color: filter === item.id ? "text.primary" : "text.secondary",
                 fontSize: 13,
                 fontWeight: filter === item.id ? 700 : 500,

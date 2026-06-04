@@ -62,6 +62,7 @@ function WinButton({ children, onClick, title, close = false }: {
         justifyContent: "center",
         color: "text.secondary",
         cursor: "pointer",
+        borderRadius: "8px",
         "&:hover": close
           ? { bgcolor: "#c42b1c", color: "#ffffff" }
           : { bgcolor: "action.hover", color: "text.primary" },

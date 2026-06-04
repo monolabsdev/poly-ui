@@ -9,7 +9,7 @@ export interface ConversationRepository {
   deleteAllConversations(userId: string): Promise<void>;
 
   getMessages(conversationId: string, limit: number, offset: number): Promise<Message[]>;
-  getAllMessages(): Promise<Message[]>;
+  getAllMessages(userId?: string): Promise<Message[]>;
   addMessage(message: Message): Promise<void>;
   deleteMessagesAfter(conversationId: string, messageId: string): Promise<void>;
   transferConversations(fromUserId: string, toUserId: string): Promise<void>;

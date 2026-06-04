@@ -64,9 +64,12 @@ class SqliteConversationRepository implements ConversationRepository {
     return rows.map(mapRowToMessage).reverse();
   }
 
-  async getAllMessages(): Promise<Message[]> {
+  async getAllMessages(userId?: string): Promise<Message[]> {
     const rows = await this.db.select<{ id: string; conversationId: string; role: "user" | "assistant"; content: string; createdAt: string; attachments?: string; model?: string; provider?: Message["provider"]; thinking?: string; thinkingDuration?: number; webSearch?: string }[]>(
-      "SELECT * FROM messages ORDER BY conversationId ASC, createdAt ASC",
+      userId
+        ? "SELECT messages.* FROM messages INNER JOIN conversations ON conversations.id = messages.conversationId WHERE conversations.userId = ? ORDER BY messages.conversationId ASC, messages.createdAt ASC"
+        : "SELECT * FROM messages ORDER BY conversationId ASC, createdAt ASC",
+      userId ? [userId] : [],
     );
     return rows.map(mapRowToMessage);
   }
@@ -195,9 +198,15 @@ class InMemoryConversationRepository implements ConversationRepository {
     return all.slice(offset, offset + limit).reverse();
   }
 
-  async getAllMessages(): Promise<Message[]> {
+  async getAllMessages(userId?: string): Promise<Message[]> {
+    const conversationIds = new Set(
+      Object.values(this.conversations)
+        .filter((conversation) => !userId || conversation.userId === userId)
+        .map((conversation) => conversation.id),
+    );
     return Object.values(this.messages)
       .flat()
+      .filter((message) => conversationIds.has(message.conversationId))
       .sort((a, b) =>
         a.conversationId === b.conversationId
           ? a.createdAt.localeCompare(b.createdAt)

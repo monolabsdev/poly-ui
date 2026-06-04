@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Box, Button, Stack, TextField, Typography } from "@mui/material";
+import { useEffect, useState } from "react";
+import { Box, Button, ButtonBase, Stack, TextField, Typography } from "@mui/material";
 import {
   AppDialogBody,
   AppDialogFrame,
@@ -13,9 +13,9 @@ import {
   Info,
   Terminal,
   Play,
-  AlertTriangle,
   Volume2,
   Cpu,
+  SlidersHorizontal,
 } from "lucide-react";
 import { SettingCard, SectionHeader } from "./SettingComponents";
 import { useDevStore } from "@/store/devStore";
@@ -27,10 +27,12 @@ import { SpeechTab } from "./tabs/SpeechTab";
 import { DataControlsTab } from "./tabs/DataControlsTab";
 import { AboutTab } from "./tabs/AboutTab";
 import { ConnectionsTab } from "./tabs/ConnectionsTab";
+import { AdvancedTab } from "./tabs/AdvancedTab";
 import { APP_DIALOG_SIDEBAR_WIDTH } from "@/components/ui/appDialog";
 type SettingsModalProps = {
   isOpen: boolean;
   onClose: () => void;
+  initialTab?: SettingsTab;
 };
 
 const SIDEBAR_ITEMS = [
@@ -42,18 +44,27 @@ const SIDEBAR_ITEMS = [
   { id: "about", label: "About", icon: Info },
 ] as const;
 
-type SettingsTab = (typeof SIDEBAR_ITEMS)[number]["id"] | "developer";
+const ADVANCED_ITEM = {
+  id: "advanced" as const,
+  label: "Advanced",
+  icon: SlidersHorizontal,
+};
 
-export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
-  const [activeTab, setActiveTab] = useState<SettingsTab>("general");
+type SettingsTab = (typeof SIDEBAR_ITEMS)[number]["id"] | "developer" | "advanced";
+
+export function SettingsModal({ isOpen, onClose, initialTab = "general" }: SettingsModalProps) {
+  const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
   const devMode = useDevStore((s) => s.devMode);
+  useEffect(() => {
+    if (isOpen) setActiveTab(initialTab);
+  }, [initialTab, isOpen]);
 
   const sidebarItems = devMode
     ? [
         ...SIDEBAR_ITEMS,
         { id: "developer" as const, label: "Developer", icon: Terminal },
       ]
-    : SIDEBAR_ITEMS;
+    : [...SIDEBAR_ITEMS];
 
   const activeItem = sidebarItems.find((item) => item.id === activeTab);
 
@@ -76,6 +87,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           sx={{
             display: { xs: "none", md: "flex" },
             flexDirection: "column",
+            height: "100%",
             minHeight: 0,
             bgcolor: "transparent",
             p: 2,
@@ -87,19 +99,49 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               const isActive = activeTab === item.id;
 
               return (
-                <Box
+                <ButtonBase
                   key={item.id}
-                  component="button"
                   onClick={() => setActiveTab(item.id)}
+                    sx={{
+                      width: "100%",
+                      justifyContent: "flex-start",
+                      gap: 1.5,
+                      px: 1.5,
+                      py: 0.85,
+                      borderRadius: "9999px",
+                      color: isActive ? "text.primary" : "text.secondary",
+                      bgcolor: isActive ? "action.hover" : "transparent",
+                      "&:hover": {
+                        bgcolor: "action.hover",
+                        color: "text.primary",
+                      },
+                    }}
+                >
+                  <Icon size={16} />
+                  <Typography
+                    sx={{ fontSize: 13, fontWeight: isActive ? 600 : 500 }}
+                  >
+                    {item.label}
+                  </Typography>
+                </ButtonBase>
+              );
+            })}
+          </Stack>
+          <Box sx={{ flex: 1 }} />
+          <Box sx={{ pt: 1, borderTop: "1px solid", borderColor: "divider" }}>
+            {(() => {
+              const Icon = ADVANCED_ITEM.icon;
+              const isActive = activeTab === ADVANCED_ITEM.id;
+              return (
+                <ButtonBase
+                  onClick={() => setActiveTab(ADVANCED_ITEM.id)}
                   sx={{
                     width: "100%",
-                    display: "flex",
-                    alignItems: "center",
+                    justifyContent: "flex-start",
                     gap: 1.5,
                     px: 1.5,
                     py: 0.85,
-                    cursor: "pointer",
-                    textAlign: "left",
+                    borderRadius: "9999px",
                     color: isActive ? "text.primary" : "text.secondary",
                     bgcolor: isActive ? "action.hover" : "transparent",
                     "&:hover": {
@@ -112,12 +154,12 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   <Typography
                     sx={{ fontSize: 13, fontWeight: isActive ? 600 : 500 }}
                   >
-                    {item.label}
+                    {ADVANCED_ITEM.label}
                   </Typography>
-                </Box>
+                </ButtonBase>
               );
-            })}
-          </Stack>
+            })()}
+          </Box>
         </Box>
 
         <Box
@@ -154,26 +196,44 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             {sidebarItems.map((item) => {
               const isActive = activeTab === item.id;
               return (
-                <Box
+                <ButtonBase
                   key={item.id}
-                  component="button"
                   onClick={() => setActiveTab(item.id)}
-                  sx={{
-                    px: { xs: 1.5, sm: 1.25 },
-                    py: { xs: 1, sm: 0.75 },
-                    bgcolor: isActive ? "action.hover" : "transparent",
-                    color: isActive ? "text.primary" : "text.secondary",
-                    whiteSpace: "nowrap",
-                    fontSize: 13,
-                    fontWeight: 500,
-                    cursor: "pointer",
-                    scrollSnapAlign: "start",
-                  }}
+                    sx={{
+                      px: { xs: 1.5, sm: 1.25 },
+                      py: { xs: 1, sm: 0.75 },
+                      borderRadius: "9999px",
+                      justifyContent: "flex-start",
+                      bgcolor: isActive ? "action.hover" : "transparent",
+                      color: isActive ? "text.primary" : "text.secondary",
+                      whiteSpace: "nowrap",
+                      fontSize: 13,
+                      fontWeight: 500,
+                      scrollSnapAlign: "start",
+                    }}
                 >
                   {item.label}
-                </Box>
+                </ButtonBase>
               );
             })}
+            <ButtonBase
+              key={ADVANCED_ITEM.id}
+              onClick={() => setActiveTab(ADVANCED_ITEM.id)}
+              sx={{
+                px: { xs: 1.5, sm: 1.25 },
+                py: { xs: 1, sm: 0.75 },
+                borderRadius: "9999px",
+                justifyContent: "flex-start",
+                bgcolor: activeTab === ADVANCED_ITEM.id ? "action.hover" : "transparent",
+                color: activeTab === ADVANCED_ITEM.id ? "text.primary" : "text.secondary",
+                whiteSpace: "nowrap",
+                fontSize: 13,
+                fontWeight: 500,
+                scrollSnapAlign: "start",
+              }}
+            >
+              {ADVANCED_ITEM.label}
+            </ButtonBase>
           </Box>
 
           <AppDialogBody>
@@ -184,6 +244,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               {activeTab === "speech" && <SpeechTab />}
               {activeTab === "data-controls" && <DataControlsTab />}
               {activeTab === "about" && <AboutTab />}
+              {activeTab === "advanced" && <AdvancedTab />}
               {activeTab === "developer" && <DeveloperTab />}
             </Box>
           </AppDialogBody>
@@ -195,35 +256,12 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
 function DeveloperTab() {
   const notify = useNotify();
-  const [isClearing, setIsClearing] = useState(false);
   const [sql, setSql] = useState("");
   const [isExecuting, setIsExecuting] = useState(false);
   const [result, setResult] = useState<{
     columns: string[];
     rows: string[][];
   } | null>(null);
-
-  const handleClearDb = async () => {
-    if (
-      !confirm(
-        "This will DELETE ALL conversations, messages, users, and sessions. Continue?",
-      )
-    )
-      return;
-    setIsClearing(true);
-    try {
-      const res = await loggedInvoke<{ success: boolean; message: string }>(
-        "clear_database",
-      );
-      if (res.success) {
-        notify.success(res.message);
-      }
-    } catch (err) {
-      notify.error("Failed to clear database", err as string);
-    } finally {
-      setIsClearing(false);
-    }
-  };
 
   const handleExecuteSql = async () => {
     if (!sql.trim()) return;
@@ -265,24 +303,6 @@ function DeveloperTab() {
       <SectionHeader
         title="Developer Tools"
         description="Dangerous operations. These cannot be undone."
-      />
-
-      <SettingCard
-        title="Clear Database"
-        description="Delete all conversations, messages, users, and sessions."
-        action={
-          <Button
-            size="small"
-            variant="outlined"
-            color="error"
-            onClick={handleClearDb}
-            disabled={isClearing}
-            startIcon={<AlertTriangle size={14} />}
-            sx={{ textTransform: "none", fontWeight: 700 }}
-          >
-            {isClearing ? "Clearing..." : "Clear All Data"}
-          </Button>
-        }
       />
 
       <SettingCard title="SQL Runner">

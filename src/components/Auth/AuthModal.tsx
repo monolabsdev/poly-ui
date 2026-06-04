@@ -3,6 +3,7 @@ import {
   Box,
   Button as MuiButton,
   IconButton,
+  Modal as MuiModal,
   Stack,
   Typography,
 } from "@mui/material";
@@ -15,7 +16,13 @@ import { Label } from "@/components/ui/label";
 type AuthTab = "login" | "signup";
 type SignupStep = 1 | 2;
 
-function AuthTabs({ tab, onChange }: { tab: AuthTab; onChange: (tab: AuthTab) => void }) {
+function AuthTabs({
+  tab,
+  onChange,
+}: {
+  tab: AuthTab;
+  onChange: (tab: AuthTab) => void;
+}) {
   const tabs: Array<{ key: AuthTab; label: string }> = [
     { key: "login", label: "Sign in" },
     { key: "signup", label: "Sign up" },
@@ -61,7 +68,10 @@ function AuthTabs({ tab, onChange }: { tab: AuthTab; onChange: (tab: AuthTab) =>
             color: tab === item.key ? "#050505" : "rgba(255,255,255,0.62)",
             fontWeight: 700,
             fontSize: 13,
-            "&:hover": { bgcolor: "transparent", color: tab === item.key ? "#050505" : "#fff" },
+            "&:hover": {
+              bgcolor: "transparent",
+              color: tab === item.key ? "#050505" : "#fff",
+            },
           }}
         >
           {item.label}
@@ -88,7 +98,8 @@ function AuthForm({
   const [confirmPassword, setConfirmPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const passwordMismatch = tab === "signup" && confirmPassword !== "" && password !== confirmPassword;
+  const passwordMismatch =
+    tab === "signup" && confirmPassword !== "" && password !== confirmPassword;
 
   const inputSx = {
     height: 40,
@@ -151,7 +162,9 @@ function AuthForm({
                 required
               />
             </Field>
-            <SubmitButton disabled={isLoading} fullWidth>Continue</SubmitButton>
+            <SubmitButton disabled={isLoading} fullWidth>
+              Continue
+            </SubmitButton>
           </>
         )}
 
@@ -180,12 +193,16 @@ function AuthForm({
               />
             </Field>
             {passwordMismatch && (
-              <Typography sx={{ color: "#ff8a8a", fontSize: 13, fontWeight: 650 }}>
+              <Typography
+                sx={{ color: "#ff8a8a", fontSize: 13, fontWeight: 650 }}
+              >
                 Passwords do not match
               </Typography>
             )}
             {error && (
-              <Typography sx={{ color: "#ff8a8a", fontSize: 13, fontWeight: 650 }}>
+              <Typography
+                sx={{ color: "#ff8a8a", fontSize: 13, fontWeight: 650 }}
+              >
                 {error}
               </Typography>
             )}
@@ -236,7 +253,9 @@ function AuthForm({
               />
             </Field>
             {error && (
-              <Typography sx={{ color: "#ff8a8a", fontSize: 13, fontWeight: 650 }}>
+              <Typography
+                sx={{ color: "#ff8a8a", fontSize: 13, fontWeight: 650 }}
+              >
                 {error}
               </Typography>
             )}
@@ -247,7 +266,14 @@ function AuthForm({
         )}
       </Stack>
 
-      <Typography sx={{ color: "rgba(255,255,255,0.45)", fontSize: 13, textAlign: "center", mt: 2 }}>
+      <Typography
+        sx={{
+          color: "rgba(255,255,255,0.45)",
+          fontSize: 13,
+          textAlign: "center",
+          mt: 2,
+        }}
+      >
         {tab === "login" ? "New here?" : "Already have account?"}{" "}
         <MuiButton
           disableRipple
@@ -270,7 +296,12 @@ function AuthForm({
 
 function StepStatus({ current }: { current: SignupStep }) {
   return (
-    <Stack direction="row" spacing={1} alignItems="center" sx={{ color: "rgba(255,255,255,0.52)", fontSize: 12, fontWeight: 700 }}>
+    <Stack
+      direction="row"
+      spacing={1}
+      alignItems="center"
+      sx={{ color: "rgba(255,255,255,0.52)", fontSize: 12, fontWeight: 700 }}
+    >
       <StepDot active={current === 1}>1</StepDot>
       <Box sx={{ height: 1, flex: 1, bgcolor: "rgba(255,255,255,0.12)" }} />
       <StepDot active={current === 2}>2</StepDot>
@@ -278,7 +309,13 @@ function StepStatus({ current }: { current: SignupStep }) {
   );
 }
 
-function StepDot({ active, children }: { active: boolean; children: React.ReactNode }) {
+function StepDot({
+  active,
+  children,
+}: {
+  active: boolean;
+  children: React.ReactNode;
+}) {
   return (
     <Box
       sx={{
@@ -296,7 +333,15 @@ function StepDot({ active, children }: { active: boolean; children: React.ReactN
   );
 }
 
-function SubmitButton({ disabled, fullWidth = false, children }: { disabled?: boolean; fullWidth?: boolean; children: React.ReactNode }) {
+function SubmitButton({
+  disabled,
+  fullWidth = false,
+  children,
+}: {
+  disabled?: boolean;
+  fullWidth?: boolean;
+  children: React.ReactNode;
+}) {
   return (
     <Button
       type="submit"
@@ -310,7 +355,10 @@ function SubmitButton({ disabled, fullWidth = false, children }: { disabled?: bo
         color: "#050505",
         fontWeight: 800,
         "&:hover": { bgcolor: "#ffffff", opacity: 1 },
-        "&.Mui-disabled": { bgcolor: "rgba(255,255,255,0.2)", color: "rgba(255,255,255,0.45)" },
+        "&.Mui-disabled": {
+          bgcolor: "rgba(255,255,255,0.2)",
+          color: "rgba(255,255,255,0.45)",
+        },
       }}
     >
       {children}
@@ -363,10 +411,21 @@ function PasswordInput({
   );
 }
 
-function Field({ label, htmlFor, children }: { label: string; htmlFor: string; children: React.ReactNode }) {
+function Field({
+  label,
+  htmlFor,
+  children,
+}: {
+  label: string;
+  htmlFor: string;
+  children: React.ReactNode;
+}) {
   return (
     <Stack spacing={0.85}>
-      <Label htmlFor={htmlFor} sx={{ color: "rgba(255,255,255,0.78)", fontSize: 13, fontWeight: 750 }}>
+      <Label
+        htmlFor={htmlFor}
+        sx={{ color: "rgba(255,255,255,0.78)", fontSize: 13, fontWeight: 750 }}
+      >
         {label}
       </Label>
       {children}
@@ -374,7 +433,12 @@ function Field({ label, htmlFor, children }: { label: string; htmlFor: string; c
   );
 }
 
-function AuthPage({ tab, signupStep, onTabChange, onSignupStepChange }: {
+function AuthPage({
+  tab,
+  signupStep,
+  onTabChange,
+  onSignupStepChange,
+}: {
   tab: AuthTab;
   signupStep: SignupStep;
   onTabChange: (tab: AuthTab) => void;
@@ -396,19 +460,17 @@ function AuthPage({ tab, signupStep, onTabChange, onSignupStepChange }: {
         py: { xs: 4, md: 6 },
       }}
     >
-      <Stack spacing={3} sx={{ width: "min(100%, 460px)" }}>
-        <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ xs: "stretch", sm: "center" }} gap={2}>
-          <AuthTabs tab={tab} onChange={onTabChange} />
-          <MuiButton
-            disableRipple
-            onClick={skipAuth}
-            sx={{ color: "rgba(255,255,255,0.42)", fontWeight: 700, alignSelf: { xs: "center", sm: "auto" }, "&:hover": { bgcolor: "transparent", color: "#fff" } }}
-          >
-            Skip
-          </MuiButton>
-        </Stack>
-        <Typography sx={{ m: 0, fontSize: 28, fontWeight: 820, letterSpacing: 0 }}>
-          {tab === "login" ? "Welcome back" : signupStep === 1 ? "Create your account" : "Secure your account"}
+      <Stack spacing={2.5} sx={{ width: "min(100%, 420px)" }}>
+        <AuthTabs tab={tab} onChange={onTabChange} />
+        <Typography
+          id="auth-dialog-title"
+          sx={{ m: 0, fontSize: 28, fontWeight: 820, letterSpacing: 0 }}
+        >
+          {tab === "login"
+            ? "Welcome back"
+            : signupStep === 1
+              ? "Create your account"
+              : "Secure your account"}
         </Typography>
         <AuthForm
           tab={tab}
@@ -416,6 +478,18 @@ function AuthPage({ tab, signupStep, onTabChange, onSignupStepChange }: {
           onTabChange={onTabChange}
           onSignupStepChange={onSignupStepChange}
         />
+        <MuiButton
+          disableRipple
+          onClick={skipAuth}
+          sx={{
+            color: "rgba(255,255,255,0.62)",
+            fontWeight: 700,
+            alignSelf: "center",
+            "&:hover": { bgcolor: "transparent", color: "#fff" },
+          }}
+        >
+          Continue as guest
+        </MuiButton>
       </Stack>
     </Box>
   );
@@ -435,13 +509,28 @@ export const AuthModal: React.FC = () => {
   if (!isOpen) return null;
 
   return (
-    <Box sx={{ position: "fixed", inset: 0, zIndex: 1000, overflowY: "auto", overflowX: "hidden" }}>
-      <AuthPage
-        tab={tab}
-        signupStep={signupStep}
-        onTabChange={handleTabChange}
-        onSignupStepChange={setSignupStep}
-      />
-    </Box>
+    <MuiModal
+      open={isOpen}
+      aria-labelledby="auth-dialog-title"
+      aria-modal="true"
+    >
+      <Box
+        role="dialog"
+        sx={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 1000,
+          overflowY: "auto",
+          overflowX: "hidden",
+        }}
+      >
+        <AuthPage
+          tab={tab}
+          signupStep={signupStep}
+          onTabChange={handleTabChange}
+          onSignupStepChange={setSignupStep}
+        />
+      </Box>
+    </MuiModal>
   );
 };

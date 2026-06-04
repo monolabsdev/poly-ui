@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Box, Typography, IconButton } from "@mui/material";
+import { Box, Button, ButtonBase, Typography, IconButton } from "@mui/material";
 import { Folder, MessageSquare, Trash2, X } from "lucide-react";
 import { ChatInput } from "@/components/Chat/ChatInput";
 import { ConversationItem } from "@/components/Chat/ConversationItem";
@@ -15,10 +15,11 @@ type FolderHomeProps = {
   onSubmit: (value: string) => void | Promise<void>;
   onStop: () => void;
   isStreaming: boolean;
-  selectedModel: string;
+  providerOnline: boolean;
+  onOpenConnections: () => void;
 };
 
-export function FolderHome({ folder, onSubmit, onStop, isStreaming, selectedModel }: FolderHomeProps) {
+export function FolderHome({ folder, onSubmit, onStop, isStreaming, providerOnline, onOpenConnections }: FolderHomeProps) {
   const conversations = useChatStore((state) => state.conversations);
   const activeConversationId = useChatStore((state) => state.activeConversationId);
   const setActiveConversationId = useChatStore((state) => state.actions.setActiveConversationId);
@@ -152,7 +153,7 @@ export function FolderHome({ folder, onSubmit, onStop, isStreaming, selectedMode
 
   return (
     <Box sx={{ flex: 1, minHeight: 0, width: "100%", overflowY: "auto", px: 2 }}>
-      <Box sx={{ width: "100%", maxWidth: 720, mx: "auto", pt: { xs: 5, sm: 9 }, pb: 5 }}>
+      <Box sx={{ width: "100%", maxWidth: 720, mx: "auto", pt: { xs: 4, sm: 6 }, pb: 5 }}>
       <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
         <Folder size={20} />
         <Typography variant="h6" sx={{ fontSize: "18px", fontWeight: 500 }}>{folder.name}</Typography>
@@ -161,24 +162,32 @@ export function FolderHome({ folder, onSubmit, onStop, isStreaming, selectedMode
         onSubmit={onSubmit}
         onStop={onStop}
         isStreaming={isStreaming}
-        selectedModel={selectedModel}
-        hasMessages={false}
       />
-      <Box role="tablist" sx={{ display: "flex", gap: 1, mt: 1.5, mb: 5 }}>
+      {!providerOnline && (
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, p: 2, border: "1px solid", borderColor: "divider", borderRadius: "12px" }}>
+          <Box>
+            <Typography sx={{ fontSize: 14, fontWeight: 700 }}>No provider connected</Typography>
+            <Typography sx={{ mt: 0.25, fontSize: 12, color: "text.secondary" }}>Start Ollama, then connect it to chat in this folder.</Typography>
+          </Box>
+          <Button variant="outlined" onClick={onOpenConnections} sx={{ flexShrink: 0, textTransform: "none", fontWeight: 700 }}>
+            Open Connections
+          </Button>
+        </Box>
+      )}
+      <Box role="tablist" aria-label="Folder content" sx={{ display: "flex", gap: 1, mt: 1.5, mb: 2.5 }}>
         {(["chats", "sources"] as const).map((tab) => (
-          <Box
+          <ButtonBase
             key={tab}
             role="tab"
-            component="button"
-            type="button"
             aria-selected={activeTab === tab}
             onClick={() => setActiveTab(tab)}
             sx={{
               px: 1.5,
               py: 0.75,
+              borderRadius: "9999px",
+              justifyContent: "flex-start",
               bgcolor: activeTab === tab ? "action.selected" : "transparent",
               color: activeTab === tab ? "text.primary" : "text.secondary",
-              cursor: "pointer",
               fontFamily: "inherit",
               fontSize: "12px",
               textTransform: "capitalize",
@@ -186,7 +195,7 @@ export function FolderHome({ folder, onSubmit, onStop, isStreaming, selectedMode
             }}
           >
             {tab}
-          </Box>
+          </ButtonBase>
         ))}
       </Box>
       {activeTab === "sources" ? (
@@ -246,8 +255,8 @@ export function FolderHome({ folder, onSubmit, onStop, isStreaming, selectedMode
       {chats.length === 0 ? (
         <Box sx={{ textAlign: "center", pt: 9 }}>
           <MessageSquare size={32} style={{ opacity: 0.3, marginBottom: 12 }} />
-          <Typography sx={{ fontSize: "13px", color: "text.primary" }}>No chats yet</Typography>
-          <Typography sx={{ fontSize: "12px", mt: 0.5, color: "text.secondary" }}>Chats in {folder.name} will live here</Typography>
+          <Typography sx={{ fontSize: "13px", color: "text.primary" }}>Start a chat in this folder</Typography>
+          <Typography sx={{ fontSize: "12px", mt: 0.5, color: "text.secondary" }}>New conversations will stay grouped in {folder.name}.</Typography>
         </Box>
       ) : (
         <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>

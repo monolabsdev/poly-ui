@@ -4,6 +4,8 @@ import { useModelStore } from "@/store/modelStore";
 import { useOllamaStore } from "@/services/ollama/monitor";
 import { useProviderStore } from "@/services/providers";
 import { initStoreCoordinator } from "@/store/coordinator";
+import { useSettingsStore } from "@/store/settingsStore";
+import { choosePerformanceSettings, readSystemProfile } from "@/lib/performance";
 import { isPermissionGranted, requestPermission } from "@tauri-apps/plugin-notification";
 
 const SYSTEM_PROMPTS_STORAGE_KEY = "polyui.systemPrompts";
@@ -79,6 +81,7 @@ async function initializeStores() {
   restoreSystemPrompts();
   startSystemPromptPersistence();
   initStoreCoordinator();
+  await autoOptimizePerformance();
 
   requestNotificationPermission();
 
@@ -109,6 +112,15 @@ async function requestNotificationPermission() {
   } catch {
     // Notification permission not available (e.g. non-Tauri or Linux without .desktop file)
   }
+}
+
+async function autoOptimizePerformance() {
+  const { performance, actions } = useSettingsStore.getState();
+  if (!performance.autoOptimize || performance.optimizedAt) return;
+
+  const system = await readSystemProfile();
+  const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  actions.updatePerformance(choosePerformanceSettings(system, prefersReducedMotion));
 }
 
 export async function prepareAppStartup() {
