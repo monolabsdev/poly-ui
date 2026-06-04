@@ -3506,7 +3506,7 @@ dependencies = [
 
 [[package]]
 name = "polyui"
-version = "0.11.0-rc.4"
+version = "0.11.1"
 dependencies = [
  "async-stream",
  "async-trait",
