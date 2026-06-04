@@ -3,7 +3,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-const VERSION: &str = "v0.0.62";
+const VERSION: &str = "v0.0.46";
 
 fn main() {
     println!("cargo:rerun-if-env-changed=MOONSHINE_LIB_DIR");
@@ -41,16 +41,10 @@ fn ensure_release() -> PathBuf {
 fn archive_name() -> &'static str {
     match env::var("CARGO_CFG_TARGET_OS").as_deref() {
         Ok("windows") => "moonshine-voice-windows-x86_64.tar.gz",
-        Ok("macos") => {
-            if env::var("CARGO_CFG_TARGET_ARCH").as_deref() == Ok("aarch64") {
-                "moonshine-voice-macos-arm64.tar.gz"
-            } else {
-                "moonshine-voice-macos-x86_64.tar.gz"
-            }
-        }
+        Ok("macos") => "moonshine-voice-macos.tar.gz",
         Ok("linux") => {
             if env::var("CARGO_CFG_TARGET_ARCH").as_deref() == Ok("aarch64") {
-                "moonshine-voice-linux-aarch64.tar.gz"
+                "moonshine-voice-rpi-arm64.tar.gz"
             } else {
                 "moonshine-voice-linux-x86_64.tar.gz"
             }
