@@ -14,7 +14,7 @@ tauri-build = { version = "2", features = [] }
 
 [features]
 default = ["dictation"]
-dictation = ["dep:moonshine-sys"]
+dictation = ["dep:whisper-rs"]
 dev-sql-console = []
 
 [dependencies]
@@ -43,5 +43,5 @@ tauri-plugin-os = "2"
 tauri-plugin-notification = "2"
 tauri-plugin-dialog = "2"
 dirs = "6"
-moonshine-sys = { path = "moonshine-sys", optional = true }
 sysinfo = "0.32"
+whisper-rs = { version = "0.16", optional = true }
