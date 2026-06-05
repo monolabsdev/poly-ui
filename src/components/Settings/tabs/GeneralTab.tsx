@@ -9,7 +9,6 @@ import { useShallow } from "zustand/react/shallow";
 import { SettingCard, SectionHeader, selectSx } from "../SettingComponents";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useThemeStore } from "@/store/themeStore";
-import { WebSearchSettings } from "@/features/web-search/WebSearchSettings";
 
 export function GeneralTab() {
   const { general, actions } = useSettingsStore(
@@ -73,12 +72,6 @@ export function GeneralTab() {
           />
         }
       />
-
-      <SectionHeader
-        title="Web Search"
-        description="Optional live results. Provider credentials stay local."
-      />
-      <WebSearchSettings />
     </Stack>
   );
 }

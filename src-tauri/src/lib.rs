@@ -91,6 +91,8 @@ pub fn run() {
             commands::provider_commands::get_provider_and_models,
             commands::provider_commands::get_provider_models,
             commands::provider_commands::update_provider_config,
+            commands::provider_commands::add_provider,
+            commands::provider_commands::delete_provider,
             execute_sql,
             #[cfg(feature = "dev-sql-console")]
             commands::db_commands::clear_database,

@@ -29,6 +29,7 @@ impl ProviderFactory {
                 Some(Box::new(OpenAICompatibleProvider::new(
                     base_url,
                     config.api_key.unwrap_or_default(),
+                    config.headers.clone(),
                 )))
             }
         }

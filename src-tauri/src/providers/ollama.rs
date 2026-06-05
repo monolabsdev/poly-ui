@@ -319,6 +319,7 @@ impl LLMProvider for OllamaProvider {
                     done: response.done,
                     metadata,
                     tool_calls,
+                    error: None,
                 })
             }
             Err(e) => Err(normalize_ollama_stream_error(e)),

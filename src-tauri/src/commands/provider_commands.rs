@@ -50,6 +50,10 @@ async fn try_preload_models(
     Some(result)
 }
 
+fn config_health_key(config: &ProviderConfig) -> i64 {
+    config.id.unwrap_or(0)
+}
+
 #[tauri::command]
 pub async fn get_providers(
     state: tauri::State<'_, AppState>,
@@ -63,8 +67,9 @@ pub async fn get_providers(
 
     let mut response = Vec::new();
     for config in configs {
+        let key = config_health_key(&config);
         let status = health
-            .get(&config.provider_type)
+            .get(&key)
             .cloned()
             .unwrap_or(ProviderStatus::Offline);
         response.push(ProviderStatusResponse {
@@ -90,8 +95,9 @@ pub async fn get_provider_and_models(
     let mut providers = Vec::new();
     let mut models = Vec::new();
     for config in configs {
+        let key = config_health_key(&config);
         let mut status = health
-            .get(&config.provider_type)
+            .get(&key)
             .cloned()
             .unwrap_or(ProviderStatus::Offline);
         if status == ProviderStatus::Online && should_preload_models(config.provider_type) {
@@ -130,6 +136,8 @@ pub struct UpdateProviderConfigRequest {
     pub provider_type: ProviderType,
     pub enabled: bool,
     #[serde(default)]
+    pub id: Option<i64>,
+    #[serde(default)]
     pub ollama_host: Option<String>,
     #[serde(default)]
     pub ollama_api_key: Option<String>,
@@ -139,6 +147,12 @@ pub struct UpdateProviderConfigRequest {
     pub api_key: Option<String>,
     #[serde(default)]
     pub api_base_url: Option<String>,
+    #[serde(default)]
+    pub preset: Option<String>,
+    #[serde(default)]
+    pub headers: Option<String>,
+    #[serde(default)]
+    pub model_suggestions: Option<String>,
 }
 
 #[tauri::command]
@@ -149,6 +163,7 @@ pub async fn update_provider_config(
     state
         .provider_selector
         .update_provider_config(
+            request.id,
             &request.provider_type,
             request.enabled,
             request.ollama_host,
@@ -156,7 +171,61 @@ pub async fn update_provider_config(
             request.ollama_api_base_url,
             request.api_key,
             request.api_base_url,
+            request.preset,
+            request.headers,
+            request.model_suggestions,
         )
+        .await
+        .map_err(|e| AppError::Db(e).to_string())
+}
+
+#[derive(serde::Deserialize)]
+pub struct AddProviderRequest {
+    pub provider_type: ProviderType,
+    pub enabled: bool,
+    #[serde(default)]
+    pub ollama_host: Option<String>,
+    #[serde(default)]
+    pub api_key: Option<String>,
+    #[serde(default)]
+    pub api_base_url: Option<String>,
+    #[serde(default)]
+    pub preset: Option<String>,
+    #[serde(default)]
+    pub headers: Option<String>,
+    #[serde(default)]
+    pub model_suggestions: Option<String>,
+}
+
+#[tauri::command]
+pub async fn add_provider(
+    state: tauri::State<'_, AppState>,
+    request: AddProviderRequest,
+) -> Result<i64, String> {
+    state
+        .provider_selector
+        .add_provider_config(
+            &request.provider_type,
+            request.enabled,
+            request.ollama_host,
+            request.api_key,
+            request.api_base_url,
+            request.preset,
+            request.headers,
+            request.model_suggestions,
+        )
+        .await
+        .map_err(|e| AppError::Db(e).to_string())
+}
+
+#[tauri::command]
+pub async fn delete_provider(
+    state: tauri::State<'_, AppState>,
+    id: i64,
+) -> Result<(), String> {
+    state
+        .provider_selector
+        .delete_provider_config(id)
         .await
         .map_err(|e| AppError::Db(e).to_string())
 }

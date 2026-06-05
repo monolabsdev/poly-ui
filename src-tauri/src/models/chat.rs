@@ -20,6 +20,8 @@ pub struct StreamPayload {
     pub metadata: Option<StreamMetadata>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_calls: Option<Vec<ToolCallInfo>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
 }
 
 #[derive(Serialize, Clone)]

@@ -5,6 +5,7 @@ export type ProviderType = "OllamaLocal" | "OpenAICompatible";
 export type ProviderStatus = "Online" | "Offline" | "Reconnecting" | "Unavailable";
 
 export interface ProviderConfig {
+  id?: number;
   provider_type: ProviderType;
   enabled: boolean;
   ollama_host?: string;
@@ -13,12 +14,26 @@ export interface ProviderConfig {
   api_key?: string;
   api_base_url?: string;
   priority: number;
+  preset?: string;
+  headers?: string;
+  model_suggestions?: string;
 }
 
 export interface ProviderStatusResponse {
   provider_type: ProviderType;
   status: ProviderStatus;
   config: ProviderConfig;
+}
+
+interface AddProviderRequest {
+  provider_type: ProviderType;
+  enabled: boolean;
+  ollama_host?: string;
+  api_key?: string;
+  api_base_url?: string;
+  preset?: string;
+  headers?: string;
+  model_suggestions?: string;
 }
 
 interface ProviderStore {
@@ -30,6 +45,7 @@ interface ProviderStore {
     refresh: () => Promise<void>;
     setProviders: (providers: ProviderStatusResponse[]) => void;
     updateProviderConfig: (config: {
+      id?: number;
       provider_type: ProviderType;
       enabled?: boolean;
       ollama_host?: string;
@@ -37,7 +53,12 @@ interface ProviderStore {
       ollama_api_base_url?: string;
       api_key?: string;
       api_base_url?: string;
+      preset?: string;
+      headers?: string;
+      model_suggestions?: string;
     }) => Promise<void>;
+    addProvider: (config: AddProviderRequest) => Promise<void>;
+    deleteProvider: (id: number) => Promise<void>;
   };
 }
 
@@ -63,6 +84,7 @@ export const useProviderStore = create<ProviderStore>((set) => ({
       return { providers, loading: false, error: null };
     }),
     updateProviderConfig: async (config: {
+      id?: number;
       provider_type: ProviderType;
       enabled?: boolean;
       ollama_host?: string;
@@ -70,14 +92,29 @@ export const useProviderStore = create<ProviderStore>((set) => ({
       ollama_api_base_url?: string;
       api_key?: string;
       api_base_url?: string;
+      preset?: string;
+      headers?: string;
+      model_suggestions?: string;
     }) => {
       const current = (await invoke<ProviderStatusResponse[]>("get_providers")).find(
-        (p) => p.config.provider_type === config.provider_type,
+        (p) => p.config.id === config.id || p.config.provider_type === config.provider_type,
       );
       if (!current) throw new Error("Provider not found");
       await invoke("update_provider_config", {
         request: { ...current.config, ...config },
       });
+      set({ loading: true });
+      const providers = await invoke<ProviderStatusResponse[]>("get_providers");
+      set({ providers, loading: false, error: null });
+    },
+    addProvider: async (config: AddProviderRequest) => {
+      await invoke("add_provider", { request: config });
+      set({ loading: true });
+      const providers = await invoke<ProviderStatusResponse[]>("get_providers");
+      set({ providers, loading: false, error: null });
+    },
+    deleteProvider: async (id: number) => {
+      await invoke("delete_provider", { id });
       set({ loading: true });
       const providers = await invoke<ProviderStatusResponse[]>("get_providers");
       set({ providers, loading: false, error: null });

@@ -21,6 +21,7 @@ pub enum ProviderStatus {
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct ProviderConfig {
+    pub id: Option<i64>,
     pub provider_type: ProviderType,
     pub enabled: bool,
     pub ollama_host: Option<String>,
@@ -29,6 +30,9 @@ pub struct ProviderConfig {
     pub api_key: Option<String>,
     pub api_base_url: Option<String>,
     pub priority: i32,
+    pub preset: Option<String>,
+    pub headers: Option<String>,
+    pub model_suggestions: Option<String>,
 }
 
 #[async_trait]

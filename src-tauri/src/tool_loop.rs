@@ -213,14 +213,15 @@ impl ToolLoop {
                 if is_cancelled() {
                     emitter
                         .emit_chunk(&StreamPayload {
-                            request_id: request_id.to_string(),
-                            content: String::new(),
-                            thinking: None,
-                            done: true,
-                            metadata: None,
-                            tool_calls: None,
-                        })
-                        .await;
+                                request_id: request_id.to_string(),
+                                content: String::new(),
+                                thinking: None,
+                                done: true,
+                                metadata: None,
+                                tool_calls: None,
+                                error: None,
+                            })
+                            .await;
                     return Err(AppError::Cancelled);
                 }
 
@@ -235,6 +236,7 @@ impl ToolLoop {
                                 done: true,
                                 metadata: None,
                                 tool_calls: None,
+                                error: Some(e.clone()),
                             })
                             .await;
                         return Err(AppError::Provider(e));
@@ -282,6 +284,7 @@ impl ToolLoop {
                                 done: false,
                                 metadata: None,
                                 tool_calls: None,
+                                error: None,
                             })
                             .await;
                     }
@@ -309,6 +312,7 @@ impl ToolLoop {
                                 done: false,
                                 metadata: None,
                                 tool_calls: None,
+                                error: None,
                             })
                             .await;
                     }
@@ -409,6 +413,7 @@ impl ToolLoop {
                             done: true,
                             metadata: final_metadata.clone(),
                             tool_calls: None,
+                            error: None,
                         })
                         .await;
                     return Ok(ToolLoopResult {

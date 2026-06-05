@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Box,
   Button,
@@ -11,6 +11,7 @@ import {
   Divider,
   IconButton,
   LinearProgress,
+  Paper,
   Skeleton,
   Stack,
   Switch,
@@ -20,15 +21,21 @@ import {
 } from "@mui/material";
 import {
   ChevronDown,
+  Cpu,
   Download,
-  Edit3,
   Eye,
   EyeOff,
+  Globe,
   Plus,
   RefreshCw,
+  Route,
+  Search,
+  Settings,
+  Sparkles,
   Trash2,
   X,
   XCircle,
+  Zap,
 } from "lucide-react";
 import { listen } from "@tauri-apps/api/event";
 import { useShallow } from "zustand/react/shallow";
@@ -37,7 +44,9 @@ import { appPanelSx, appTextFieldSx } from "@/components/ui/appDialog";
 import { useNotify } from "@/hooks/useNotify";
 import { formatFileSize, loggedInvoke } from "@/lib/utils";
 import { useOllama, type PullProgress } from "@/services/ollama";
-import { useProviderStore, type ProviderStatus } from "@/services/providers";
+import { useProviderStore, type ProviderStatus, type ProviderStatusResponse } from "@/services/providers";
+import { PROVIDER_PRESETS, lookupPreset, type ProviderPreset } from "@/services/providers/presets";
+import { WebSearchSettings } from "@/features/web-search/WebSearchSettings";
 
 const statusChipColor: Record<
   ProviderStatus,
@@ -48,6 +57,240 @@ const statusChipColor: Record<
   Reconnecting: "warning",
   Unavailable: "default",
 };
+
+const presetIcons: Record<string, React.ReactNode> = {
+  openai: <Sparkles size={22} />,
+  openrouter: <Route size={22} />,
+  groq: <Zap size={22} />,
+  together: <Globe size={22} />,
+  deepseek: <Search size={22} />,
+  ollama: <Cpu size={22} />,
+  custom: <Settings size={22} />,
+};
+
+const isOllamaLocal = (p: ProviderStatusResponse) =>
+  p.provider_type === "OllamaLocal";
+
+function ProviderCard({
+  provider,
+  updateProviderConfig,
+  onDelete,
+}: {
+  provider: ProviderStatusResponse;
+  updateProviderConfig: (config: {
+    id?: number;
+    provider_type: "OllamaLocal" | "OpenAICompatible";
+    enabled?: boolean;
+    ollama_host?: string;
+    api_key?: string;
+    api_base_url?: string;
+  }) => Promise<void>;
+  onDelete?: () => void;
+}) {
+  const theme = useTheme();
+  const notify = useNotify();
+  const ollama = useOllama();
+  const isOllama = isOllamaLocal(provider);
+
+  const preset = lookupPreset(
+    isOllama ? "ollama" : (provider.config.preset ?? null),
+    isOllama
+      ? (provider.config.ollama_host ?? "")
+      : (provider.config.api_base_url ?? null),
+  );
+  const url = isOllama
+    ? (provider.config.ollama_host ?? "http://127.0.0.1:11434")
+    : (provider.config.api_base_url ?? "");
+
+  const [editing, setEditing] = useState(false);
+  const [host, setHost] = useState("");
+  const [apiKey, setApiKey] = useState("");
+  const [enabled, setEnabled] = useState(true);
+  const [dirty, setDirty] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [showKey, setShowKey] = useState(false);
+
+  const openEdit = () => {
+    setHost(isOllama
+      ? (provider.config.ollama_host ?? "http://127.0.0.1:11434")
+      : (provider.config.api_base_url ?? ""));
+    setApiKey(provider.config.api_key ?? "");
+    setEnabled(provider.config.enabled);
+    setDirty(false);
+    setEditing(true);
+  };
+
+  const closeEdit = () => {
+    setEditing(false);
+    setDirty(false);
+  };
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      if (isOllama) {
+        await updateProviderConfig({
+          id: provider.config.id,
+          provider_type: "OllamaLocal",
+          ollama_host: host.trim(),
+          enabled,
+        });
+      } else {
+        await updateProviderConfig({
+          id: provider.config.id,
+          provider_type: "OpenAICompatible",
+          api_base_url: host.trim(),
+          api_key: apiKey.trim() || undefined,
+          enabled,
+        });
+        ollama.actions.clearExternalModels();
+        await ollama.refresh();
+      }
+      setDirty(false);
+      setEditing(false);
+      notify.success("Connection saved");
+    } catch (err) {
+      notify.error("Failed to save", String(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const cardBorder = `1px solid ${theme.palette.divider}`;
+
+  return (
+    <Box sx={{ py: theme.spacing(0.75) }}>
+      <Box sx={{ p: theme.spacing(1.5), borderRadius: 1, border: cardBorder }}>
+        <Stack
+          direction="row"
+          alignItems="center"
+          spacing={theme.spacing(1)}
+          sx={{ mb: theme.spacing(0.5) }}
+        >
+          <Typography variant="body1" sx={{ fontWeight: 700 }}>
+            {preset.label}
+          </Typography>
+          <Chip
+            label={provider.status}
+            color={statusChipColor[provider.status]}
+            size="small"
+          />
+          <Box sx={{ flexGrow: 1 }} />
+          {editing ? (
+            <IconButton size="small" aria-label="Close edit" onClick={closeEdit}>
+              <X size={15} />
+            </IconButton>
+          ) : (
+            <IconButton
+              size="small"
+              aria-label={`Edit ${preset.label}`}
+              onClick={openEdit}
+            >
+              <Settings size={15} />
+            </IconButton>
+          )}
+          {!isOllama && onDelete && (
+            <IconButton
+              size="small"
+              aria-label={`Delete ${preset.label}`}
+              onClick={onDelete}
+            >
+              <Trash2 size={15} />
+            </IconButton>
+          )}
+        </Stack>
+
+        {!editing && (
+          <Typography variant="caption" color="text.secondary">
+            {url}
+          </Typography>
+        )}
+
+        <Collapse in={editing}>
+          <Stack spacing={theme.spacing(1)} sx={{ mt: theme.spacing(1) }}>
+            {isOllama ? (
+              <TextField
+                value={host}
+                onChange={(e) => {
+                  setHost(e.target.value);
+                  setDirty(true);
+                }}
+                placeholder="http://127.0.0.1:11434"
+                fullWidth
+                size="small"
+                sx={appTextFieldSx}
+              />
+            ) : (
+              <TextField
+                label="API base URL"
+                value={host}
+                onChange={(e) => {
+                  setHost(e.target.value);
+                  setDirty(true);
+                }}
+                placeholder="https://api.openai.com/v1"
+                fullWidth
+                size="small"
+                sx={appTextFieldSx}
+              />
+            )}
+            {!isOllama && (
+              <TextField
+                label="API key (optional)"
+                value={apiKey}
+                onChange={(e) => {
+                  setApiKey(e.target.value);
+                  setDirty(true);
+                }}
+                placeholder={preset.requiresApiKey ? "sk-..." : "Optional"}
+                type={showKey ? "text" : "password"}
+                autoComplete="off"
+                fullWidth
+                size="small"
+                sx={appTextFieldSx}
+                slotProps={{
+                  input: {
+                    endAdornment: (
+                      <IconButton
+                        size="small"
+                        aria-label={showKey ? "Hide API key" : "Show API key"}
+                        onClick={() => setShowKey(!showKey)}
+                      >
+                        {showKey ? <EyeOff size={15} /> : <Eye size={15} />}
+                      </IconButton>
+                    ),
+                  },
+                }}
+              />
+            )}
+            <Stack direction="row" alignItems="center" spacing={theme.spacing(1)}>
+              <Typography variant="body2" color="text.secondary">
+                Enabled
+              </Typography>
+              <Switch
+                checked={enabled}
+                onChange={(e) => {
+                  setEnabled(e.target.checked);
+                  setDirty(true);
+                }}
+              />
+              <Box sx={{ flexGrow: 1 }} />
+              <Button
+                size="small"
+                variant="outlined"
+                disabled={!dirty || saving || !host.trim()}
+                onClick={save}
+                sx={{ textTransform: "none", fontWeight: 700 }}
+              >
+                {saving ? "Saving..." : "Save"}
+              </Button>
+            </Stack>
+          </Stack>
+        </Collapse>
+      </Box>
+    </Box>
+  );
+}
 
 export function ConnectionsTab() {
   const theme = useTheme();
@@ -61,26 +304,9 @@ export function ConnectionsTab() {
     })),
   );
   const ollama = useOllama();
-  const local = providers.find((item) => item.provider_type === "OllamaLocal");
-  const external = providers.find(
-    (item) => item.provider_type === "OpenAICompatible",
-  );
-
-  const [ollamaEditing, setOllamaEditing] = useState(false);
-  const [ollamaHost, setOllamaHost] = useState("");
-  const [ollamaEnabled, setOllamaEnabled] = useState(true);
-  const [ollamaDirty, setOllamaDirty] = useState(false);
-  const [savingOllama, setSavingOllama] = useState(false);
-
-  const [externalEditing, setExternalEditing] = useState(false);
-  const [externalHost, setExternalHost] = useState("");
-  const [externalApiKey, setExternalApiKey] = useState("");
-  const [externalEnabled, setExternalEnabled] = useState(true);
-  const [externalDirty, setExternalDirty] = useState(false);
-  const [savingExternal, setSavingExternal] = useState(false);
-  const [showExternalKey, setShowExternalKey] = useState(false);
 
   const [addOpen, setAddOpen] = useState(false);
+  const [selectedPreset, setSelectedPreset] = useState<ProviderPreset | null>(null);
   const [addApiBaseUrl, setAddApiBaseUrl] = useState("");
   const [addApiKey, setAddApiKey] = useState("");
   const [showAddKey, setShowAddKey] = useState(false);
@@ -93,77 +319,59 @@ export function ConnectionsTab() {
 
   useEffect(() => void actions.refresh(), [actions]);
   useEffect(() => {
-    if (!local) return;
-    setOllamaHost(local.config.ollama_host ?? "http://127.0.0.1:11434");
-    setOllamaEnabled(local.config.enabled);
-    setOllamaDirty(false);
-  }, [local]);
-  useEffect(() => {
-    if (!external) return;
-    setExternalHost(external.config.api_base_url ?? "");
-    setExternalApiKey(external.config.api_key ?? "");
-    setExternalEnabled(external.config.enabled);
-    setExternalDirty(false);
-  }, [external]);
-  useEffect(() => {
     const unlisten = listen<PullProgress>("pull-progress", (event) => {
       ollama.actions.setPullProgress(event.payload);
     });
     return () => void unlisten.then((stop) => stop());
   }, [ollama.actions]);
 
-  const saveOllama = async () => {
-    setSavingOllama(true);
-    try {
-      await actions.updateProviderConfig({
-        provider_type: "OllamaLocal",
-        ollama_host: ollamaHost.trim(),
-        enabled: ollamaEnabled,
-      });
-      setOllamaDirty(false);
-      notify.success("Ollama settings saved");
-    } catch (err) {
-      notify.error("Failed to save", String(err));
-    } finally {
-      setSavingOllama(false);
-    }
-  };
-
-  const saveExternal = async () => {
-    if (!externalHost.trim()) return;
-    setSavingExternal(true);
-    try {
-      await actions.updateProviderConfig({
-        provider_type: "OpenAICompatible",
-        api_base_url: externalHost.trim(),
-        api_key: externalApiKey.trim(),
-        enabled: externalEnabled,
-      });
-      ollama.actions.clearExternalModels();
-      await ollama.refresh();
-      setExternalEditing(false);
-      setExternalDirty(false);
-      notify.success("Connection saved");
-    } catch (err) {
-      notify.error("Failed to save", String(err));
-    } finally {
-      setSavingExternal(false);
-    }
+  const selectPreset = (preset: ProviderPreset) => {
+    setSelectedPreset(preset);
+    setAddApiBaseUrl(preset.baseUrl);
+    setAddApiKey("");
   };
 
   const saveAdd = async () => {
-    if (!addApiBaseUrl.trim()) return;
+    if (!selectedPreset) return;
+    const isOllamaPreset = selectedPreset.kind === "ollama-local";
+    const url = isOllamaPreset
+      ? addApiBaseUrl.trim() || "http://127.0.0.1:11434"
+      : addApiBaseUrl.trim();
+    if (!url) return;
     setAddingProvider(true);
     try {
-      await actions.updateProviderConfig({
-        provider_type: "OpenAICompatible",
-        api_base_url: addApiBaseUrl.trim(),
-        api_key: addApiKey.trim(),
-        enabled: true,
-      });
-      ollama.actions.clearExternalModels();
-      await ollama.refresh();
+      if (isOllamaPreset) {
+        await actions.addProvider({
+          provider_type: "OllamaLocal",
+          enabled: true,
+          ollama_host: url,
+          preset: selectedPreset.id,
+          headers: selectedPreset.defaultHeaders
+            ? JSON.stringify(selectedPreset.defaultHeaders)
+            : undefined,
+          model_suggestions: selectedPreset.modelSuggestions
+            ? JSON.stringify(selectedPreset.modelSuggestions)
+            : undefined,
+        });
+      } else {
+        await actions.addProvider({
+          provider_type: "OpenAICompatible",
+          enabled: true,
+          api_base_url: url,
+          api_key: addApiKey.trim() || undefined,
+          preset: selectedPreset.id,
+          headers: selectedPreset.defaultHeaders
+            ? JSON.stringify(selectedPreset.defaultHeaders)
+            : undefined,
+          model_suggestions: selectedPreset.modelSuggestions
+            ? JSON.stringify(selectedPreset.modelSuggestions)
+            : undefined,
+        });
+        ollama.actions.clearExternalModels();
+        await ollama.refresh();
+      }
       setAddOpen(false);
+      setSelectedPreset(null);
       setAddApiBaseUrl("");
       setAddApiKey("");
       notify.success("Connection added");
@@ -173,6 +381,28 @@ export function ConnectionsTab() {
       setAddingProvider(false);
     }
   };
+
+  const handleCloseAdd = () => {
+    setAddOpen(false);
+    setSelectedPreset(null);
+    setAddApiBaseUrl("");
+    setAddApiKey("");
+  };
+
+  const handleDelete = useCallback(
+    async (provider: ProviderStatusResponse) => {
+      const id = provider.config.id;
+      if (id == null) return;
+      if (!confirm(`Delete "${lookupPreset(provider.config.preset, provider.config.api_base_url ?? null).label}" connection?`)) return;
+      try {
+        await actions.deleteProvider(id);
+        notify.success("Connection deleted");
+      } catch (err) {
+        notify.error("Failed to delete", String(err));
+      }
+    },
+    [actions, notify],
+  );
 
   const refreshModels = async () => {
     setIsRefreshing(true);
@@ -223,8 +453,8 @@ export function ConnectionsTab() {
   return (
     <Stack spacing={0}>
       <SectionHeader
-        title="Connections"
-        description="Connect local or OpenAI-compatible model servers."
+        title="LLM Providers"
+        description="Connect local or cloud model providers."
         action={
           <Button
             size="small"
@@ -233,16 +463,14 @@ export function ConnectionsTab() {
             onClick={() => setAddOpen(true)}
             sx={{ textTransform: "none", fontWeight: 700 }}
           >
-            Add connection
+            Add LLM
           </Button>
         }
       />
 
       {loading && providers.length === 0 && (
         <Box sx={{ py: theme.spacing(0.75) }}>
-          <Box
-            sx={{ p: theme.spacing(1.5), borderRadius: 1, border: cardBorder }}
-          >
+          <Box sx={{ p: theme.spacing(1.5), borderRadius: 1, border: cardBorder }}>
             <Stack
               direction="row"
               alignItems="center"
@@ -250,12 +478,7 @@ export function ConnectionsTab() {
               sx={{ mb: theme.spacing(0.5) }}
             >
               <Skeleton variant="text" width={60} height={24} />
-              <Skeleton
-                variant="rounded"
-                width={70}
-                height={24}
-                sx={{ borderRadius: "9999px" }}
-              />
+              <Skeleton variant="rounded" width={70} height={24} sx={{ borderRadius: "9999px" }} />
               <Box sx={{ flexGrow: 1 }} />
               <Skeleton variant="circular" width={28} height={28} />
             </Stack>
@@ -264,199 +487,32 @@ export function ConnectionsTab() {
         </Box>
       )}
       {error && providers.length === 0 && (
-        <Typography
-          sx={{ fontSize: 13, color: "text.secondary", py: theme.spacing(1) }}
-        >
+        <Typography sx={{ fontSize: 13, color: "text.secondary", py: theme.spacing(1) }}>
           Connection error: {String(error)}
         </Typography>
       )}
 
       {providers.map((provider) => {
-        const isOllama = provider.provider_type === "OllamaLocal";
-        const isEditing = isOllama ? ollamaEditing : externalEditing;
-        const url = isOllama
-          ? (provider.config.ollama_host ?? "http://127.0.0.1:11434")
-          : (provider.config.api_base_url ?? "");
-        const label = isOllama ? "Ollama" : "OpenAI-compatible";
-
+        const key = provider.config.id ?? `${provider.provider_type}-${provider.config.api_base_url ?? "default"}`;
         return (
-          <Box key={provider.provider_type} sx={{ py: theme.spacing(0.75) }}>
-            <Box
-              sx={{
-                p: theme.spacing(1.5),
-                borderRadius: 1,
-                border: cardBorder,
-              }}
-            >
-              <Stack
-                direction="row"
-                alignItems="center"
-                spacing={theme.spacing(1)}
-                sx={{ mb: theme.spacing(0.5) }}
-              >
-                <Typography variant="body1" sx={{ fontWeight: 700 }}>
-                  {label}
-                </Typography>
-                <Chip
-                  label={provider.status}
-                  color={statusChipColor[provider.status]}
-                  size="small"
-                />
-                <Box sx={{ flexGrow: 1 }} />
-                <IconButton
-                  size="small"
-                  aria-label={`Edit ${label} connection`}
-                  onClick={() => {
-                    if (isOllama) {
-                      setOllamaEditing(!ollamaEditing);
-                    } else {
-                      setExternalEditing(!externalEditing);
-                    }
-                  }}
-                >
-                  <Edit3 size={15} />
-                </IconButton>
-              </Stack>
-
-              {!isEditing && (
-                <Typography variant="caption" color="text.secondary">
-                  {url}
-                </Typography>
-              )}
-
-              <Collapse in={isEditing}>
-                <Stack spacing={theme.spacing(1)} sx={{ mt: theme.spacing(1) }}>
-                  {isOllama ? (
-                    <>
-                      <TextField
-                        value={ollamaHost}
-                        onChange={(e) => {
-                          setOllamaHost(e.target.value);
-                          setOllamaDirty(true);
-                        }}
-                        placeholder="http://127.0.0.1:11434"
-                        fullWidth
-                        size="small"
-                        sx={appTextFieldSx}
-                      />
-                      <Stack
-                        direction="row"
-                        alignItems="center"
-                        spacing={theme.spacing(1)}
-                      >
-                        <Typography variant="body2" color="text.secondary">
-                          Enabled
-                        </Typography>
-                        <Switch
-                          checked={ollamaEnabled}
-                          onChange={(e) => {
-                            setOllamaEnabled(e.target.checked);
-                            setOllamaDirty(true);
-                          }}
-                        />
-                        <Box sx={{ flexGrow: 1 }} />
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          disabled={
-                            !ollamaDirty || savingOllama || !ollamaHost.trim()
-                          }
-                          onClick={saveOllama}
-                          sx={{ textTransform: "none", fontWeight: 700 }}
-                        >
-                          {savingOllama ? "Saving..." : "Save"}
-                        </Button>
-                      </Stack>
-                    </>
-                  ) : (
-                    <>
-                      <TextField
-                        label="API base URL"
-                        value={externalHost}
-                        onChange={(e) => {
-                          setExternalHost(e.target.value);
-                          setExternalDirty(true);
-                        }}
-                        placeholder="https://api.openai.com/v1"
-                        fullWidth
-                        size="small"
-                        sx={appTextFieldSx}
-                      />
-                      <TextField
-                        label="API key (optional)"
-                        value={externalApiKey}
-                        onChange={(e) => {
-                          setExternalApiKey(e.target.value);
-                          setExternalDirty(true);
-                        }}
-                        placeholder="sk-..."
-                        type={showExternalKey ? "text" : "password"}
-                        autoComplete="off"
-                        fullWidth
-                        size="small"
-                        sx={appTextFieldSx}
-                        slotProps={{
-                          input: {
-                            endAdornment: (
-                              <IconButton
-                                size="small"
-                                aria-label={
-                                  showExternalKey
-                                    ? "Hide API key"
-                                    : "Show API key"
-                                }
-                                onClick={() =>
-                                  setShowExternalKey(!showExternalKey)
-                                }
-                              >
-                                {showExternalKey ? (
-                                  <EyeOff size={15} />
-                                ) : (
-                                  <Eye size={15} />
-                                )}
-                              </IconButton>
-                            ),
-                          },
-                        }}
-                      />
-                      <Stack
-                        direction="row"
-                        alignItems="center"
-                        spacing={theme.spacing(1)}
-                      >
-                        <Typography variant="body2" color="text.secondary">
-                          Enabled
-                        </Typography>
-                        <Switch
-                          checked={externalEnabled}
-                          onChange={(e) => {
-                            setExternalEnabled(e.target.checked);
-                            setExternalDirty(true);
-                          }}
-                        />
-                        <Box sx={{ flexGrow: 1 }} />
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          disabled={
-                            !externalDirty ||
-                            savingExternal ||
-                            !externalHost.trim()
-                          }
-                          onClick={saveExternal}
-                          sx={{ textTransform: "none", fontWeight: 700 }}
-                        >
-                          {savingExternal ? "Saving..." : "Save"}
-                        </Button>
-                      </Stack>
-                    </>
-                  )}
-                </Stack>
-              </Collapse>
-            </Box>
-          </Box>
+          <ProviderCard
+            key={key}
+            provider={provider}
+            updateProviderConfig={actions.updateProviderConfig}
+            onDelete={
+              isOllamaLocal(provider) ? undefined : () => handleDelete(provider)
+            }
+          />
         );
       })}
+
+      <Divider sx={{ my: theme.spacing(2) }} />
+
+      <SectionHeader
+        title="Web Search API Keys"
+        description="API keys for live web search during chat."
+      />
+      <WebSearchSettings />
 
       <Divider sx={{ my: theme.spacing(2) }} />
 
@@ -526,11 +582,7 @@ export function ConnectionsTab() {
               <LinearProgress />
             </Box>
           )}
-          <Stack
-            direction="row"
-            justifyContent="space-between"
-            alignItems="center"
-          >
+          <Stack direction="row" justifyContent="space-between" alignItems="center">
             <Typography sx={{ fontSize: 13, fontWeight: 700 }}>
               Installed models
             </Typography>
@@ -575,12 +627,7 @@ export function ConnectionsTab() {
         </Stack>
       </Collapse>
 
-      <Dialog
-        open={addOpen}
-        onClose={() => setAddOpen(false)}
-        maxWidth="xs"
-        fullWidth
-      >
+      <Dialog open={addOpen} onClose={handleCloseAdd} maxWidth="sm" fullWidth>
         <DialogTitle
           sx={{
             display: "flex",
@@ -590,66 +637,143 @@ export function ConnectionsTab() {
             fontWeight: 700,
           }}
         >
-          Add connection
-          <IconButton
-            size="small"
-            aria-label="Close add connection dialog"
-            onClick={() => setAddOpen(false)}
-          >
+          Add LLM Connection
+          <IconButton size="small" aria-label="Close" onClick={handleCloseAdd}>
             <X size={18} />
           </IconButton>
         </DialogTitle>
         <DialogContent>
-          <Typography sx={{ mb: 2, fontSize: 12, color: "text.secondary" }}>
-            OpenAI API-compatible connection. API key optional for local
-            servers.
+          <Typography sx={{ mb: 2, fontSize: 13, color: "text.secondary" }}>
+            Pick a provider preset or configure a custom connection.
           </Typography>
-          <Stack spacing={2}>
-            <TextField
-              label="API base URL"
-              value={addApiBaseUrl}
-              onChange={(e) => setAddApiBaseUrl(e.target.value)}
-              placeholder="https://api.openai.com/v1"
-              required
-              fullWidth
-              size="small"
-            />
-            <TextField
-              label="API key (optional)"
-              value={addApiKey}
-              onChange={(e) => setAddApiKey(e.target.value)}
-              placeholder="sk-..."
-              type={showAddKey ? "text" : "password"}
-              autoComplete="off"
-              fullWidth
-              size="small"
-              slotProps={{
-                input: {
-                  endAdornment: (
-                    <IconButton
+
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: theme.spacing(1),
+              mb: theme.spacing(2),
+            }}
+          >
+            {PROVIDER_PRESETS.map((preset) => {
+              const selected = selectedPreset?.id === preset.id;
+              return (
+                <Paper
+                  key={preset.id}
+                  variant="outlined"
+                  onClick={() => selectPreset(preset)}
+                  sx={{
+                    p: theme.spacing(1.5),
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: theme.spacing(1.5),
+                    borderColor: selected ? "primary.main" : undefined,
+                    borderWidth: selected ? 2 : 1,
+                    bgcolor: selected ? "action.selected" : "transparent",
+                    transition: "all 120ms ease",
+                    "&:hover": {
+                      borderColor: "primary.light",
+                      bgcolor: "action.hover",
+                    },
+                  }}
+                >
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: selected ? "primary.main" : "text.secondary",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {presetIcons[preset.id] ?? <Settings size={22} />}
+                  </Box>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      fontWeight: selected ? 700 : 500,
+                      color: selected ? "primary.main" : "text.primary",
+                    }}
+                  >
+                    {preset.label}
+                  </Typography>
+                </Paper>
+              );
+            })}
+          </Box>
+
+          {selectedPreset && (
+            <Stack spacing={2}>
+              <Divider />
+              <Typography sx={{ fontSize: 14, fontWeight: 700 }}>
+                {selectedPreset.label}
+              </Typography>
+
+              {selectedPreset.kind === "ollama-local" ? (
+                <TextField
+                  label="Host"
+                  value={addApiBaseUrl}
+                  onChange={(e) => setAddApiBaseUrl(e.target.value)}
+                  placeholder="http://127.0.0.1:11434"
+                  fullWidth
+                  size="small"
+                />
+              ) : (
+                <>
+                  <TextField
+                    label="API base URL"
+                    value={addApiBaseUrl}
+                    onChange={(e) => setAddApiBaseUrl(e.target.value)}
+                    placeholder="https://api.openai.com/v1"
+                    required
+                    fullWidth
+                    size="small"
+                  />
+                  {selectedPreset.requiresApiKey && (
+                    <TextField
+                      label="API key"
+                      value={addApiKey}
+                      onChange={(e) => setAddApiKey(e.target.value)}
+                      placeholder="sk-..."
+                      type={showAddKey ? "text" : "password"}
+                      autoComplete="off"
+                      fullWidth
                       size="small"
-                      aria-label={showAddKey ? "Hide API key" : "Show API key"}
-                      onClick={() => setShowAddKey(!showAddKey)}
-                    >
-                      {showAddKey ? <EyeOff size={15} /> : <Eye size={15} />}
-                    </IconButton>
-                  ),
-                },
-              }}
-            />
-          </Stack>
+                      slotProps={{
+                        input: {
+                          endAdornment: (
+                            <IconButton
+                              size="small"
+                              aria-label={showAddKey ? "Hide API key" : "Show API key"}
+                              onClick={() => setShowAddKey(!showAddKey)}
+                            >
+                              {showAddKey ? <EyeOff size={15} /> : <Eye size={15} />}
+                            </IconButton>
+                          ),
+                        },
+                      }}
+                    />
+                  )}
+                  {selectedPreset.modelSuggestions &&
+                    selectedPreset.modelSuggestions.length > 0 && (
+                      <Typography sx={{ fontSize: 12, color: "text.secondary" }}>
+                        Suggested models: {selectedPreset.modelSuggestions.join(", ")}
+                      </Typography>
+                    )}
+                </>
+              )}
+            </Stack>
+          )}
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button
-            onClick={() => setAddOpen(false)}
-            sx={{ textTransform: "none" }}
-          >
+          <Button onClick={handleCloseAdd} sx={{ textTransform: "none" }}>
             Cancel
           </Button>
           <Button
             variant="contained"
             disableElevation
-            disabled={!addApiBaseUrl.trim() || addingProvider}
+            disabled={!selectedPreset || !addApiBaseUrl.trim() || addingProvider}
             onClick={saveAdd}
             sx={{ textTransform: "none", fontWeight: 700 }}
           >

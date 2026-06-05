@@ -13,6 +13,7 @@ export type ChunkPayload = {
     prompt_eval_duration?: number;
     eval_duration?: number;
   };
+  error?: string;
 };
 
 export type ThinkingPayload = {

@@ -6,6 +6,7 @@ use crate::providers::base::{LLMProvider, ProviderStatus, ProviderType};
 use async_stream::stream;
 use async_trait::async_trait;
 use futures::Stream;
+use reqwest::header::HeaderMap;
 use reqwest::Client;
 use serde::Deserialize;
 use serde_json::{json, Map, Value};
@@ -20,9 +21,26 @@ pub struct OpenAICompatibleProvider {
 }
 
 impl OpenAICompatibleProvider {
-    pub fn new(base_url: String, api_key: String) -> Self {
+    pub fn new(base_url: String, api_key: String, headers: Option<String>) -> Self {
+        let mut client_builder = Client::builder();
+        if let Some(json_headers) = headers {
+            if let Ok(custom_headers) =
+                serde_json::from_str::<std::collections::HashMap<String, String>>(&json_headers)
+            {
+                let mut map = HeaderMap::new();
+                for (key, value) in custom_headers {
+                    if let (Ok(name), Ok(val)) = (
+                        reqwest::header::HeaderName::from_bytes(key.as_bytes()),
+                        reqwest::header::HeaderValue::from_str(&value),
+                    ) {
+                        map.insert(name, val);
+                    }
+                }
+                client_builder = client_builder.default_headers(map);
+            }
+        }
         Self {
-            client: Client::new(),
+            client: client_builder.build().unwrap_or_else(|_| Client::new()),
             base_url: normalize_api_base_url(&base_url),
             api_key,
         }
@@ -120,6 +138,7 @@ impl LLMProvider for OpenAICompatibleProvider {
                                             done: false,
                                             metadata: None,
                                             tool_calls: None,
+                                            error: None,
                                         });
                                     }
                                 }
@@ -385,6 +404,7 @@ fn done_payload(
         done: true,
         metadata: metadata.or_else(|| Some(empty_stream_metadata(model))),
         tool_calls: (!tool_calls.is_empty()).then_some(tool_calls),
+        error: None,
     }
 }
 

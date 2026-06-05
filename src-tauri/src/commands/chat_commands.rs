@@ -8,7 +8,7 @@ use crate::web_search::{create_web_search_client, WebSearchConfig};
 use crate::AppState;
 use serde_json::Value;
 use std::sync::atomic::Ordering;
-use tauri::{AppHandle, Emitter};
+use tauri::AppHandle;
 
 #[tauri::command]
 #[allow(clippy::too_many_arguments)]
@@ -51,20 +51,7 @@ pub async fn chat_stream(
     match result {
         Ok(_) => Ok(()),
         Err(AppError::Cancelled) => Ok(()),
-        Err(e) => {
-            let _ = app_handle.emit(
-                "chat-chunk",
-                crate::models::chat::StreamPayload {
-                    request_id: request_id.clone(),
-                    content: format!("\n\n*Generation failed: {e}*"),
-                    thinking: None,
-                    done: true,
-                    metadata: None,
-                    tool_calls: None,
-                },
-            );
-            Ok(())
-        }
+        Err(e) => Err(e.to_string()),
     }
 }
 

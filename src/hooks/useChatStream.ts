@@ -126,7 +126,7 @@ export function useChatStream(selectedModels: string[], selectedProviders: Model
       const conversationId = requestIdToConversationIdRef.current[payload.request_id];
       if (cancelRef.current || !conversationId) return;
 
-      const { request_id, content, done } = payload;
+      const { request_id, content, done, error } = payload;
       const messageId = requestIdToMessageIdRef.current[request_id];
       if (!messageId) return;
 
@@ -148,7 +148,19 @@ export function useChatStream(selectedModels: string[], selectedProviders: Model
       const completedModel = existing.model ?? "";
       const completedProvider = existing.provider ?? "OllamaLocal";
 
-      if (updated.trim() || thinking?.trim()) {
+      if (error) {
+        await addMessage({
+          id: messageId,
+          conversationId,
+          role: "assistant",
+          content: updated || "",
+          model: completedModel || "unknown",
+          provider: completedProvider,
+          status: "error",
+          errorMessage: error,
+          webSearch: existing.webSearch,
+        });
+      } else if (updated.trim() || thinking?.trim()) {
         const startTime = thinkingStartTimeRef.current[request_id];
         const thinkingDuration = startTime ? (Date.now() - startTime) / 1000 : undefined;
         await addMessage({

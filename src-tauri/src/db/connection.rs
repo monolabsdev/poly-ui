@@ -39,18 +39,21 @@ pub async fn init_db<R: Runtime>(app: &AppHandle<R>) -> Result<SqlitePool, Strin
     // Ensure the default OllamaLocal row exists
     sqlx::query(
         r#"
-        INSERT OR IGNORE INTO provider_configs (provider_type, enabled, ollama_host, priority)
-        VALUES ('OllamaLocal', 1, 'http://127.0.0.1:11434', 0)
+        INSERT INTO provider_configs (provider_type, enabled, ollama_host, priority)
+        SELECT 'OllamaLocal', 1, 'http://127.0.0.1:11434', 0
+        WHERE NOT EXISTS (SELECT 1 FROM provider_configs WHERE provider_type = 'OllamaLocal')
         "#,
     )
     .execute(&pool)
     .await
     .map_err(|e| e.to_string())?;
 
+    // Default OpenAI-compatible row (only if none exists)
     sqlx::query(
         r#"
-        INSERT OR IGNORE INTO provider_configs (provider_type, enabled, api_base_url, priority)
-        VALUES ('OpenAICompatible', 0, 'https://api.openai.com/v1', 1)
+        INSERT INTO provider_configs (provider_type, enabled, api_base_url, priority)
+        SELECT 'OpenAICompatible', 0, 'https://api.openai.com/v1', 1
+        WHERE NOT EXISTS (SELECT 1 FROM provider_configs WHERE provider_type = 'OpenAICompatible' AND api_base_url = 'https://api.openai.com/v1')
         "#,
     )
     .execute(&pool)
@@ -61,7 +64,88 @@ pub async fn init_db<R: Runtime>(app: &AppHandle<R>) -> Result<SqlitePool, Strin
 }
 
 async fn ensure_provider_schema(pool: &SqlitePool) -> Result<(), String> {
-    for column in ["api_key", "api_base_url"] {
+    let has_id = sqlx::query(
+        "SELECT COUNT(*) FROM pragma_table_info('provider_configs') WHERE name = 'id'",
+    )
+    .fetch_one(pool)
+    .await
+    .map_err(|e| e.to_string())?
+    .get::<i64, _>(0)
+        > 0;
+
+    if !has_id {
+        // Migrate from provider_type PK to auto-increment id so multiple
+        // connections can share the same provider_type (e.g. several
+        // OpenAICompatible rows for OpenAI / OpenRouter / Groq).
+        //
+        // Detect which columns already exist in the old table so we only
+        // SELECT what's actually there (api_key / api_base_url / etc. may
+        // not exist on first run after schema change).
+        let existing_cols: Vec<String> = sqlx::query(
+            "SELECT name FROM pragma_table_info('provider_configs')",
+        )
+        .fetch_all(pool)
+        .await
+        .map_err(|e| e.to_string())?
+        .iter()
+        .map(|row| row.get::<String, _>("name"))
+        .collect();
+
+        let stable = [
+            "provider_type", "enabled", "ollama_host", "ollama_api_key",
+            "ollama_api_base_url", "priority", "created_at", "updated_at",
+        ];
+        let optional = ["api_key", "api_base_url"];
+        let copy_cols: Vec<&str> = stable
+            .iter()
+            .chain(optional.iter())
+            .filter(|c| existing_cols.contains(&c.to_string()))
+            .copied()
+            .collect();
+        let cols_sql = copy_cols.join(", ");
+
+        sqlx::query(
+            r#"
+            CREATE TABLE IF NOT EXISTS provider_configs_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                provider_type TEXT NOT NULL,
+                enabled INTEGER NOT NULL DEFAULT 1,
+                ollama_host TEXT,
+                ollama_api_key TEXT,
+                ollama_api_base_url TEXT,
+                api_key TEXT,
+                api_base_url TEXT,
+                priority INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+            )
+            "#,
+        )
+        .execute(pool)
+        .await
+        .map_err(|e| e.to_string())?;
+
+        if !copy_cols.is_empty() {
+            sqlx::query(&format!(
+                "INSERT INTO provider_configs_new ({cols_sql}) SELECT {cols_sql} FROM provider_configs"
+            ))
+            .execute(pool)
+            .await
+            .map_err(|e| e.to_string())?;
+        }
+
+        sqlx::query("DROP TABLE IF EXISTS provider_configs")
+            .execute(pool)
+            .await
+            .map_err(|e| e.to_string())?;
+
+        sqlx::query("ALTER TABLE provider_configs_new RENAME TO provider_configs")
+            .execute(pool)
+            .await
+            .map_err(|e| e.to_string())?;
+    }
+
+    for column in ["api_key", "api_base_url", "preset", "headers", "model_suggestions"] {
         let exists = sqlx::query(
             "SELECT COUNT(*) FROM pragma_table_info('provider_configs') WHERE name = ?",
         )
