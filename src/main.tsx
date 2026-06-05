@@ -3,7 +3,6 @@ import ReactDOM from "react-dom/client";
 import { ThemeProvider } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 import { useMediaQuery } from "@mui/material";
-import { motion } from "motion/react";
 import { darkTheme, lightTheme } from "./theme";
 import { useThemeStore } from "./store/themeStore";
 import { useSettingsStore } from "./store/settingsStore";
@@ -123,16 +122,14 @@ function Root() {
           <div style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
             <WindowTitleBar />
             {isAppReady && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.24, ease: "easeOut" }}
+              <div
+                className="animate-fade-in"
                 style={{ flex: 1, minHeight: 0, overflow: "hidden" }}
               >
                 <Suspense fallback={null}>
                   <App />
                 </Suspense>
-              </motion.div>
+              </div>
             )}
           </div>
           {showStartupScreen && (

@@ -144,20 +144,103 @@ code {
   }
 }
 
+/* ── Animation Utilities ── */
+
+/* Fade in */
+.animate-fade-in {
+  animation: fade-in 0.24s ease-out forwards;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Slide in from left */
+.animate-slide-in {
+  animation: slide-in 0.18s ease-out forwards;
+}
+
+@keyframes slide-in {
+  from { opacity: 0; transform: translateX(-10px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* Popover entrance */
+.animate-popover {
+  animation: popover-in 0.12s ease-out forwards;
+}
+
+@keyframes popover-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Thinking pulse — subtle opacity oscillation */
+.animate-thinking {
+  animation: thinking-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes thinking-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+/* Shimmer sweep — used by .text-shimmer */
+@keyframes shimmer-sweep {
+  from { background-position: 200% center; }
+  to { background-position: -200% center; }
+}
+
+.text-shimmer {
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  background-size: 200% auto;
+  font-weight: 500;
+}
+
+/* Pulse for skeletons */
+.animate-pulse {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 0.3; }
+}
+
+/* Reduced motion overrides */
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
+  .animate-fade-in,
+  .animate-slide-in,
+  .animate-popover,
+  .animate-thinking,
+  .text-shimmer,
+  .animate-pulse {
+    animation: none !important;
+  }
+  .text-shimmer {
+    background-clip: unset;
+    -webkit-background-clip: unset;
+    -webkit-text-fill-color: unset;
+    color: inherit;
   }
 }
 
-html.reduce-motion *,
-html.reduce-motion *::before,
-html.reduce-motion *::after {
-  animation-duration: 0.01ms !important;
-  animation-iteration-count: 1 !important;
-  transition-duration: 0.01ms !important;
-  scroll-behavior: auto !important;
+html.reduce-motion .animate-fade-in,
+html.reduce-motion .animate-slide-in,
+html.reduce-motion .animate-popover,
+html.reduce-motion .animate-thinking,
+html.reduce-motion .text-shimmer,
+html.reduce-motion .animate-pulse {
+  animation: none !important;
 }
+html.reduce-motion .text-shimmer {
+  background-clip: unset;
+  -webkit-background-clip: unset;
+  -webkit-text-fill-color: unset;
+  color: inherit;
+}
+

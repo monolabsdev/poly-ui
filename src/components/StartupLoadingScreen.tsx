@@ -1,6 +1,5 @@
 import { memo, useEffect } from "react";
 import { Box, Typography, useTheme } from "@mui/material";
-import { motion } from "motion/react";
 import { Ring2 } from "ldrs/react";
 import "ldrs/react/Ring2.css";
 import { TITLE_BAR_HEIGHT } from "@/components/Layout/WindowTitleBar";
@@ -23,14 +22,9 @@ function StartupLoadingScreen({
 
   return (
     <Box
-      component={motion.div}
-      initial={false}
-      animate={{ opacity: visible ? 1 : 0 }}
-      transition={{ duration: 0.28, ease: "easeOut" }}
-      onAnimationComplete={() => {
-        if (!visible) onExited?.();
-      }}
       sx={{
+        opacity: visible ? 1 : 0,
+        transition: "opacity 0.28s ease-out",
         position: "fixed",
         top: `${TITLE_BAR_HEIGHT}px`,
         right: 0,

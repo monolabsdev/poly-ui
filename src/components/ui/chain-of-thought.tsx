@@ -7,7 +7,7 @@ import {
 } from "react";
 import { Box } from "@mui/material";
 import { ChevronDown } from "lucide-react";
-import { TextShimmer } from "./text-shimmer";
+
 
 /* ─── ChainOfThought ─── */
 
@@ -188,9 +188,9 @@ export function ChainOfThoughtTrigger({
         </Box>
       )}
       {isActive ? (
-        <TextShimmer as="span" duration={2} spread={15}>
+        <Box component="span" className="animate-thinking" sx={{ display: "inline" }}>
           {children}
-        </TextShimmer>
+        </Box>
       ) : (
         children
       )}

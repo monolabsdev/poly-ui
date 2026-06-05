@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Box, Typography } from "@mui/material";
 import { Brain } from "lucide-react";
-import { TextShimmer } from "@/components/ui/text-shimmer";
 import {
   Reasoning,
   ReasoningTrigger,
@@ -88,18 +87,17 @@ export const ThinkingDisclosure = React.memo(
                 <Brain size={13} />
               </Box>
               {isThinking ? (
-                <TextShimmer as="span" duration={2} spread={15}>
-                  <Typography
-                    component="span"
-                    sx={{
-                      fontSize: "13px",
-                      fontWeight: 500,
-                      lineHeight: 1,
-                    }}
-                  >
-                    {displayIndicator}
-                  </Typography>
-                </TextShimmer>
+                <Typography
+                  component="span"
+                  className="animate-thinking"
+                  sx={{
+                    fontSize: "13px",
+                    fontWeight: 500,
+                    lineHeight: 1,
+                  }}
+                >
+                  {displayIndicator}
+                </Typography>
               ) : (
                 <Typography
                   component="span"

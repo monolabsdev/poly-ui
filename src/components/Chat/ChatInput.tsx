@@ -366,49 +366,22 @@ export const ChatInput = memo(function ChatInput({
                   },
                 }}
               >
-                <AnimatePresence mode="popLayout" initial={false}>
+                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
                   {isTranscribing ? (
-                    <motion.div
-                      key="dictation-loading"
-                      style={{ display: "flex", alignItems: "center", justifyContent: "center" }}
-                      initial={{ scale: 0.5, opacity: 0, rotate: -45 }}
-                      animate={{ scale: 1, opacity: 1, rotate: 0 }}
-                      exit={{ scale: 0.5, opacity: 0, rotate: 45 }}
-                      transition={{ duration: timing.duration("fast"), ease: timing.ease }}
-                    >
-                      <Ring2
-                        size="16"
-                        stroke="4"
-                        strokeLength="0.28"
-                        bgOpacity="0.1"
-                        speed="0.8"
-                        color="currentColor"
-                      />
-                    </motion.div>
+                    <Ring2
+                      size="16"
+                      stroke="4"
+                      strokeLength="0.28"
+                      bgOpacity="0.1"
+                      speed="0.8"
+                      color="currentColor"
+                    />
                   ) : isRecording ? (
-                    <motion.div
-                      key="dictation-stop"
-                      style={{ display: "flex", alignItems: "center", justifyContent: "center" }}
-                      initial={{ scale: 0.5, opacity: 0, rotate: -45 }}
-                      animate={{ scale: 1, opacity: 1, rotate: 0 }}
-                      exit={{ scale: 0.5, opacity: 0, rotate: 45 }}
-                      transition={{ duration: timing.duration("fast"), ease: timing.ease }}
-                    >
-                      <Square size={14} fill="currentColor" />
-                    </motion.div>
+                    <Square size={14} fill="currentColor" />
                   ) : (
-                    <motion.div
-                      key="dictation-mic"
-                      style={{ display: "flex", alignItems: "center", justifyContent: "center" }}
-                      initial={{ scale: 0.5, opacity: 0, y: 10 }}
-                      animate={{ scale: 1, opacity: 1, y: 0 }}
-                      exit={{ scale: 0.5, opacity: 0, y: -10 }}
-                      transition={{ duration: timing.duration("fast"), ease: timing.ease }}
-                    >
-                      <Mic size={18} />
-                    </motion.div>
+                    <Mic size={18} />
                   )}
-                </AnimatePresence>
+                </Box>
               </IconButton>
               <IconButton
                 onClick={handleAction}
@@ -435,31 +408,13 @@ export const ChatInput = memo(function ChatInput({
                   },
                 }}
               >
-                <AnimatePresence mode="popLayout" initial={false}>
+                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
                   {isStreaming ? (
-                    <motion.div
-                      key="stop"
-                      style={{ display: "flex", alignItems: "center", justifyContent: "center" }}
-                      initial={{ scale: 0.5, opacity: 0, rotate: -45 }}
-                      animate={{ scale: 1, opacity: 1, rotate: 0 }}
-                      exit={{ scale: 0.5, opacity: 0, rotate: 45 }}
-                      transition={{ duration: timing.duration("fast"), ease: timing.ease }}
-                    >
-                      <Square size={14} fill="currentColor" />
-                    </motion.div>
+                    <Square size={14} fill="currentColor" />
                   ) : (
-                    <motion.div
-                      key="send"
-                      style={{ display: "flex", alignItems: "center", justifyContent: "center" }}
-                      initial={{ scale: 0.5, opacity: 0, y: 10 }}
-                      animate={{ scale: 1, opacity: 1, y: 0 }}
-                      exit={{ scale: 0.5, opacity: 0, y: -10 }}
-                      transition={{ duration: timing.duration("fast"), ease: timing.ease }}
-                    >
-                      <ArrowUp size={20} strokeWidth={2.5} />
-                    </motion.div>
+                    <ArrowUp size={20} strokeWidth={2.5} />
                   )}
-                </AnimatePresence>
+                </Box>
               </IconButton>
             </Box>
           </Box>

@@ -1,10 +1,8 @@
 import { Box } from "@mui/material";
 import { useSidebar } from "@/components/Sidebar/hooks/useSidebar";
-import { useReducedMotion } from "@/components/Sidebar/hooks/useReducedMotion";
 
 export function ConversationSkeleton() {
   const { isCollapsed } = useSidebar();
-  const reducedMotion = useReducedMotion();
   if (isCollapsed) return null;
   return (
     <Box sx={{ px: 1.5 }}>
@@ -16,7 +14,7 @@ export function ConversationSkeleton() {
             borderRadius: "8px",
             mb: 0.5,
             bgcolor: "action.hover",
-            animation: reducedMotion ? "none" : "pulse 1.5s ease-in-out infinite",
+            animation: "pulse 1.5s ease-in-out infinite",
             "@keyframes pulse": {
               "0%, 100%": { opacity: 0.6 },
               "50%": { opacity: 0.3 },

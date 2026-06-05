@@ -1,7 +1,5 @@
 import { AlertTriangle, Search } from "lucide-react";
 import { Box, Typography, Tooltip } from "@mui/material";
-import { motion } from "motion/react";
-import { useTiming } from "@/lib/motion";
 import type { FeatureDef } from "@/lib/featureRegistry";
 
 interface SlashCommandMenuProps {
@@ -17,8 +15,6 @@ export function SlashCommandMenu({
   selectedIndex,
   slashQuery,
 }: SlashCommandMenuProps) {
-  const timing = useTiming();
-
   const query = slashQuery.toLowerCase().trim();
   const filtered = query
     ? features.filter((f) =>
@@ -30,11 +26,7 @@ export function SlashCommandMenu({
 
   return (
     <Box
-      component={motion.div}
-      initial={{ opacity: 0, y: 10, scale: 0.95 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: 10, scale: 0.95 }}
-      transition={{ duration: timing.duration("fast"), ease: timing.ease }}
+      className="animate-popover"
       sx={{
         position: "absolute",
         bottom: "100%",

@@ -16,7 +16,7 @@ import { Settings, Archive, LogOut, LogIn } from "lucide-react";
 import { useSidebar } from "@/components/Sidebar";
 import { ArchivedChatsDialog } from "@/components/Chat/ArchivedChatsDialog";
 
-import { motion, AnimatePresence } from "motion/react";
+
 
 interface ProfileMenuProps {
   onOpenSettings?: () => void;
@@ -52,18 +52,11 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
           }}
         >
           <Box sx={{ width: 36, height: 36, borderRadius: "50%", bgcolor: "action.selected" }} />
-          <AnimatePresence>
-            {!isCollapsed && (
-              <motion.div
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -10 }}
-              >
-                <Box sx={{ width: 80, height: 14, bgcolor: "action.selected", mb: 0.5, borderRadius: 1 }} />
-                <Box sx={{ width: 40, height: 10, bgcolor: "action.selected", borderRadius: 1 }} />
-              </motion.div>
-            )}
-          </AnimatePresence>
+          {!isCollapsed && (
+            <Box sx={{ width: 80, height: 14, bgcolor: "action.selected", mb: 0.5, borderRadius: 1 }}>
+              <Box sx={{ width: 40, height: 10, bgcolor: "action.selected", borderRadius: 1 }} />
+            </Box>
+          )}
         </MuiButton>
       </Box>
     );
@@ -100,13 +93,10 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
             </AvatarFallback>
           </Avatar>
         </Box>
-        <AnimatePresence>
-          {!isCollapsed && (
-            <motion.div
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -10 }}
-              style={{ flex: 1, overflow: "hidden" }}
+        {!isCollapsed && (
+            <Box
+              className="animate-slide-in"
+              sx={{ flex: 1, overflow: "hidden" }}
             >
               <Typography
                 variant="body2"
@@ -121,9 +111,8 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
               >
                 Not signed in
               </Typography>
-            </motion.div>
+            </Box>
           )}
-        </AnimatePresence>
       </MuiButton>
     );
 
@@ -233,13 +222,10 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
           />
         )}
       </Box>
-      <AnimatePresence>
-        {!isCollapsed && (
-          <motion.div
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -10 }}
-            style={{ flex: 1, overflow: "hidden" }}
+      {!isCollapsed && (
+          <Box
+            className="animate-slide-in"
+            sx={{ flex: 1, overflow: "hidden" }}
           >
             <Typography
               variant="body2"
@@ -254,9 +240,8 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
             >
               Active
             </Typography>
-          </motion.div>
+          </Box>
         )}
-      </AnimatePresence>
     </MuiButton>
   );
 

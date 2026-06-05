@@ -25,6 +25,7 @@ import {
 } from "@/lib/models/model-choice";
 import { shouldLoadExternalDefault } from "@/lib/models/model-selector";
 import { useFolderStore } from "@/store/folderStore";
+import { SettingsModal } from "./components/Settings/SettingsModal";
 
 const AuthModal = lazy(() =>
   import("@/components/Auth/AuthModal").then((module) => ({
