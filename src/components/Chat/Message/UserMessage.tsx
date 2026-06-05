@@ -1,11 +1,34 @@
-import { Box, Typography, useTheme } from "@mui/material";
-import { Paperclip } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Box, Typography, IconButton, Tooltip, useTheme } from "@mui/material";
+import { Paperclip, Copy, Check } from "lucide-react";
 import { isImageAttachment, createDataUrl, formatFileSize } from "@/lib/utils";
+import { useNotify } from "@/hooks/useNotify";
 import type { MessageProps } from "./types";
 
 export function UserMessage({ content, attachments }: MessageProps) {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
+  const [copied, setCopied] = useState(false);
+  const notify = useNotify();
+
+  useEffect(() => {
+    if (!copied) return;
+    const timeout = setTimeout(() => setCopied(false), 2000);
+    return () => clearTimeout(timeout);
+  }, [copied]);
+
+  const handleCopy = () => {
+    if (!content) return;
+    navigator.clipboard
+      ?.writeText(content)
+      .then(() => {
+        setCopied(true);
+        notify.success("Copied to clipboard");
+      })
+      .catch(() => {
+        notify.error("Failed to copy");
+      });
+  };
 
   return (
     <Box
@@ -15,6 +38,17 @@ export function UserMessage({ content, attachments }: MessageProps) {
         width: "100%",
         alignItems: "flex-end",
         py: 0.5,
+        "& .action-bar": {
+          opacity: 0,
+        },
+        "&:hover .action-bar, &:focus-within .action-bar": {
+          opacity: 1,
+        },
+        "@media (hover: none)": {
+          "& .action-bar": {
+            opacity: 1,
+          },
+        },
       }}
     >
       {attachments && attachments.length > 0 && (
@@ -110,6 +144,8 @@ export function UserMessage({ content, attachments }: MessageProps) {
       >
         <Typography
           sx={{
+            userSelect: "text",
+            WebkitUserSelect: "text",
             whiteSpace: "pre-wrap",
             wordBreak: "break-word",
             lineHeight: 1.6,
@@ -119,6 +155,34 @@ export function UserMessage({ content, attachments }: MessageProps) {
         >
           {content}
         </Typography>
+      </Box>
+
+      <Box className="action-bar" sx={{ mt: 0.5, mr: 1 }}>
+        <Tooltip title={copied ? "Copied" : "Copy"}>
+          <IconButton
+            size="small"
+            onClick={handleCopy}
+            sx={{
+              color: copied ? "success.main" : "text.secondary",
+              "&:hover": {
+                color: copied ? "success.main" : "text.primary",
+                bgcolor: "action.hover",
+              },
+            }}
+          >
+            <Box
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: 14,
+                height: 14,
+              }}
+            >
+              {copied ? <Check size={14} /> : <Copy size={14} />}
+            </Box>
+          </IconButton>
+        </Tooltip>
       </Box>
     </Box>
   );
