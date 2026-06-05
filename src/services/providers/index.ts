@@ -56,7 +56,12 @@ export const useProviderStore = create<ProviderStore>((set) => ({
         set({ error: err as string, loading: false });
       }
     },
-    setProviders: (providers) => set({ providers, loading: false, error: null }),
+    setProviders: (providers) => set((state) => {
+      if (!state.loading && JSON.stringify(state.providers) === JSON.stringify(providers)) {
+        return state;
+      }
+      return { providers, loading: false, error: null };
+    }),
     updateProviderConfig: async (config: {
       provider_type: ProviderType;
       enabled?: boolean;
