@@ -12,18 +12,17 @@ import { useModelStore } from "@/store/modelStore";
 import { useSettingsStore } from "@/store/settingsStore";
 import { getPresetContent } from "@/constants/promptPresets";
 import { useOllama } from "@/services/ollama";
-import {
-  Sidebar,
-  SidebarInset,
-  SidebarProvider,
-} from "@/components/Sidebar";
+import { Sidebar, SidebarInset, SidebarProvider } from "@/components/Sidebar";
 import { Box } from "@mui/material";
 import { useChatStore } from "@/store/chatStore";
 import { useAuthStore } from "@/store/authStore";
 import { useNotify } from "@/hooks/useNotify";
 import { useShallow } from "zustand/react/shallow";
 import { retryTitleForConversation } from "@/lib/chat/title-generation";
-import { findDefaultModelChoice, modelChoiceId } from "@/lib/models/model-choice";
+import {
+  findDefaultModelChoice,
+  modelChoiceId,
+} from "@/lib/models/model-choice";
 import { shouldLoadExternalDefault } from "@/lib/models/model-selector";
 import { useFolderStore } from "@/store/folderStore";
 
@@ -33,14 +32,12 @@ const AuthModal = lazy(() =>
   })),
 );
 const ChatWorkspace = lazy(() => import("@/components/Chat/ChatWorkspace"));
-const SettingsModal = lazy(() =>
-  import("@/components/Settings/SettingsModal").then((module) => ({
-    default: module.SettingsModal,
-  })),
-);
+
 function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [settingsInitialTab, setSettingsInitialTab] = useState<"general" | "connections">("general");
+  const [settingsInitialTab, setSettingsInitialTab] = useState<
+    "general" | "connections"
+  >("general");
   const stopStreamingRef = useRef<(() => void) | null>(null);
   const notify = useNotify();
   const {
@@ -76,9 +73,12 @@ function App() {
     setIsSettingsOpen(true);
   }, []);
   const handleCloseSettings = useCallback(() => setIsSettingsOpen(false), []);
-  const handleStopStreamingReady = useCallback((stopStreaming: (() => void) | null) => {
-    stopStreamingRef.current = stopStreaming;
-  }, []);
+  const handleStopStreamingReady = useCallback(
+    (stopStreaming: (() => void) | null) => {
+      stopStreamingRef.current = stopStreaming;
+    },
+    [],
+  );
 
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
@@ -130,9 +130,7 @@ function App() {
 
   const systemPromptContent = useMemo(() => {
     const preset = getPresetContent(selectedPromptPreset);
-    return general.systemPrompt
-      ? `${preset}\n${general.systemPrompt}`
-      : preset;
+    return general.systemPrompt ? `${preset}\n${general.systemPrompt}` : preset;
   }, [selectedPromptPreset, general.systemPrompt]);
   const { conversations, activeConversationId } = useChatStore(
     useShallow((state) => ({
@@ -153,35 +151,51 @@ function App() {
     setActiveConversationId(null);
   }, [setActiveConversationId]);
 
-  const handleSelectConversation = useCallback((id: string) => {
-    useFolderStore.getState().actions.setActiveFolderId(null);
-    const currentId = useChatStore.getState().activeConversationId;
-    if (currentId && currentId !== id) {
-      retryTitleForConversation(currentId);
-    }
+  const handleSelectConversation = useCallback(
+    (id: string) => {
+      useFolderStore.getState().actions.setActiveFolderId(null);
+      const currentId = useChatStore.getState().activeConversationId;
+      if (currentId && currentId !== id) {
+        retryTitleForConversation(currentId);
+      }
 
-    setActiveConversationId(id);
-  }, [setActiveConversationId]);
+      setActiveConversationId(id);
+    },
+    [setActiveConversationId],
+  );
 
-  const handleDeleteConversation = useCallback(async (id: string) => {
-    stopStreamingRef.current?.();
-    await deleteConversation(id);
-  }, [deleteConversation]);
+  const handleDeleteConversation = useCallback(
+    async (id: string) => {
+      stopStreamingRef.current?.();
+      await deleteConversation(id);
+    },
+    [deleteConversation],
+  );
 
-  const handleRenameConversation = useCallback(async (id: string, newTitle: string) => {
-    await renameConversation(id, newTitle);
-  }, [renameConversation]);
+  const handleRenameConversation = useCallback(
+    async (id: string, newTitle: string) => {
+      await renameConversation(id, newTitle);
+    },
+    [renameConversation],
+  );
 
-  const handleSetDefaultModel = useCallback((model: string) => {
-    const provider = selectedProviders[0];
-    if (!provider) return;
-    setDefaultModel(modelChoiceId(provider, model));
-    notify.success(`${model} set as default`);
-  }, [selectedProviders, setDefaultModel, notify]);
+  const handleSetDefaultModel = useCallback(
+    (model: string) => {
+      const provider = selectedProviders[0];
+      if (!provider) return;
+      setDefaultModel(modelChoiceId(provider, model));
+      notify.success(`${model} set as default`);
+    },
+    [selectedProviders, setDefaultModel, notify],
+  );
 
-  const isTemporary = Boolean(conversations.find((c) => c.id === activeConversationId)?.isTemporary);
-  const activeFolderBackground = useFolderStore((state) =>
-    state.folders.find((folder) => folder.id === state.activeFolderId)?.backgroundImage,
+  const isTemporary = Boolean(
+    conversations.find((c) => c.id === activeConversationId)?.isTemporary,
+  );
+  const activeFolderBackground = useFolderStore(
+    (state) =>
+      state.folders.find((folder) => folder.id === state.activeFolderId)
+        ?.backgroundImage,
   );
 
   const handleToggleTemporaryChat = useCallback(async () => {
@@ -231,7 +245,9 @@ function App() {
             flexDirection: "row",
             overflow: "hidden",
             position: "relative",
-            bgcolor: activeFolderBackground ? "transparent" : "background.default",
+            bgcolor: activeFolderBackground
+              ? "transparent"
+              : "background.default",
           }}
         >
           <Suspense fallback={<Box sx={{ flex: 1 }} />}>
@@ -249,9 +265,11 @@ function App() {
       </SidebarInset>
 
       {isSettingsOpen ? (
-        <Suspense fallback={null}>
-          <SettingsModal isOpen={isSettingsOpen} onClose={handleCloseSettings} initialTab={settingsInitialTab} />
-        </Suspense>
+        <SettingsModal
+          isOpen={isSettingsOpen}
+          onClose={handleCloseSettings}
+          initialTab={settingsInitialTab}
+        />
       ) : null}
       <Suspense fallback={null}>
         <AuthModal />

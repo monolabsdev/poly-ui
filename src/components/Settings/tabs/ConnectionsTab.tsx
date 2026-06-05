@@ -11,13 +11,25 @@ import {
   Divider,
   IconButton,
   LinearProgress,
+  Skeleton,
   Stack,
   Switch,
   TextField,
   Typography,
   useTheme,
 } from "@mui/material";
-import { ChevronDown, Download, Edit3, Eye, EyeOff, Plus, RefreshCw, Trash2, X, XCircle } from "lucide-react";
+import {
+  ChevronDown,
+  Download,
+  Edit3,
+  Eye,
+  EyeOff,
+  Plus,
+  RefreshCw,
+  Trash2,
+  X,
+  XCircle,
+} from "lucide-react";
 import { listen } from "@tauri-apps/api/event";
 import { useShallow } from "zustand/react/shallow";
 import { SectionHeader } from "../SettingComponents";
@@ -27,7 +39,10 @@ import { formatFileSize, loggedInvoke } from "@/lib/utils";
 import { useOllama, type PullProgress } from "@/services/ollama";
 import { useProviderStore, type ProviderStatus } from "@/services/providers";
 
-const statusChipColor: Record<ProviderStatus, "success" | "error" | "warning" | "default"> = {
+const statusChipColor: Record<
+  ProviderStatus,
+  "success" | "error" | "warning" | "default"
+> = {
   Online: "success",
   Offline: "error",
   Reconnecting: "warning",
@@ -47,7 +62,9 @@ export function ConnectionsTab() {
   );
   const ollama = useOllama();
   const local = providers.find((item) => item.provider_type === "OllamaLocal");
-  const external = providers.find((item) => item.provider_type === "OpenAICompatible");
+  const external = providers.find(
+    (item) => item.provider_type === "OpenAICompatible",
+  );
 
   const [ollamaEditing, setOllamaEditing] = useState(false);
   const [ollamaHost, setOllamaHost] = useState("");
@@ -98,7 +115,11 @@ export function ConnectionsTab() {
   const saveOllama = async () => {
     setSavingOllama(true);
     try {
-      await actions.updateProviderConfig({ provider_type: "OllamaLocal", ollama_host: ollamaHost.trim(), enabled: ollamaEnabled });
+      await actions.updateProviderConfig({
+        provider_type: "OllamaLocal",
+        ollama_host: ollamaHost.trim(),
+        enabled: ollamaEnabled,
+      });
       setOllamaDirty(false);
       notify.success("Ollama settings saved");
     } catch (err) {
@@ -173,7 +194,8 @@ export function ConnectionsTab() {
       setNewModelName("");
       await refreshModels();
     } catch (err) {
-      if (err !== "Pull cancelled by user") notify.error("Failed to pull model", String(err));
+      if (err !== "Pull cancelled by user")
+        notify.error("Failed to pull model", String(err));
     } finally {
       setIsPulling(false);
       ollama.actions.setPullingModel(null);
@@ -182,7 +204,12 @@ export function ConnectionsTab() {
   };
 
   const deleteModel = async (model: string) => {
-    if (!confirm(`Delete installed model "${model}"? You will need to download it again to use it.`)) return;
+    if (
+      !confirm(
+        `Delete installed model "${model}"? You will need to download it again to use it.`,
+      )
+    )
+      return;
     try {
       await ollama.deleteModel(model);
       await refreshModels();
@@ -212,12 +239,34 @@ export function ConnectionsTab() {
       />
 
       {loading && providers.length === 0 && (
-        <Typography sx={{ fontSize: 13, color: "text.secondary", py: theme.spacing(1) }}>
-          Loading connections...
-        </Typography>
+        <Box sx={{ py: theme.spacing(0.75) }}>
+          <Box
+            sx={{ p: theme.spacing(1.5), borderRadius: 1, border: cardBorder }}
+          >
+            <Stack
+              direction="row"
+              alignItems="center"
+              spacing={theme.spacing(1)}
+              sx={{ mb: theme.spacing(0.5) }}
+            >
+              <Skeleton variant="text" width={60} height={24} />
+              <Skeleton
+                variant="rounded"
+                width={70}
+                height={24}
+                sx={{ borderRadius: "9999px" }}
+              />
+              <Box sx={{ flexGrow: 1 }} />
+              <Skeleton variant="circular" width={28} height={28} />
+            </Stack>
+            <Skeleton variant="text" width={180} height={18} />
+          </Box>
+        </Box>
       )}
       {error && providers.length === 0 && (
-        <Typography sx={{ fontSize: 13, color: "text.secondary", py: theme.spacing(1) }}>
+        <Typography
+          sx={{ fontSize: 13, color: "text.secondary", py: theme.spacing(1) }}
+        >
           Connection error: {String(error)}
         </Typography>
       )}
@@ -232,12 +281,27 @@ export function ConnectionsTab() {
 
         return (
           <Box key={provider.provider_type} sx={{ py: theme.spacing(0.75) }}>
-            <Box sx={{ p: theme.spacing(1.5), borderRadius: 1, border: cardBorder }}>
-              <Stack direction="row" alignItems="center" spacing={theme.spacing(1)} sx={{ mb: theme.spacing(0.5) }}>
+            <Box
+              sx={{
+                p: theme.spacing(1.5),
+                borderRadius: 1,
+                border: cardBorder,
+              }}
+            >
+              <Stack
+                direction="row"
+                alignItems="center"
+                spacing={theme.spacing(1)}
+                sx={{ mb: theme.spacing(0.5) }}
+              >
                 <Typography variant="body1" sx={{ fontWeight: 700 }}>
                   {label}
                 </Typography>
-                <Chip label={provider.status} color={statusChipColor[provider.status]} size="small" />
+                <Chip
+                  label={provider.status}
+                  color={statusChipColor[provider.status]}
+                  size="small"
+                />
                 <Box sx={{ flexGrow: 1 }} />
                 <IconButton
                   size="small"
@@ -266,23 +330,37 @@ export function ConnectionsTab() {
                     <>
                       <TextField
                         value={ollamaHost}
-                        onChange={(e) => { setOllamaHost(e.target.value); setOllamaDirty(true); }}
+                        onChange={(e) => {
+                          setOllamaHost(e.target.value);
+                          setOllamaDirty(true);
+                        }}
                         placeholder="http://127.0.0.1:11434"
                         fullWidth
                         size="small"
                         sx={appTextFieldSx}
                       />
-                      <Stack direction="row" alignItems="center" spacing={theme.spacing(1)}>
-                        <Typography variant="body2" color="text.secondary">Enabled</Typography>
+                      <Stack
+                        direction="row"
+                        alignItems="center"
+                        spacing={theme.spacing(1)}
+                      >
+                        <Typography variant="body2" color="text.secondary">
+                          Enabled
+                        </Typography>
                         <Switch
                           checked={ollamaEnabled}
-                          onChange={(e) => { setOllamaEnabled(e.target.checked); setOllamaDirty(true); }}
+                          onChange={(e) => {
+                            setOllamaEnabled(e.target.checked);
+                            setOllamaDirty(true);
+                          }}
                         />
                         <Box sx={{ flexGrow: 1 }} />
                         <Button
                           size="small"
                           variant="outlined"
-                          disabled={!ollamaDirty || savingOllama || !ollamaHost.trim()}
+                          disabled={
+                            !ollamaDirty || savingOllama || !ollamaHost.trim()
+                          }
                           onClick={saveOllama}
                           sx={{ textTransform: "none", fontWeight: 700 }}
                         >
@@ -295,7 +373,10 @@ export function ConnectionsTab() {
                       <TextField
                         label="API base URL"
                         value={externalHost}
-                        onChange={(e) => { setExternalHost(e.target.value); setExternalDirty(true); }}
+                        onChange={(e) => {
+                          setExternalHost(e.target.value);
+                          setExternalDirty(true);
+                        }}
                         placeholder="https://api.openai.com/v1"
                         fullWidth
                         size="small"
@@ -304,7 +385,10 @@ export function ConnectionsTab() {
                       <TextField
                         label="API key (optional)"
                         value={externalApiKey}
-                        onChange={(e) => { setExternalApiKey(e.target.value); setExternalDirty(true); }}
+                        onChange={(e) => {
+                          setExternalApiKey(e.target.value);
+                          setExternalDirty(true);
+                        }}
                         placeholder="sk-..."
                         type={showExternalKey ? "text" : "password"}
                         autoComplete="off"
@@ -314,24 +398,51 @@ export function ConnectionsTab() {
                         slotProps={{
                           input: {
                             endAdornment: (
-                              <IconButton size="small" aria-label={showExternalKey ? "Hide API key" : "Show API key"} onClick={() => setShowExternalKey(!showExternalKey)}>
-                                {showExternalKey ? <EyeOff size={15} /> : <Eye size={15} />}
+                              <IconButton
+                                size="small"
+                                aria-label={
+                                  showExternalKey
+                                    ? "Hide API key"
+                                    : "Show API key"
+                                }
+                                onClick={() =>
+                                  setShowExternalKey(!showExternalKey)
+                                }
+                              >
+                                {showExternalKey ? (
+                                  <EyeOff size={15} />
+                                ) : (
+                                  <Eye size={15} />
+                                )}
                               </IconButton>
                             ),
                           },
                         }}
                       />
-                      <Stack direction="row" alignItems="center" spacing={theme.spacing(1)}>
-                        <Typography variant="body2" color="text.secondary">Enabled</Typography>
+                      <Stack
+                        direction="row"
+                        alignItems="center"
+                        spacing={theme.spacing(1)}
+                      >
+                        <Typography variant="body2" color="text.secondary">
+                          Enabled
+                        </Typography>
                         <Switch
                           checked={externalEnabled}
-                          onChange={(e) => { setExternalEnabled(e.target.checked); setExternalDirty(true); }}
+                          onChange={(e) => {
+                            setExternalEnabled(e.target.checked);
+                            setExternalDirty(true);
+                          }}
                         />
                         <Box sx={{ flexGrow: 1 }} />
                         <Button
                           size="small"
                           variant="outlined"
-                          disabled={!externalDirty || savingExternal || !externalHost.trim()}
+                          disabled={
+                            !externalDirty ||
+                            savingExternal ||
+                            !externalHost.trim()
+                          }
                           onClick={saveExternal}
                           sx={{ textTransform: "none", fontWeight: 700 }}
                         >
@@ -349,11 +460,29 @@ export function ConnectionsTab() {
 
       <Divider sx={{ my: theme.spacing(2) }} />
 
-      <SectionHeader title="Ollama models" description="Install and remove models from local Ollama." />
+      <SectionHeader
+        title="Ollama models"
+        description="Install and remove models from local Ollama."
+      />
       <Button
         onClick={() => setInstallerOpen((open) => !open)}
-        endIcon={<ChevronDown size={16} style={{ transform: installerOpen ? "rotate(180deg)" : undefined, transition: "transform 150ms ease" }} />}
-        sx={{ justifyContent: "space-between", textTransform: "none", color: "text.primary", fontWeight: 700, px: 0, py: 1 }}
+        endIcon={
+          <ChevronDown
+            size={16}
+            style={{
+              transform: installerOpen ? "rotate(180deg)" : undefined,
+              transition: "transform 150ms ease",
+            }}
+          />
+        }
+        sx={{
+          justifyContent: "space-between",
+          textTransform: "none",
+          color: "text.primary",
+          fontWeight: 700,
+          px: 0,
+          py: 1,
+        }}
       >
         Model installer
       </Button>
@@ -386,16 +515,31 @@ export function ConnectionsTab() {
                 <Typography sx={{ fontSize: 12 }}>
                   Pulling {ollama.pullingModel}: {ollama.pullProgress.status}
                 </Typography>
-                <IconButton size="small" aria-label="Cancel model download" onClick={() => void ollama.cancelPull()}>
+                <IconButton
+                  size="small"
+                  aria-label="Cancel model download"
+                  onClick={() => void ollama.cancelPull()}
+                >
                   <XCircle size={15} />
                 </IconButton>
               </Stack>
               <LinearProgress />
             </Box>
           )}
-          <Stack direction="row" justifyContent="space-between" alignItems="center">
-            <Typography sx={{ fontSize: 13, fontWeight: 700 }}>Installed models</Typography>
-            <IconButton size="small" aria-label="Refresh installed models" onClick={refreshModels} disabled={isRefreshing}>
+          <Stack
+            direction="row"
+            justifyContent="space-between"
+            alignItems="center"
+          >
+            <Typography sx={{ fontSize: 13, fontWeight: 700 }}>
+              Installed models
+            </Typography>
+            <IconButton
+              size="small"
+              aria-label="Refresh installed models"
+              onClick={refreshModels}
+              disabled={isRefreshing}
+            >
               <RefreshCw size={15} />
             </IconButton>
           </Stack>
@@ -405,12 +549,25 @@ export function ConnectionsTab() {
             </Typography>
           )}
           {ollama.localModels.map((model) => (
-            <Stack key={model.name} direction="row" justifyContent="space-between" alignItems="center">
+            <Stack
+              key={model.name}
+              direction="row"
+              justifyContent="space-between"
+              alignItems="center"
+            >
               <Box>
-                <Typography sx={{ fontSize: 13, fontWeight: 600 }}>{model.name}</Typography>
-                <Typography sx={{ fontSize: 12, color: "text.secondary" }}>{formatFileSize(model.size)}</Typography>
+                <Typography sx={{ fontSize: 13, fontWeight: 600 }}>
+                  {model.name}
+                </Typography>
+                <Typography sx={{ fontSize: 12, color: "text.secondary" }}>
+                  {formatFileSize(model.size)}
+                </Typography>
               </Box>
-              <IconButton size="small" aria-label={`Delete ${model.name}`} onClick={() => void deleteModel(model.name)}>
+              <IconButton
+                size="small"
+                aria-label={`Delete ${model.name}`}
+                onClick={() => void deleteModel(model.name)}
+              >
                 <Trash2 size={15} />
               </IconButton>
             </Stack>
@@ -418,14 +575,34 @@ export function ConnectionsTab() {
         </Stack>
       </Collapse>
 
-      <Dialog open={addOpen} onClose={() => setAddOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 18, fontWeight: 700 }}>
+      <Dialog
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            fontSize: 18,
+            fontWeight: 700,
+          }}
+        >
           Add connection
-          <IconButton size="small" aria-label="Close add connection dialog" onClick={() => setAddOpen(false)}><X size={18} /></IconButton>
+          <IconButton
+            size="small"
+            aria-label="Close add connection dialog"
+            onClick={() => setAddOpen(false)}
+          >
+            <X size={18} />
+          </IconButton>
         </DialogTitle>
         <DialogContent>
           <Typography sx={{ mb: 2, fontSize: 12, color: "text.secondary" }}>
-            OpenAI API-compatible connection. API key optional for local servers.
+            OpenAI API-compatible connection. API key optional for local
+            servers.
           </Typography>
           <Stack spacing={2}>
             <TextField
@@ -449,7 +626,11 @@ export function ConnectionsTab() {
               slotProps={{
                 input: {
                   endAdornment: (
-                    <IconButton size="small" aria-label={showAddKey ? "Hide API key" : "Show API key"} onClick={() => setShowAddKey(!showAddKey)}>
+                    <IconButton
+                      size="small"
+                      aria-label={showAddKey ? "Hide API key" : "Show API key"}
+                      onClick={() => setShowAddKey(!showAddKey)}
+                    >
                       {showAddKey ? <EyeOff size={15} /> : <Eye size={15} />}
                     </IconButton>
                   ),
@@ -459,7 +640,12 @@ export function ConnectionsTab() {
           </Stack>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setAddOpen(false)} sx={{ textTransform: "none" }}>Cancel</Button>
+          <Button
+            onClick={() => setAddOpen(false)}
+            sx={{ textTransform: "none" }}
+          >
+            Cancel
+          </Button>
           <Button
             variant="contained"
             disableElevation
