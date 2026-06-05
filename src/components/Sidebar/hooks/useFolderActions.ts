@@ -85,7 +85,7 @@ export function useFolderActions(conversations: Conversation[]): UseFolderAction
     await deleteFolder(folder.id);
   };
 
-  const onExport = (folder: { id: string; name: string }) => {
+  const onExport = async (folder: { id: string; name: string }) => {
     const folderIds = collectDescendantFolderIds(folders, folder.id);
     const payload = {
       folder,
@@ -95,16 +95,30 @@ export function useFolderActions(conversations: Conversation[]): UseFolderAction
           conversation.folderId && folderIds.has(conversation.folderId),
       ),
     };
-    const url = URL.createObjectURL(
-      new Blob([JSON.stringify(payload, null, 2)], {
-        type: "application/json",
-      }),
-    );
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${slugifyFilename(folder.name)}.json`;
-    link.click();
-    URL.revokeObjectURL(url);
+    const json = JSON.stringify(payload, null, 2);
+    const fileName = `${slugifyFilename(folder.name)}.json`;
+
+    try {
+      const { save } = await import("@tauri-apps/plugin-dialog");
+      const { writeTextFile } = await import("@tauri-apps/plugin-fs");
+      const filePath = await save({
+        filters: [{ name: "JSON", extensions: ["json"] }],
+        defaultPath: fileName,
+      });
+      if (!filePath) return;
+      await writeTextFile(filePath, json);
+    } catch {
+      const url = URL.createObjectURL(
+        new Blob([json], { type: "application/json" }),
+      );
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
   };
 
   return {

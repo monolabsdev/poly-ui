@@ -12,7 +12,9 @@ import { ConversationSkeleton } from "@/components/Sidebar/components/Conversati
 import { useSidebar } from "@/components/Sidebar/hooks/useSidebar";
 import { useSidebarActions } from "@/components/Sidebar/hooks/useSidebarActions";
 import { useChatStore } from "@/store/chatStore";
+import { useNotify } from "@/hooks/useNotify";
 import { ConversationGroup } from "@/components/Sidebar/hooks/useConversationGroups";
+import type { Conversation } from "@/types/chat";
 
 export interface ConversationListProps {
   groupedConversations: ConversationGroup[];
@@ -28,6 +30,42 @@ export function ConversationList({
   const { isCollapsed, isMobile, setOpenMobile } = useSidebar();
   const { conv, onSelectConversation } = useSidebarActions();
   const activeConversationId = useChatStore((s) => s.activeConversationId);
+  const notify = useNotify();
+
+  const handleExport = async (c: Conversation) => {
+    try {
+      const { getRepository } = await import("@/lib/repositories");
+      const repo = getRepository();
+      const messages = await repo.getMessages(c.id, 99999, 0);
+      const payload = { conversation: c, messages };
+      const json = JSON.stringify(payload, null, 2);
+      const fileName = `${(c.title || "untitled").replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.json`;
+
+      try {
+        const { save } = await import("@tauri-apps/plugin-dialog");
+        const { writeTextFile } = await import("@tauri-apps/plugin-fs");
+        const filePath = await save({
+          filters: [{ name: "JSON", extensions: ["json"] }],
+          defaultPath: fileName,
+        });
+        if (!filePath) return;
+        await writeTextFile(filePath, json);
+      } catch {
+        const blob = new Blob([json], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }
+      notify.success("Conversation exported");
+    } catch (err) {
+      notify.error("Failed to export conversation", String(err));
+    }
+  };
 
   if (conversationsLoading) {
     return <ConversationSkeleton />;
@@ -100,6 +138,7 @@ export function ConversationList({
                       handleStartRename={conv.handleStartRename}
                       handleArchive={conv.handleArchive}
                       handleStartDelete={conv.handleStartDelete}
+                      onExport={handleExport}
                     />
                   </SidebarMenuButton>
                 ))}

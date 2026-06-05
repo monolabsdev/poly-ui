@@ -13,65 +13,7 @@ import {
 import { Trash2, Archive, Download, AlertTriangle } from "lucide-react";
 import { SettingCard, SectionHeader } from "../SettingComponents";
 import { useChatStore } from "@/store/chatStore";
-import { useAuthStore } from "@/store/authStore";
 import { useNotify } from "@/hooks/useNotify";
-
-function toCsvCell(value: unknown): string {
-  const normalized = value === null || value === undefined ? "" : String(value);
-  const escaped = normalized.replace(/"/g, '""');
-  return `"${escaped}"`;
-}
-
-async function yieldToMainThread() {
-  await new Promise<void>((resolve) => setTimeout(resolve, 0));
-}
-
-async function buildChatsCsv(
-  rows: Array<{
-    conversationId: string;
-    conversationTitle: string;
-    conversationCreatedAt: string;
-    conversationUpdatedAt: string;
-    messageRole: string;
-    messageContent: string;
-    messageCreatedAt: string;
-    messageModel: string;
-  }>,
-): Promise<string> {
-  const header = [
-    "conversation_id",
-    "conversation_title",
-    "conversation_created_at",
-    "conversation_updated_at",
-    "message_role",
-    "message_content",
-    "message_created_at",
-    "message_model",
-  ];
-
-  const lines: string[] = [];
-  const chunkSize = 500;
-  for (let i = 0; i < rows.length; i += chunkSize) {
-    const chunk = rows.slice(i, i + chunkSize);
-    for (const row of chunk) {
-      lines.push([
-      row.conversationId,
-      row.conversationTitle,
-      row.conversationCreatedAt,
-      row.conversationUpdatedAt,
-      row.messageRole,
-      row.messageContent,
-      row.messageCreatedAt,
-      row.messageModel,
-    ]
-      .map(toCsvCell)
-      .join(","));
-    }
-    await yieldToMainThread();
-  }
-
-  return [header.join(","), ...lines].join("\n");
-}
 
 export function DataControlsTab() {
   const notify = useNotify();
@@ -116,113 +58,62 @@ export function DataControlsTab() {
     try {
       const repoModule = await import("@/lib/repositories");
       const repo = repoModule.getRepository();
-      const auth = useAuthStore.getState();
-      const userId = auth.user?.id || auth.guestId;
-      if (!userId) throw new Error("No active user scope");
-      const conversations = await repo.getConversations(userId);
-      const messages = await repo.getAllMessages(userId);
+      const conversations = await repo.getConversations();
+      const messages = await repo.getAllMessages();
       const messagesByConversation = new Map<string, typeof messages>();
       for (const message of messages) {
         const list = messagesByConversation.get(message.conversationId);
         if (list) list.push(message);
         else messagesByConversation.set(message.conversationId, [message]);
       }
-      const exportRows: Array<{
-        conversationId: string;
-        conversationTitle: string;
-        conversationCreatedAt: string;
-        conversationUpdatedAt: string;
-        messageRole: string;
-        messageContent: string;
-        messageCreatedAt: string;
-        messageModel: string;
-      }> = [];
 
-      for (let i = 0; i < conversations.length; i++) {
-        const conv = conversations[i];
-        const convMessages = messagesByConversation.get(conv.id) ?? [];
-        if (convMessages.length === 0) {
-          exportRows.push({
-            conversationId: conv.id,
-            conversationTitle: conv.title ?? "Untitled",
-            conversationCreatedAt: conv.createdAt,
-            conversationUpdatedAt: conv.updatedAt,
-            messageRole: "",
-            messageContent: "",
-            messageCreatedAt: "",
-            messageModel: "",
-          });
-          continue;
-        }
+      const payload = conversations.map((conv) => ({
+        id: conv.id,
+        title: conv.title,
+        createdAt: conv.createdAt,
+        updatedAt: conv.updatedAt,
+        isArchived: conv.isArchived,
+        messages: (messagesByConversation.get(conv.id) ?? []).map((m) => ({
+          role: m.role,
+          content: m.content,
+          createdAt: m.createdAt,
+          model: m.model,
+          provider: m.provider,
+          attachments: m.attachments,
+          thinking: m.thinking,
+          thinkingDuration: m.thinkingDuration,
+        })),
+      }));
 
-        for (const message of convMessages) {
-          exportRows.push({
-            conversationId: conv.id,
-            conversationTitle: conv.title ?? "Untitled",
-            conversationCreatedAt: conv.createdAt,
-            conversationUpdatedAt: conv.updatedAt,
-            messageRole: message.role,
-            messageContent: message.content,
-            messageCreatedAt: message.createdAt,
-            messageModel: message.model ?? "",
-          });
-        }
-        if (i % 100 === 0) await yieldToMainThread();
-      }
-
-      const csv = await buildChatsCsv(exportRows);
+      const json = JSON.stringify(payload, null, 2);
       const date = new Date().toISOString().slice(0, 10);
-      const defaultFileName = `polyui-export-${date}.csv`;
+      const defaultName = `polyui-export-${date}.json`;
 
-      if ("showSaveFilePicker" in window) {
-        const fileHandle = await (
-          window as Window & {
-            showSaveFilePicker?: (options?: {
-              suggestedName?: string;
-              types?: Array<{
-                description?: string;
-                accept: Record<string, string[]>;
-              }>;
-            }) => Promise<{
-              createWritable: () => Promise<{
-                write: (data: string) => Promise<void>;
-                close: () => Promise<void>;
-              }>;
-            }>;
-          }
-        ).showSaveFilePicker?.({
-          suggestedName: defaultFileName,
-          types: [
-            {
-              description: "CSV file",
-              accept: { "text/csv": [".csv"] },
-            },
-          ],
+      try {
+        const { save } = await import("@tauri-apps/plugin-dialog");
+        const { writeTextFile } = await import("@tauri-apps/plugin-fs");
+        const filePath = await save({
+          filters: [{ name: "JSON", extensions: ["json"] }],
+          defaultPath: defaultName,
         });
-
-        if (fileHandle) {
-          const writable = await fileHandle.createWritable();
-          await writable.write(csv);
-          await writable.close();
-          notify.success(
-            `Exported ${conversations.length} conversations as CSV`,
-          );
-          return;
-        }
+        if (!filePath) { setExporting(false); return; }
+        await writeTextFile(filePath, json);
+        notify.success(`Exported ${conversations.length} conversations`);
+      } catch {
+        // Fallback for non-Tauri
+        const blob = new Blob([json], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = defaultName;
+        document.body.appendChild(anchor);
+        anchor.click();
+        document.body.removeChild(anchor);
+        URL.revokeObjectURL(url);
+        notify.success(`Exported ${conversations.length} conversations`);
       }
-
-      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = defaultFileName;
-      document.body.appendChild(anchor);
-      anchor.click();
-      document.body.removeChild(anchor);
-      URL.revokeObjectURL(url);
-      notify.success(`Exported ${conversations.length} conversations as CSV`);
     } catch (err) {
-      notify.error("Failed to export chats", err as string);
+      notify.error("Failed to export chats", String(err));
     } finally {
       setExporting(false);
     }
@@ -237,7 +128,7 @@ export function DataControlsTab() {
 
       <SettingCard
         title="Export Chats"
-        description="Choose a location and export all conversations as CSV."
+        description="Export all conversations as JSON."
         action={
           <Button
             size="small"

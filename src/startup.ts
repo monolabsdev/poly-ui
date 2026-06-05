@@ -1,5 +1,7 @@
 import type { SystemPrompt } from "@/store/modelStore";
 import { useAuthStore } from "@/store/authStore";
+import { useChatStore } from "@/store/chatStore";
+import { useFolderStore } from "@/store/folderStore";
 import { useModelStore } from "@/store/modelStore";
 import { useOllamaStore } from "@/services/ollama/monitor";
 import { useProviderStore } from "@/services/providers";
@@ -92,6 +94,13 @@ async function initializeStores() {
     useProviderStore.getState().actions.refresh().catch(() => {}),
     useAuthStore.getState().actions.restoreSession().catch(() => {}),
   ]).catch(() => {});
+
+  const { user, guestId } = useAuthStore.getState();
+  if (user || guestId) {
+    useChatStore.getState().actions.loadConversations();
+    const { loadFolders } = useFolderStore.getState().actions;
+    loadFolders();
+  }
 
   useOllamaStore.getState().actions.start();
 

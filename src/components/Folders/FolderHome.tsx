@@ -135,19 +135,33 @@ export function FolderHome({ folder, onSubmit, onStop, isStreaming, providerOnli
       const repo = await getRepository();
       const messages = await repo.getMessages(conv.id, 99999, 0);
       const payload = { conversation: conv, messages };
-      const url = URL.createObjectURL(
-        new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" })
-      );
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `${(conv.title || "untitled").replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.json`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      const json = JSON.stringify(payload, null, 2);
+      const fileName = `${(conv.title || "untitled").replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.json`;
+
+      try {
+        const { save } = await import("@tauri-apps/plugin-dialog");
+        const { writeTextFile } = await import("@tauri-apps/plugin-fs");
+        const filePath = await save({
+          filters: [{ name: "JSON", extensions: ["json"] }],
+          defaultPath: fileName,
+        });
+        if (!filePath) return;
+        await writeTextFile(filePath, json);
+      } catch {
+        const url = URL.createObjectURL(
+          new Blob([json], { type: "application/json" })
+        );
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }
       notify.success("Conversation exported");
     } catch (err) {
-      notify.error("Failed to export conversation", err as string);
+      notify.error("Failed to export conversation", String(err));
     }
   };
 

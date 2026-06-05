@@ -31,6 +31,7 @@
     "sql:allow-load",
     "window-state:default",
     "notification:default",
-    "dialog:default"
+    "dialog:default",
+    "fs:allow-write-text-file"
   ]
 }
