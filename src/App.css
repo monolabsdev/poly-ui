@@ -249,26 +249,13 @@ code {
     }
 }
 
-/* Reduced motion overrides */
-/*@media (prefers-reduced-motion: reduce) {
+
+@media (prefers-reduced-motion: reduce) {
   .animate-fade-in,
   .animate-slide-in,
   .animate-popover,
-  .animate-thinking,
-  .animate-spin,
-  .text-shimmer,
-  .animate-pulse {
-    animation: none !important;
-  }
 }
 
 html.reduce-motion .animate-fade-in,
 html.reduce-motion .animate-slide-in,
 html.reduce-motion .animate-popover,
-html.reduce-motion .animate-thinking,
-html.reduce-motion .animate-spin,
-html.reduce-motion .text-shimmer,
-html.reduce-motion .animate-pulse {
-  animation: none !important;
-}
-*/
