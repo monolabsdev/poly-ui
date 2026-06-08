@@ -17,11 +17,11 @@ export function SlashCommandMenu({
 }: SlashCommandMenuProps) {
   const query = slashQuery.toLowerCase().trim();
   const filtered = query
-    ? features.filter((f) =>
-        [f.name, f.description, f.id].some((field) =>
-          field?.toLowerCase().includes(query),
-        ),
-      )
+      ? features.filter((f) =>
+          [f.name, f.id].some((field) =>
+            field?.toLowerCase().includes(query),
+          ),
+        )
     : features;
 
   return (
@@ -61,33 +61,29 @@ export function SlashCommandMenu({
                 sx={{
                   display: "flex",
                   alignItems: "center",
-                  p: 1,
-                  gap: 1,
-                  borderRadius: "12px",
+                  px: 1.5,
+                  py: 0.75,
+                  gap: 1.5,
+                  borderRadius: "999px",
                   cursor: "pointer",
                   bgcolor: isSelected ? "action.hover" : "transparent",
                   "&:hover": { bgcolor: "action.hover" },
                 }}
               >
                 <Icon size={16} />
-                <Box sx={{ flex: 1, display: "flex", alignItems: "center", gap: 1 }}>
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      fontWeight: 500,
-                      color: feature.active ? "primary.main" : "text.primary",
-                    }}
-                  >
-                    {feature.name}
-                  </Typography>
-                  {feature.warning && (
-                    <Tooltip title={feature.warning} arrow>
-                      <Box sx={{ display: "flex", alignItems: "center", lineHeight: 0 }}>
-                        <AlertTriangle size={12} style={{ color: "orange" }} />
-                      </Box>
-                    </Tooltip>
-                  )}
-                </Box>
+                <Typography
+                  variant="body2"
+                  sx={{ flex: 1, fontWeight: 600, color: feature.active ? "primary.main" : "text.primary" }}
+                >
+                  {feature.name}
+                </Typography>
+                {feature.warning && (
+                  <Tooltip title={feature.warning} arrow>
+                    <Box sx={{ display: "flex", alignItems: "center", lineHeight: 0 }}>
+                      <AlertTriangle size={12} style={{ color: "orange" }} />
+                    </Box>
+                  </Tooltip>
+                )}
               </Box>
             );
           })}

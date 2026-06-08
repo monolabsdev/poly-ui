@@ -17,6 +17,12 @@ pub struct ProviderAndModelsResponse {
     pub models: Vec<ModelDetails>,
 }
 
+fn normalize_account_arg(account_id: Option<String>) -> Option<String> {
+    account_id
+        .map(|id| id.trim().to_string())
+        .filter(|id| !id.is_empty())
+}
+
 fn should_preload_models(provider_type: ProviderType) -> bool {
     provider_type == ProviderType::OllamaLocal
 }
@@ -57,21 +63,20 @@ fn config_health_key(config: &ProviderConfig) -> i64 {
 #[tauri::command]
 pub async fn get_providers(
     state: tauri::State<'_, AppState>,
+    account_id: Option<String>,
 ) -> Result<Vec<ProviderStatusResponse>, String> {
     let selector = &state.provider_selector;
+    let account_id = normalize_account_arg(account_id);
     let configs = selector
-        .get_provider_configs()
+        .get_provider_configs(account_id.as_deref())
         .await
         .map_err(|e| AppError::Db(e).to_string())?;
-    let health = selector.check_all_providers().await;
+    let health = selector.check_all_providers(account_id.as_deref()).await;
 
     let mut response = Vec::new();
     for config in configs {
         let key = config_health_key(&config);
-        let status = health
-            .get(&key)
-            .cloned()
-            .unwrap_or(ProviderStatus::Offline);
+        let status = health.get(&key).cloned().unwrap_or(ProviderStatus::Offline);
         response.push(ProviderStatusResponse {
             provider_type: config.provider_type,
             status,
@@ -84,22 +89,21 @@ pub async fn get_providers(
 #[tauri::command]
 pub async fn get_provider_and_models(
     state: tauri::State<'_, AppState>,
+    account_id: Option<String>,
 ) -> Result<ProviderAndModelsResponse, String> {
     let selector = &state.provider_selector;
+    let account_id = normalize_account_arg(account_id);
     let configs = selector
-        .get_provider_configs()
+        .get_provider_configs(account_id.as_deref())
         .await
         .map_err(|e| AppError::Db(e).to_string())?;
-    let health = selector.check_all_providers().await;
+    let health = selector.check_all_providers(account_id.as_deref()).await;
 
     let mut providers = Vec::new();
     let mut models = Vec::new();
     for config in configs {
         let key = config_health_key(&config);
-        let mut status = health
-            .get(&key)
-            .cloned()
-            .unwrap_or(ProviderStatus::Offline);
+        let mut status = health.get(&key).cloned().unwrap_or(ProviderStatus::Offline);
         if status == ProviderStatus::Online && should_preload_models(config.provider_type) {
             if let Some((preloaded_models, preload_status)) = try_preload_models(&config).await {
                 models.extend(preloaded_models);
@@ -120,8 +124,13 @@ pub async fn get_provider_and_models(
 pub async fn get_provider_models(
     state: tauri::State<'_, AppState>,
     provider_type: ProviderType,
+    account_id: Option<String>,
 ) -> Result<Vec<ModelDetails>, String> {
-    let provider = state.provider_selector.get_provider(provider_type).await?;
+    let account_id = normalize_account_arg(account_id);
+    let provider = state
+        .provider_selector
+        .get_provider(provider_type, account_id.as_deref())
+        .await?;
 
     tokio::time::timeout(
         std::time::Duration::from_secs(10),
@@ -159,10 +168,13 @@ pub struct UpdateProviderConfigRequest {
 pub async fn update_provider_config(
     state: tauri::State<'_, AppState>,
     request: UpdateProviderConfigRequest,
+    account_id: Option<String>,
 ) -> Result<(), String> {
+    let account_id = normalize_account_arg(account_id);
     state
         .provider_selector
         .update_provider_config(
+            account_id.as_deref(),
             request.id,
             &request.provider_type,
             request.enabled,
@@ -201,10 +213,13 @@ pub struct AddProviderRequest {
 pub async fn add_provider(
     state: tauri::State<'_, AppState>,
     request: AddProviderRequest,
+    account_id: Option<String>,
 ) -> Result<i64, String> {
+    let account_id = normalize_account_arg(account_id);
     state
         .provider_selector
         .add_provider_config(
+            account_id.as_deref(),
             &request.provider_type,
             request.enabled,
             request.ollama_host,
@@ -221,11 +236,13 @@ pub async fn add_provider(
 #[tauri::command]
 pub async fn delete_provider(
     state: tauri::State<'_, AppState>,
+    account_id: Option<String>,
     id: i64,
 ) -> Result<(), String> {
+    let account_id = normalize_account_arg(account_id);
     state
         .provider_selector
-        .delete_provider_config(id)
+        .delete_provider_config(account_id.as_deref(), id)
         .await
         .map_err(|e| AppError::Db(e).to_string())
 }

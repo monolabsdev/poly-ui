@@ -8,19 +8,24 @@ use tokio_stream::StreamExt;
 #[tauri::command]
 pub async fn get_local_models(
     state: tauri::State<'_, AppState>,
+    account_id: Option<String>,
 ) -> Result<Vec<ModelDetails>, String> {
     let provider = state
         .provider_selector
-        .get_provider(ProviderType::OllamaLocal)
+        .get_provider(ProviderType::OllamaLocal, account_id.as_deref())
         .await?;
     provider.get_available_models().await
 }
 
 #[tauri::command]
-pub async fn delete_model(state: tauri::State<'_, AppState>, model: String) -> Result<(), String> {
+pub async fn delete_model(
+    state: tauri::State<'_, AppState>,
+    model: String,
+    account_id: Option<String>,
+) -> Result<(), String> {
     let provider = state
         .provider_selector
-        .get_provider(ProviderType::OllamaLocal)
+        .get_provider(ProviderType::OllamaLocal, account_id.as_deref())
         .await?;
     provider.delete_model(model).await
 }
@@ -30,11 +35,12 @@ pub async fn pull_model(
     app_handle: AppHandle,
     state: tauri::State<'_, AppState>,
     model: String,
+    account_id: Option<String>,
 ) -> Result<(), String> {
     state.is_pull_cancelled.store(false, Ordering::SeqCst);
     let provider = state
         .provider_selector
-        .get_provider(ProviderType::OllamaLocal)
+        .get_provider(ProviderType::OllamaLocal, account_id.as_deref())
         .await?;
 
     let mut stream = provider

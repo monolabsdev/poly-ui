@@ -45,3 +45,4 @@ tauri-plugin-dialog = "2"
 dirs = "6"
 sysinfo = "0.32"
 whisper-rs = { version = "0.16", optional = true }
+poly-agent-tauri = { git = "https://github.com/monolabsdev/poly-agent.git", features = ["tauri"] }

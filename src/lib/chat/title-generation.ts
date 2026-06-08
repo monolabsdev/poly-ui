@@ -2,6 +2,7 @@ import { loggedInvoke } from "@/lib/utils";
 import { useChatStore } from "@/store/chatStore";
 import type { ChatMessage } from "@/types/chat";
 import type { ModelProvider } from "@/store/modelStore";
+import { getCurrentProviderAccountId } from "@/services/providers";
 
 type BackendChatMessage = {
   role: "user" | "assistant";
@@ -111,6 +112,7 @@ async function generateAndApplyTitle(
     messages: conversationMessages.map(toBackendMessage),
     userName,
     providerType,
+    accountId: getCurrentProviderAccountId(),
   });
 
   if (!title?.trim()) return;

@@ -35,6 +35,15 @@ import {
   useMessageTts,
 } from "./hooks";
 import { MarkdownProse } from "./MarkdownProse";
+import { AgentActivity } from "@/features/agent/AgentActivity";
+import { approveAgentToolCall, rejectAgentToolCall } from "@/features/agent/agentClient";
+import type { AgentApproval } from "@/features/agent/types";
+
+function isFallbackAgentContent(content: string): boolean {
+  const trimmed = content.trim();
+  if (/^(I tried|I edited|I created|The Poly Agent)/i.test(trimmed)) return true;
+  return false;
+}
 
 export function AssistantMessage(props: MessageProps) {
   const {
@@ -49,6 +58,7 @@ export function AssistantMessage(props: MessageProps) {
     errorMessage,
     onRegenerate,
     webSearch,
+    agent,
     isLastMessage,
   } = props;
 
@@ -89,12 +99,27 @@ export function AssistantMessage(props: MessageProps) {
       });
   };
 
+  const handleAgentApproval = async (kind: "approve" | "reject", approval: AgentApproval) => {
+    if (!agent?.runId) return;
+    try {
+      if (kind === "approve") {
+        await approveAgentToolCall(agent.runId, approval.approvalId);
+        return;
+      }
+      await rejectAgentToolCall(agent.runId, approval.approvalId);
+    } catch (err) {
+      notify.error("Approval failed", err instanceof Error ? err.message : String(err));
+      throw err;
+    }
+  };
+
   return (
     <Box
       sx={{
         display: "flex",
         flexDirection: "column",
         width: "100%",
+        minWidth: 0,
         py: 0.5,
         "& .action-bar": {
           opacity: 0,
@@ -109,8 +134,8 @@ export function AssistantMessage(props: MessageProps) {
         },
       }}
     >
-      <Box sx={{ width: "100%" }}>
-        {model && (
+      <Box sx={{ width: "100%", minWidth: 0, maxWidth: "100%", boxSizing: "border-box" }}>
+        {model && !agent && (
           <Typography
             variant="caption"
             sx={{
@@ -226,14 +251,27 @@ export function AssistantMessage(props: MessageProps) {
           </Box>
         )}
 
+        {agent && (
+          <AgentActivity
+            agent={agent}
+            resultText={content}
+            onResolveApproval={handleAgentApproval}
+            onRetry={canRegenerate && typeof messageIndex === "number" ? () => onRegenerate(messageIndex) : undefined}
+          />
+        )}
+
         {/* ── Markdown Core Message Body ── */}
-        {content ? (
+        {content && !(agent && !isStreaming && isFallbackAgentContent(content)) ? (
           <Box
             id={`message-${messageIndex}`}
             sx={{
               maxWidth: { xs: "90%", sm: "80%" },
+              width: "100%",
               contentVisibility: "auto",
               containIntrinsicSize: "1px 5000px",
+              minWidth: 0,
+              boxSizing: "border-box",
+              overflowX: "hidden",
             }}
           >
             <MarkdownProse

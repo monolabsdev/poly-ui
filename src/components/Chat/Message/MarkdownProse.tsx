@@ -79,8 +79,25 @@ const PROSE_SX = {
   fontSize: "15px",
   lineHeight: 1.6,
   overflowX: "hidden",
-  overflowWrap: "break-word",
+  overflowWrap: "anywhere",
   wordBreak: "break-word",
+  minWidth: 0,
+  maxWidth: "100%",
+  width: "100%",
+  boxSizing: "border-box",
+
+  "& pre": {
+    overflowX: "auto",
+    overflowY: "hidden",
+    maxWidth: "100%",
+    minWidth: 0,
+    display: "block",
+  },
+
+  "& code": {
+    overflowWrap: "anywhere",
+    wordBreak: "break-word",
+  },
 
   "& .katex-display": {
     overflowX: "auto",
@@ -88,13 +105,15 @@ const PROSE_SX = {
     py: 1,
   },
 
-  "& p": { m: 0 },
+  "& p": { m: 0, overflowWrap: "anywhere", wordBreak: "break-word" },
   "& ul, & ol": { pl: 3, m: 0, my: 1.5 },
   "& li": {
     mb: 0.25,
     lineHeight: 1.6,
     fontSize: "15px",
     color: "text.primary",
+    overflowWrap: "anywhere",
+    wordBreak: "break-word",
   },
   "& li > p": { m: 0 },
 } as const;
@@ -129,11 +148,16 @@ const MemoizedMarkdownBlock = memo(
 
 MemoizedMarkdownBlock.displayName = "MemoizedMarkdownBlock";
 
+function normalizeContent(content: string): string {
+  return content.replace(/<br\s*\/?>/gi, "\n");
+}
+
 export function MarkdownProse({ content, streaming = false }: { content: string; streaming?: boolean }) {
   const id = useId();
+  const normalized = useMemo(() => normalizeContent(content), [content]);
   const progressive = useMemo(
-    () => streaming ? parseProgressive(content) : { safe: content, pending: false },
-    [content, streaming],
+    () => streaming ? parseProgressive(normalized) : { safe: normalized, pending: false },
+    [normalized, streaming],
   );
   const blocks = useMemo(() => parseMarkdownIntoBlocks(progressive.safe), [progressive.safe]);
   const components = useMemo<Partial<Components>>(
@@ -288,34 +312,61 @@ export function MarkdownProse({ content, streaming = false }: { content: string;
 
       table: ({ children }) => (
         <Box
+          className="markdown-table-container"
           sx={{
+            width: "100%",
+            maxWidth: "100%",
+            minWidth: 0,
             overflowX: "auto",
+            overflowY: "hidden",
+            boxSizing: "border-box",
             my: 2,
             border: "1px solid",
             borderColor: "divider",
             borderRadius: "8px",
+            display: "block",
+            WebkitOverflowScrolling: "touch",
           }}
         >
           <Box
             component="table"
             sx={{
               width: "100%",
+              minWidth: "min(620px, 100%)",
               borderCollapse: "collapse",
+              display: "table",
+              tableLayout: "auto",
+              fontSize: "clamp(0.72rem, 1.25vw, 0.875rem)",
+              lineHeight: 1.45,
+              boxSizing: "border-box",
               "& th, & td": {
                 border: "1px solid",
                 borderColor: "divider",
-                p: 1.25,
+                padding:
+                  "clamp(6px, 0.9vw, 10px) clamp(8px, 1.1vw, 12px)",
                 textAlign: "left",
-                fontSize: "14px",
-                lineHeight: 1.5,
+                fontSize: "inherit",
+                lineHeight: 1.45,
+                overflowWrap: "anywhere",
+                wordBreak: "normal",
+                whiteSpace: "normal",
+                verticalAlign: "top",
+                maxWidth: "min(42ch, 45vw)",
+                boxSizing: "border-box",
               },
               "& th": {
                 bgcolor: "action.hover",
-                fontWeight: 600,
+                fontWeight: 700,
                 color: "text.primary",
               },
               "& td": { color: "text.primary" },
               "& tr:nth-of-type(even) td": { bgcolor: "action.hover" },
+              "& th code, & td code": {
+                fontSize: "0.85em",
+                whiteSpace: "break-spaces",
+                overflowWrap: "anywhere",
+                wordBreak: "normal",
+              },
             }}
           >
             {children}

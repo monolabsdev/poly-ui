@@ -90,10 +90,8 @@ async function initializeStores() {
   const repo = await import("@/lib/repositories");
   await repo.initRepository().catch(() => {});
 
-  await Promise.all([
-    useProviderStore.getState().actions.refresh().catch(() => {}),
-    useAuthStore.getState().actions.restoreSession().catch(() => {}),
-  ]).catch(() => {});
+  await useAuthStore.getState().actions.restoreSession().catch(() => {});
+  await useProviderStore.getState().actions.refresh().catch(() => {});
 
   const { user, guestId } = useAuthStore.getState();
   if (user || guestId) {

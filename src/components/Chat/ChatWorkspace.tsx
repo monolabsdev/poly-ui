@@ -11,6 +11,10 @@ import { materializeAttachments, releaseImageAttachment } from "@/lib/image-uplo
 import { useFolderStore } from "@/store/folderStore";
 import { FolderHome } from "@/components/Folders/FolderHome";
 import { useOllama } from "@/services/ollama";
+import { useAgentRun } from "@/features/agent/useAgentRun";
+import { DRAFT_WORKSPACE_SELECTION_CHAT_ID, defaultWorkspaceSelection, useAgentStore } from "@/features/agent/agentStore";
+import { useSettingsStore } from "@/store/settingsStore";
+import { buildAgentResolvedContext } from "@/features/agent/context";
 
 type ChatWorkspaceProps = {
   selectedModels: string[];
@@ -38,23 +42,37 @@ export default function ChatWorkspace({
     : systemPromptContent;
   const { messages, streamingMessagesList, isStreaming, sendMessage, regenerateMessage, stopStreaming, bottomRef, hasMessages } =
     useChatStream(selectedModels, selectedProviders, effectiveSystemPrompt, userName);
+  const experimentalFeatures = useSettingsStore((state) => state.general.experimentalFeatures);
+  const agentEnabled = useAgentStore((state) => state.enabled) && experimentalFeatures;
+  const workspaces = useAgentStore((state) => state.workspaces);
+  const workspaceSelections = useAgentStore((state) => state.workspaceSelections);
+  const setWorkspaceSelection = useAgentStore((state) => state.actions.setSelectedWorkspaceSelection);
+  const permissionPreset = useAgentStore((state) => state.permissionPreset);
+  const { startAgentRun, cancelAgentRun, agentStatus } = useAgentRun({
+    selectedModels,
+    selectedProviders,
+  });
+  const isAgentStreaming = ["running", "waiting_for_approval", "cancelling"].includes(agentStatus);
+  const effectiveStreaming = isStreaming || isAgentStreaming;
 
-  const { activeConversationId, currentAttachments } = useChatStore(
+  const { activeConversationId, currentAttachments, storeMessages } = useChatStore(
     useShallow((state) => ({
       activeConversationId: state.activeConversationId,
       currentAttachments: state.currentAttachments,
+      storeMessages: state.messages,
     })),
   );
   const {
     createConversation,
     deleteMessagesAfter,
     clearCurrentAttachments,
+    addMessage,
   } = useChatStore((state) => state.actions);
 
   useEffect(() => {
-    onStopStreamingReady(stopStreaming);
+    onStopStreamingReady(agentEnabled ? cancelAgentRun : stopStreaming);
     return () => onStopStreamingReady(null);
-  }, [onStopStreamingReady, stopStreaming]);
+  }, [agentEnabled, cancelAgentRun, onStopStreamingReady, stopStreaming]);
 
   const ensureConversation = useCallback(async (): Promise<string> => {
     if (activeConversationId) return activeConversationId;
@@ -62,11 +80,74 @@ export default function ChatWorkspace({
     return created.id;
   }, [activeConversationId, activeFolder?.id, createConversation]);
 
+  type SubmitMode = "chat" | "agent" | "agent_requires_workspace";
+
   const handleSend = useCallback(
     async (content: string) => {
       const trimmed = content.trim();
       if (!trimmed && currentAttachments.length === 0) return;
-      await ensureConversation();
+      const conversationId = await ensureConversation();
+
+      const submitMode: SubmitMode = (() => {
+        if (!agentEnabled) return "chat";
+        const ws =
+          workspaceSelections[conversationId] ??
+          workspaceSelections[DRAFT_WORKSPACE_SELECTION_CHAT_ID] ??
+          defaultWorkspaceSelection(workspaces);
+        if (!ws) return "agent_requires_workspace";
+        return "agent";
+      })();
+
+      if (submitMode === "agent_requires_workspace") {
+        if (!trimmed) return;
+        await addMessage({ conversationId, role: "user", content: trimmed });
+        await addMessage({
+          conversationId,
+          role: "assistant",
+          content: "Poly Agent needs a workspace. Select a project or use a chat sandbox.",
+          model: "Poly Agent",
+          status: "error",
+        });
+        return;
+      }
+
+      if (submitMode === "agent") {
+        if (!trimmed) return;
+        const ws =
+          workspaceSelections[conversationId] ??
+          workspaceSelections[DRAFT_WORKSPACE_SELECTION_CHAT_ID] ??
+          defaultWorkspaceSelection(workspaces)!;
+        if (!workspaceSelections[conversationId]) {
+          setWorkspaceSelection(
+            conversationId,
+            ws.type === "sandbox"
+              ? { type: "sandbox", chatId: conversationId }
+              : ws,
+          );
+        }
+        const runSelection =
+          ws.type === "sandbox"
+            ? { type: "sandbox" as const, chatId: conversationId }
+            : ws;
+        const workspacePath =
+          runSelection.type === "project" ? runSelection.path : undefined;
+        const resolvedContext = buildAgentResolvedContext({
+          messages: storeMessages,
+          prompt: trimmed,
+          workspacePath: workspacePath ?? `sandbox:${conversationId}`,
+        });
+        await addMessage({ conversationId, role: "user", content: trimmed });
+        await startAgentRun({
+          conversationId,
+          prompt: trimmed,
+          workspacePath,
+          workspaceSelection: runSelection,
+          permissionPreset,
+          resolvedContext,
+        });
+        return;
+      }
+
       const attachments = await materializeAttachments([
         ...(activeFolder?.contextFiles ?? []),
         ...currentAttachments,
@@ -79,6 +160,14 @@ export default function ChatWorkspace({
       activeFolder?.contextFiles,
       currentAttachments,
       ensureConversation,
+      agentEnabled,
+      workspaceSelections,
+      workspaces,
+      setWorkspaceSelection,
+      permissionPreset,
+      storeMessages,
+      addMessage,
+      startAgentRun,
       sendMessage,
       clearCurrentAttachments,
     ],
@@ -86,7 +175,7 @@ export default function ChatWorkspace({
 
   const handleRegenerate = useCallback(
     async (messageIndex: number) => {
-      if (isStreaming || !activeConversationId) return;
+      if (effectiveStreaming || !activeConversationId) return;
 
       const targetMessage = messages[messageIndex];
       if (targetMessage?.role !== "assistant") return;
@@ -97,7 +186,7 @@ export default function ChatWorkspace({
     [
       activeConversationId,
       deleteMessagesAfter,
-      isStreaming,
+      effectiveStreaming,
       messages,
       regenerateMessage,
     ],
@@ -118,8 +207,8 @@ export default function ChatWorkspace({
         <FolderHome
           folder={activeFolder}
           onSubmit={handleSend}
-          onStop={stopStreaming}
-          isStreaming={isStreaming}
+          onStop={agentEnabled ? cancelAgentRun : stopStreaming}
+          isStreaming={effectiveStreaming}
           providerOnline={ollama.online}
           onOpenConnections={onOpenConnections}
         />
@@ -142,9 +231,10 @@ export default function ChatWorkspace({
         >
           <ChatInput
             onSubmit={handleSend}
-            onStop={stopStreaming}
-            isStreaming={isStreaming}
+            onStop={agentEnabled ? cancelAgentRun : stopStreaming}
+            isStreaming={effectiveStreaming}
             isTemporary={isTemporary}
+            conversationId={activeConversationId}
           />
         </EmptyState>
       )}
@@ -152,9 +242,10 @@ export default function ChatWorkspace({
       {hasMessages ? (
         <ChatInput
           onSubmit={handleSend}
-          onStop={stopStreaming}
-          isStreaming={isStreaming}
+          onStop={agentEnabled ? cancelAgentRun : stopStreaming}
+          isStreaming={effectiveStreaming}
           isTemporary={isTemporary}
+          conversationId={activeConversationId}
         />
       ) : null}
     </Box>

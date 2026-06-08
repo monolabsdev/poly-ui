@@ -1,4 +1,5 @@
 import type { Role, Attachment, WebSearchEvent } from "@/types/chat";
+import type { AgentMessageState } from "@/features/agent/types";
 
 export interface MessageProps {
   role: Role;
@@ -14,5 +15,6 @@ export interface MessageProps {
   errorMessage?: string;
   onRegenerate?: (messageIndex: number) => void;
   webSearch?: WebSearchEvent;
+  agent?: AgentMessageState;
   isLastMessage?: boolean;
 }

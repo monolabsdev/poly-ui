@@ -18,6 +18,12 @@ function saveGuestId(id: string | null) {
   } catch {}
 }
 
+function refreshAccountScopedProviders() {
+  void import("@/services/providers").then(({ useProviderStore }) =>
+    useProviderStore.getState().actions.refresh().catch(() => {}),
+  );
+}
+
 type AuthStore = {
   user: User | null;
   isAuthenticated: boolean;
@@ -50,6 +56,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       const id = get().guestId || crypto.randomUUID();
       saveGuestId(id);
       set({ isGuest: true, guestId: id, isLoading: false });
+      refreshAccountScopedProviders();
     },
 
     login: async (email, password) => {
@@ -68,6 +75,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         }
 
         set({ user: response.user, isAuthenticated: true, isGuest: false, guestId: null, isLoading: false });
+        refreshAccountScopedProviders();
       } catch (err) {
         set({ error: err as string, isLoading: false });
         throw err;
@@ -89,6 +97,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         }
 
         set({ user: response.user, isAuthenticated: true, isGuest: false, guestId: null, isLoading: false });
+        refreshAccountScopedProviders();
       } catch (err) {
         set({ error: err as string, isLoading: false });
         throw err;
@@ -103,10 +112,12 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         }
         localStorage.removeItem("session_token");
         set({ user: null, isAuthenticated: false, isLoading: false });
+        refreshAccountScopedProviders();
       } catch (err) {
         console.error("Logout error:", err);
         localStorage.removeItem("session_token");
         set({ user: null, isAuthenticated: false, isLoading: false });
+        refreshAccountScopedProviders();
       }
     },
     updateStatus: async (status) => {
@@ -131,9 +142,11 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       try {
         const user = await loggedInvoke<User>("auth_get_current_user", { token });
         set({ user, isAuthenticated: true, isLoading: false });
+        refreshAccountScopedProviders();
       } catch {
         localStorage.removeItem("session_token");
         set({ user: null, isAuthenticated: false, isLoading: false });
+        refreshAccountScopedProviders();
       }
     },
     openAuth: () => {

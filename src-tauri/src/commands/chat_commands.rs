@@ -22,12 +22,16 @@ pub async fn chat_stream(
     web_search_config: Option<WebSearchConfig>,
     reasoning_enabled: bool,
     provider_type: Option<ProviderType>,
+    account_id: Option<String>,
 ) -> Result<(), String> {
     let my_generation_id = state.current_generation_id.load(Ordering::SeqCst);
 
     let provider = state
         .provider_selector
-        .get_provider(provider_type.unwrap_or(ProviderType::OllamaLocal))
+        .get_provider(
+            provider_type.unwrap_or(ProviderType::OllamaLocal),
+            account_id.as_deref(),
+        )
         .await
         .map_err(|e| e.to_string())?;
 
@@ -62,10 +66,14 @@ pub async fn chat(
     messages: Vec<ChatMessage>,
     options: Option<Value>,
     provider_type: Option<ProviderType>,
+    account_id: Option<String>,
 ) -> Result<String, String> {
     let provider = state
         .provider_selector
-        .get_provider(provider_type.unwrap_or(ProviderType::OllamaLocal))
+        .get_provider(
+            provider_type.unwrap_or(ProviderType::OllamaLocal),
+            account_id.as_deref(),
+        )
         .await?;
     let mut stream = provider
         .chat_completion(model, messages, None, options, None)
@@ -90,10 +98,14 @@ pub async fn generate_chat_title(
     messages: Vec<ChatMessage>,
     user_name: Option<String>,
     provider_type: Option<ProviderType>,
+    account_id: Option<String>,
 ) -> Result<Option<String>, String> {
     let provider = match state
         .provider_selector
-        .get_provider(provider_type.unwrap_or(ProviderType::OllamaLocal))
+        .get_provider(
+            provider_type.unwrap_or(ProviderType::OllamaLocal),
+            account_id.as_deref(),
+        )
         .await
     {
         Ok(provider) => provider,

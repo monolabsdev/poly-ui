@@ -11,11 +11,13 @@ import {
 import { useShallow } from "zustand/react/shallow";
 import { SettingCard, SectionHeader, selectSx } from "../SettingComponents";
 import { useSettingsStore } from "@/store/settingsStore";
+import { useAgentStore } from "@/features/agent/agentStore";
 import { choosePerformanceSettings, readSystemProfile } from "@/lib/performance";
 
 export function AdvancedTab() {
-  const { performance, actions } = useSettingsStore(
+  const { general, performance, actions } = useSettingsStore(
     useShallow((state) => ({
+      general: state.general,
       performance: state.performance,
       actions: state.actions,
     })),
@@ -23,6 +25,8 @@ export function AdvancedTab() {
   const hardwareLabel = performance.lastHardwareScan
     ? `${Math.round(performance.lastHardwareScan.totalMemoryMb / 1024)} GB RAM, ${performance.lastHardwareScan.cpuCount} CPU threads`
     : "Not scanned yet";
+  const agentEnabled = useAgentStore((state) => state.enabled);
+  const setAgentEnabled = useAgentStore((state) => state.actions.setEnabled);
 
   const rerunOptimization = async () => {
     const system = await readSystemProfile();
@@ -33,8 +37,47 @@ export function AdvancedTab() {
     });
   };
 
+  const handleExperimentalToggle = (checked: boolean) => {
+    actions.updateGeneral({ experimentalFeatures: checked });
+    if (!checked) {
+      setAgentEnabled(false);
+    }
+  };
+
   return (
     <Stack spacing={0}>
+      <SectionHeader
+        title="Experimental"
+        description="Try upcoming features before they're stable."
+      />
+
+      <SettingCard
+        title="Enable experimental features"
+        description="Unlocks in-development features like Poly Agent."
+        action={
+          <Switch
+            checked={general.experimentalFeatures}
+            onChange={(e) => handleExperimentalToggle(e.target.checked)}
+          />
+        }
+      />
+
+      <SettingCard
+        title="Poly Agent"
+        description="Experimental agent mode for workspace inspection and file edits."
+        action={
+          <Switch
+            checked={general.experimentalFeatures && agentEnabled}
+            disabled={!general.experimentalFeatures}
+            onChange={(e) => setAgentEnabled(e.target.checked)}
+          />
+        }
+      >
+        <Typography sx={{ fontSize: 12, color: "text.secondary" }}>
+          Off by default. Enable experimental features first.
+        </Typography>
+      </SettingCard>
+
       <SectionHeader
         title="Performance"
         description="Startup can tune heavier features for this device."

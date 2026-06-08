@@ -1,3 +1,4 @@
+use crate::db::connection::{ensure_default_provider_configs, normalize_provider_account_id};
 use crate::providers::base::{LLMProvider, ProviderConfig, ProviderStatus, ProviderType};
 use crate::providers::factory::ProviderFactory;
 use sqlx::SqlitePool;
@@ -36,12 +37,18 @@ impl ProviderSelector {
         }
     }
 
-    pub async fn get_provider_configs(&self) -> Result<Vec<ProviderConfig>, String> {
+    pub async fn get_provider_configs(
+        &self,
+        account_id: Option<&str>,
+    ) -> Result<Vec<ProviderConfig>, String> {
+        let account_id = normalize_provider_account_id(account_id.unwrap_or(""));
+        ensure_default_provider_configs(&self.pool, &account_id).await?;
         let mut conn = self.pool.acquire().await.map_err(|e| e.to_string())?;
 
         let configs = sqlx::query_as::<_, ProviderConfig>(
-            "SELECT id, provider_type, enabled, ollama_host, ollama_api_key, ollama_api_base_url, api_key, api_base_url, priority, preset, headers, model_suggestions FROM provider_configs ORDER BY priority ASC"
+            "SELECT id, account_id, provider_type, enabled, ollama_host, ollama_api_key, ollama_api_base_url, api_key, api_base_url, priority, preset, headers, model_suggestions FROM provider_configs WHERE account_id = ?1 ORDER BY priority ASC"
         )
+        .bind(&account_id)
         .fetch_all(&mut *conn)
         .await
         .map_err(|e| e.to_string())?;
@@ -49,8 +56,11 @@ impl ProviderSelector {
         Ok(configs)
     }
 
-    pub async fn check_all_providers(&self) -> HashMap<i64, ProviderStatus> {
-        let configs = match self.get_provider_configs().await {
+    pub async fn check_all_providers(
+        &self,
+        account_id: Option<&str>,
+    ) -> HashMap<i64, ProviderStatus> {
+        let configs = match self.get_provider_configs(account_id).await {
             Ok(c) => c,
             Err(_) => return HashMap::new(),
         };
@@ -110,18 +120,15 @@ impl ProviderSelector {
     }
 
     pub async fn get_active_provider(&self) -> Result<Box<dyn LLMProvider>, String> {
-        let configs = self.get_provider_configs().await?;
-        let health = self.check_all_providers().await;
+        let configs = self.get_provider_configs(None).await?;
+        let health = self.check_all_providers(None).await;
 
         for config in configs {
             if !config.enabled {
                 continue;
             }
             let config_id = config.id.unwrap_or(0);
-            if !matches!(
-                health.get(&config_id),
-                Some(ProviderStatus::Online)
-            ) {
+            if !matches!(health.get(&config_id), Some(ProviderStatus::Online)) {
                 continue;
             }
             if let Some(provider) = ProviderFactory::create(config.clone()) {
@@ -137,9 +144,10 @@ impl ProviderSelector {
     pub async fn get_provider(
         &self,
         provider_type: ProviderType,
+        account_id: Option<&str>,
     ) -> Result<Box<dyn LLMProvider>, String> {
         let config = self
-            .get_provider_configs()
+            .get_provider_configs(account_id)
             .await?
             .into_iter()
             .find(|config| config.provider_type == provider_type)
@@ -154,13 +162,17 @@ impl ProviderSelector {
     }
 
     /// Bypass the health check cache and re-check every provider.
-    pub async fn force_check_all_providers(&self) -> HashMap<i64, ProviderStatus> {
+    pub async fn force_check_all_providers(
+        &self,
+        account_id: Option<&str>,
+    ) -> HashMap<i64, ProviderStatus> {
         self.health_cache.lock().await.clear();
-        self.check_all_providers().await
+        self.check_all_providers(account_id).await
     }
 
     pub async fn update_provider_config(
         &self,
+        account_id: Option<&str>,
         config_id: Option<i64>,
         provider_type: &ProviderType,
         enabled: bool,
@@ -174,6 +186,7 @@ impl ProviderSelector {
         model_suggestions: Option<String>,
     ) -> Result<(), String> {
         let mut conn = self.pool.acquire().await.map_err(|e| e.to_string())?;
+        let account_id = normalize_provider_account_id(account_id.unwrap_or(""));
 
         if let Some(id) = config_id {
             sqlx::query(
@@ -189,7 +202,7 @@ impl ProviderSelector {
                     headers = ?8,
                     model_suggestions = ?9,
                     updated_at = datetime('now')
-                WHERE id = ?10
+                WHERE id = ?10 AND account_id = ?11
                 "#,
             )
             .bind(enabled)
@@ -202,6 +215,7 @@ impl ProviderSelector {
             .bind(&headers)
             .bind(&model_suggestions)
             .bind(id)
+            .bind(&account_id)
             .execute(&mut *conn)
             .await
             .map_err(|e| e.to_string())?;
@@ -220,7 +234,7 @@ impl ProviderSelector {
                     headers = ?8,
                     model_suggestions = ?9,
                     updated_at = datetime('now')
-                WHERE provider_type = ?10
+                WHERE account_id = ?10 AND provider_type = ?11
                 "#,
             )
             .bind(enabled)
@@ -232,6 +246,7 @@ impl ProviderSelector {
             .bind(&preset)
             .bind(&headers)
             .bind(&model_suggestions)
+            .bind(&account_id)
             .bind(provider_type)
             .execute(&mut *conn)
             .await
@@ -244,6 +259,7 @@ impl ProviderSelector {
 
     pub async fn add_provider_config(
         &self,
+        account_id: Option<&str>,
         provider_type: &ProviderType,
         enabled: bool,
         ollama_host: Option<String>,
@@ -254,13 +270,15 @@ impl ProviderSelector {
         model_suggestions: Option<String>,
     ) -> Result<i64, String> {
         let mut conn = self.pool.acquire().await.map_err(|e| e.to_string())?;
+        let account_id = normalize_provider_account_id(account_id.unwrap_or(""));
 
         sqlx::query(
             r#"
-            INSERT INTO provider_configs (provider_type, enabled, ollama_host, api_key, api_base_url, preset, headers, model_suggestions, priority, created_at, updated_at)
-            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, (SELECT COALESCE(MAX(priority), 0) + 1 FROM provider_configs), datetime('now'), datetime('now'))
+            INSERT INTO provider_configs (account_id, provider_type, enabled, ollama_host, api_key, api_base_url, preset, headers, model_suggestions, priority, created_at, updated_at)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, (SELECT COALESCE(MAX(priority), 0) + 1 FROM provider_configs WHERE account_id = ?1), datetime('now'), datetime('now'))
             "#,
         )
+        .bind(&account_id)
         .bind(provider_type)
         .bind(enabled)
         .bind(&ollama_host)
@@ -282,11 +300,17 @@ impl ProviderSelector {
         Ok(id.0)
     }
 
-    pub async fn delete_provider_config(&self, config_id: i64) -> Result<(), String> {
+    pub async fn delete_provider_config(
+        &self,
+        account_id: Option<&str>,
+        config_id: i64,
+    ) -> Result<(), String> {
         let mut conn = self.pool.acquire().await.map_err(|e| e.to_string())?;
+        let account_id = normalize_provider_account_id(account_id.unwrap_or(""));
 
-        sqlx::query("DELETE FROM provider_configs WHERE id = ?1")
+        sqlx::query("DELETE FROM provider_configs WHERE id = ?1 AND account_id = ?2")
             .bind(config_id)
+            .bind(&account_id)
             .execute(&mut *conn)
             .await
             .map_err(|e| e.to_string())?;
