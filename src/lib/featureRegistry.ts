@@ -1,7 +1,8 @@
-import { Brain, Globe } from "lucide-react";
+import { Bot, Brain, Globe } from "lucide-react";
 import React from "react";
 import { getWebSearchWarning } from "@/features/web-search/useWebSearchConfig";
 import { useSettingsStore } from "@/store/settingsStore";
+import { useAgentStore } from "@/features/agent/agentStore";
 
 export type FeatureKind = "toggle" | "forced_toggle";
 
@@ -15,9 +16,32 @@ export interface FeatureDef {
   getIsActive: () => boolean;
   toggle: () => void;
   getWarning?: () => string | undefined;
+  experimental?: boolean;
 }
 
 export const featureRegistry: FeatureDef[] = [
+  {
+    id: "poly-agent",
+    name: "Poly Agent",
+    kind: "toggle",
+    description: "Experimental coding agent for inspecting and editing the selected workspace.",
+    icon: Bot,
+    useIsActive: () => {
+      const experimentalEnabled = useSettingsStore((state) => state.general.experimentalFeatures);
+      const agentEnabled = useAgentStore((state) => state.enabled);
+      return experimentalEnabled && agentEnabled;
+    },
+    getIsActive: () =>
+      useSettingsStore.getState().general.experimentalFeatures &&
+      useAgentStore.getState().enabled,
+    toggle: () => {
+      if (!useSettingsStore.getState().general.experimentalFeatures) return;
+      const state = useAgentStore.getState();
+      state.actions.setEnabled(!state.enabled);
+    },
+    experimental: true,
+    getWarning: () => "Experimental",
+  },
   {
     id: "web_search",
     name: "Web search",
@@ -57,12 +81,17 @@ export function useFeatures() {
   const webSearchEnabled = useSettingsStore((state) => state.general.webSearchEnabled);
   const webSearch = useSettingsStore((state) => state.general.webSearch);
   const reasoningEnabled = useSettingsStore((state) => state.general.reasoningEnabled);
+  const agentEnabled = useAgentStore((state) => state.enabled);
+  const experimentalEnabled = useSettingsStore((state) => state.general.experimentalFeatures);
   return React.useMemo(
-    () => featureRegistry.map((feature) => ({
-      ...feature,
-      active: feature.getIsActive(),
-      warning: feature.getWarning?.(),
-    })),
-    [reasoningEnabled, webSearch, webSearchEnabled],
+    () =>
+      featureRegistry
+        .filter((feature) => !feature.experimental || experimentalEnabled)
+        .map((feature) => ({
+          ...feature,
+          active: feature.getIsActive(),
+          warning: feature.getWarning?.(),
+        })),
+    [agentEnabled, experimentalEnabled, reasoningEnabled, webSearch, webSearchEnabled],
   );
 }

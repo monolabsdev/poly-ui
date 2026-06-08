@@ -1,11 +1,13 @@
 import { invoke } from "@tauri-apps/api/core";
 import { create } from "zustand";
+import { useAuthStore } from "@/store/authStore";
 
 export type ProviderType = "OllamaLocal" | "OpenAICompatible";
 export type ProviderStatus = "Online" | "Offline" | "Reconnecting" | "Unavailable";
 
 export interface ProviderConfig {
   id?: number;
+  account_id?: string;
   provider_type: ProviderType;
   enabled: boolean;
   ollama_host?: string;
@@ -17,6 +19,11 @@ export interface ProviderConfig {
   preset?: string;
   headers?: string;
   model_suggestions?: string;
+}
+
+export function getCurrentProviderAccountId(): string {
+  const auth = useAuthStore.getState();
+  return auth.user?.id || auth.guestId || "";
 }
 
 export interface ProviderStatusResponse {
@@ -71,7 +78,9 @@ export const useProviderStore = create<ProviderStore>((set) => ({
     refresh: async () => {
       set({ loading: true });
       try {
-        const providers = await invoke<ProviderStatusResponse[]>("get_providers");
+        const providers = await invoke<ProviderStatusResponse[]>("get_providers", {
+          accountId: getCurrentProviderAccountId(),
+        });
         set({ providers, loading: false, error: null });
       } catch (err) {
         set({ error: err as string, loading: false });
@@ -96,27 +105,39 @@ export const useProviderStore = create<ProviderStore>((set) => ({
       headers?: string;
       model_suggestions?: string;
     }) => {
-      const current = (await invoke<ProviderStatusResponse[]>("get_providers")).find(
+      const accountId = getCurrentProviderAccountId();
+      const current = (await invoke<ProviderStatusResponse[]>("get_providers", {
+        accountId,
+      })).find(
         (p) => p.config.id === config.id || p.config.provider_type === config.provider_type,
       );
       if (!current) throw new Error("Provider not found");
       await invoke("update_provider_config", {
         request: { ...current.config, ...config },
+        accountId,
       });
       set({ loading: true });
-      const providers = await invoke<ProviderStatusResponse[]>("get_providers");
+      const providers = await invoke<ProviderStatusResponse[]>("get_providers", {
+        accountId,
+      });
       set({ providers, loading: false, error: null });
     },
     addProvider: async (config: AddProviderRequest) => {
-      await invoke("add_provider", { request: config });
+      const accountId = getCurrentProviderAccountId();
+      await invoke("add_provider", { request: config, accountId });
       set({ loading: true });
-      const providers = await invoke<ProviderStatusResponse[]>("get_providers");
+      const providers = await invoke<ProviderStatusResponse[]>("get_providers", {
+        accountId,
+      });
       set({ providers, loading: false, error: null });
     },
     deleteProvider: async (id: number) => {
-      await invoke("delete_provider", { id });
+      const accountId = getCurrentProviderAccountId();
+      await invoke("delete_provider", { id, accountId });
       set({ loading: true });
-      const providers = await invoke<ProviderStatusResponse[]>("get_providers");
+      const providers = await invoke<ProviderStatusResponse[]>("get_providers", {
+        accountId,
+      });
       set({ providers, loading: false, error: null });
     },
   }

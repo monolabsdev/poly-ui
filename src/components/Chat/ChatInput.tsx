@@ -21,6 +21,9 @@ import { ActiveFeaturesList } from "@/components/Chat/ChatInput/ActiveFeaturesLi
 import { SlashCommandMenu } from "@/components/Chat/ChatInput/SlashCommandMenu";
 import { ChatAttachmentsList } from "@/components/Chat/ChatInput/ChatAttachmentsList";
 import { useNotify } from "@/hooks/useNotify";
+import { DRAFT_WORKSPACE_SELECTION_CHAT_ID, useAgentStore } from "@/features/agent/agentStore";
+import { useSettingsStore } from "@/store/settingsStore";
+import { AgentComposerControls } from "@/features/agent/AgentComposerControls";
 
 interface ChatInputProps {
   onSubmit: (value: string) => void | Promise<void>;
@@ -28,6 +31,7 @@ interface ChatInputProps {
   isStreaming: boolean;
   onFocusChange?: (focused: boolean) => void;
   isTemporary?: boolean;
+  conversationId?: string | null;
 }
 
 export const ChatInput = memo(function ChatInput({
@@ -36,10 +40,17 @@ export const ChatInput = memo(function ChatInput({
   isStreaming,
   onFocusChange,
   isTemporary,
+  conversationId,
 }: ChatInputProps) {
   const [draft, setDraft] = useState("");
   const timing = useTiming();
   const notify = useNotify();
+  const experimentalFeatures = useSettingsStore((state) => state.general.experimentalFeatures);
+  const agentEnabled = useAgentStore((state) => state.enabled) && experimentalFeatures;
+  const workspaceSelectionKey = conversationId ?? DRAFT_WORKSPACE_SELECTION_CHAT_ID;
+  const hasWorkspace = !!useAgentStore(
+    (state) => workspaceSelectionKey ? state.workspaceSelections[workspaceSelectionKey] : undefined,
+  );
 
   const {
     fileInputRef,
@@ -106,9 +117,10 @@ export const ChatInput = memo(function ChatInput({
 
   const handleSubmit = useCallback(() => {
     if (!hasContent) return;
+    if (agentEnabled && !hasWorkspace) return;
     onSubmit(draft);
     setDraft("");
-  }, [hasContent, draft, onSubmit]);
+  }, [hasContent, agentEnabled, hasWorkspace, draft, onSubmit]);
 
   const handleAction = useCallback(() => {
     if (isStreaming) {
@@ -177,13 +189,12 @@ export const ChatInput = memo(function ChatInput({
         style={{ display: "none" }}
         onChange={handleFileChange}
       />
-      <Box sx={{ mx: "auto", width: "100%", maxWidth: 840, position: "relative" }}>
+      <Box sx={{ mx: "auto", width: "100%", maxWidth: 840, position: "relative", minWidth: 0 }}>
         <AnimatePresence>
           {showSlashMenu && (
             <SlashCommandMenu features={filteredFeatures} onSelect={handleSlashSelect} selectedIndex={slashMenuIndex} slashQuery={slashQuery} />
           )}
         </AnimatePresence>
-
         <Box
           onDragEnter={handleDragEnter}
           onDragOver={handleDragOver}
@@ -194,7 +205,7 @@ export const ChatInput = memo(function ChatInput({
             flexDirection: "column",
             minHeight: currentAttachments.length > 0 ? 160 : 120,
             width: "100%",
-            borderRadius: "24px",
+            borderRadius: agentEnabled ? "14px" : "24px",
             bgcolor: isDragging ? "action.selected" : "background.paper",
             p: 1.5,
             border: isDragging ? "2px dashed" : isTemporary ? "1px dashed" : "1px solid",
@@ -234,7 +245,13 @@ export const ChatInput = memo(function ChatInput({
           <InputBase
             multiline
             inputRef={textareaRef}
-            placeholder="How can I help you today?"
+            placeholder={
+              agentEnabled
+                ? hasWorkspace
+                  ? "Ask Poly Agent..."
+                  : "Select a project or sandbox to use Poly Agent..."
+                : "How can I help you today?"
+            }
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -337,6 +354,7 @@ export const ChatInput = memo(function ChatInput({
                   })}
                 </DropdownMenuContent>
               </DropdownMenu>
+              {agentEnabled && <AgentComposerControls disabled={isStreaming} chatId={workspaceSelectionKey} />}
             </Box>
 
             <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 0.5, sm: 1 }, flexShrink: 0 }}>
@@ -385,7 +403,7 @@ export const ChatInput = memo(function ChatInput({
               </IconButton>
               <IconButton
                 onClick={handleAction}
-                disabled={isStreaming ? false : !hasContent || isRecording || isTranscribing}
+                disabled={isStreaming ? false : !hasContent || isRecording || isTranscribing || (agentEnabled && !hasWorkspace)}
                 aria-label={isStreaming ? "Stop generation" : "Send message"}
                 sx={{
                   width: 32,

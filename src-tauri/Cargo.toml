@@ -45,3 +45,4 @@ tauri-plugin-dialog = "2"
 dirs = "6"
 sysinfo = "0.32"
 whisper-rs = { version = "0.16", optional = true }
+poly-agent-tauri = { path = "../../poly-agent/crates/poly-agent-tauri", features = ["tauri"] }

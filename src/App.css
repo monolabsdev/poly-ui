@@ -1,231 +1,264 @@
 body {
-  user-select: none;
-  -webkit-user-select: none;
+    user-select: none;
+    -webkit-user-select: none;
 }
 
-input, textarea, [contenteditable] {
-  user-select: auto;
-  -webkit-user-select: auto;
+input,
+textarea,
+[contenteditable] {
+    user-select: auto;
+    -webkit-user-select: auto;
 }
 
 /* Borderless chrome: Windows/Linux only */
 html[data-chrome="borderless"],
 html[data-chrome="borderless"] body {
-  background: transparent !important;
-  overflow: hidden !important;
+    background: transparent !important;
+    overflow: hidden !important;
 }
 
 html.reduce-transparency,
 html.reduce-transparency body,
 html.reduce-transparency[data-chrome="borderless"],
 html.reduce-transparency[data-chrome="borderless"] body {
-  background: var(--mui-palette-background-default, #171717) !important;
+    background: var(--mui-palette-background-default, #171717) !important;
 }
 
 html[data-chrome="borderless"] #root {
-  border-radius: 12px;
-  overflow: hidden;
-  border: 1px solid var(--border, var(--mui-palette-divider, #27272a));
-  background: var(--background, var(--mui-palette-background-default, #09090b));
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--border, var(--mui-palette-divider, #27272a));
+    background: var(
+        --background,
+        var(--mui-palette-background-default, #09090b)
+    );
 }
 
 html.reduce-transparency[data-chrome="borderless"] #root {
-  border-radius: 0;
+    border-radius: 0;
 }
 
 html[data-chrome="borderless"].maximized #root {
-  border-radius: 0;
-  border: none;
+    border-radius: 0;
+    border: none;
 }
 
 /* CSS reset for native button elements */
 button:where(:not(.MuiButtonBase-root)) {
-  all: unset;
-  box-sizing: border-box;
+    all: unset;
+    box-sizing: border-box;
 }
 
 button:focus-visible,
 [role="button"]:focus-visible {
-  outline: 2px solid var(--mui-palette-primary-main, #3b82f6);
-  outline-offset: 2px;
+    outline: 2px solid var(--mui-palette-primary-main, #3b82f6);
+    outline-offset: 2px;
 }
 
-*, *::before, *::after {
-  box-sizing: border-box;
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
 }
 
 /* Mobile touch scrolling improvements */
 * {
-  -webkit-overflow-scrolling: touch;
+    -webkit-overflow-scrolling: touch;
 }
 
 /* Prevent iOS zoom on input focus */
 @media screen and (max-width: 768px) {
-  input, textarea, select {
-    font-size: 16px !important;
-  }
+    input,
+    textarea,
+    select {
+        font-size: 16px !important;
+    }
 }
 
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+    width: 5px;
+    height: 5px;
 }
 
 ::-webkit-scrollbar-track {
-  background: transparent;
+    background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #27272a;
-  border-radius: 9999px;
+    background: #27272a;
+    border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #3f3f46;
+    background: #3f3f46;
 }
 
 /* Inline code fallback when MUI components aren't available */
 code {
-  font-family: monospace;
-  font-size: 0.9em;
+    font-family: monospace;
+    font-size: 0.9em;
 }
 
 /* Hover visibility for copy button */
 .copy-button {
-  opacity: 0;
+    opacity: 0;
 }
 
 *:hover > .copy-button {
-  opacity: 1;
+    opacity: 1;
 }
 
 @media (hover: none) {
-  .copy-button {
-    opacity: 1;
-  }
+    .copy-button {
+        opacity: 1;
+    }
 }
 
 /* Action bar visibility */
 .action-bar {
-  opacity: 0;
+    opacity: 0;
 }
 
 *:hover > .action-bar,
 *:focus-within > .action-bar {
-  opacity: 1;
+    opacity: 1;
 }
 
 @media (hover: none) {
-  .action-bar {
-    opacity: 1;
-  }
+    .action-bar {
+        opacity: 1;
+    }
 }
 
 /* Spin animation for refresh icon */
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.animate-spin {
+    animation: spin 0.9s linear infinite;
 }
 
 /* Conversation actions in sidebar */
 .conversation-actions {
-  opacity: 0;
+    opacity: 0;
 }
 
 *:hover > .conversation-actions,
 *:focus-within > .conversation-actions {
-  opacity: 1;
+    opacity: 1;
 }
 
 @media (hover: none) {
-  .conversation-actions {
-    opacity: 1;
-  }
+    .conversation-actions {
+        opacity: 1;
+    }
 }
 
 /* ── Animation Utilities ── */
 
 /* Fade in */
 .animate-fade-in {
-  animation: fade-in 0.24s ease-out forwards;
+    animation: fade-in 0.24s ease-out forwards;
 }
 
 @keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
 }
 
 /* Slide in from left */
 .animate-slide-in {
-  animation: slide-in 0.18s ease-out forwards;
+    animation: slide-in 0.18s ease-out forwards;
 }
 
 @keyframes slide-in {
-  from { opacity: 0; transform: translateX(-10px); }
-  to { opacity: 1; transform: translateX(0); }
+    from {
+        opacity: 0;
+        transform: translateX(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
 }
 
 /* Popover entrance */
 .animate-popover {
-  animation: popover-in 0.12s ease-out forwards;
+    animation: popover-in 0.12s ease-out forwards;
 }
 
 @keyframes popover-in {
-  from { opacity: 0; transform: translateY(10px) scale(0.95); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+    from {
+        opacity: 0;
+        transform: translateY(10px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
 }
 
 /* Thinking pulse — subtle opacity oscillation */
 .animate-thinking {
-  animation: thinking-pulse 1.5s ease-in-out infinite;
+    animation: thinking-pulse 1.5s ease-in-out infinite;
 }
 
 @keyframes thinking-pulse {
-  0%, 100% { opacity: 0.6; }
-  50% { opacity: 1; }
+    0%,
+    100% {
+        opacity: 0.6;
+    }
+    50% {
+        opacity: 1;
+    }
 }
 
-/* Shimmer sweep — used by .text-shimmer */
+/* Shimmer sweep — used by text-shimmer */
 @keyframes shimmer-sweep {
-  from { background-position: 200% center; }
-  to { background-position: -200% center; }
-}
-
-.text-shimmer {
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: transparent;
-  background-size: 200% auto;
-  font-weight: 500;
+    from {
+        background-position: 200% center;
+    }
+    to {
+        background-position: -200% center;
+    }
 }
 
 /* Pulse for skeletons */
 .animate-pulse {
-  animation: pulse 1.5s ease-in-out infinite;
+    animation: pulse 1.5s ease-in-out infinite;
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 0.6; }
-  50% { opacity: 0.3; }
+    0%,
+    100% {
+        opacity: 0.6;
+    }
+    50% {
+        opacity: 0.3;
+    }
 }
 
 /* Reduced motion overrides */
-@media (prefers-reduced-motion: reduce) {
+/*@media (prefers-reduced-motion: reduce) {
   .animate-fade-in,
   .animate-slide-in,
   .animate-popover,
   .animate-thinking,
+  .animate-spin,
   .text-shimmer,
   .animate-pulse {
     animation: none !important;
-  }
-  .text-shimmer {
-    background-clip: unset;
-    -webkit-background-clip: unset;
-    -webkit-text-fill-color: unset;
-    color: inherit;
   }
 }
 
@@ -233,14 +266,9 @@ html.reduce-motion .animate-fade-in,
 html.reduce-motion .animate-slide-in,
 html.reduce-motion .animate-popover,
 html.reduce-motion .animate-thinking,
+html.reduce-motion .animate-spin,
 html.reduce-motion .text-shimmer,
 html.reduce-motion .animate-pulse {
   animation: none !important;
 }
-html.reduce-motion .text-shimmer {
-  background-clip: unset;
-  -webkit-background-clip: unset;
-  -webkit-text-fill-color: unset;
-  color: inherit;
-}
-
+*/

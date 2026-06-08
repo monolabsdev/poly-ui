@@ -3,6 +3,8 @@ import { getRepository } from "@/lib/repositories";
 import { Message, Conversation, Attachment, WebSearchEvent } from "@/types/chat";
 import { useAuthStore } from "@/store/authStore";
 import { getNextQueuedMessage } from "@/lib/chat/queue";
+import { deleteAgentChatSandbox } from "@/features/agent/agentClient";
+import { useAgentStore } from "@/features/agent/agentStore";
 
 async function getRepo() {
   return getRepository();
@@ -63,6 +65,7 @@ type ChatStore = {
       status?: Message["status"];
       errorMessage?: string;
       webSearch?: WebSearchEvent;
+      agent?: Message["agent"];
     }) => Promise<Message>;
     loadConversations: () => Promise<void>;
     deleteConversation: (id: string) => Promise<void>;
@@ -221,6 +224,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         status: message.status,
         errorMessage: message.errorMessage,
         webSearch: message.webSearch,
+        agent: message.agent,
       };
 
       const { conversations } = useChatStore.getState();
@@ -255,6 +259,10 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         const r = await getRepo();
         await r.deleteConversation(id);
       }
+      void deleteAgentChatSandbox(id).catch((error) => {
+        console.warn("Failed to delete agent sandbox:", error);
+      });
+      useAgentStore.getState().actions.clearWorkspaceSelection(id);
 
       set((state) => {
         const newConversations = state.conversations.filter((c) => c.id !== id);
@@ -282,6 +290,12 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         const r = await getRepo();
         await r.deleteConversations(toDelete);
       }
+      ids.forEach((id) => {
+        void deleteAgentChatSandbox(id).catch((error) => {
+          console.warn("Failed to delete agent sandbox:", error);
+        });
+        useAgentStore.getState().actions.clearWorkspaceSelection(id);
+      });
 
       set((state) => {
         const newConversations = state.conversations.filter((c) => !ids.includes(c.id));
@@ -310,6 +324,12 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         const r = await getRepo();
         await r.deleteAllConversations(userId);
       }
+      userConversations.forEach((conversation) => {
+        void deleteAgentChatSandbox(conversation.id).catch((error) => {
+          console.warn("Failed to delete agent sandbox:", error);
+        });
+        useAgentStore.getState().actions.clearWorkspaceSelection(conversation.id);
+      });
 
       set({
         conversations: [],

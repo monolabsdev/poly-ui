@@ -44,7 +44,7 @@ import { appPanelSx, appTextFieldSx } from "@/components/ui/appDialog";
 import { useNotify } from "@/hooks/useNotify";
 import { formatFileSize, loggedInvoke } from "@/lib/utils";
 import { useOllama, type PullProgress } from "@/services/ollama";
-import { useProviderStore, type ProviderStatus, type ProviderStatusResponse } from "@/services/providers";
+import { getCurrentProviderAccountId, useProviderStore, type ProviderStatus, type ProviderStatusResponse } from "@/services/providers";
 import { PROVIDER_PRESETS, lookupPreset, type ProviderPreset } from "@/services/providers/presets";
 import { WebSearchSettings } from "@/features/web-search/WebSearchSettings";
 
@@ -420,7 +420,10 @@ export function ConnectionsTab() {
     ollama.actions.setPullingModel(model);
     ollama.actions.setPullProgress({ status: "Starting..." });
     try {
-      await loggedInvoke("pull_model", { model });
+      await loggedInvoke("pull_model", {
+        model,
+        accountId: getCurrentProviderAccountId(),
+      });
       setNewModelName("");
       await refreshModels();
     } catch (err) {

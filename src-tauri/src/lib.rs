@@ -16,6 +16,9 @@ use crate::commands::db_commands::execute_sql;
 use crate::commands::dictation::{is_dictation_available, transcribe_audio, DictationState};
 use crate::commands::model_commands::{cancel_pull, delete_model, get_local_models, pull_model};
 use crate::commands::system_commands::get_system_profile;
+use crate::commands::system_commands::{
+    agent_changed_files, agent_file_diff, agent_list_workspaces,
+};
 use crate::updater::{check_for_updates, download_update, install_update};
 use providers::ProviderSelector;
 use sqlx::SqlitePool;
@@ -59,14 +62,15 @@ pub fn run() {
                 last_update_check: Mutex::new(None),
                 update_download_path: Mutex::new(None),
             });
+            app.manage(poly_agent_tauri::AgentRunManager::new(Some(
+                poly_agent_tauri::tauri_event_sink(app.handle().clone()),
+            )));
 
             if let Some(_window) = app.get_webview_window("main") {
                 #[cfg(target_os = "macos")]
                 {
                     let _ = _window.set_title_bar_style(tauri::TitleBarStyle::Overlay);
                 }
-
-
             }
 
             Ok(())
@@ -100,6 +104,15 @@ pub fn run() {
             download_update,
             install_update,
             get_system_profile,
+            agent_list_workspaces,
+            agent_changed_files,
+            agent_file_diff,
+            poly_agent_tauri::agent_run,
+            poly_agent_tauri::agent_cancel,
+            poly_agent_tauri::agent_delete_chat_sandbox,
+            poly_agent_tauri::agent_approve_tool_call,
+            poly_agent_tauri::agent_reject_tool_call,
+            poly_agent_tauri::agent_get_run_state,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

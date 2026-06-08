@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { useShallow } from "zustand/react/shallow";
 import type { ChatMessage, Attachment, Message } from "@/types/chat";
 import { useChatStore } from "@/store/chatStore";
+import { sanitizeOutput } from "@/lib/chat/sanitize";
 import { loggedInvoke } from "@/lib/utils";
 import { useNotify } from "@/hooks/useNotify";
 import { useOllamaStore } from "@/services/ollama/monitor";
@@ -20,6 +21,7 @@ import { StreamAccumulator } from "@/lib/chat/stream-accumulator";
 import type { ModelProvider } from "@/store/modelStore";
 import { getWebSearchConfig } from "@/features/web-search/useWebSearchConfig";
 import { clearRequestBookkeeping } from "@/lib/chat/stream-cleanup";
+import { getCurrentProviderAccountId } from "@/services/providers";
 
 type SelectedModel = { model: string; provider: ModelProvider };
 
@@ -153,7 +155,7 @@ export function useChatStream(selectedModels: string[], selectedProviders: Model
           id: messageId,
           conversationId,
           role: "assistant",
-          content: updated || "",
+          content: sanitizeOutput(updated || ""),
           model: completedModel || "unknown",
           provider: completedProvider,
           status: "error",
@@ -167,7 +169,7 @@ export function useChatStream(selectedModels: string[], selectedProviders: Model
           id: messageId,
           conversationId,
           role: "assistant",
-          content: updated,
+          content: sanitizeOutput(updated),
           thinking,
           thinkingDuration,
           isThinking: false,
@@ -299,6 +301,7 @@ export function useChatStream(selectedModels: string[], selectedProviders: Model
           webSearchConfig: activeWebSearchConfig ?? null,
           reasoningEnabled: reasoningAI,
           providerType: provider,
+          accountId: getCurrentProviderAccountId(),
         }).catch(async (err) => {
           console.error(err);
           const errMsg = typeof err === "string" ? err : (err as Error).message || "Unknown error";

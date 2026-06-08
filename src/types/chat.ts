@@ -1,4 +1,5 @@
 import type { ModelProvider } from "@/store/modelStore";
+import type { AgentMessageState } from "@/features/agent/types";
 
 export type Role = "user" | "assistant";
 
@@ -54,6 +55,7 @@ export interface ChatMessage {
   status?: "queued" | "streaming" | "complete" | "error" | "aborted";
   errorMessage?: string;
   webSearch?: WebSearchEvent;
+  agent?: AgentMessageState;
 }
 
 export interface Message extends ChatMessage {}

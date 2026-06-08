@@ -36,42 +36,64 @@ pub async fn init_db<R: Runtime>(app: &AppHandle<R>) -> Result<SqlitePool, Strin
         .await
         .map_err(|e| e.to_string())?;
 
-    // Ensure the default OllamaLocal row exists
-    sqlx::query(
-        r#"
-        INSERT INTO provider_configs (provider_type, enabled, ollama_host, priority)
-        SELECT 'OllamaLocal', 1, 'http://127.0.0.1:11434', 0
-        WHERE NOT EXISTS (SELECT 1 FROM provider_configs WHERE provider_type = 'OllamaLocal')
-        "#,
-    )
-    .execute(&pool)
-    .await
-    .map_err(|e| e.to_string())?;
-
-    // Default OpenAI-compatible row (only if none exists)
-    sqlx::query(
-        r#"
-        INSERT INTO provider_configs (provider_type, enabled, api_base_url, priority)
-        SELECT 'OpenAICompatible', 0, 'https://api.openai.com/v1', 1
-        WHERE NOT EXISTS (SELECT 1 FROM provider_configs WHERE provider_type = 'OpenAICompatible' AND api_base_url = 'https://api.openai.com/v1')
-        "#,
-    )
-    .execute(&pool)
-    .await
-    .map_err(|e| e.to_string())?;
+    ensure_default_provider_configs(&pool, "").await?;
 
     Ok(pool)
 }
 
-async fn ensure_provider_schema(pool: &SqlitePool) -> Result<(), String> {
-    let has_id = sqlx::query(
-        "SELECT COUNT(*) FROM pragma_table_info('provider_configs') WHERE name = 'id'",
+pub async fn ensure_default_provider_configs(
+    pool: &SqlitePool,
+    account_id: &str,
+) -> Result<(), String> {
+    let account_id = normalize_provider_account_id(account_id);
+
+    sqlx::query(
+        r#"
+        INSERT INTO provider_configs (account_id, provider_type, enabled, ollama_host, priority)
+        SELECT ?1, 'OllamaLocal', 1, 'http://127.0.0.1:11434', 0
+        WHERE NOT EXISTS (
+            SELECT 1 FROM provider_configs
+            WHERE account_id = ?1 AND provider_type = 'OllamaLocal'
+        )
+        "#,
     )
-    .fetch_one(pool)
+    .bind(&account_id)
+    .execute(pool)
     .await
-    .map_err(|e| e.to_string())?
-    .get::<i64, _>(0)
-        > 0;
+    .map_err(|e| e.to_string())?;
+
+    sqlx::query(
+        r#"
+        INSERT INTO provider_configs (account_id, provider_type, enabled, api_base_url, priority)
+        SELECT ?1, 'OpenAICompatible', 0, 'https://api.openai.com/v1', 1
+        WHERE NOT EXISTS (
+            SELECT 1 FROM provider_configs
+            WHERE account_id = ?1
+              AND provider_type = 'OpenAICompatible'
+              AND api_base_url = 'https://api.openai.com/v1'
+        )
+        "#,
+    )
+    .bind(&account_id)
+    .execute(pool)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    dedupe_provider_configs(pool).await
+}
+
+pub fn normalize_provider_account_id(account_id: &str) -> String {
+    account_id.trim().to_string()
+}
+
+async fn ensure_provider_schema(pool: &SqlitePool) -> Result<(), String> {
+    let has_id =
+        sqlx::query("SELECT COUNT(*) FROM pragma_table_info('provider_configs') WHERE name = 'id'")
+            .fetch_one(pool)
+            .await
+            .map_err(|e| e.to_string())?
+            .get::<i64, _>(0)
+            > 0;
 
     if !has_id {
         // Migrate from provider_type PK to auto-increment id so multiple
@@ -81,19 +103,25 @@ async fn ensure_provider_schema(pool: &SqlitePool) -> Result<(), String> {
         // Detect which columns already exist in the old table so we only
         // SELECT what's actually there (api_key / api_base_url / etc. may
         // not exist on first run after schema change).
-        let existing_cols: Vec<String> = sqlx::query(
-            "SELECT name FROM pragma_table_info('provider_configs')",
-        )
-        .fetch_all(pool)
-        .await
-        .map_err(|e| e.to_string())?
-        .iter()
-        .map(|row| row.get::<String, _>("name"))
-        .collect();
+        let existing_cols: Vec<String> =
+            sqlx::query("SELECT name FROM pragma_table_info('provider_configs')")
+                .fetch_all(pool)
+                .await
+                .map_err(|e| e.to_string())?
+                .iter()
+                .map(|row| row.get::<String, _>("name"))
+                .collect();
 
         let stable = [
-            "provider_type", "enabled", "ollama_host", "ollama_api_key",
-            "ollama_api_base_url", "priority", "created_at", "updated_at",
+            "account_id",
+            "provider_type",
+            "enabled",
+            "ollama_host",
+            "ollama_api_key",
+            "ollama_api_base_url",
+            "priority",
+            "created_at",
+            "updated_at",
         ];
         let optional = ["api_key", "api_base_url"];
         let copy_cols: Vec<&str> = stable
@@ -108,6 +136,7 @@ async fn ensure_provider_schema(pool: &SqlitePool) -> Result<(), String> {
             r#"
             CREATE TABLE IF NOT EXISTS provider_configs_new (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                account_id TEXT NOT NULL DEFAULT '',
                 provider_type TEXT NOT NULL,
                 enabled INTEGER NOT NULL DEFAULT 1,
                 ollama_host TEXT,
@@ -145,7 +174,13 @@ async fn ensure_provider_schema(pool: &SqlitePool) -> Result<(), String> {
             .map_err(|e| e.to_string())?;
     }
 
-    for column in ["api_key", "api_base_url", "preset", "headers", "model_suggestions"] {
+    for column in [
+        "api_key",
+        "api_base_url",
+        "preset",
+        "headers",
+        "model_suggestions",
+    ] {
         let exists = sqlx::query(
             "SELECT COUNT(*) FROM pragma_table_info('provider_configs') WHERE name = ?",
         )
@@ -165,6 +200,63 @@ async fn ensure_provider_schema(pool: &SqlitePool) -> Result<(), String> {
             .map_err(|e| e.to_string())?;
         }
     }
+
+    let has_account_id = sqlx::query(
+        "SELECT COUNT(*) FROM pragma_table_info('provider_configs') WHERE name = 'account_id'",
+    )
+    .fetch_one(pool)
+    .await
+    .map_err(|e| e.to_string())?
+    .get::<i64, _>(0)
+        > 0;
+
+    if !has_account_id {
+        sqlx::query("ALTER TABLE provider_configs ADD COLUMN account_id TEXT NOT NULL DEFAULT ''")
+            .execute(pool)
+            .await
+            .map_err(|e| e.to_string())?;
+    }
+
+    dedupe_provider_configs(pool).await?;
+
+    sqlx::query(
+        r#"
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_provider_configs_unique_connection
+        ON provider_configs (
+            account_id,
+            provider_type,
+            COALESCE(ollama_host, ''),
+            COALESCE(api_base_url, ''),
+            COALESCE(preset, '')
+        )
+        "#,
+    )
+    .execute(pool)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+async fn dedupe_provider_configs(pool: &SqlitePool) -> Result<(), String> {
+    sqlx::query(
+        r#"
+        DELETE FROM provider_configs
+        WHERE id NOT IN (
+            SELECT MIN(id)
+            FROM provider_configs
+            GROUP BY
+                account_id,
+                provider_type,
+                COALESCE(ollama_host, ''),
+                COALESCE(api_base_url, ''),
+                COALESCE(preset, '')
+        )
+        "#,
+    )
+    .execute(pool)
+    .await
+    .map_err(|e| e.to_string())?;
 
     Ok(())
 }
@@ -213,7 +305,8 @@ async fn ensure_conversations_schema(pool: &SqlitePool) -> Result<(), String> {
             provider TEXT,
             thinking TEXT,
             thinkingDuration REAL,
-            webSearch TEXT
+            webSearch TEXT,
+            agent TEXT
         )",
     )
     .execute(pool)
@@ -245,6 +338,21 @@ async fn ensure_conversations_schema(pool: &SqlitePool) -> Result<(), String> {
 
     if !has_provider {
         sqlx::query("ALTER TABLE messages ADD COLUMN provider TEXT")
+            .execute(pool)
+            .await
+            .map_err(|e| e.to_string())?;
+    }
+
+    let has_agent =
+        sqlx::query("SELECT COUNT(*) FROM pragma_table_info('messages') WHERE name = 'agent'")
+            .fetch_one(pool)
+            .await
+            .map_err(|e| e.to_string())?
+            .get::<i64, _>(0)
+            > 0;
+
+    if !has_agent {
+        sqlx::query("ALTER TABLE messages ADD COLUMN agent TEXT")
             .execute(pool)
             .await
             .map_err(|e| e.to_string())?;
@@ -493,4 +601,74 @@ async fn recreate_sessions_table(pool: &SqlitePool) -> Result<(), String> {
     .map_err(|e| e.to_string())?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn provider_schema_dedupes_defaults_and_seeds_per_account() {
+        let pool = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect("sqlite::memory:")
+            .await
+            .unwrap();
+
+        sqlx::query(
+            r#"
+            CREATE TABLE provider_configs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                provider_type TEXT NOT NULL,
+                enabled INTEGER NOT NULL DEFAULT 1,
+                ollama_host TEXT,
+                api_base_url TEXT,
+                priority INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+            )
+            "#,
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        for _ in 0..3 {
+            sqlx::query(
+                "INSERT INTO provider_configs (provider_type, enabled, ollama_host, priority) VALUES ('OllamaLocal', 1, 'http://127.0.0.1:11434', 0)",
+            )
+            .execute(&pool)
+            .await
+            .unwrap();
+            sqlx::query(
+                "INSERT INTO provider_configs (provider_type, enabled, api_base_url, priority) VALUES ('OpenAICompatible', 0, 'https://api.openai.com/v1', 1)",
+            )
+            .execute(&pool)
+            .await
+            .unwrap();
+        }
+
+        ensure_provider_schema(&pool).await.unwrap();
+        ensure_default_provider_configs(&pool, "account-a")
+            .await
+            .unwrap();
+        ensure_default_provider_configs(&pool, "account-a")
+            .await
+            .unwrap();
+
+        let global_count: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM provider_configs WHERE account_id = ''")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        let account_count: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM provider_configs WHERE account_id = 'account-a'",
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+
+        assert_eq!(global_count, 2);
+        assert_eq!(account_count, 2);
+    }
 }

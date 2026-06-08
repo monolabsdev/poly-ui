@@ -10,6 +10,7 @@ export type GeneralSettings = {
   webSearch: WebSearchSettings;
   webSearchEnabled: boolean;
   reasoningEnabled: boolean;
+  experimentalFeatures: boolean;
 };
 
 export type BrowserTtsSettings = {
@@ -88,6 +89,7 @@ export const useSettingsStore = create<SettingsState>()(
         webSearch: createDefaultWebSearchSettings(),
         webSearchEnabled: false,
         reasoningEnabled: false,
+        experimentalFeatures: false,
       },
       tts: { ...defaultTts },
       performance: { ...defaultPerformance },

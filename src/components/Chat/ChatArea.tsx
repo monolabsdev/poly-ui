@@ -79,10 +79,17 @@ const TurnItem = memo(function TurnItem({
         turn.assistantMessages[0]?.id ||
         `turn-${turnIndex}`
       }
-      sx={{ display: "flex", flexDirection: "column", gap: 1 }}
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 1,
+        minWidth: 0,
+        maxWidth: "100%",
+        boxSizing: "border-box",
+      }}
     >
       {turn.userMessage && (
-        <Box sx={{ maxWidth: 768, mx: "auto", width: "100%" }}>
+        <Box sx={{ maxWidth: 768, mx: "auto", width: "100%", minWidth: 0, boxSizing: "border-box" }}>
           <Message
             role={turn.userMessage.role}
             content={turn.userMessage.content}
@@ -110,6 +117,8 @@ const TurnItem = memo(function TurnItem({
             alignItems: "stretch",
             maxWidth: 768,
             mx: "auto",
+            minWidth: 0,
+            boxSizing: "border-box",
           }}
         >
           {allAssistantMessages.map((msg, idx) => (
@@ -120,6 +129,9 @@ const TurnItem = memo(function TurnItem({
                 display: "flex",
                 flexDirection: "column",
                 bgcolor: "transparent",
+                minWidth: 0,
+                maxWidth: "100%",
+                boxSizing: "border-box",
               }}
             >
               <Message
@@ -136,6 +148,7 @@ const TurnItem = memo(function TurnItem({
                 messageIndex={turn.startIndex + 1 + idx}
                 onRegenerate={onRegenerate}
                 webSearch={msg.webSearch}
+                agent={msg.agent}
                 isLastMessage={isNewest && idx === allAssistantMessages.length - 1}
               />
             </Box>
@@ -382,13 +395,20 @@ export const ChatArea = memo(function ChatArea({
   );
 
   return (
-    <Box
-      ref={scrollRef}
-      role="log"
-      aria-live="polite"
-      aria-relevant="additions text"
-      sx={{ flex: 1, overflowY: "auto" }}
-    >
+      <Box
+        ref={scrollRef}
+        role="log"
+        aria-live="polite"
+        aria-relevant="additions text"
+        sx={{
+          flex: 1,
+          overflowY: "auto",
+          overflowX: "hidden",
+          minWidth: 0,
+          maxWidth: "100%",
+          boxSizing: "border-box",
+        }}
+      >
       <Box
         sx={{
           mx: "auto",
@@ -400,6 +420,8 @@ export const ChatArea = memo(function ChatArea({
           px: { xs: 2, sm: 3 },
           pb: 8,
           pt: 4,
+          minWidth: 0,
+          boxSizing: "border-box",
         }}
       >
         <Box

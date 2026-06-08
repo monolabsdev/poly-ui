@@ -213,15 +213,15 @@ impl ToolLoop {
                 if is_cancelled() {
                     emitter
                         .emit_chunk(&StreamPayload {
-                                request_id: request_id.to_string(),
-                                content: String::new(),
-                                thinking: None,
-                                done: true,
-                                metadata: None,
-                                tool_calls: None,
-                                error: None,
-                            })
-                            .await;
+                            request_id: request_id.to_string(),
+                            content: String::new(),
+                            thinking: None,
+                            done: true,
+                            metadata: None,
+                            tool_calls: None,
+                            error: None,
+                        })
+                        .await;
                     return Err(AppError::Cancelled);
                 }
 
