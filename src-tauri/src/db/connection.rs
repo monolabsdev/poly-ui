@@ -310,7 +310,7 @@ async fn fix_migration_checksums(pool: &SqlitePool) -> Result<(), String> {
         if let Some((_, stored_checksum)) = applied.iter().find(|(v, _)| *v == version) {
             let content = std::fs::read(&path).map_err(|e| e.to_string())?;
             use sha2::Digest;
-            let computed = sha2::Sha256::digest(&content).to_vec();
+            let computed = sha2::Sha384::digest(&content).to_vec();
             if computed != *stored_checksum {
                 sqlx::query("UPDATE _sqlx_migrations SET checksum = ?1 WHERE version = ?2")
                     .bind(&computed)
