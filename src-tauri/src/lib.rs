@@ -71,6 +71,8 @@ pub fn run() {
                 {
                     let _ = _window.set_title_bar_style(tauri::TitleBarStyle::Overlay);
                 }
+                #[cfg(target_os = "windows")]
+                apply_native_rounded_corners(&_window);
             }
 
             Ok(())
@@ -116,4 +118,25 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(target_os = "windows")]
+fn apply_native_rounded_corners(window: &tauri::WebviewWindow) {
+    use raw_window_handle::HasWindowHandle;
+    if let Ok(handle) = window.window_handle() {
+        if let raw_window_handle::RawWindowHandle::Win32(win32) = handle.as_raw() {
+            use windows_sys::Win32::Graphics::Dwm::{
+                DwmSetWindowAttribute, DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_ROUND,
+            };
+            let preference = DWMWCP_ROUND;
+            unsafe {
+                DwmSetWindowAttribute(
+                    win32.hwnd.get() as *mut std::ffi::c_void,
+                    DWMWA_WINDOW_CORNER_PREFERENCE as u32,
+                    &preference as *const _ as *const std::ffi::c_void,
+                    std::mem::size_of::<u32>() as u32,
+                );
+            }
+        }
+    }
 }

@@ -11,7 +11,7 @@ import StartupLoadingScreen from "./components/StartupLoadingScreen";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { WindowTitleBar } from "./components/Layout/WindowTitleBar";
 import { loadAppModule, prepareAppStartup } from "./startup";
-import { USE_CUSTOM_WINDOW_CONTROLS, IS_LINUX } from "./lib/platform";
+import { IS_LINUX, USE_CUSTOM_WINDOW_CONTROLS } from "./lib/platform";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import "@fontsource-variable/geist";
 import "./App.css";
@@ -99,7 +99,6 @@ function Root() {
     document.documentElement.classList.toggle("reduce-transparency", performance.reduceTransparency);
     document.documentElement.dataset.performanceProfile = performance.profile;
   }, [performance.profile, performance.reduceMotion, performance.reduceTransparency]);
-
   useEffect(() => {
     if (!USE_CUSTOM_WINDOW_CONTROLS || !isAppReady) return;
     const w = getCurrentWindow();
