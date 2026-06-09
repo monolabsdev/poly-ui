@@ -18,7 +18,14 @@ import { useChatStore } from "@/store/chatStore";
 import { useAuthStore } from "@/store/authStore";
 import { useNotify } from "@/hooks/useNotify";
 import { useShallow } from "zustand/react/shallow";
-import { retryTitleForConversation } from "@/lib/chat/title-generation";
+import { retryTitleForConversation, type TitleStore } from "@/lib/chat/title-generation";
+
+const titleStore: TitleStore = {
+  findConversation: (id) => useChatStore.getState().conversations.find((c) => c.id === id),
+  getConversationMessages: (cid) => useChatStore.getState().messages.filter((m) => m.conversationId === cid),
+  setTitleGenerationStatus: (id, status) => useChatStore.getState().actions.setTitleGenerationStatus?.(id, status),
+  renameConversation: (id, title, source) => useChatStore.getState().actions.renameConversation(id, title, source),
+};
 import {
   findDefaultModelChoice,
   modelChoiceId,
@@ -157,7 +164,7 @@ function App() {
       useFolderStore.getState().actions.setActiveFolderId(null);
       const currentId = useChatStore.getState().activeConversationId;
       if (currentId && currentId !== id) {
-        retryTitleForConversation(currentId);
+        retryTitleForConversation(titleStore, currentId);
       }
 
       setActiveConversationId(id);

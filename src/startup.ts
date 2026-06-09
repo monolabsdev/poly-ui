@@ -87,7 +87,9 @@ async function initializeStores() {
   await repo.initRepository();
   initStoreCoordinator();
 
-  await useAuthStore.getState().actions.restoreSession().catch(() => {});
+  await useAuthStore.getState().actions.restoreSession().catch((err) => {
+    console.warn("[startup] Session restore failed:", err);
+  });
 
   useOllamaStore.getState().actions.start();
 

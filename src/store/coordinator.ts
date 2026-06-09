@@ -12,6 +12,8 @@ import { useAgentStore } from "@/features/agent/agentStore";
 // Cross-store effects live here. Stores own local state only.
 let initialized = false;
 let lastActiveConversationId: string | undefined;
+let authTransitionInProgress = false;
+const unsubscribeFns: (() => void)[] = [];
 
 type AuthSnapshot = ReturnType<typeof useAuthStore.getState>;
 
@@ -21,7 +23,9 @@ function accountIdFromAuth(state: AuthSnapshot) {
 
 async function refreshProviders() {
   const { useProviderStore } = await import("@/services/providers");
-  await useProviderStore.getState().actions.refresh().catch(() => {});
+  await useProviderStore.getState().actions.refresh().catch((err) => {
+    console.warn("[coordinator] Provider refresh failed:", err);
+  });
 }
 
 async function cleanupDeletedConversation(id: string) {
@@ -42,7 +46,7 @@ export function initStoreCoordinator() {
   setTtsBrowserSettings(useSettingsStore.getState().tts.browser);
   setUpdateInstallSimulation(useDevStore.getState().devMode);
 
-  useAuthStore.subscribe((state, prev) => {
+  unsubscribeFns.push(useAuthStore.subscribe((state, prev) => {
     const authId = accountIdFromAuth(state);
     const prevAuthId = accountIdFromAuth(prev);
     const becameReady = authId && !prevAuthId;
@@ -62,20 +66,28 @@ export function initStoreCoordinator() {
     }
 
     if (becameReady || authIdChanged) {
+      if (authTransitionInProgress) return;
+      authTransitionInProgress = true;
+      const prevGuestId = prev.guestId;
+      const newUserId = state.user?.id;
       void (async () => {
-        if (prev.guestId && state.user?.id) {
-          await getRepository()
-            .transferConversations(prev.guestId, state.user.id)
-            .catch(() => {});
+        try {
+          if (prevGuestId && newUserId) {
+            await getRepository()
+              .transferConversations(prevGuestId, newUserId)
+              .catch((err) => console.warn("[coordinator] Conversation transfer failed:", err));
+          }
+          await refreshProviders();
+          await useChatStore.getState().actions.loadConversations();
+          await useFolderStore.getState().actions.loadFolders();
+        } finally {
+          authTransitionInProgress = false;
         }
-        await refreshProviders();
-        await useChatStore.getState().actions.loadConversations();
-        await useFolderStore.getState().actions.loadFolders();
       })();
     }
-  });
+  }));
 
-  useChatStore.subscribe((state, prev) => {
+  unsubscribeFns.push(useChatStore.subscribe((state, prev) => {
     if (state.deletedConversationIds !== prev.deletedConversationIds) {
       state.deletedConversationIds.forEach((id) => {
         void cleanupDeletedConversation(id);
@@ -87,26 +99,26 @@ export function initStoreCoordinator() {
       useTtsStore.getState().actions.stop();
     }
     lastActiveConversationId = currentId ?? undefined;
-  });
+  }));
 
-  useFolderStore.subscribe((state, prev) => {
+  unsubscribeFns.push(useFolderStore.subscribe((state, prev) => {
     if (state.deletedFolderIds === prev.deletedFolderIds || state.deletedFolderIds.length === 0) {
       return;
     }
     useChatStore.getState().actions.clearFolderAssignments(new Set(state.deletedFolderIds));
-  });
+  }));
 
-  useSettingsStore.subscribe((state, prev) => {
+  unsubscribeFns.push(useSettingsStore.subscribe((state, prev) => {
     if (state.tts.browser !== prev.tts.browser) {
       setTtsBrowserSettings(state.tts.browser);
     }
-  });
+  }));
 
-  useDevStore.subscribe((state, prev) => {
+  unsubscribeFns.push(useDevStore.subscribe((state, prev) => {
     if (state.devMode !== prev.devMode) {
       setUpdateInstallSimulation(state.devMode);
     }
-  });
+  }));
 
   if (initialAccountId) {
     void (async () => {
@@ -115,4 +127,14 @@ export function initStoreCoordinator() {
       await useFolderStore.getState().actions.loadFolders();
     })();
   }
+}
+
+export function cleanupStoreCoordinator() {
+  for (const unsub of unsubscribeFns) {
+    unsub();
+  }
+  unsubscribeFns.length = 0;
+  initialized = false;
+  authTransitionInProgress = false;
+  lastActiveConversationId = undefined;
 }

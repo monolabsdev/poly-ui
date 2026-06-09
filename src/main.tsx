@@ -24,6 +24,14 @@ if (IS_LINUX) {
 
 const App = lazy(loadAppModule);
 
+function onGlobalError(event: ErrorEvent) {
+  console.error("[Global]", event.error ?? event.message);
+}
+
+function onGlobalRejection(event: PromiseRejectionEvent) {
+  console.error("[Global] Unhandled rejection:", event.reason);
+}
+
 function getTheme(mode: string, prefersDark: boolean) {
   if (mode === "system") {
     return prefersDark ? darkTheme : lightTheme;
@@ -70,17 +78,11 @@ function Root() {
   }, [isAppReady]);
 
   useEffect(() => {
-    const onError = (event: ErrorEvent) => {
-      console.error("[Global]", event.error ?? event.message);
-    };
-    const onRejection = (event: PromiseRejectionEvent) => {
-      console.error("[Global] Unhandled rejection:", event.reason);
-    };
-    window.addEventListener("error", onError);
-    window.addEventListener("unhandledrejection", onRejection);
+    window.addEventListener("error", onGlobalError);
+    window.addEventListener("unhandledrejection", onGlobalRejection);
     return () => {
-      window.removeEventListener("error", onError);
-      window.removeEventListener("unhandledrejection", onRejection);
+      window.removeEventListener("error", onGlobalError);
+      window.removeEventListener("unhandledrejection", onGlobalRejection);
     };
   }, []);
 

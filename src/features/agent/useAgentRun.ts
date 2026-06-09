@@ -7,7 +7,7 @@ import { appendAgentEvent } from "./activity";
 import { cancelAgent, listenToAgentEvents, runAgent } from "./agentClient";
 import { detectFileEditIntent, extractFileMentions } from "./context";
 import { sanitizeOutput } from "@/lib/chat/sanitize";
-import { triggerTitleGeneration } from "@/lib/chat/title-generation";
+import { triggerTitleGeneration, type TitleStore } from "@/lib/chat/title-generation";
 import type { AgentMessageState, AgentResolvedContext, AgentRunStatus, AgentWorkspaceSelection, PermissionPreset } from "./types";
 import {
   applyOutputDelta,
@@ -15,6 +15,13 @@ import {
   emptyOutputState,
   type AgentOutputState,
 } from "./outputState";
+
+const titleStore: TitleStore = {
+  findConversation: (id) => useChatStore.getState().conversations.find((c) => c.id === id),
+  getConversationMessages: (cid) => useChatStore.getState().messages.filter((m) => m.conversationId === cid),
+  setTitleGenerationStatus: (id, status) => useChatStore.getState().actions.setTitleGenerationStatus?.(id, status),
+  renameConversation: (id, title, source) => useChatStore.getState().actions.renameConversation(id, title, source),
+};
 
 type UseAgentRunArgs = {
   selectedModels: string[];
@@ -151,7 +158,7 @@ export function useAgentRun({ selectedModels, selectedProviders }: UseAgentRunAr
       setStatus(agent.status);
 
       if (agent.status === "completed") {
-        triggerTitleGeneration(active.conversationId);
+        triggerTitleGeneration(titleStore, active.conversationId);
       }
     },
     [addMessage, setStreamingConversationId, setStreamingMessage],

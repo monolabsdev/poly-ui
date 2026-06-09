@@ -24,7 +24,7 @@ use providers::ProviderSelector;
 use sqlx::SqlitePool;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicUsize};
-use std::sync::Mutex;
+use tokio::sync::Mutex;
 use std::time::Instant;
 use tauri::Manager;
 

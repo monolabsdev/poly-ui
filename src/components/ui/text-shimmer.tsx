@@ -25,13 +25,17 @@ export function TextShimmer({
       sx={{
         backgroundClip: "text",
         WebkitBackgroundClip: "text",
+        WebkitBoxDecorationBreak: "clone",
         WebkitTextFillColor: "transparent",
         color: "transparent",
         backgroundSize: "200% auto",
         fontWeight: 500,
         backgroundImage: `linear-gradient(to right, ${theme.palette.text.secondary} ${50 - dynamicSpread}%, ${theme.palette.text.primary} 50%, ${theme.palette.text.secondary} ${50 + dynamicSpread}%)`,
         animation: `shimmer-sweep ${duration}s infinite linear`,
-        display: as === "span" ? "inline-block" : undefined,
+        display: as === "span" ? "inline" : undefined,
+        whiteSpace: "inherit",
+        overflow: "inherit",
+        textOverflow: "inherit",
       }}
       {...props}
     >

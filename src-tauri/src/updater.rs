@@ -47,7 +47,7 @@ pub struct UpdateProgress {
 #[tauri::command]
 pub async fn check_for_updates(state: State<'_, AppState>) -> Result<UpdateInfo, String> {
     {
-        let mut last = state.last_update_check.lock().map_err(|e| e.to_string())?;
+        let mut last = state.last_update_check.lock().await;
         if let Some(instant) = *last {
             if instant.elapsed().as_secs() < CHECK_INTERVAL_SECS {
                 return Err("rate_limited".into());
@@ -223,10 +223,7 @@ pub async fn download_update(
     }
 
     {
-        let mut path = state
-            .update_download_path
-            .lock()
-            .map_err(|e| e.to_string())?;
+        let mut path = state.update_download_path.lock().await;
         *path = Some(file_path.clone());
     }
 
@@ -248,10 +245,7 @@ pub async fn download_update(
 #[tauri::command]
 pub async fn install_update(app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
     let file_path = {
-        let p = state
-            .update_download_path
-            .lock()
-            .map_err(|e| e.to_string())?;
+        let p = state.update_download_path.lock().await;
         p.clone()
             .ok_or_else(|| "No update downloaded".to_string())?
     };

@@ -10,7 +10,14 @@ import { useOllamaStore } from "@/services/ollama/monitor";
 import { buildSystemPrompt } from "@/lib/chat/prompts";
 import { isFeatureAIActive } from "@/lib/featureRegistry";
 import { defaultPreprocessor } from "@/lib/chat/message-preprocessor";
-import { triggerTitleGeneration } from "@/lib/chat/title-generation";
+import { triggerTitleGeneration, type TitleStore } from "@/lib/chat/title-generation";
+
+const titleStore: TitleStore = {
+  findConversation: (id) => useChatStore.getState().conversations.find((c) => c.id === id),
+  getConversationMessages: (cid) => useChatStore.getState().messages.filter((m) => m.conversationId === cid),
+  setTitleGenerationStatus: (id, status) => useChatStore.getState().actions.setTitleGenerationStatus?.(id, status),
+  renameConversation: (id, title, source) => useChatStore.getState().actions.renameConversation(id, title, source),
+};
 import {
   streamEventBus,
   type ChunkPayload,
@@ -149,7 +156,7 @@ export function useChatStream(selectedModels: string[], selectedProviders: Model
       settlePending(completed.requestId);
 
       if (sessionRef.current.isComplete()) {
-        if (completedModel && !completed.error) triggerTitleGeneration(completed.conversationId);
+        if (completedModel && !completed.error) triggerTitleGeneration(titleStore, completed.conversationId);
         processNextInQueueRef.current?.(completed.conversationId);
       }
     },
@@ -240,37 +247,41 @@ export function useChatStream(selectedModels: string[], selectedProviders: Model
           isStreaming: true,
         });
 
-        invoke("chat_stream", {
-          requestId: rid,
-          model,
-          messages: history,
-          systemPrompt: system,
-          webSearchConfig: activeWebSearchConfig ?? null,
-          reasoningEnabled: reasoningAI,
-          providerType: provider,
-          accountId: getCurrentProviderAccountId(),
-        }).catch(async (err) => {
-          console.error(err);
-          const errMsg = typeof err === "string" ? err : (err as Error).message || "Unknown error";
-          if (useChatStore.getState().streamingMessages[mid]) {
-            await addMessage({
-              id: mid,
-              conversationId,
-              role: "assistant",
-              content: "",
+        (async () => {
+          try {
+            await invoke("chat_stream", {
+              requestId: rid,
               model,
-              provider,
-              status: "error",
-              errorMessage: errMsg,
+              messages: history,
+              systemPrompt: system,
+              webSearchConfig: activeWebSearchConfig ?? null,
+              reasoningEnabled: reasoningAI,
+              providerType: provider,
+              accountId: getCurrentProviderAccountId(),
             });
-            setStreamingMessage(mid, null);
+          } catch (err) {
+            console.error(err);
+            const errMsg = typeof err === "string" ? err : (err as Error).message || "Unknown error";
+            if (useChatStore.getState().streamingMessages[mid]) {
+              await addMessage({
+                id: mid,
+                conversationId,
+                role: "assistant",
+                content: "",
+                model,
+                provider,
+                status: "error",
+                errorMessage: errMsg,
+              });
+              setStreamingMessage(mid, null);
+            }
+            settlePending(rid);
+            notify.error(`Chat error (${model})`, errMsg);
+            if (sessionRef.current.isComplete()) {
+              processNextInQueueRef.current?.(conversationId);
+            }
           }
-          settlePending(rid);
-          notify.error(`Chat error (${model})`, errMsg);
-          if (sessionRef.current.isComplete()) {
-            processNextInQueueRef.current?.(conversationId);
-          }
-        });
+        })();
       }
     },
     [systemPrompt, resetStreamState, settlePending, setStreamingMessage, addMessage, notify],

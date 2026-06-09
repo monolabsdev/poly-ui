@@ -74,8 +74,9 @@ export function useChatAttachments() {
         }
         const reader = new FileReader();
         reader.onload = (e) => {
-          const result = e.target?.result as string;
-          attachment.content = isImage ? result.split(",")[1] : result;
+          const raw = e.target?.result;
+          if (typeof raw !== "string") return;
+          attachment.content = isImage ? raw.split(",")[1] : raw;
           addCurrentAttachment(attachment);
         };
 

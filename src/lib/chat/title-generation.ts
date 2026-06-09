@@ -1,8 +1,14 @@
 import { loggedInvoke } from "@/lib/utils";
-import { useChatStore } from "@/store/chatStore";
 import type { ChatMessage } from "@/types/chat";
 import type { ModelProvider } from "@/store/modelStore";
 import { getCurrentProviderAccountId } from "@/services/providers";
+
+export interface TitleStore {
+  findConversation(id: string): { title: string; titleSource?: string; isTemporary?: boolean } | undefined;
+  getConversationMessages(conversationId: string): ChatMessage[];
+  setTitleGenerationStatus(conversationId: string, status: "generating" | "done" | "failed"): void;
+  renameConversation(id: string, title: string, source: "generated"): Promise<void>;
+}
 
 type BackendChatMessage = {
   role: "user" | "assistant";
@@ -115,17 +121,14 @@ export function fallbackFromFirstUser(content: string): string {
   return words.map((w, i) => i === 0 ? w.charAt(0).toUpperCase() + w.slice(1) : w).join(" ");
 }
 
-export function shouldGenerateTitle(conversationId: string): boolean {
+export function shouldGenerateTitle(store: TitleStore, conversationId: string): boolean {
   if (pendingTitleGenerations.has(conversationId)) return false;
 
-  const { conversations, messages } = useChatStore.getState();
-  const conversation = conversations.find((c) => c.id === conversationId);
+  const conversation = store.findConversation(conversationId);
   if (!conversation || conversation.isTemporary) return false;
   if (hasCustomTitle(conversation)) return false;
 
-  const conversationMessages = messages.filter(
-    (message) => message.conversationId === conversationId,
-  );
+  const conversationMessages = store.getConversationMessages(conversationId);
   const hasUser = conversationMessages.some((message) => message.role === "user");
   const hasAssistant = conversationMessages.some(
     (m) => m.role === "assistant" && m.content?.trim() && m.status === "complete",
@@ -133,27 +136,24 @@ export function shouldGenerateTitle(conversationId: string): boolean {
   return hasUser && hasAssistant;
 }
 
-export function queueTitleGeneration({
+export function queueTitleGeneration(store: TitleStore, {
   conversationId,
   model,
   providerType,
   userName,
 }: GenerateTitleArgs): void {
-  if (!model || !shouldGenerateTitle(conversationId)) return;
-  scheduleTitleGeneration(conversationId, model, providerType, userName);
+  if (!model || !shouldGenerateTitle(store, conversationId)) return;
+  scheduleTitleGeneration(store, conversationId, model, providerType, userName);
 }
 
-export function retryTitleForConversation(conversationId: string): void {
+export function retryTitleForConversation(store: TitleStore, conversationId: string): void {
   if (pendingTitleGenerations.has(conversationId)) return;
 
-  const { conversations, messages } = useChatStore.getState();
-  const conversation = conversations.find((c) => c.id === conversationId);
+  const conversation = store.findConversation(conversationId);
   if (!conversation || conversation.isTemporary) return;
   if (hasCustomTitle(conversation)) return;
 
-  const conversationMessages = messages.filter(
-    (message) => message.conversationId === conversationId,
-  );
+  const conversationMessages = store.getConversationMessages(conversationId);
   const hasUserMessage = conversationMessages.some((message) => message.role === "user");
   if (!hasUserMessage) return;
 
@@ -164,18 +164,16 @@ export function retryTitleForConversation(conversationId: string): void {
   const providerType = lastAssistant?.provider;
   if (!model) return;
 
-  scheduleTitleGeneration(conversationId, model, providerType);
+  scheduleTitleGeneration(store, conversationId, model, providerType);
 }
 
-export function triggerTitleGeneration(conversationId: string): void {
+export function triggerTitleGeneration(store: TitleStore, conversationId: string): void {
   if (pendingTitleGenerations.has(conversationId)) return;
-  const { conversations } = useChatStore.getState();
-  const conv = conversations.find((c) => c.id === conversationId);
-  if (!conv || conv.isTemporary) return;
-  if (hasCustomTitle(conv)) return;
+  const conversation = store.findConversation(conversationId);
+  if (!conversation || conversation.isTemporary) return;
+  if (hasCustomTitle(conversation)) return;
 
-  const { messages } = useChatStore.getState();
-  const convMessages = messages.filter((m) => m.conversationId === conversationId);
+  const convMessages = store.getConversationMessages(conversationId);
   const firstUser = convMessages.find((m) => m.role === "user");
   const lastAssistant = [...convMessages].reverse().find(
     (m) => m.role === "assistant" && m.content?.trim() && m.status === "complete",
@@ -186,20 +184,21 @@ export function triggerTitleGeneration(conversationId: string): void {
   const providerType = lastAssistant.provider;
   if (!model) return;
 
-  scheduleTitleGeneration(conversationId, model, providerType);
+  scheduleTitleGeneration(store, conversationId, model, providerType);
 }
 
 function scheduleTitleGeneration(
+  store: TitleStore,
   conversationId: string,
   model: string,
   providerType?: ModelProvider,
   userName?: string,
 ): void {
   pendingTitleGenerations.add(conversationId);
-  useChatStore.getState().actions.setTitleGenerationStatus?.(conversationId, "generating");
+  store.setTitleGenerationStatus(conversationId, "generating");
 
   window.setTimeout(() => {
-    void generateAndApplyTitle(conversationId, model, providerType, userName)
+    void generateAndApplyTitle(store, conversationId, model, providerType, userName)
       .catch((error) => {
         console.warn("Title generation failed", error);
       });
@@ -207,13 +206,13 @@ function scheduleTitleGeneration(
 }
 
 async function generateAndApplyTitle(
+  store: TitleStore,
   conversationId: string,
   model: string,
   providerType?: ModelProvider,
   userName?: string,
 ): Promise<void> {
-  const { messages } = useChatStore.getState();
-  const convMessages = messages.filter((m) => m.conversationId === conversationId);
+  const convMessages = store.getConversationMessages(conversationId);
   const firstUser = convMessages.find((m) => m.role === "user");
   const firstAssistant = [...convMessages].reverse().find(
     (m) => m.role === "assistant" && m.content?.trim() && m.status === "complete",
@@ -223,7 +222,7 @@ async function generateAndApplyTitle(
   if (firstAssistant) titleMessages.push(firstAssistant);
   if (titleMessages.length < 2) {
     pendingTitleGenerations.delete(conversationId);
-    useChatStore.getState().actions.setTitleGenerationStatus?.(conversationId, "failed");
+    store.setTitleGenerationStatus(conversationId, "failed");
     return;
   }
 
@@ -245,8 +244,7 @@ async function generateAndApplyTitle(
     finalTitle = fallbackFromFirstUser(firstUser.content);
   }
 
-  const { conversations, actions } = useChatStore.getState();
-  const conversation = conversations.find((c) => c.id === conversationId);
+  const conversation = store.findConversation(conversationId);
   if (!conversation) {
     pendingTitleGenerations.delete(conversationId);
     return;
@@ -257,10 +255,10 @@ async function generateAndApplyTitle(
   }
 
   if (finalTitle) {
-    await actions.renameConversation(conversationId, finalTitle, "generated");
-    actions.setTitleGenerationStatus?.(conversationId, "done");
+    await store.renameConversation(conversationId, finalTitle, "generated");
+    store.setTitleGenerationStatus(conversationId, "done");
   } else {
-    actions.setTitleGenerationStatus?.(conversationId, "failed");
+    store.setTitleGenerationStatus(conversationId, "failed");
   }
 
   pendingTitleGenerations.delete(conversationId);

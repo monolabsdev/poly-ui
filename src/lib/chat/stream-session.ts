@@ -129,6 +129,15 @@ export class StreamSession {
     this.cancelled = true;
   }
 
+  dispose() {
+    this.accumulator.dispose();
+    this.requestIdToMessageId = {};
+    this.requestIdToConversationId = {};
+    this.thinkingStartTime = {};
+    this.pendingStreams = 0;
+    this.cancelled = true;
+  }
+
   reset() {
     this.accumulator.reset();
     this.requestIdToMessageId = {};

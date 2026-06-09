@@ -79,6 +79,13 @@ export function AssistantMessage(props: MessageProps) {
 
   const canRegenerate =
     typeof messageIndex === "number" && typeof onRegenerate === "function";
+  const showEmptyFinalNotice =
+    !isStreaming &&
+    status !== "error" &&
+    status !== "aborted" &&
+    !agent &&
+    !content.trim() &&
+    Boolean(thinking?.trim());
 
   useEffect(() => {
     if (!copied) return;
@@ -278,6 +285,19 @@ export function AssistantMessage(props: MessageProps) {
               content={isStreaming ? streamingDisplayContent || "" : processedContent}
               streaming={isStreaming}
             />
+          </Box>
+        ) : showEmptyFinalNotice ? (
+          <Box
+            id={`message-${messageIndex}`}
+            sx={{
+              maxWidth: { xs: "90%", sm: "80%" },
+              color: "text.secondary",
+              fontSize: "13px",
+              lineHeight: 1.6,
+              fontStyle: "italic",
+            }}
+          >
+            The model returned reasoning but no final response.
           </Box>
         ) : null}
 
