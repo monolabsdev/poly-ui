@@ -29,6 +29,7 @@ export const WebSearchDisclosure = React.memo(
   }: WebSearchDisclosureProps) => {
     const count = results?.length ?? 0;
     const hasResults = !isSearching && count > 0;
+    if (!query.trim() && !isSearching && count === 0) return null;
 
     const label = useMemo(
       () =>
@@ -37,7 +38,7 @@ export const WebSearchDisclosure = React.memo(
     );
 
     const meta = useMemo(
-      () => (hasResults ? `· ${count} source${count === 1 ? "" : "s"}` : ""),
+      () => (hasResults ? `- ${count} source${count === 1 ? "" : "s"}` : ""),
       [hasResults, count],
     );
 

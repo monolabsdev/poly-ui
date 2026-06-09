@@ -53,7 +53,7 @@ export function AdvancedTab() {
 
       <SettingCard
         title="Enable experimental features"
-        description="Unlocks in-development features like Poly Agent."
+        description="Unlocks in-development features like Poly Agent and advanced reasoning controls."
         action={
           <Switch
             checked={general.experimentalFeatures}
@@ -74,7 +74,7 @@ export function AdvancedTab() {
         }
       >
         <Typography sx={{ fontSize: 12, color: "text.secondary" }}>
-          Off by default. Enable experimental features first.
+          Off by default. Requires explicit tool approvals unless you choose a broader approval preset in chat.
         </Typography>
       </SettingCard>
 

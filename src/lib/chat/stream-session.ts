@@ -61,6 +61,8 @@ export class StreamSession {
       return null;
     }
 
+    this.accumulator.flush();
+
     return {
       requestId: payload.request_id,
       messageId,

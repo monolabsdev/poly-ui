@@ -116,7 +116,7 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: "polyui:settings",
-      version: 9,
+      version: 10,
       migrate: (persisted, version) => {
         const state = persisted as any;
         if (state?.tts) {
@@ -141,6 +141,10 @@ export const useSettingsStore = create<SettingsState>()(
         }
         if (version < 9) {
           state.performance = { ...defaultPerformance, ...state.performance };
+        }
+        if (version < 10 && state?.general) {
+          state.general.experimentalFeatures = Boolean(state.general.experimentalFeatures);
+          state.general.reasoningEnabled = Boolean(state.general.reasoningEnabled);
         }
         return state as SettingsState;
       },

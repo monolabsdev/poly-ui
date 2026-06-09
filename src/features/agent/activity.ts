@@ -152,17 +152,22 @@ export function appendAgentEvent(
       }
       break;
     }
-    case "model_token_delta":
-    case "final_response_delta": {
+    case "model_token_delta": {
       const text = typeof value?.text === "string" ? value.text : "";
       if (text) {
         const mode = value?.mode;
         next.responseText = mode === "snapshot" ? text : (next.responseText ?? "") + text;
         next.respondedStreaming = true;
-        if (kind === "final_response_delta") {
-          completeEarlierRunningPhases(next, "responding");
-          upsertActivity(next, "responding", activity("reasoning", "Responding", "Receiving the model response.", "running", "responding"));
-        }
+      }
+      break;
+    }
+    case "final_response_delta": {
+      const text = typeof value?.text === "string" ? value.text : "";
+      if (text) {
+        next.responseText = text;
+        next.respondedStreaming = true;
+        completeEarlierRunningPhases(next, "responding");
+        upsertActivity(next, "responding", activity("reasoning", "Responding", "Receiving the model response.", "running", "responding"));
       }
       break;
     }

@@ -122,6 +122,10 @@ export function useChatStream(selectedModels: string[], selectedProviders: Model
 
       const completedModel = existing.model ?? "";
       const completedProvider = existing.provider ?? "OllamaLocal";
+      const finalizedWebSearch =
+        existing.webSearch && existing.webSearch.status === "searching"
+          ? { ...existing.webSearch, status: "complete" as const }
+          : existing.webSearch;
 
       if (completed.error) {
         await addMessage({
@@ -133,7 +137,7 @@ export function useChatStream(selectedModels: string[], selectedProviders: Model
           provider: completedProvider,
           status: "error",
           errorMessage: completed.error,
-          webSearch: existing.webSearch,
+          webSearch: finalizedWebSearch,
         });
       } else if (completed.content.trim() || completed.thinking?.trim()) {
         await addMessage({
@@ -148,7 +152,7 @@ export function useChatStream(selectedModels: string[], selectedProviders: Model
           model: completedModel || "unknown",
           provider: completedProvider,
           status: "complete",
-          webSearch: existing.webSearch,
+          webSearch: finalizedWebSearch,
         });
       }
 
@@ -260,7 +264,6 @@ export function useChatStream(selectedModels: string[], selectedProviders: Model
               accountId: getCurrentProviderAccountId(),
             });
           } catch (err) {
-            console.error(err);
             const errMsg = typeof err === "string" ? err : (err as Error).message || "Unknown error";
             if (useChatStore.getState().streamingMessages[mid]) {
               await addMessage({

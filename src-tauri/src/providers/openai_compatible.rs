@@ -70,10 +70,7 @@ impl OpenAICompatibleProvider {
 #[async_trait]
 impl LLMProvider for OpenAICompatibleProvider {
     async fn health_check(&self) -> ProviderStatus {
-        match self.models().await {
-            Ok(_) => ProviderStatus::Online,
-            Err(_) => ProviderStatus::Offline,
-        }
+        configured_health_status()
     }
 
     async fn chat_completion(
@@ -204,6 +201,10 @@ impl LLMProvider for OpenAICompatibleProvider {
     fn get_provider_type(&self) -> ProviderType {
         ProviderType::OpenAICompatible
     }
+}
+
+fn configured_health_status() -> ProviderStatus {
+    ProviderStatus::Online
 }
 
 fn normalize_api_base_url(base_url: &str) -> String {

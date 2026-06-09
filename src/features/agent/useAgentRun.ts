@@ -10,6 +10,7 @@ import { sanitizeOutput } from "@/lib/chat/sanitize";
 import { triggerTitleGeneration, type TitleStore } from "@/lib/chat/title-generation";
 import type { AgentMessageState, AgentResolvedContext, AgentRunStatus, AgentWorkspaceSelection, PermissionPreset } from "./types";
 import {
+  applyFinalResponseDelta,
   applyOutputDelta,
   applyOutputFinal,
   emptyOutputState,
@@ -73,7 +74,7 @@ export function useAgentRun({ selectedModels, selectedProviders }: UseAgentRunAr
       const isTerminal = ["finished", "run_finished", "failed", "run_failed", "cancelled", "run_cancelled"].includes(kind);
 
       if (kind === "final_response_delta") {
-        outputRef.current = applyOutputDelta(outputRef.current, value.text ?? "", value.mode);
+        outputRef.current = applyFinalResponseDelta(outputRef.current, value.text ?? "");
       } else if (
         (kind === "text_delta" || kind === "model_token_delta") &&
         !hasFinalDelta(agentRef.current)

@@ -31,6 +31,21 @@ export function applyOutputDelta(
   };
 }
 
+export function applyFinalResponseDelta(
+  state: AgentOutputState,
+  text: string,
+): AgentOutputState {
+  if (!text) return state;
+  if (state.streamedText.endsWith(text)) {
+    return {
+      ...state,
+      displayedText: state.streamedText,
+      hasReceivedDeltas: true,
+    };
+  }
+  return applyOutputDelta(state, text, "delta");
+}
+
 export function applyOutputFinal(state: AgentOutputState, finalText: string): AgentOutputState {
   const displayedText = reconcileFinalText(state.streamedText, finalText);
   return {

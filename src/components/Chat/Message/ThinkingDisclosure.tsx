@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Box, Typography } from "@mui/material";
 import { Brain } from "lucide-react";
+import { TextShimmer } from "@/components/ui/text-shimmer";
 import {
   Reasoning,
   ReasoningTrigger,
@@ -23,7 +24,8 @@ export const ThinkingDisclosure = React.memo(
     processedThinking,
     status,
   }: ThinkingDisclosureProps) => {
-    const [expanded, setExpanded] = useState(isThinking || !!thinking);
+    const hasThinking = Boolean(processedThinking.trim() || thinking?.trim());
+    const [expanded, setExpanded] = useState(isThinking || hasThinking);
     const [seconds, setSeconds] = useState(thinkingDuration ?? 0);
     const startTimeRef = useRef<number | null>(null);
 
@@ -35,11 +37,11 @@ export const ThinkingDisclosure = React.memo(
 
     useEffect(() => {
       if (isThinking) {
-        setExpanded(true);
+        if (hasThinking) setExpanded(true);
       } else if (["complete", "aborted", "error"].includes(status ?? "")) {
         setExpanded(false);
       }
-    }, [isThinking, status]);
+    }, [hasThinking, isThinking, status]);
 
     useEffect(() => {
       if (!isThinking) return;
@@ -65,7 +67,7 @@ export const ThinkingDisclosure = React.memo(
       return `Thought for ${mins} minute${mins === 1 ? "" : "s"} ${secs} second${secs === 1 ? "" : "s"}`;
     }, [isThinking, seconds]);
 
-    if (!thinking && !isThinking) return null;
+    if (!hasThinking && !isThinking) return null;
 
     return (
       <Box sx={{ mb: 1.5 }}>
@@ -87,17 +89,18 @@ export const ThinkingDisclosure = React.memo(
                 <Brain size={13} />
               </Box>
               {isThinking ? (
-                <Typography
-                  component="span"
-                  className="animate-thinking"
-                  sx={{
-                    fontSize: "13px",
-                    fontWeight: 500,
-                    lineHeight: 1,
-                  }}
-                >
-                  {displayIndicator}
-                </Typography>
+                <TextShimmer as="span" duration={2} spread={15}>
+                  <Typography
+                    component="span"
+                    sx={{
+                      fontSize: "13px",
+                      fontWeight: 500,
+                      lineHeight: 1,
+                    }}
+                  >
+                    {displayIndicator}
+                  </Typography>
+                </TextShimmer>
               ) : (
                 <Typography
                   component="span"
@@ -113,41 +116,43 @@ export const ThinkingDisclosure = React.memo(
               )}
             </Box>
           </ReasoningTrigger>
-          <ReasoningContent
-            contentSx={{
-              mt: 0.5,
-              ml: "2px",
-              pl: 1.5,
-              borderLeft: "1.5px solid",
-              borderColor: "divider",
-              maxHeight: 320,
-              overflowY: "auto",
-              scrollbarWidth: "thin",
-              "&::-webkit-scrollbar": { width: 4 },
-              "&::-webkit-scrollbar-thumb": {
-                bgcolor: "divider",
-                borderRadius: 2,
-              },
-              maskImage:
-                "linear-gradient(to bottom, transparent 0px, black 12px, black calc(100% - 12px), transparent 100%)",
-              WebkitMaskImage:
-                "linear-gradient(to bottom, transparent 0px, black 12px, black calc(100% - 12px), transparent 100%)",
-            }}
-          >
-            <Typography
-              component="div"
-              sx={{
-                color: "text.secondary",
-                fontSize: "13.5px",
-                lineHeight: 1.65,
-                py: 0.5,
-                whiteSpace: "pre-wrap",
-                wordBreak: "break-word",
+          {hasThinking && (
+            <ReasoningContent
+              contentSx={{
+                mt: 0.5,
+                ml: "2px",
+                pl: 1.5,
+                borderLeft: "1.5px solid",
+                borderColor: "divider",
+                maxHeight: 320,
+                overflowY: "auto",
+                scrollbarWidth: "thin",
+                "&::-webkit-scrollbar": { width: 4 },
+                "&::-webkit-scrollbar-thumb": {
+                  bgcolor: "divider",
+                  borderRadius: 2,
+                },
+                maskImage:
+                  "linear-gradient(to bottom, transparent 0px, black 12px, black calc(100% - 12px), transparent 100%)",
+                WebkitMaskImage:
+                  "linear-gradient(to bottom, transparent 0px, black 12px, black calc(100% - 12px), transparent 100%)",
               }}
             >
-              {processedThinking}
-            </Typography>
-          </ReasoningContent>
+              <Typography
+                component="div"
+                sx={{
+                  color: "text.secondary",
+                  fontSize: "13.5px",
+                  lineHeight: 1.65,
+                  py: 0.5,
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-word",
+                }}
+              >
+                {processedThinking}
+              </Typography>
+            </ReasoningContent>
+          )}
         </Reasoning>
       </Box>
     );

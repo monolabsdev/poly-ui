@@ -1,5 +1,5 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
-import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
+import { Box, IconButton, Tooltip, Typography, useTheme } from "@mui/material";
 import { Copy, Check } from "lucide-react";
 import { highlight } from "sugar-high";
 import * as presets from "sugar-high/presets";
@@ -61,6 +61,7 @@ export const CodeBlock = memo(function CodeBlock({
     () => pending ? null : getHighlightedHtml(code, language),
     [code, language, pending],
   );
+  const label = language?.trim() || "text";
 
   useEffect(() => {
     return () => {
@@ -113,30 +114,46 @@ export const CodeBlock = memo(function CodeBlock({
         },
       }}
     >
-      <Tooltip title={copied ? "Copied!" : "Copy code"}>
-        <IconButton
-          className="copy-button"
-          aria-label={copied ? "Code copied" : "Copy code"}
-          size="small"
-          onClick={handleCopy}
+      <Box
+        sx={{
+          height: 34,
+          px: 1.5,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          bgcolor: theme.palette.mode === "dark" ? "grey.800" : "grey.200",
+          color: "text.secondary",
+          borderBottom: "1px solid",
+          borderColor: "divider",
+        }}
+      >
+        <Typography
           sx={{
-            position: "absolute",
-            top: 8,
-            right: 8,
-            zIndex: 10,
-            color: overlayColor,
-            bgcolor: overlayBackground,
-            backdropFilter: "blur(4px)",
-            opacity: 0,
-            "&:hover": {
-              color: overlayHoverColor,
-              bgcolor: overlayHoverBackground,
-            },
-            "@media (hover: none)": {
-              opacity: 1,
-            },
+            fontSize: 12,
+            fontWeight: 600,
+            fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
           }}
         >
+          {label}
+        </Typography>
+        <Tooltip title={copied ? "Copied!" : "Copy code"}>
+          <IconButton
+            className="copy-button"
+            aria-label={copied ? "Code copied" : "Copy code"}
+            size="small"
+            onClick={handleCopy}
+            sx={{
+              width: 26,
+              height: 26,
+              color: overlayColor,
+              bgcolor: overlayBackground,
+              opacity: 1,
+              "&:hover": {
+                color: overlayHoverColor,
+                bgcolor: overlayHoverBackground,
+              },
+            }}
+          >
             <Box
               sx={{
                 display: "flex",
@@ -146,8 +163,9 @@ export const CodeBlock = memo(function CodeBlock({
             >
               {copied ? <Check size={14} /> : <Copy size={14} />}
             </Box>
-        </IconButton>
-      </Tooltip>
+          </IconButton>
+        </Tooltip>
+      </Box>
 
       {highlightedHtml ? (
         <Box

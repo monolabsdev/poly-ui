@@ -16,6 +16,7 @@ type AgentStore = {
 };
 
 const STORAGE_KEY = "poly_agent_workspace_selections";
+const ENABLED_STORAGE_KEY = "poly_agent_enabled";
 export const DRAFT_WORKSPACE_SELECTION_CHAT_ID = "__draft__";
 
 function loadSelections(): Record<string, AgentWorkspaceSelection> {
@@ -32,14 +33,17 @@ function persistSelections(selections: Record<string, AgentWorkspaceSelection>) 
 }
 
 export const useAgentStore = create<AgentStore>((set) => ({
-  enabled: false,
+  enabled: localStorage.getItem(ENABLED_STORAGE_KEY) === "true",
   permissionPreset:
     (localStorage.getItem("poly_agent_permission_preset") as PermissionPreset | null) ??
     "default",
   workspaceSelections: loadSelections(),
   workspaces: [],
   actions: {
-    setEnabled: (enabled) => set({ enabled }),
+    setEnabled: (enabled) => {
+      localStorage.setItem(ENABLED_STORAGE_KEY, String(enabled));
+      set({ enabled });
+    },
     setPermissionPreset: (permissionPreset) => {
       localStorage.setItem("poly_agent_permission_preset", permissionPreset);
       set({ permissionPreset });

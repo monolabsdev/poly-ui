@@ -132,7 +132,7 @@ export const ChatInput = memo(function ChatInput({
 
   const handleSlashSelect = useCallback((feature: FeatureDef & { active: boolean; warning?: string }) => {
     feature.toggle();
-    setDraft((prev) => prev.replace(/\s?\/?$/, ""));
+    setDraft((prev) => prev.replace(/(?:^|\s)\/\w*$/, ""));
     closeSlashMenu();
     textareaRef.current?.focus();
   }, [closeSlashMenu, textareaRef]);
@@ -196,6 +196,20 @@ export const ChatInput = memo(function ChatInput({
           )}
         </AnimatePresence>
         <Box
+          sx={{
+            ...(agentEnabled && {
+              borderRadius: "24px",
+              border: isDragging ? "2px dashed" : isTemporary ? "1px dashed" : "1px solid",
+              borderColor: isDragging || isTemporary ? "border.main" : "divider",
+              overflow: "hidden",
+              "&:focus-within": {
+                borderColor: "border.main",
+                boxShadow: (theme) => `0 0 0 1px ${theme.palette.border.main}`,
+              },
+            }),
+          }}
+        >
+        <Box
           onDragEnter={handleDragEnter}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
@@ -205,15 +219,17 @@ export const ChatInput = memo(function ChatInput({
             flexDirection: "column",
             minHeight: currentAttachments.length > 0 ? 160 : 120,
             width: "100%",
-            borderRadius: agentEnabled ? "14px" : "24px",
+            borderRadius: agentEnabled ? 0 : "24px",
             bgcolor: isDragging ? "action.selected" : "background.paper",
             p: 1.5,
-            border: isDragging ? "2px dashed" : isTemporary ? "1px dashed" : "1px solid",
-            borderColor: isDragging || isTemporary ? "border.main" : "divider",
-            "&:focus-within": {
-              borderColor: "border.main",
-              boxShadow: (theme) => `0 0 0 1px ${theme.palette.border.main}`,
-            },
+            ...(!agentEnabled ? {
+              border: isDragging ? "2px dashed" : isTemporary ? "1px dashed" : "1px solid",
+              borderColor: isDragging || isTemporary ? "border.main" : "divider",
+              "&:focus-within": {
+                borderColor: "border.main",
+                boxShadow: (theme) => `0 0 0 1px ${theme.palette.border.main}`,
+              },
+            } : {}),
           }}
         >
           <AnimatePresence>
@@ -354,7 +370,6 @@ export const ChatInput = memo(function ChatInput({
                   })}
                 </DropdownMenuContent>
               </DropdownMenu>
-              {agentEnabled && <AgentComposerControls disabled={isStreaming} chatId={workspaceSelectionKey} />}
             </Box>
 
             <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 0.5, sm: 1 }, flexShrink: 0 }}>
@@ -436,6 +451,25 @@ export const ChatInput = memo(function ChatInput({
               </IconButton>
             </Box>
           </Box>
+        </Box>
+        {agentEnabled && (
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 0.75,
+              px: 1.5,
+              pb: 1.5,
+              pt: 0.75,
+              bgcolor: "action.hover",
+              borderTop: "1px solid",
+              borderColor: "divider",
+              flexWrap: "wrap",
+            }}
+          >
+            <AgentComposerControls disabled={isStreaming} chatId={workspaceSelectionKey} />
+          </Box>
+        )}
         </Box>
       </Box>
     </Box>

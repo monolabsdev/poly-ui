@@ -62,7 +62,7 @@ export function AgentComposerControls({
   }, [query, workspaces]);
   const workspaceLabel =
     selectedSelection?.type === "sandbox"
-      ? "Chat sandbox"
+      ? "No project"
       : selectedWorkspace?.name ?? "Select project";
 
   useEffect(() => {
@@ -204,12 +204,12 @@ export function AgentComposerControls({
           ))}
           <Box sx={{ height: 1, bgcolor: "divider", my: 0.35 }} />
           <DropdownMenuItem
+            disabled
             onClick={() => undefined}
             sx={{ minHeight: 32, alignItems: "center", borderRadius: "7px", gap: 1, py: 0.65 }}
           >
             <FolderPlus size={15} />
-            <Typography sx={{ flex: 1, fontSize: 13, fontWeight: 700 }}>Add new project</Typography>
-            <ChevronDown size={13} />
+            <Typography sx={{ flex: 1, fontSize: 13, fontWeight: 700 }}>Add project from settings</Typography>
           </DropdownMenuItem>
           <DropdownMenuItem
             onClick={() =>
@@ -218,7 +218,10 @@ export function AgentComposerControls({
             sx={{ minHeight: 32, alignItems: "center", borderRadius: "7px", gap: 1, py: 0.65 }}
           >
             <FolderX size={15} />
-            <Typography sx={{ flex: 1, fontSize: 13, fontWeight: 700 }}>Chat sandbox</Typography>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Typography sx={{ fontSize: 13, fontWeight: 700 }}>Do not work in a project</Typography>
+              <Typography sx={{ fontSize: 11.5, color: "text.secondary" }}>Use this chat's isolated sandbox.</Typography>
+            </Box>
             {selectedSelection?.type === "sandbox" && <Check size={15} />}
           </DropdownMenuItem>
         </DropdownMenuContent>

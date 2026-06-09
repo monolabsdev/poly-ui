@@ -254,8 +254,16 @@ code {
   .animate-fade-in,
   .animate-slide-in,
   .animate-popover,
+  .animate-thinking,
+  .animate-pulse {
+    animation: none !important;
+  }
 }
 
 html.reduce-motion .animate-fade-in,
 html.reduce-motion .animate-slide-in,
 html.reduce-motion .animate-popover,
+html.reduce-motion .animate-thinking,
+html.reduce-motion .animate-pulse {
+  animation: none !important;
+}
