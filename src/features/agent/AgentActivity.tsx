@@ -86,7 +86,6 @@ export function AgentActivity({
             <AgentTraceStep
               key={step.id}
               status={step.status}
-              defaultExpanded={step.defaultExpanded}
               hasContent={hasDisclosureContent(step)}
             >
               <AgentTraceTrigger>{step.label}</AgentTraceTrigger>
@@ -307,9 +306,7 @@ export function buildSteps(agent: AgentMessageState): StepDef[] {
         agent.permissionPreset === "full-access" ||
         agent.permissionPreset === "auto-review"
       ) {
-        step.defaultExpanded = false;
-      } else {
-        step.defaultExpanded = true;
+        step.status = "complete";
       }
     }
 
@@ -364,28 +361,12 @@ export function buildSteps(agent: AgentMessageState): StepDef[] {
     }
   }
 
-  /* Trim running trace to last 8, completed trace to last 6 */
-  const lastRunning = steps.some((s) => s.status === "running");
-  if (lastRunning) return steps.slice(-8);
+  /* Limit running trace to avoid excessive updates.
+     Completed traces keep full history - do NOT pop steps. */
+  const hasRunning = steps.some((s) => s.status === "running");
+  if (hasRunning && steps.length > 12) return steps.slice(-12);
 
-  if (
-    agent.status !== "running" &&
-    agent.status !== "waiting_for_approval"
-  ) {
-    while (steps.length > 0) {
-      const last = steps[steps.length - 1];
-      if (
-        last.label === "Completed" ||
-        last.label === "Run failed" ||
-        last.label === "Cancelled"
-      )
-        break;
-      if (steps.length > 1) steps.pop();
-      else break;
-    }
-  }
-
-  return steps.slice(-7);
+  return steps;
 }
 
 function stepSummary(
@@ -394,12 +375,29 @@ function stepSummary(
 ): string | undefined {
   const label = act.label?.toLowerCase() ?? "";
   if (label === "completed") return undefined;
+
+  /* Completed phases: prefer original detail, fall back to deterministic summary */
+  if (act.status === "complete" || act.status === "error") {
+    if (act.detail && act.detail.length > 0 && act.detail.length < 150) {
+      return act.detail;
+    }
+    return deterministicCompletedSummary(label);
+  }
+
+  /* Running phases with detail: use it */
+  if (act.status === "running" && act.detail) {
+    return act.detail;
+  }
+
+  /* Running phases without detail */
   if (act.status === "running" && !act.detail) {
     if (label.includes("think")) return "Understanding the request and preparing the next action.";
     if (label.includes("respond")) return "Receiving the model response.";
     if (label.includes("summar")) return "Preparing the final response.";
     return "Waiting for the model response...";
   }
+
+  /* Approval */
   if (act.kind === "approval") {
     if (
       agent.permissionPreset === "full-access" ||
@@ -409,6 +407,8 @@ function stepSummary(
     }
     return act.detail || "Waiting for permission before continuing.";
   }
+
+  /* Label-based summaries for tools */
   if (label.includes("read") && label.includes("file"))
     return "Checking available files in the current workspace.";
   if (label.includes("read") && label.includes("context"))
@@ -421,13 +421,26 @@ function stepSummary(
     return "Creating the requested file in the workspace.";
   if (label.includes("tool") || label.includes("call"))
     return "Running a tool to process the request.";
+
+  /* Fall through to deterministic */
   if (act.detail && act.detail.length > 0 && act.detail.length < 150)
     return act.detail;
-  if (act.status === "running") {
-    if (label.includes("think")) return "Understanding the request and preparing the next action.";
-    if (label.includes("respond")) return "Receiving the model response.";
-  }
+
   return fallbackSummary(label);
+}
+
+function deterministicCompletedSummary(label: string): string {
+  if (label.includes("think")) return "Understood the request and prepared the next action.";
+  if (label.includes("respond")) return "Received the model response.";
+  if (label.includes("summar")) return "Prepared the final response.";
+  if (label.includes("inspect") || label.includes("workspace")) return "Inspected the selected workspace.";
+  if (label.includes("search")) return "Searched relevant project files.";
+  if (label.includes("read")) return "Read relevant file contents.";
+  if (label.includes("edit") || label.includes("patch") || label.includes("file")) return "Applied the requested file changes.";
+  if (label.includes("verify")) return "Verified the changes.";
+  if (label.includes("complete")) return "Finished.";
+  if (label.includes("cancel")) return "Stopped the agent run.";
+  return "Completed the task.";
 }
 
 export function hasDisclosureContent(

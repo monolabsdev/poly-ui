@@ -73,7 +73,8 @@ type ChatStore = {
     deleteAllConversations: () => Promise<void>;
     archiveConversation: (id: string) => Promise<void>;
     unarchiveConversation: (id: string) => Promise<void>;
-    renameConversation: (id: string, newTitle: string) => Promise<void>;
+    renameConversation: (id: string, newTitle: string, titleSource?: "default" | "generated" | "manual") => Promise<void>;
+    setTitleGenerationStatus: (id: string, status: "idle" | "generating" | "done" | "failed") => void;
     deleteMessagesAfter: (
       conversationId: string,
       messageId: string,
@@ -152,6 +153,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         isArchived: false,
         isTemporary,
         folderId,
+        titleSource: "default",
       };
       set((state) => ({
         conversations: [conversation, ...state.conversations],
@@ -380,13 +382,19 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         ),
       }));
     },
-    renameConversation: async (id, newTitle) => {
+    renameConversation: async (id, newTitle, titleSource) => {
       const now = new Date().toISOString();
       const conversation = useChatStore.getState().conversations.find((c) => c.id === id);
 
       set((state) => ({
         conversations: state.conversations.map((c) =>
-          c.id === id ? { ...c, title: newTitle, updatedAt: now } : c,
+          c.id === id ? {
+            ...c,
+            title: newTitle,
+            updatedAt: now,
+            titleSource: titleSource ?? c.titleSource,
+            titleGeneratedAt: titleSource === "generated" ? now : c.titleGeneratedAt,
+          } : c,
         ),
       }));
 
@@ -399,6 +407,11 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         }
       }
     },
+    setTitleGenerationStatus: (id, status) => set((state) => ({
+      conversations: state.conversations.map((c) =>
+        c.id === id ? { ...c, titleGenerationStatus: status } : c,
+      ),
+    })),
     // Delete messages after a specific message ID (inclusive)
     deleteMessagesAfter: async (conversationId, messageId) => {
       const { conversations } = useChatStore.getState();

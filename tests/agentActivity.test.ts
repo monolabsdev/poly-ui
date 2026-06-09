@@ -523,6 +523,145 @@ test("simple chat hides completed row", () => {
   expect(buildSteps(state).map((step) => step.label)).not.toContain("Completed");
 });
 
+test("trace persists after completion - run_finished preserves tool steps", () => {
+  let state = baseState();
+  state = appendAgentEvent(state, { run_id: "run-1", event_type: "run_started", timestamp: "1", data: { kind: "run_started" } });
+  state = appendAgentEvent(state, { run_id: "run-1", event_type: "model_call_started", timestamp: "2", data: { kind: "model_call_started", value: { step: 0 } } });
+  state = appendAgentEvent(state, { run_id: "run-1", event_type: "model_call_finished", timestamp: "3", data: { kind: "model_call_finished" } });
+  state = appendAgentEvent(state, { run_id: "run-1", event_type: "tool_call_planned", timestamp: "4", data: { kind: "tool_call_planned", value: { tool_call_id: "search-1", tool_name: "search_files", arguments: { query: "test" } } } });
+  state = appendAgentEvent(state, { run_id: "run-1", event_type: "tool_call_finished", timestamp: "5", data: { kind: "tool_call_finished", value: { tool_call_id: "search-1", is_error: false, output: "found" } } });
+  state = appendAgentEvent(state, { run_id: "run-1", event_type: "final_response_delta", timestamp: "6", data: { kind: "final_response_delta", value: { text: "Done" } } });
+  state = appendAgentEvent(state, { run_id: "run-1", event_type: "run_finished", timestamp: "7", data: { kind: "run_finished", value: { text: "Done" } } });
+
+  const steps = buildSteps(state);
+  expect(steps.length).toBeGreaterThan(0);
+  expect(steps.some(s => s.label.includes("Search"))).toBe(true);
+  expect(steps.some(s => s.label.includes("Respond"))).toBe(true);
+  expect(steps.every(s => s.status === "complete" || s.status === "error")).toBe(true);
+});
+
+test("run_finished completes all running phases", () => {
+  let state = baseState();
+  state = appendAgentEvent(state, { run_id: "run-1", event_type: "run_started", timestamp: "1", data: { kind: "run_started" } });
+  state = appendAgentEvent(state, { run_id: "run-1", event_type: "model_call_started", timestamp: "2", data: { kind: "model_call_started", value: { step: 0 } } });
+  state = appendAgentEvent(state, { run_id: "run-1", event_type: "run_finished", timestamp: "3", data: { kind: "run_finished", value: { text: "Hello" } } });
+
+  const steps = buildSteps(state);
+  const running = steps.filter(s => s.status === "running");
+  expect(running).toHaveLength(0);
+});
+
+test("final_response_delta snapshot mode replaces responseText", () => {
+  let state = baseState();
+  state = appendAgentEvent(state, {
+    run_id: "run-1",
+    event_type: "final_response_delta",
+    timestamp: "1",
+    data: { kind: "final_response_delta", value: { text: "# Test", mode: "snapshot" } },
+  });
+  expect(state.responseText).toBe("# Test");
+
+  state = appendAgentEvent(state, {
+    run_id: "run-1",
+    event_type: "final_response_delta",
+    timestamp: "2",
+    data: { kind: "final_response_delta", value: { text: "# Test Response\n- Received.", mode: "snapshot" } },
+  });
+  expect(state.responseText).toBe("# Test Response\n- Received.");
+  expect(state.responseText).not.toBe("# Test# Test Response\n- Received.");
+});
+
+test("completed step has deterministic summary when detail is empty", () => {
+  const steps = buildSteps({
+    status: "completed",
+    startedAt: "now",
+    permissionPreset: "default",
+    activities: [
+      { id: "t1", toolCallId: "thinking", kind: "reasoning", label: "Thinking", status: "complete" },
+      { id: "r1", toolCallId: "responding", kind: "reasoning", label: "Responding", status: "complete" },
+    ],
+    toolCalls: {},
+    approvals: [],
+    editedFiles: [],
+  });
+  expect(steps.length).toBeGreaterThan(0);
+  for (const step of steps) {
+    expect(step.summary).toBeTruthy();
+    expect(step.summary?.length).toBeGreaterThan(0);
+  }
+});
+
+test("hasDisclosureContent false when all fields empty", () => {
+  expect(hasDisclosureContent({ type: "default", summary: "", details: [] })).toBe(false);
+  expect(hasDisclosureContent({ type: "default", summary: "has text", details: [] })).toBe(true);
+  expect(hasDisclosureContent({ type: "default", summary: "", details: ["has text"] })).toBe(true);
+});
+
+test("disclosure content and summaries survive run_finished", () => {
+  let state = baseState();
+  state = appendAgentEvent(state, { run_id: "run-1", event_type: "run_started", timestamp: "1", data: { kind: "run_started" } });
+  state = appendAgentEvent(state, { run_id: "run-1", event_type: "model_call_started", timestamp: "2", data: { kind: "model_call_started", value: { step: 0 } } });
+  state = appendAgentEvent(state, { run_id: "run-1", event_type: "model_call_finished", timestamp: "3", data: { kind: "model_call_finished" } });
+  state = appendAgentEvent(state, { run_id: "run-1", event_type: "tool_call_planned", timestamp: "4", data: { kind: "tool_call_planned", value: { tool_call_id: "search-1", tool_name: "search_files", arguments: { query: "clarity" } } } });
+  state = appendAgentEvent(state, { run_id: "run-1", event_type: "tool_call_finished", timestamp: "5", data: { kind: "tool_call_finished", value: { tool_call_id: "search-1", is_error: false, output: "found" } } });
+  state = appendAgentEvent(state, { run_id: "run-1", event_type: "final_response_delta", timestamp: "6", data: { kind: "final_response_delta", value: { text: "Done" } } });
+
+  /* Capture steps before finish */
+  const beforeSteps = buildSteps(state);
+  const thinkingBefore = beforeSteps.find(s => s.label === "Thinking");
+  expect(thinkingBefore?.summary?.length).toBeGreaterThan(0);
+  const searchBefore = beforeSteps.find(s => s.label.includes("Search"));
+  expect(searchBefore?.summary?.length).toBeGreaterThan(0);
+
+  /* Apply run_finished */
+  state = appendAgentEvent(state, { run_id: "run-1", event_type: "run_finished", timestamp: "7", data: { kind: "run_finished", value: { text: "Done" } } });
+  const afterSteps = buildSteps(state);
+
+  /* Steps still exist */
+  expect(afterSteps.length).toBeGreaterThan(1);
+
+  /* Thinking summary survives */
+  const thinkingAfter = afterSteps.find(s => s.label === "Thinking");
+  expect(thinkingAfter).toBeDefined();
+  expect(thinkingAfter?.summary?.length).toBeGreaterThan(0);
+  expect(thinkingAfter?.summary).toBe(thinkingBefore?.summary);
+
+  /* Searching files summary survives */
+  const searchAfter = afterSteps.find(s => s.label.includes("Search"));
+  expect(searchAfter).toBeDefined();
+  expect(searchAfter?.summary?.length).toBeGreaterThan(0);
+
+  /* All completed steps with content must have hasDisclosureContent = true */
+  for (const step of afterSteps) {
+    if (step.summary?.trim() || step.details?.length) {
+      expect(hasDisclosureContent(step)).toBe(true);
+    }
+  }
+
+  /* Tool details still present */
+  const editSteps = afterSteps.filter(s => s.type === "default");
+  for (const s of editSteps) {
+    if (s.summary) {
+      expect(hasDisclosureContent(s)).toBe(true);
+    }
+  }
+});
+
+test("sparse completed event does not wipe rich step summary", () => {
+  let state = baseState();
+  state = appendAgentEvent(state, { run_id: "run-1", event_type: "model_call_started", timestamp: "1", data: { kind: "model_call_started", value: { step: 0 } } });
+  const before = buildSteps(state);
+  const thinkingSummary = before.find(s => s.label === "Thinking")?.summary;
+  expect(thinkingSummary?.length).toBeGreaterThan(0);
+
+  /* model_call_finished only changes status, not detail */
+  state = appendAgentEvent(state, { run_id: "run-1", event_type: "model_call_finished", timestamp: "2", data: { kind: "model_call_finished" } });
+  const after = buildSteps(state);
+  const thinkingAfter = after.find(s => s.label === "Thinking");
+  expect(thinkingAfter?.summary).toBe(thinkingSummary);
+  expect(thinkingAfter?.status).toBe("complete");
+});
+
 function outputState(): AgentOutputState {
   return {
     streamedText: "",

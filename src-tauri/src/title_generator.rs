@@ -221,9 +221,9 @@ fn build_title_prompt(messages: &[ChatMessage], user_name: Option<&str>) -> Stri
 }
 
 fn default_title_prompt_template() -> String {
-    r#"Generate a short chat title (2-5 words, without emoji) for this message:
+    r#"Generate a concise chat title (2-5 words, without emoji) for this conversation:
 
-{{prompt}}
+{{MESSAGES:END:4}}
 
 Respond with only this JSON: {"title": "..."}"#
         .to_string()

@@ -10,7 +10,7 @@ import { useOllamaStore } from "@/services/ollama/monitor";
 import { buildSystemPrompt } from "@/lib/chat/prompts";
 import { isFeatureAIActive } from "@/lib/featureRegistry";
 import { defaultPreprocessor } from "@/lib/chat/message-preprocessor";
-import { queueTitleGeneration } from "@/lib/chat/title-generation";
+import { triggerTitleGeneration } from "@/lib/chat/title-generation";
 import {
   streamEventBus,
   type ChunkPayload,
@@ -31,7 +31,7 @@ function toSelectedModels(models: string[], providers: ModelProvider[]): Selecte
     .filter((item): item is SelectedModel => Boolean(item.model && item.provider));
 }
 
-export function useChatStream(selectedModels: string[], selectedProviders: ModelProvider[], systemPrompt = "", userName?: string) {
+export function useChatStream(selectedModels: string[], selectedProviders: ModelProvider[], systemPrompt = "") {
   const { messages, streamingMessages, activeConversationId } = useChatStore(
     useShallow((s) => ({
       messages: s.messages,
@@ -185,6 +185,7 @@ export function useChatStream(selectedModels: string[], selectedProviders: Model
       settlePending(request_id);
 
       if (pendingStreamsRef.current === 0) {
+        if (completedModel && !error) triggerTitleGeneration(conversationId);
         processNextInQueueRef.current?.(conversationId);
       }
     },
@@ -391,12 +392,9 @@ export function useChatStream(selectedModels: string[], selectedProviders: Model
       cancelRef.current = false;
       await addMessage({ conversationId, role: "user", content: processed, attachments });
 
-      const firstModel = models[0];
-      queueTitleGeneration({ conversationId, model: firstModel.model, providerType: firstModel.provider, userName });
-
       startStream(conversationId, models);
     },
-    [selectedModels, selectedProviders, isStreaming, activeConversationId, addMessage, startStream, userName],
+    [selectedModels, selectedProviders, isStreaming, activeConversationId, addMessage, startStream],
   );
 
   const stopStreaming = useCallback(async () => {

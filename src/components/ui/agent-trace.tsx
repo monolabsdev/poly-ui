@@ -99,30 +99,26 @@ export function AgentTraceStep({
   isLast = false,
   hasContent: hasContentProp,
 }: AgentTraceStepProps) {
-  const isControlled = defaultExpanded !== undefined;
   const [internalExpanded, setInternalExpanded] = useState(
-    isControlled ? defaultExpanded! : status === "running" || status === "error" || status === "waiting",
+    defaultExpanded ?? (status === "running" || status === "error" || status === "waiting"),
   );
   const wasAutoOpened = useRef(false);
 
   useEffect(() => {
-    if (isControlled) return;
     if (status === "running" || status === "error" || status === "waiting") {
       if (!wasAutoOpened.current) {
         setInternalExpanded(true);
         wasAutoOpened.current = true;
       }
     }
-  }, [status, isControlled]);
+  }, [status]);
 
-  const expanded = isControlled ? defaultExpanded! : internalExpanded;
+  const expanded = internalExpanded;
 
   const onToggle = useCallback(() => {
-    if (!isControlled) {
-      setInternalExpanded((v) => !v);
-      wasAutoOpened.current = false;
-    }
-  }, [isControlled]);
+    setInternalExpanded((v) => !v);
+    wasAutoOpened.current = false;
+  }, []);
 
   let trigger: ReactNode = null;
   let content: ReactNode = null;

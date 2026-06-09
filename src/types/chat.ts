@@ -11,6 +11,9 @@ export interface Conversation {
   isArchived: boolean;
   isTemporary?: boolean;
   folderId?: string;
+  titleSource?: "default" | "generated" | "manual";
+  titleGeneratedAt?: string;
+  titleGenerationStatus?: "idle" | "generating" | "done" | "failed";
 }
 
 export interface Attachment {

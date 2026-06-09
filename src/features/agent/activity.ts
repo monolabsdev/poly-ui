@@ -154,9 +154,10 @@ export function appendAgentEvent(
     }
     case "model_token_delta":
     case "final_response_delta": {
-      const delta = typeof value?.text === "string" ? value.text : "";
-      if (delta) {
-        next.responseText = (next.responseText ?? "") + delta;
+      const text = typeof value?.text === "string" ? value.text : "";
+      if (text) {
+        const mode = value?.mode;
+        next.responseText = mode === "snapshot" ? text : (next.responseText ?? "") + text;
         next.respondedStreaming = true;
         if (kind === "final_response_delta") {
           completeEarlierRunningPhases(next, "responding");
@@ -219,16 +220,16 @@ export function appendAgentEvent(
       break;
     case "finished":
     case "run_finished": {
+      completeAllRunning(next, "complete");
       next.status = "completed";
       next.completedAt = event.timestamp;
-      if (next.respondedStreaming) {
+      const finishText = typeof value?.text === "string" ? value.text : "";
+      if (next.respondedStreaming || finishText) {
         upsertActivity(next, "responding", activity("reasoning", "Responding", "Response complete.", "complete", "responding"));
       }
-      const finishText = typeof value?.text === "string" ? value.text : "";
       if (finishText) {
         next.responseText = reconcileText(next.responseText ?? "", finishText);
       }
-      upsertActivity(next, "completed", activity("status", "Completed", "Finished.", "complete", "completed"));
       break;
     }
     case "failed":
@@ -282,7 +283,8 @@ function activity(
   toolCallId?: string,
   details?: string[],
 ): AgentActivityItem {
-  return { id: crypto.randomUUID(), kind, label, detail, details: addUniqueDetails(undefined, details), status, toolCallId };
+  const id = toolCallId || `phase_${kind}_${label}_${crypto.randomUUID().slice(0, 8)}`;
+  return { id, kind, label, detail, details: addUniqueDetails(undefined, details), status, toolCallId };
 }
 
 function upsertActivity(state: AgentMessageState, key: string, item: AgentActivityItem) {
