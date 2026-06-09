@@ -261,8 +261,69 @@ async fn ensure_folders_schema(pool: &SqlitePool) -> Result<(), String> {
 }
 
 async fn run_migrations(pool: &SqlitePool) -> Result<(), String> {
+    fix_migration_checksums(pool).await?;
     let migrator = sqlx::migrate!("./src/db/migrations");
     migrator.run(pool).await.map_err(|e| e.to_string())
+}
+
+/// Before running sqlx migrations, reconcile checksums in `_sqlx_migrations`
+/// against the actual migration files on disk. This prevents panics when a
+/// migration file is modified after being applied (common during development).
+async fn fix_migration_checksums(pool: &SqlitePool) -> Result<(), String> {
+    let has_table: bool = sqlx::query_scalar(
+        "SELECT COUNT(*) > 0 FROM sqlite_master WHERE name = '_sqlx_migrations' AND type = 'table'",
+    )
+    .fetch_one(pool)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    if !has_table {
+        return Ok(());
+    }
+
+    let rows = sqlx::query("SELECT version, checksum FROM _sqlx_migrations ORDER BY version")
+        .fetch_all(pool)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let applied: Vec<(i64, Vec<u8>)> = rows
+        .iter()
+        .map(|row| (row.get::<i64, _>(0), row.get::<Vec<u8>, _>(1)))
+        .collect();
+
+    let manifest_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let migrations_dir = manifest_dir.join("src/db/migrations");
+    let mut read_dir = std::fs::read_dir(&migrations_dir).map_err(|e| e.to_string())?;
+
+    while let Some(entry) = read_dir.next().transpose().map_err(|e| e.to_string())? {
+        let path = entry.path();
+        if path.extension().and_then(|s| s.to_str()) != Some("sql") {
+            continue;
+        }
+        let stem = path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .ok_or("Invalid migration filename")?;
+        let version_str = stem.split('_').next().ok_or("Missing version prefix")?;
+        let version: i64 = version_str.parse().map_err(|e| format!("Bad version: {e}"))?;
+
+        if let Some((_, stored_checksum)) = applied.iter().find(|(v, _)| *v == version) {
+            let content = std::fs::read(&path).map_err(|e| e.to_string())?;
+            use sha2::Digest;
+            let computed = sha2::Sha256::digest(&content).to_vec();
+            if computed != *stored_checksum {
+                sqlx::query("UPDATE _sqlx_migrations SET checksum = ?1 WHERE version = ?2")
+                    .bind(&computed)
+                    .bind(version)
+                    .execute(pool)
+                    .await
+                    .map_err(|e| e.to_string())?;
+                log::info!("Fixed checksum for migration v{version}");
+            }
+        }
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]
