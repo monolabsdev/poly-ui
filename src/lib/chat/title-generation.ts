@@ -40,7 +40,7 @@ export function sanitizeTitle(raw: string | null | undefined, userMessage?: stri
   if (!t || t.length < 2) return null;
   if (t.includes("\n")) return null;
   if (/```/.test(t)) return null;
-  t = t.replace(/<[^>]*>/g, "");
+  t = t.replace(/[<>]/g, "");
   t = t.replace(/^["'`]+|["'`]+$/g, "");
   t = t.replace(/\.$/, "");
   t = t.replace(/[#*_~`>|\\]/g, "");
