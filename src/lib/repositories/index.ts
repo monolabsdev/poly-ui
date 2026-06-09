@@ -56,6 +56,12 @@ class SqliteConversationRepository implements ConversationRepository {
     await this.db.execute("DELETE FROM conversations WHERE userId = ?", [userId]);
   }
 
+  async clearConversationFolders(folderIds: string[]): Promise<void> {
+    if (folderIds.length === 0) return;
+    const placeholders = folderIds.map(() => "?").join(",");
+    await this.db.execute(`UPDATE conversations SET folderId = NULL WHERE folderId IN (${placeholders})`, folderIds);
+  }
+
   async getMessages(conversationId: string, limit: number, offset: number): Promise<Message[]> {
     const rows = await this.db.select<{ id: string; conversationId: string; role: "user" | "assistant"; content: string; createdAt: string; attachments?: string; model?: string; provider?: Message["provider"]; thinking?: string; thinkingDuration?: number; webSearch?: string; agent?: string }[]>(
       "SELECT * FROM messages WHERE conversationId = ? ORDER BY createdAt DESC LIMIT ? OFFSET ?",
@@ -146,7 +152,7 @@ class SqliteConversationRepository implements ConversationRepository {
   }
 }
 
-class InMemoryConversationRepository implements ConversationRepository {
+export class InMemoryConversationRepository implements ConversationRepository {
   private conversations: Record<string, { id: string; title: string; createdAt: string; updatedAt: string; isArchived: boolean; userId?: string; folderId?: string }> = {};
   private messages: Record<string, Message[]> = {};
   private folders: Record<string, Folder & { userId?: string }> = {};
@@ -189,6 +195,15 @@ class InMemoryConversationRepository implements ConversationRepository {
       if (conv.userId === userId) {
         delete this.conversations[id];
         delete this.messages[id];
+      }
+    }
+  }
+
+  async clearConversationFolders(folderIds: string[]): Promise<void> {
+    const ids = new Set(folderIds);
+    for (const [id, conv] of Object.entries(this.conversations)) {
+      if (conv.folderId && ids.has(conv.folderId)) {
+        this.conversations[id] = { ...conv, folderId: undefined };
       }
     }
   }
@@ -269,14 +284,11 @@ let repository: ConversationRepository | null = null;
 export async function initRepository(): Promise<ConversationRepository> {
   if (repository) return repository;
 
-  try {
-    const db = await Database.load("sqlite:chat.db");
-    repository = new SqliteConversationRepository(db);
-    if (DEV) console.log("[repo] SQLite repository active");
-  } catch (error) {
-    console.warn("[repo] Falling back to in-memory", error);
-    repository = new InMemoryConversationRepository();
-  }
+  const db = await Database.load("sqlite:chat.db").catch((error) => {
+    throw new Error(`SQLite repository failed to initialize: ${String(error)}`);
+  });
+  repository = new SqliteConversationRepository(db);
+  if (DEV) console.log("[repo] SQLite repository active");
 
   return repository;
 }
@@ -286,7 +298,7 @@ export function getRepository(): ConversationRepository {
   return repository;
 }
 
-// Injection seam for tests. Pass InMemoryConversationRepository to test without SQLite.
+// Injection seam for tests. Production startup must use initRepository().
 export function setRepository(repo: ConversationRepository): void {
   repository = repo;
 }

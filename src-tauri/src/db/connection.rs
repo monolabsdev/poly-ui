@@ -26,10 +26,6 @@ pub async fn init_db<R: Runtime>(app: &AppHandle<R>) -> Result<SqlitePool, Strin
     ensure_folders_schema(&pool).await?;
     run_migrations(&pool).await?;
 
-    ensure_users_schema(&pool).await?;
-    ensure_sessions_schema(&pool).await?;
-    ensure_provider_schema(&pool).await?;
-
     // Remove stale rows from earlier provider types.
     sqlx::query("DELETE FROM provider_configs WHERE provider_type NOT IN ('OllamaLocal', 'OpenAICompatible')")
         .execute(&pool)
@@ -79,186 +75,11 @@ pub async fn ensure_default_provider_configs(
     .await
     .map_err(|e| e.to_string())?;
 
-    dedupe_provider_configs(pool).await
+    Ok(())
 }
 
 pub fn normalize_provider_account_id(account_id: &str) -> String {
     account_id.trim().to_string()
-}
-
-async fn ensure_provider_schema(pool: &SqlitePool) -> Result<(), String> {
-    let has_id =
-        sqlx::query("SELECT COUNT(*) FROM pragma_table_info('provider_configs') WHERE name = 'id'")
-            .fetch_one(pool)
-            .await
-            .map_err(|e| e.to_string())?
-            .get::<i64, _>(0)
-            > 0;
-
-    if !has_id {
-        // Migrate from provider_type PK to auto-increment id so multiple
-        // connections can share the same provider_type (e.g. several
-        // OpenAICompatible rows for OpenAI / OpenRouter / Groq).
-        //
-        // Detect which columns already exist in the old table so we only
-        // SELECT what's actually there (api_key / api_base_url / etc. may
-        // not exist on first run after schema change).
-        let existing_cols: Vec<String> =
-            sqlx::query("SELECT name FROM pragma_table_info('provider_configs')")
-                .fetch_all(pool)
-                .await
-                .map_err(|e| e.to_string())?
-                .iter()
-                .map(|row| row.get::<String, _>("name"))
-                .collect();
-
-        let stable = [
-            "account_id",
-            "provider_type",
-            "enabled",
-            "ollama_host",
-            "ollama_api_key",
-            "ollama_api_base_url",
-            "priority",
-            "created_at",
-            "updated_at",
-        ];
-        let optional = ["api_key", "api_base_url"];
-        let copy_cols: Vec<&str> = stable
-            .iter()
-            .chain(optional.iter())
-            .filter(|c| existing_cols.contains(&c.to_string()))
-            .copied()
-            .collect();
-        let cols_sql = copy_cols.join(", ");
-
-        sqlx::query(
-            r#"
-            CREATE TABLE IF NOT EXISTS provider_configs_new (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                account_id TEXT NOT NULL DEFAULT '',
-                provider_type TEXT NOT NULL,
-                enabled INTEGER NOT NULL DEFAULT 1,
-                ollama_host TEXT,
-                ollama_api_key TEXT,
-                ollama_api_base_url TEXT,
-                api_key TEXT,
-                api_base_url TEXT,
-                priority INTEGER NOT NULL DEFAULT 0,
-                created_at TEXT NOT NULL DEFAULT (datetime('now')),
-                updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-            )
-            "#,
-        )
-        .execute(pool)
-        .await
-        .map_err(|e| e.to_string())?;
-
-        if !copy_cols.is_empty() {
-            sqlx::query(&format!(
-                "INSERT INTO provider_configs_new ({cols_sql}) SELECT {cols_sql} FROM provider_configs"
-            ))
-            .execute(pool)
-            .await
-            .map_err(|e| e.to_string())?;
-        }
-
-        sqlx::query("DROP TABLE IF EXISTS provider_configs")
-            .execute(pool)
-            .await
-            .map_err(|e| e.to_string())?;
-
-        sqlx::query("ALTER TABLE provider_configs_new RENAME TO provider_configs")
-            .execute(pool)
-            .await
-            .map_err(|e| e.to_string())?;
-    }
-
-    for column in [
-        "api_key",
-        "api_base_url",
-        "preset",
-        "headers",
-        "model_suggestions",
-    ] {
-        let exists = sqlx::query(
-            "SELECT COUNT(*) FROM pragma_table_info('provider_configs') WHERE name = ?",
-        )
-        .bind(column)
-        .fetch_one(pool)
-        .await
-        .map_err(|e| e.to_string())?
-        .get::<i64, _>(0)
-            > 0;
-
-        if !exists {
-            sqlx::query(&format!(
-                "ALTER TABLE provider_configs ADD COLUMN {column} TEXT"
-            ))
-            .execute(pool)
-            .await
-            .map_err(|e| e.to_string())?;
-        }
-    }
-
-    let has_account_id = sqlx::query(
-        "SELECT COUNT(*) FROM pragma_table_info('provider_configs') WHERE name = 'account_id'",
-    )
-    .fetch_one(pool)
-    .await
-    .map_err(|e| e.to_string())?
-    .get::<i64, _>(0)
-        > 0;
-
-    if !has_account_id {
-        sqlx::query("ALTER TABLE provider_configs ADD COLUMN account_id TEXT NOT NULL DEFAULT ''")
-            .execute(pool)
-            .await
-            .map_err(|e| e.to_string())?;
-    }
-
-    dedupe_provider_configs(pool).await?;
-
-    sqlx::query(
-        r#"
-        CREATE UNIQUE INDEX IF NOT EXISTS idx_provider_configs_unique_connection
-        ON provider_configs (
-            account_id,
-            provider_type,
-            COALESCE(ollama_host, ''),
-            COALESCE(api_base_url, ''),
-            COALESCE(preset, '')
-        )
-        "#,
-    )
-    .execute(pool)
-    .await
-    .map_err(|e| e.to_string())?;
-
-    Ok(())
-}
-
-async fn dedupe_provider_configs(pool: &SqlitePool) -> Result<(), String> {
-    sqlx::query(
-        r#"
-        DELETE FROM provider_configs
-        WHERE id NOT IN (
-            SELECT MIN(id)
-            FROM provider_configs
-            GROUP BY
-                account_id,
-                provider_type,
-                COALESCE(ollama_host, ''),
-                COALESCE(api_base_url, ''),
-                COALESCE(preset, '')
-        )
-        "#,
-    )
-    .execute(pool)
-    .await
-    .map_err(|e| e.to_string())?;
-
-    Ok(())
 }
 
 async fn ensure_conversations_schema(pool: &SqlitePool) -> Result<(), String> {
@@ -441,166 +262,7 @@ async fn ensure_folders_schema(pool: &SqlitePool) -> Result<(), String> {
 
 async fn run_migrations(pool: &SqlitePool) -> Result<(), String> {
     let migrator = sqlx::migrate!("./src/db/migrations");
-
-    if let Err(error) = migrator.run(pool).await {
-        let message = error.to_string();
-
-        if !message.contains("previously applied but has been modified") {
-            return Err(message);
-        }
-
-        // Dev repair: these migrations were edited after being applied.
-        // Keep the existing schema and record the bundled checksums.
-        const REPAIRABLE_VERSIONS: [i64; 4] = [
-            20260501000000,
-            20260509000000,
-            20260510000000,
-            20260531000000,
-        ];
-
-        for migration in migrator
-            .iter()
-            .filter(|migration| REPAIRABLE_VERSIONS.contains(&migration.version))
-        {
-            sqlx::query("UPDATE _sqlx_migrations SET checksum = ? WHERE version = ?")
-                .bind(migration.checksum.as_ref())
-                .bind(migration.version)
-                .execute(pool)
-                .await
-                .map_err(|e| e.to_string())?;
-        }
-        // Dev repair: migrations were edited during development. Removing
-        // stale checksums lets sqlx record the current files and continue.
-        sqlx::query("DELETE FROM _sqlx_migrations WHERE version IN (?, ?, ?, ?)")
-            .bind(20260501000000_i64)
-            .bind(20260509000000_i64)
-            .bind(20260510000000_i64)
-            .bind(20260531000000_i64)
-            .execute(pool)
-            .await
-            .map_err(|e| e.to_string())?;
-
-        return migrator.run(pool).await.map_err(|e| e.to_string());
-    }
-
-    Ok(())
-}
-
-async fn ensure_users_schema(pool: &SqlitePool) -> Result<(), String> {
-    let columns = sqlx::query("PRAGMA table_info(users)")
-        .fetch_all(pool)
-        .await
-        .map_err(|e| e.to_string())?;
-
-    let has_integer_id = columns.iter().any(|column| {
-        let name: String = column.get("name");
-        let column_type: String = column.get("type");
-        name == "id" && column_type.eq_ignore_ascii_case("INTEGER")
-    });
-    let has_name = columns.iter().any(|column| {
-        let name: String = column.get("name");
-        name == "name"
-    });
-
-    if has_integer_id && has_name {
-        return Ok(());
-    }
-
-    sqlx::query("ALTER TABLE users RENAME TO users_legacy")
-        .execute(pool)
-        .await
-        .map_err(|e| e.to_string())?;
-
-    sqlx::query(
-        "CREATE TABLE users (
-            id INTEGER PRIMARY KEY,
-            name TEXT NOT NULL,
-            email TEXT NOT NULL UNIQUE,
-            passwordHash TEXT,
-            fullName TEXT,
-            status TEXT NOT NULL DEFAULT 'Active',
-            avatarUrl TEXT,
-            createdAt TEXT NOT NULL DEFAULT (datetime('now')),
-            updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
-        )",
-    )
-    .execute(pool)
-    .await
-    .map_err(|e| e.to_string())?;
-
-    sqlx::query(
-        "INSERT OR IGNORE INTO users (name, email, passwordHash, fullName, status, avatarUrl, createdAt, updatedAt)
-         SELECT
-            COALESCE(NULLIF(fullName, ''), email),
-            email,
-            passwordHash,
-            fullName,
-            COALESCE(status, 'Active'),
-            avatarUrl,
-            COALESCE(createdAt, datetime('now')),
-            COALESCE(updatedAt, datetime('now'))
-         FROM users_legacy
-         WHERE email IS NOT NULL",
-    )
-    .execute(pool)
-    .await
-    .map_err(|e| e.to_string())?;
-
-    sqlx::query("DROP TABLE users_legacy")
-        .execute(pool)
-        .await
-        .map_err(|e| e.to_string())?;
-
-    recreate_sessions_table(pool).await?;
-
-    Ok(())
-}
-
-async fn ensure_sessions_schema(pool: &SqlitePool) -> Result<(), String> {
-    let columns = sqlx::query("PRAGMA table_info(sessions)")
-        .fetch_all(pool)
-        .await
-        .map_err(|e| e.to_string())?;
-
-    if columns.is_empty() {
-        recreate_sessions_table(pool).await?;
-        return Ok(());
-    }
-
-    let has_integer_user_id = columns.iter().any(|column| {
-        let name: String = column.get("name");
-        let column_type: String = column.get("type");
-        name == "userId" && column_type.eq_ignore_ascii_case("INTEGER")
-    });
-
-    if !has_integer_user_id {
-        recreate_sessions_table(pool).await?;
-    }
-
-    Ok(())
-}
-
-async fn recreate_sessions_table(pool: &SqlitePool) -> Result<(), String> {
-    sqlx::query("DROP TABLE IF EXISTS sessions")
-        .execute(pool)
-        .await
-        .map_err(|e| e.to_string())?;
-
-    sqlx::query(
-        "CREATE TABLE sessions (
-            id TEXT PRIMARY KEY,
-            userId INTEGER NOT NULL,
-            token TEXT NOT NULL UNIQUE,
-            expiresAt TEXT NOT NULL,
-            createdAt TEXT NOT NULL,
-            FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
-        )",
-    )
-    .execute(pool)
-    .await
-    .map_err(|e| e.to_string())?;
-
-    Ok(())
+    migrator.run(pool).await.map_err(|e| e.to_string())
 }
 
 #[cfg(test)]
@@ -608,7 +270,7 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    async fn provider_schema_dedupes_defaults_and_seeds_per_account() {
+    async fn default_provider_configs_seed_per_account() {
         let pool = SqlitePoolOptions::new()
             .max_connections(1)
             .connect("sqlite::memory:")
@@ -619,10 +281,17 @@ mod tests {
             r#"
             CREATE TABLE provider_configs (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                account_id TEXT NOT NULL DEFAULT '',
                 provider_type TEXT NOT NULL,
                 enabled INTEGER NOT NULL DEFAULT 1,
                 ollama_host TEXT,
+                ollama_api_key TEXT,
+                ollama_api_base_url TEXT,
+                api_key TEXT,
                 api_base_url TEXT,
+                preset TEXT,
+                headers TEXT,
+                model_suggestions TEXT,
                 priority INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL DEFAULT (datetime('now')),
                 updated_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -633,22 +302,6 @@ mod tests {
         .await
         .unwrap();
 
-        for _ in 0..3 {
-            sqlx::query(
-                "INSERT INTO provider_configs (provider_type, enabled, ollama_host, priority) VALUES ('OllamaLocal', 1, 'http://127.0.0.1:11434', 0)",
-            )
-            .execute(&pool)
-            .await
-            .unwrap();
-            sqlx::query(
-                "INSERT INTO provider_configs (provider_type, enabled, api_base_url, priority) VALUES ('OpenAICompatible', 0, 'https://api.openai.com/v1', 1)",
-            )
-            .execute(&pool)
-            .await
-            .unwrap();
-        }
-
-        ensure_provider_schema(&pool).await.unwrap();
         ensure_default_provider_configs(&pool, "account-a")
             .await
             .unwrap();
@@ -656,11 +309,6 @@ mod tests {
             .await
             .unwrap();
 
-        let global_count: i64 =
-            sqlx::query_scalar("SELECT COUNT(*) FROM provider_configs WHERE account_id = ''")
-                .fetch_one(&pool)
-                .await
-                .unwrap();
         let account_count: i64 = sqlx::query_scalar(
             "SELECT COUNT(*) FROM provider_configs WHERE account_id = 'account-a'",
         )
@@ -668,7 +316,6 @@ mod tests {
         .await
         .unwrap();
 
-        assert_eq!(global_count, 2);
         assert_eq!(account_count, 2);
     }
 }

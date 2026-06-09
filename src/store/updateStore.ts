@@ -1,7 +1,6 @@
 import { create } from "zustand";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { useDevStore } from "@/store/devStore";
 
 export type UpdateStatus =
   | "idle"
@@ -31,6 +30,11 @@ const UPDATE_CHECK_INTERVAL = 30 * 60 * 1000;
 
 let unlistenProgress: (() => void) | null = null;
 let checkInterval: ReturnType<typeof setInterval> | null = null;
+let simulateInstall = false;
+
+export function setUpdateInstallSimulation(enabled: boolean) {
+  simulateInstall = enabled;
+}
 
 export const useUpdateStore = create<UpdateState & { actions: UpdateActions }>()(
   (set, get) => ({
@@ -118,7 +122,7 @@ export const useUpdateStore = create<UpdateState & { actions: UpdateActions }>()
         if (get().status !== "downloaded") return;
         set({ status: "installing", error: null });
 
-        if (useDevStore.getState().devMode) {
+        if (simulateInstall) {
           await new Promise((r) => setTimeout(r, 800));
           clearUpdateState();
           return;

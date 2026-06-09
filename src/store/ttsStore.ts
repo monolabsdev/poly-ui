@@ -1,6 +1,4 @@
 import { create } from "zustand";
-import { useSettingsStore } from "./settingsStore";
-import { useChatStore } from "./chatStore";
 
 interface TtsState {
   activeMessageId: number | string | null;
@@ -15,6 +13,15 @@ interface TtsState {
 
 let browserSentenceQueue: string[] = [];
 let browserSentenceIndex = 0;
+let browserSettings = {
+  voiceURI: "",
+  speed: 1,
+  pitch: 1,
+};
+
+export function setTtsBrowserSettings(settings: typeof browserSettings) {
+  browserSettings = settings;
+}
 
 export function cleanTextForSpeech(text: string): string {
   if (!text) return "";
@@ -71,7 +78,6 @@ export const useTtsStore = create<TtsState>((set, get) => ({
 
         if (!get().isGenerating) return;
 
-        const settings = useSettingsStore.getState().tts.browser;
         window.speechSynthesis.cancel();
 
         browserSentenceQueue = cleanedText
@@ -94,10 +100,10 @@ export const useTtsStore = create<TtsState>((set, get) => ({
           }
 
           const utterance = new SpeechSynthesisUtterance(browserSentenceQueue[browserSentenceIndex]);
-          const voice = getVoice(settings.voiceURI);
+          const voice = getVoice(browserSettings.voiceURI);
           if (voice) utterance.voice = voice;
-          utterance.rate = settings.speed;
-          utterance.pitch = settings.pitch;
+          utterance.rate = browserSettings.speed;
+          utterance.pitch = browserSettings.pitch;
 
           utterance.onend = () => {
             browserSentenceIndex += 1;
@@ -139,15 +145,3 @@ export const useTtsStore = create<TtsState>((set, get) => ({
     },
   },
 }));
-
-let lastActiveConversationId: string | undefined;
-
-if (typeof window !== "undefined") {
-  useChatStore.subscribe((state) => {
-    const currentId = state.activeConversationId;
-    if (lastActiveConversationId !== undefined && currentId !== lastActiveConversationId) {
-      useTtsStore.getState().actions.stop();
-    }
-    lastActiveConversationId = currentId ?? undefined;
-  });
-}

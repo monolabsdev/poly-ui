@@ -21,7 +21,7 @@ pub enum ProviderStatus {
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct ProviderConfig {
-    pub id: Option<i64>,
+    pub id: i64,
     pub account_id: String,
     pub provider_type: ProviderType,
     pub enabled: bool,

@@ -17,10 +17,9 @@ import {
   type ThinkingPayload,
   type WebSearchPayload,
 } from "@/lib/chat/event-bus";
-import { StreamAccumulator } from "@/lib/chat/stream-accumulator";
+import { StreamSession } from "@/lib/chat/stream-session";
 import type { ModelProvider } from "@/store/modelStore";
 import { getWebSearchConfig } from "@/features/web-search/useWebSearchConfig";
-import { clearRequestBookkeeping } from "@/lib/chat/stream-cleanup";
 import { getCurrentProviderAccountId } from "@/services/providers";
 
 type SelectedModel = { model: string; provider: ModelProvider };
@@ -49,13 +48,7 @@ export function useChatStream(selectedModels: string[], selectedProviders: Model
 
   const [isStreaming, setIsStreaming] = useState(false);
 
-  // Accumulator — pure logic, no React deps
-  const accRef = useRef(new StreamAccumulator());
-  const requestIdToMessageIdRef = useRef<Record<string, string>>({});
-  const requestIdToConversationIdRef = useRef<Record<string, string>>({});
-  const thinkingStartTimeRef = useRef<Record<string, number>>({});
-  const webSearchRef = useRef<Record<string, WebSearchPayload>>({});
-  const pendingStreamsRef = useRef(0);
+  const sessionRef = useRef(new StreamSession());
   const cancelRef = useRef(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const activeConversationIdRef = useRef(activeConversationId);
@@ -80,8 +73,8 @@ export function useChatStream(selectedModels: string[], selectedProviders: Model
 
   // Wire accumulator flush → store
   useEffect(() => {
-    const acc = accRef.current;
-    acc.onFlush((updates) => {
+    const session = sessionRef.current;
+    session.onFlush((updates) => {
       const storeUpdates: Record<string, Partial<Message>> = {};
       for (const [messageId, content] of Object.entries(updates)) {
         if (content) {
@@ -96,28 +89,15 @@ export function useChatStream(selectedModels: string[], selectedProviders: Model
 
   const resetStreamState = useCallback(() => {
     const { streamingMessages: current } = useChatStore.getState();
-    Object.keys(requestIdToMessageIdRef.current).forEach((rid) => {
-      const mid = requestIdToMessageIdRef.current[rid];
+    sessionRef.current.allMessageIds().forEach((mid) => {
       if (current[mid]) setStreamingMessage(mid, null);
     });
-    accRef.current.reset();
-    webSearchRef.current = {};
-    requestIdToMessageIdRef.current = {};
-    requestIdToConversationIdRef.current = {};
-    thinkingStartTimeRef.current = {};
-    pendingStreamsRef.current = 0;
+    sessionRef.current.reset();
   }, [setStreamingMessage]);
 
   const settlePending = useCallback((requestId?: string) => {
-    pendingStreamsRef.current = requestId
-      ? clearRequestBookkeeping(
-          requestId,
-          requestIdToMessageIdRef.current,
-          requestIdToConversationIdRef.current,
-          pendingStreamsRef.current,
-        )
-      : Math.max(0, pendingStreamsRef.current - 1);
-    if (pendingStreamsRef.current === 0) {
+    if (requestId) sessionRef.current.finish(requestId);
+    if (sessionRef.current.isComplete()) {
       setIsStreaming(false);
       setStreamingConversationId(null);
     }
@@ -125,53 +105,37 @@ export function useChatStream(selectedModels: string[], selectedProviders: Model
 
   const handleChunk = useCallback(
     async (payload: ChunkPayload) => {
-      const conversationId = requestIdToConversationIdRef.current[payload.request_id];
-      if (cancelRef.current || !conversationId) return;
-
-      const { request_id, content, done, error } = payload;
-      const messageId = requestIdToMessageIdRef.current[request_id];
-      if (!messageId) return;
-
-      const acc = accRef.current;
-      const prev = acc.content[request_id] ?? "";
-      const updated = prev + content;
-      acc.content[request_id] = updated;
-
-      if (!done) {
-        acc.queueTokenBatch(messageId, updated);
-        return;
-      }
+      if (cancelRef.current) return;
+      const completed = sessionRef.current.applyChunk(payload);
+      if (!completed) return;
 
       const { streamingMessages: current } = useChatStore.getState();
-      const existing = current[messageId];
+      const existing = current[completed.messageId];
       if (!existing) return;
 
-      const thinking = acc.thinking[request_id];
       const completedModel = existing.model ?? "";
       const completedProvider = existing.provider ?? "OllamaLocal";
 
-      if (error) {
+      if (completed.error) {
         await addMessage({
-          id: messageId,
-          conversationId,
+          id: completed.messageId,
+          conversationId: completed.conversationId,
           role: "assistant",
-          content: sanitizeOutput(updated || ""),
+          content: sanitizeOutput(completed.content || ""),
           model: completedModel || "unknown",
           provider: completedProvider,
           status: "error",
-          errorMessage: error,
+          errorMessage: completed.error,
           webSearch: existing.webSearch,
         });
-      } else if (updated.trim() || thinking?.trim()) {
-        const startTime = thinkingStartTimeRef.current[request_id];
-        const thinkingDuration = startTime ? (Date.now() - startTime) / 1000 : undefined;
+      } else if (completed.content.trim() || completed.thinking?.trim()) {
         await addMessage({
-          id: messageId,
-          conversationId,
+          id: completed.messageId,
+          conversationId: completed.conversationId,
           role: "assistant",
-          content: sanitizeOutput(updated),
-          thinking,
-          thinkingDuration,
+          content: sanitizeOutput(completed.content),
+          thinking: completed.thinking,
+          thinkingDuration: sessionRef.current.thinkingDuration(completed.requestId),
           isThinking: false,
           createdAt: new Date().toISOString(),
           model: completedModel || "unknown",
@@ -181,12 +145,12 @@ export function useChatStream(selectedModels: string[], selectedProviders: Model
         });
       }
 
-      setStreamingMessage(messageId, null);
-      settlePending(request_id);
+      setStreamingMessage(completed.messageId, null);
+      settlePending(completed.requestId);
 
-      if (pendingStreamsRef.current === 0) {
-        if (completedModel && !error) triggerTitleGeneration(conversationId);
-        processNextInQueueRef.current?.(conversationId);
+      if (sessionRef.current.isComplete()) {
+        if (completedModel && !completed.error) triggerTitleGeneration(completed.conversationId);
+        processNextInQueueRef.current?.(completed.conversationId);
       }
     },
     [addMessage, settlePending, setStreamingMessage],
@@ -195,20 +159,9 @@ export function useChatStream(selectedModels: string[], selectedProviders: Model
   const handleThinking = useCallback(
     (payload: ThinkingPayload) => {
       if (cancelRef.current) return;
-      const { request_id, thinking, is_thinking } = payload;
-      const messageId = requestIdToMessageIdRef.current[request_id];
-      if (!messageId) return;
-
-      accRef.current.thinking[request_id] = thinking;
-      if (is_thinking && !thinkingStartTimeRef.current[request_id]) {
-        thinkingStartTimeRef.current[request_id] = Date.now();
-      }
-
-      patchStreamingMessage(messageId, {
-        thinking,
-        isThinking: is_thinking,
-        status: "streaming",
-      });
+      const update = sessionRef.current.applyThinking(payload);
+      if (!update) return;
+      patchStreamingMessage(update.messageId, update.patch);
     },
     [patchStreamingMessage],
   );
@@ -216,20 +169,14 @@ export function useChatStream(selectedModels: string[], selectedProviders: Model
   const handleWebSearch = useCallback(
     (payload: WebSearchPayload) => {
       if (cancelRef.current) return;
-      const { request_id, query, status, results } = payload;
-      const messageId = requestIdToMessageIdRef.current[request_id];
+      const messageId = sessionRef.current.messageIdForRequest(payload.request_id);
       if (!messageId) return;
-
-      webSearchRef.current[request_id] = payload;
-
       const existing = useChatStore.getState().streamingMessages[messageId];
-      const prevResults = existing?.webSearch?.results ?? [];
-      const merged = results
-        ? [...prevResults, ...results.filter((r) => !prevResults.some((p) => p.url === r.url))]
-        : prevResults;
+      const update = sessionRef.current.applyWebSearch(payload, existing);
+      if (!update) return;
 
-      patchStreamingMessage(messageId, {
-        webSearch: { request_id, query, status, results: merged },
+      patchStreamingMessage(update.messageId, {
+        webSearch: update.webSearch,
         status: "streaming",
       });
     },
@@ -268,7 +215,7 @@ export function useChatStream(selectedModels: string[], selectedProviders: Model
       setIsStreaming(true);
       setStreamingConversationId(conversationId);
       resetStreamState();
-      pendingStreamsRef.current = models.length;
+      sessionRef.current.start(models.length);
 
       const webSearchConfig = getWebSearchConfig();
       const webSearchAI = isFeatureAIActive("web_search");
@@ -279,8 +226,7 @@ export function useChatStream(selectedModels: string[], selectedProviders: Model
       for (const { model, provider } of models) {
         const rid = crypto.randomUUID();
         const mid = crypto.randomUUID();
-        requestIdToMessageIdRef.current[rid] = mid;
-        requestIdToConversationIdRef.current[rid] = conversationId;
+        sessionRef.current.register({ requestId: rid, messageId: mid, conversationId });
 
         setStreamingMessage(mid, {
           id: mid,
@@ -321,7 +267,7 @@ export function useChatStream(selectedModels: string[], selectedProviders: Model
           }
           settlePending(rid);
           notify.error(`Chat error (${model})`, errMsg);
-          if (pendingStreamsRef.current === 0) {
+          if (sessionRef.current.isComplete()) {
             processNextInQueueRef.current?.(conversationId);
           }
         });
@@ -400,6 +346,7 @@ export function useChatStream(selectedModels: string[], selectedProviders: Model
   const stopStreaming = useCallback(async () => {
     if (!isStreaming) return;
     cancelRef.current = true;
+    sessionRef.current.cancel();
 
     try {
       await loggedInvoke("cancel_chat");
@@ -413,14 +360,11 @@ export function useChatStream(selectedModels: string[], selectedProviders: Model
         setStreamingMessage(mid, null);
         continue;
       }
-      const rid = Object.keys(requestIdToMessageIdRef.current).find(
-        (key) => requestIdToMessageIdRef.current[key] === mid,
-      );
-      const startTime = rid ? thinkingStartTimeRef.current[rid] : undefined;
+      const rid = sessionRef.current.requestIdForMessage(mid);
       await addMessage({
         ...msg,
         isThinking: false,
-        thinkingDuration: startTime ? (Date.now() - startTime) / 1000 : undefined,
+        thinkingDuration: sessionRef.current.thinkingDuration(rid),
         status: "aborted",
       });
       setStreamingMessage(mid, null);

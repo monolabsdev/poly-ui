@@ -1,10 +1,7 @@
 import type { SystemPrompt } from "@/store/modelStore";
 import { useAuthStore } from "@/store/authStore";
-import { useChatStore } from "@/store/chatStore";
-import { useFolderStore } from "@/store/folderStore";
 import { useModelStore } from "@/store/modelStore";
 import { useOllamaStore } from "@/services/ollama/monitor";
-import { useProviderStore } from "@/services/providers";
 import { initStoreCoordinator } from "@/store/coordinator";
 import { useSettingsStore } from "@/store/settingsStore";
 import { choosePerformanceSettings, readSystemProfile } from "@/lib/performance";
@@ -82,23 +79,15 @@ async function preloadVisibleAppChunks() {
 async function initializeStores() {
   restoreSystemPrompts();
   startSystemPromptPersistence();
-  initStoreCoordinator();
   await autoOptimizePerformance();
 
   requestNotificationPermission();
 
   const repo = await import("@/lib/repositories");
-  await repo.initRepository().catch(() => {});
+  await repo.initRepository();
+  initStoreCoordinator();
 
   await useAuthStore.getState().actions.restoreSession().catch(() => {});
-  await useProviderStore.getState().actions.refresh().catch(() => {});
-
-  const { user, guestId } = useAuthStore.getState();
-  if (user || guestId) {
-    useChatStore.getState().actions.loadConversations();
-    const { loadFolders } = useFolderStore.getState().actions;
-    loadFolders();
-  }
 
   useOllamaStore.getState().actions.start();
 

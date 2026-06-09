@@ -6,7 +6,7 @@ export type ProviderType = "OllamaLocal" | "OpenAICompatible";
 export type ProviderStatus = "Online" | "Offline" | "Reconnecting" | "Unavailable";
 
 export interface ProviderConfig {
-  id?: number;
+  id: number;
   account_id?: string;
   provider_type: ProviderType;
   enabled: boolean;
@@ -52,7 +52,7 @@ interface ProviderStore {
     refresh: () => Promise<void>;
     setProviders: (providers: ProviderStatusResponse[]) => void;
     updateProviderConfig: (config: {
-      id?: number;
+      id: number;
       provider_type: ProviderType;
       enabled?: boolean;
       ollama_host?: string;
@@ -93,7 +93,7 @@ export const useProviderStore = create<ProviderStore>((set) => ({
       return { providers, loading: false, error: null };
     }),
     updateProviderConfig: async (config: {
-      id?: number;
+      id: number;
       provider_type: ProviderType;
       enabled?: boolean;
       ollama_host?: string;
@@ -108,9 +108,7 @@ export const useProviderStore = create<ProviderStore>((set) => ({
       const accountId = getCurrentProviderAccountId();
       const current = (await invoke<ProviderStatusResponse[]>("get_providers", {
         accountId,
-      })).find(
-        (p) => p.config.id === config.id || p.config.provider_type === config.provider_type,
-      );
+      })).find((p) => p.config.id === config.id);
       if (!current) throw new Error("Provider not found");
       await invoke("update_provider_config", {
         request: { ...current.config, ...config },
