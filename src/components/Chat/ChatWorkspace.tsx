@@ -41,7 +41,7 @@ export default function ChatWorkspace({
     ? `${systemPromptContent}\n${activeFolder.systemPrompt}`
     : systemPromptContent;
   const { messages, streamingMessagesList, isStreaming, sendMessage, regenerateMessage, stopStreaming, bottomRef, hasMessages } =
-    useChatStream(selectedModels, selectedProviders, effectiveSystemPrompt, userName);
+    useChatStream(selectedModels, selectedProviders, effectiveSystemPrompt);
   const experimentalFeatures = useSettingsStore((state) => state.general.experimentalFeatures);
   const agentEnabled = useAgentStore((state) => state.enabled) && experimentalFeatures;
   const workspaces = useAgentStore((state) => state.workspaces);

@@ -1,10 +1,7 @@
 import { create } from "zustand";
 import { getRepository } from "@/lib/repositories";
 import { Message, Conversation, Attachment, WebSearchEvent } from "@/types/chat";
-import { useAuthStore } from "@/store/authStore";
 import { getNextQueuedMessage } from "@/lib/chat/queue";
-import { deleteAgentChatSandbox } from "@/features/agent/agentClient";
-import { useAgentStore } from "@/features/agent/agentStore";
 
 async function getRepo() {
   return getRepository();
@@ -40,7 +37,10 @@ type ChatStore = {
   hasMoreMessages: boolean;
   currentAttachments: Attachment[];
   messageQueue: QueuedMessage[];
+  accountId: string | null;
+  deletedConversationIds: string[];
   actions: {
+    setAccountId: (accountId: string | null) => void;
     createConversation: (title?: string, isTemporary?: boolean, folderId?: string) => Promise<Conversation>;
     setActiveConversationId: (id: string | null) => Promise<void>;
     setStreamingConversationId: (id: string | null) => void;
@@ -73,7 +73,8 @@ type ChatStore = {
     deleteAllConversations: () => Promise<void>;
     archiveConversation: (id: string) => Promise<void>;
     unarchiveConversation: (id: string) => Promise<void>;
-    renameConversation: (id: string, newTitle: string) => Promise<void>;
+    renameConversation: (id: string, newTitle: string, titleSource?: "default" | "generated" | "manual") => Promise<void>;
+    setTitleGenerationStatus: (id: string, status: "idle" | "generating" | "done" | "failed") => void;
     deleteMessagesAfter: (
       conversationId: string,
       messageId: string,
@@ -85,6 +86,7 @@ type ChatStore = {
     dequeueMessage: (id: string) => void;
     clearQueue: (conversationId: string) => void;
     getNextQueued: (conversationId: string) => QueuedMessage | undefined;
+    clearFolderAssignments: (folderIds: Set<string>) => void;
   };
 };
 export const useChatStore = create<ChatStore>((set, get) => ({
@@ -97,10 +99,12 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   hasMoreMessages: false,
   currentAttachments: [],
   messageQueue: [],
+  accountId: null,
+  deletedConversationIds: [],
   actions: {
+    setAccountId: (accountId) => set({ accountId }),
     loadConversations: async () => {
-      const auth = useAuthStore.getState();
-      const userId = auth.user?.id || auth.guestId;
+      const userId = get().accountId;
       if (!userId) {
         set({ conversations: [], conversationsLoading: false, messages: [], hasMoreMessages: false, activeConversationId: null });
         return;
@@ -152,6 +156,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         isArchived: false,
         isTemporary,
         folderId,
+        titleSource: "default",
       };
       set((state) => ({
         conversations: [conversation, ...state.conversations],
@@ -162,8 +167,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       if (!isTemporary) {
         try {
           const r = await getRepo();
-          const auth = useAuthStore.getState();
-          const userId = auth.user?.id || auth.guestId;
+          const userId = get().accountId;
           await r.createConversation(id, title, userId || undefined, folderId);
         } catch (error) {
           console.error("Failed to persist conversation:", error);
@@ -259,10 +263,6 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         const r = await getRepo();
         await r.deleteConversation(id);
       }
-      void deleteAgentChatSandbox(id).catch((error) => {
-        console.warn("Failed to delete agent sandbox:", error);
-      });
-      useAgentStore.getState().actions.clearWorkspaceSelection(id);
 
       set((state) => {
         const newConversations = state.conversations.filter((c) => c.id !== id);
@@ -276,6 +276,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           conversations: newConversations,
           activeConversationId: newActiveId,
           messages: newMessages,
+          deletedConversationIds: [id],
         };
       });
     },
@@ -290,12 +291,6 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         const r = await getRepo();
         await r.deleteConversations(toDelete);
       }
-      ids.forEach((id) => {
-        void deleteAgentChatSandbox(id).catch((error) => {
-          console.warn("Failed to delete agent sandbox:", error);
-        });
-        useAgentStore.getState().actions.clearWorkspaceSelection(id);
-      });
 
       set((state) => {
         const newConversations = state.conversations.filter((c) => !ids.includes(c.id));
@@ -307,12 +302,12 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           conversations: newConversations,
           activeConversationId: newActiveId,
           messages: wasActive ? [] : state.messages,
+          deletedConversationIds: ids,
         };
       });
     },
     deleteAllConversations: async () => {
-      const auth = useAuthStore.getState();
-      const userId = auth.user?.id || auth.guestId;
+      const userId = get().accountId;
       if (!userId) return;
 
       const { conversations } = useChatStore.getState();
@@ -324,17 +319,12 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         const r = await getRepo();
         await r.deleteAllConversations(userId);
       }
-      userConversations.forEach((conversation) => {
-        void deleteAgentChatSandbox(conversation.id).catch((error) => {
-          console.warn("Failed to delete agent sandbox:", error);
-        });
-        useAgentStore.getState().actions.clearWorkspaceSelection(conversation.id);
-      });
 
       set({
         conversations: [],
         activeConversationId: null,
         messages: [],
+        deletedConversationIds: userConversations.map((conversation) => conversation.id),
       });
     },
     archiveConversation: async (id) => {
@@ -380,13 +370,19 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         ),
       }));
     },
-    renameConversation: async (id, newTitle) => {
+    renameConversation: async (id, newTitle, titleSource) => {
       const now = new Date().toISOString();
       const conversation = useChatStore.getState().conversations.find((c) => c.id === id);
 
       set((state) => ({
         conversations: state.conversations.map((c) =>
-          c.id === id ? { ...c, title: newTitle, updatedAt: now } : c,
+          c.id === id ? {
+            ...c,
+            title: newTitle,
+            updatedAt: now,
+            titleSource: titleSource ?? c.titleSource,
+            titleGeneratedAt: titleSource === "generated" ? now : c.titleGeneratedAt,
+          } : c,
         ),
       }));
 
@@ -399,6 +395,11 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         }
       }
     },
+    setTitleGenerationStatus: (id, status) => set((state) => ({
+      conversations: state.conversations.map((c) =>
+        c.id === id ? { ...c, titleGenerationStatus: status } : c,
+      ),
+    })),
     // Delete messages after a specific message ID (inclusive)
     deleteMessagesAfter: async (conversationId, messageId) => {
       const { conversations } = useChatStore.getState();
@@ -433,6 +434,14 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     getNextQueued: (conversationId) => {
       return getNextQueuedMessage(get().messageQueue, conversationId);
     },
+    clearFolderAssignments: (folderIds) =>
+      set((state) => ({
+        conversations: state.conversations.map((chat) =>
+          chat.folderId && folderIds.has(chat.folderId)
+            ? { ...chat, folderId: undefined }
+            : chat,
+        ),
+      })),
     addCurrentAttachment: (attachment) =>
       set((state) => ({
         currentAttachments: [...state.currentAttachments, attachment],

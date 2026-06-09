@@ -73,7 +73,7 @@ impl ProviderSelector {
         {
             let cache = self.health_cache.lock().await;
             for config in configs {
-                let config_id = config.id.unwrap_or(0);
+                let config_id = config.id;
 
                 if !config.enabled {
                     results.insert(config_id, ProviderStatus::Unavailable);
@@ -127,7 +127,7 @@ impl ProviderSelector {
             if !config.enabled {
                 continue;
             }
-            let config_id = config.id.unwrap_or(0);
+            let config_id = config.id;
             if !matches!(health.get(&config_id), Some(ProviderStatus::Online)) {
                 continue;
             }
@@ -173,7 +173,7 @@ impl ProviderSelector {
     pub async fn update_provider_config(
         &self,
         account_id: Option<&str>,
-        config_id: Option<i64>,
+        config_id: i64,
         provider_type: &ProviderType,
         enabled: bool,
         ollama_host: Option<String>,
@@ -188,69 +188,42 @@ impl ProviderSelector {
         let mut conn = self.pool.acquire().await.map_err(|e| e.to_string())?;
         let account_id = normalize_provider_account_id(account_id.unwrap_or(""));
 
-        if let Some(id) = config_id {
-            sqlx::query(
-                r#"
-                UPDATE provider_configs SET
-                    enabled = ?1,
-                    ollama_host = ?2,
-                    ollama_api_key = ?3,
-                    ollama_api_base_url = ?4,
-                    api_key = ?5,
-                    api_base_url = ?6,
-                    preset = ?7,
-                    headers = ?8,
-                    model_suggestions = ?9,
-                    updated_at = datetime('now')
-                WHERE id = ?10 AND account_id = ?11
-                "#,
-            )
-            .bind(enabled)
-            .bind(&ollama_host)
-            .bind(&ollama_api_key)
-            .bind(&ollama_api_base_url)
-            .bind(&api_key)
-            .bind(&api_base_url)
-            .bind(&preset)
-            .bind(&headers)
-            .bind(&model_suggestions)
-            .bind(id)
-            .bind(&account_id)
-            .execute(&mut *conn)
-            .await
-            .map_err(|e| e.to_string())?;
-        } else {
-            // Fallback: update by provider_type (legacy path)
-            sqlx::query(
-                r#"
-                UPDATE provider_configs SET
-                    enabled = ?1,
-                    ollama_host = ?2,
-                    ollama_api_key = ?3,
-                    ollama_api_base_url = ?4,
-                    api_key = ?5,
-                    api_base_url = ?6,
-                    preset = ?7,
-                    headers = ?8,
-                    model_suggestions = ?9,
-                    updated_at = datetime('now')
-                WHERE account_id = ?10 AND provider_type = ?11
-                "#,
-            )
-            .bind(enabled)
-            .bind(&ollama_host)
-            .bind(&ollama_api_key)
-            .bind(&ollama_api_base_url)
-            .bind(&api_key)
-            .bind(&api_base_url)
-            .bind(&preset)
-            .bind(&headers)
-            .bind(&model_suggestions)
-            .bind(&account_id)
-            .bind(provider_type)
-            .execute(&mut *conn)
-            .await
-            .map_err(|e| e.to_string())?;
+        let result = sqlx::query(
+            r#"
+            UPDATE provider_configs SET
+                enabled = ?1,
+                ollama_host = ?2,
+                ollama_api_key = ?3,
+                ollama_api_base_url = ?4,
+                api_key = ?5,
+                api_base_url = ?6,
+                preset = ?7,
+                headers = ?8,
+                model_suggestions = ?9,
+                updated_at = datetime('now')
+            WHERE id = ?10 AND account_id = ?11 AND provider_type = ?12
+            "#,
+        )
+        .bind(enabled)
+        .bind(&ollama_host)
+        .bind(&ollama_api_key)
+        .bind(&ollama_api_base_url)
+        .bind(&api_key)
+        .bind(&api_base_url)
+        .bind(&preset)
+        .bind(&headers)
+        .bind(&model_suggestions)
+        .bind(config_id)
+        .bind(&account_id)
+        .bind(provider_type)
+        .execute(&mut *conn)
+        .await
+        .map_err(|e| e.to_string())?;
+
+        if result.rows_affected() == 0 {
+            return Err(format!(
+                "Provider config id {config_id} was not found for account."
+            ));
         }
 
         self.health_cache.lock().await.clear();

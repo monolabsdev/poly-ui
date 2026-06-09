@@ -78,7 +78,7 @@ function ProviderCard({
 }: {
   provider: ProviderStatusResponse;
   updateProviderConfig: (config: {
-    id?: number;
+    id: number;
     provider_type: "OllamaLocal" | "OpenAICompatible";
     enabled?: boolean;
     ollama_host?: string;
@@ -392,7 +392,6 @@ export function ConnectionsTab() {
   const handleDelete = useCallback(
     async (provider: ProviderStatusResponse) => {
       const id = provider.config.id;
-      if (id == null) return;
       if (!confirm(`Delete "${lookupPreset(provider.config.preset, provider.config.api_base_url ?? null).label}" connection?`)) return;
       try {
         await actions.deleteProvider(id);
@@ -496,7 +495,7 @@ export function ConnectionsTab() {
       )}
 
       {providers.map((provider) => {
-        const key = provider.config.id ?? `${provider.provider_type}-${provider.config.api_base_url ?? "default"}`;
+        const key = provider.config.id;
         return (
           <ProviderCard
             key={key}

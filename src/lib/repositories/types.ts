@@ -7,6 +7,7 @@ export interface ConversationRepository {
   deleteConversation(id: string): Promise<void>;
   deleteConversations(ids: string[]): Promise<void>;
   deleteAllConversations(userId: string): Promise<void>;
+  clearConversationFolders(folderIds: string[]): Promise<void>;
 
   getMessages(conversationId: string, limit: number, offset: number): Promise<Message[]>;
   getAllMessages(userId?: string): Promise<Message[]>;

@@ -2,8 +2,6 @@ import { create } from "zustand";
 import { getRepository } from "@/lib/repositories";
 import { collectDescendantFolderIds } from "@/lib/folders";
 import { Folder, Attachment } from "@/types/chat";
-import { useAuthStore } from "@/store/authStore";
-import { useChatStore } from "@/store/chatStore";
 
 async function getRepo() {
   return getRepository();
@@ -13,7 +11,10 @@ type FolderStore = {
   folders: Folder[];
   foldersLoading: boolean;
   activeFolderId: string | null;
+  accountId: string | null;
+  deletedFolderIds: string[];
   actions: {
+    setAccountId: (accountId: string | null) => void;
     loadFolders: () => Promise<void>;
     createFolder: (name: string, opts?: { parentId?: string; backgroundImage?: string; systemPrompt?: string; contextFiles?: Attachment[] }) => Promise<Folder>;
     updateFolder: (id: string, updates: { name?: string; parentId?: string; backgroundImage?: string; systemPrompt?: string; contextFiles?: Attachment[] }) => Promise<void>;
@@ -26,13 +27,15 @@ export const useFolderStore = create<FolderStore>((set) => ({
   folders: [],
   foldersLoading: false,
   activeFolderId: null,
+  accountId: null,
+  deletedFolderIds: [],
   actions: {
+    setAccountId: (accountId) => set({ accountId }),
     loadFolders: async () => {
       set({ foldersLoading: true });
       try {
         const r = await getRepo();
-        const auth = useAuthStore.getState();
-        const userId = auth.user?.id || auth.guestId;
+        const userId = useFolderStore.getState().accountId;
         if (!userId) {
           set({ folders: [], activeFolderId: null, foldersLoading: false });
           return;
@@ -61,8 +64,7 @@ export const useFolderStore = create<FolderStore>((set) => ({
       }));
       try {
         const r = await getRepo();
-        const auth = useAuthStore.getState();
-        const userId = auth.user?.id || auth.guestId || undefined;
+        const userId = useFolderStore.getState().accountId || undefined;
         await r.createFolder(id, name, userId, opts.parentId);
         if (opts.backgroundImage || opts.systemPrompt || opts.contextFiles) {
           await r.updateFolder(id, {
@@ -111,24 +113,19 @@ export const useFolderStore = create<FolderStore>((set) => ({
       const state = useFolderStore.getState();
       const previousFolders = state.folders;
       const previousActiveFolderId = state.activeFolderId;
-      const previousConversations = useChatStore.getState().conversations;
       const descendantIds = collectDescendantFolderIds(state.folders, id);
-      const chats = previousConversations.filter((chat) => chat.folderId && descendantIds.has(chat.folderId));
       set((state) => ({
         folders: state.folders.filter((f) => !descendantIds.has(f.id)),
         activeFolderId: state.activeFolderId && descendantIds.has(state.activeFolderId) ? null : state.activeFolderId,
       }));
       try {
         const r = await getRepo();
-        await Promise.all(chats.map((chat) => r.updateConversation(chat.id, { folderId: null })));
+        await r.clearConversationFolders([...descendantIds]);
         await Promise.all([...descendantIds].map((folderId) => r.deleteFolder(folderId)));
-        useChatStore.setState((state) => ({
-          conversations: state.conversations.map((chat) => chat.folderId && descendantIds.has(chat.folderId) ? { ...chat, folderId: undefined } : chat),
-        }));
+        set({ deletedFolderIds: [...descendantIds] });
       } catch (error) {
         console.error("Failed to delete folder:", error);
         set({ folders: previousFolders, activeFolderId: previousActiveFolderId });
-        useChatStore.setState({ conversations: previousConversations });
         throw error;
       }
     },

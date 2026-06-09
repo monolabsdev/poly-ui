@@ -23,8 +23,96 @@ type GenerateTitleArgs = {
 const pendingTitleGenerations = new Set<string>();
 const TITLE_GENERATION_DELAY_MS = 0;
 
-function hasCustomTitle(conversation: { title: string }): boolean {
+const REJECTED_TITLES = new Set([
+  "new chat", "untitled", "chat", "conversation", "help",
+  "greeting", "greetings", "hi", "hello", "hey",
+]);
+
+function hasCustomTitle(conversation: { title: string; titleSource?: string }): boolean {
+  if (conversation.titleSource === "manual") return true;
+  if (conversation.titleSource === "generated") return true;
   return Boolean(conversation.title) && conversation.title !== "New Chat";
+}
+
+export function sanitizeTitle(raw: string | null | undefined, userMessage?: string): string | null {
+  if (!raw) return null;
+  let t = raw.trim();
+  if (!t || t.length < 2) return null;
+  if (t.includes("\n")) return null;
+  if (/```/.test(t)) return null;
+  t = t.replace(/[<>]/g, "");
+  t = t.replace(/^["'`]+|["'`]+$/g, "");
+  t = t.replace(/\.$/, "");
+  t = t.replace(/[#*_~`>|\\]/g, "");
+  t = t.replace(/\s+/g, " ");
+  if (t.length > 48) return null;
+  if (userMessage) {
+    const userNorm = userMessage.replace(/[^a-z0-9\s]/gi, "").toLowerCase().trim();
+    const titleNorm = t.replace(/[^a-z0-9\s]/gi, "").toLowerCase().trim();
+    if (userNorm.startsWith(titleNorm) && userNorm.length > titleNorm.length) return null;
+  }
+  const lower = t.toLowerCase();
+  if (REJECTED_TITLES.has(lower)) return null;
+  if (/^(i|i'm|i'll|i'd|i've|me|my|you|your|we|let's)\b/i.test(t)) return null;
+  if (t.includes("{") && t.includes("}")) {
+    const braceCount = (t.match(/{/g) || []).length + (t.match(/}/g) || []).length;
+    if (braceCount > 4) return null;
+  }
+  if (/function\s*\(|tool_call|<\|(fim|channel)|\$\{|process\.\w+/.test(t)) return null;
+  if (/^\d+$/.test(t)) return null;
+  return t;
+}
+
+export function fallbackFromFirstUser(content: string): string {
+  let clean = content
+    .replace(/```[\s\S]*?```/g, "")
+    .replace(/`[^`]*`/g, "")
+    .replace(/[`"'\u201C\u201D]/g, "")
+    .trim();
+  if (clean.length > 40) clean = clean.slice(0, 40).trimEnd();
+
+  const fileMatch = content.match(/(?:edit|create|add|update|delete|remove|rename)\s+.*?(\S+\.\w+)/i);
+  if (fileMatch) return `Edit ${fileMatch[1]}`;
+
+  const topicPatterns = [
+    /(?:help\s+me\s+)?(?:understand|learn|explain|know|figure\s+out)\s+(?:what|how|why|about\s+)?(.+)/i,
+    /(?:tell|talk|speak)\s+me\s+about\s+(.+)/i,
+    /(?:i\s+need\s+(?:you\s+to\s+)?|could\s+you|can\s+you|would\s+you)\s+(?:help\s+)?(.+)/i,
+    /what\s+is\s+(.+)/i,
+    /explain\s+(.+)/i,
+    /describe\s+(.+)/i,
+    /show\s+me\s+(.+)/i,
+  ];
+  for (const pat of topicPatterns) {
+    const m = content.match(pat);
+    if (m) {
+      const topic = m[1]
+        .replace(/[?.!,;]+$/, "")
+        .replace(/\s+/g, " ")
+        .trim();
+      if (topic && topic.length >= 3) {
+        const topicWords = topic.split(/\s+/).slice(0, 5);
+        if (topicWords.length < 4) return topicWords.join(" ");
+        return topicWords.map((w, i) => i === 0 ? w.charAt(0).toUpperCase() + w.slice(1) : w).join(" ");
+      }
+    }
+  }
+
+  const qwords = clean.split(/\s+/);
+  const first = qwords[0]?.toLowerCase() ?? "";
+  const questionWords = ["what", "how", "why", "when", "where", "who", "is", "are", "can", "does", "do", "explain", "describe"];
+  if (questionWords.includes(first)) {
+    const rest = qwords.slice(1, 5);
+    if (rest.length === 0) return first.charAt(0).toUpperCase() + first.slice(1);
+    return rest.map((w, i) => {
+      const stripped = w.replace(/[?.!,;]+$/, "");
+      return i === 0 ? stripped.charAt(0).toUpperCase() + stripped.slice(1) : stripped;
+    }).filter(Boolean).join(" ");
+  }
+
+  const words = qwords.slice(0, 6);
+  if (words.length === 1) return words[0].charAt(0).toUpperCase() + words[0].slice(1);
+  return words.map((w, i) => i === 0 ? w.charAt(0).toUpperCase() + w.slice(1) : w).join(" ");
 }
 
 export function shouldGenerateTitle(conversationId: string): boolean {
@@ -38,9 +126,11 @@ export function shouldGenerateTitle(conversationId: string): boolean {
   const conversationMessages = messages.filter(
     (message) => message.conversationId === conversationId,
   );
-  const userCount = conversationMessages.filter((message) => message.role === "user").length;
-
-  return userCount === 1;
+  const hasUser = conversationMessages.some((message) => message.role === "user");
+  const hasAssistant = conversationMessages.some(
+    (m) => m.role === "assistant" && m.content?.trim() && m.status === "complete",
+  );
+  return hasUser && hasAssistant;
 }
 
 export function queueTitleGeneration({
@@ -77,6 +167,28 @@ export function retryTitleForConversation(conversationId: string): void {
   scheduleTitleGeneration(conversationId, model, providerType);
 }
 
+export function triggerTitleGeneration(conversationId: string): void {
+  if (pendingTitleGenerations.has(conversationId)) return;
+  const { conversations } = useChatStore.getState();
+  const conv = conversations.find((c) => c.id === conversationId);
+  if (!conv || conv.isTemporary) return;
+  if (hasCustomTitle(conv)) return;
+
+  const { messages } = useChatStore.getState();
+  const convMessages = messages.filter((m) => m.conversationId === conversationId);
+  const firstUser = convMessages.find((m) => m.role === "user");
+  const lastAssistant = [...convMessages].reverse().find(
+    (m) => m.role === "assistant" && m.content?.trim() && m.status === "complete",
+  );
+  if (!firstUser || !lastAssistant) return;
+
+  const model = lastAssistant.model ?? "";
+  const providerType = lastAssistant.provider;
+  if (!model) return;
+
+  scheduleTitleGeneration(conversationId, model, providerType);
+}
+
 function scheduleTitleGeneration(
   conversationId: string,
   model: string,
@@ -84,14 +196,12 @@ function scheduleTitleGeneration(
   userName?: string,
 ): void {
   pendingTitleGenerations.add(conversationId);
+  useChatStore.getState().actions.setTitleGenerationStatus?.(conversationId, "generating");
 
   window.setTimeout(() => {
     void generateAndApplyTitle(conversationId, model, providerType, userName)
       .catch((error) => {
         console.warn("Title generation failed", error);
-      })
-      .finally(() => {
-        pendingTitleGenerations.delete(conversationId);
       });
   }, TITLE_GENERATION_DELAY_MS);
 }
@@ -103,25 +213,57 @@ async function generateAndApplyTitle(
   userName?: string,
 ): Promise<void> {
   const { messages } = useChatStore.getState();
-  const conversationMessages = messages
-    .filter((message) => message.conversationId === conversationId)
-    .slice(-2);
+  const convMessages = messages.filter((m) => m.conversationId === conversationId);
+  const firstUser = convMessages.find((m) => m.role === "user");
+  const firstAssistant = [...convMessages].reverse().find(
+    (m) => m.role === "assistant" && m.content?.trim() && m.status === "complete",
+  );
+  const titleMessages: ChatMessage[] = [];
+  if (firstUser) titleMessages.push(firstUser);
+  if (firstAssistant) titleMessages.push(firstAssistant);
+  if (titleMessages.length < 2) {
+    pendingTitleGenerations.delete(conversationId);
+    useChatStore.getState().actions.setTitleGenerationStatus?.(conversationId, "failed");
+    return;
+  }
 
-  const title = await loggedInvoke<string | null>("generate_chat_title", {
-    model,
-    messages: conversationMessages.map(toBackendMessage),
-    userName,
-    providerType,
-    accountId: getCurrentProviderAccountId(),
-  });
+  let title: string | null = null;
+  try {
+    title = await loggedInvoke<string | null>("generate_chat_title", {
+      model,
+      messages: titleMessages.map(toBackendMessage),
+      userName,
+      providerType,
+      accountId: getCurrentProviderAccountId(),
+    });
+  } catch (err) {
+    console.warn("Title generation invoke failed", err);
+  }
 
-  if (!title?.trim()) return;
+  let finalTitle = sanitizeTitle(title, firstUser?.content);
+  if (!finalTitle && firstUser) {
+    finalTitle = fallbackFromFirstUser(firstUser.content);
+  }
 
   const { conversations, actions } = useChatStore.getState();
   const conversation = conversations.find((c) => c.id === conversationId);
-  if (!conversation || hasCustomTitle(conversation)) return;
+  if (!conversation) {
+    pendingTitleGenerations.delete(conversationId);
+    return;
+  }
+  if (hasCustomTitle(conversation)) {
+    pendingTitleGenerations.delete(conversationId);
+    return;
+  }
 
-  await actions.renameConversation(conversationId, title.trim());
+  if (finalTitle) {
+    await actions.renameConversation(conversationId, finalTitle, "generated");
+    actions.setTitleGenerationStatus?.(conversationId, "done");
+  } else {
+    actions.setTitleGenerationStatus?.(conversationId, "failed");
+  }
+
+  pendingTitleGenerations.delete(conversationId);
 }
 
 function toBackendMessage(message: ChatMessage): BackendChatMessage {

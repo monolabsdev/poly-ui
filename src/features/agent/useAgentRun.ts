@@ -7,6 +7,7 @@ import { appendAgentEvent } from "./activity";
 import { cancelAgent, listenToAgentEvents, runAgent } from "./agentClient";
 import { detectFileEditIntent, extractFileMentions } from "./context";
 import { sanitizeOutput } from "@/lib/chat/sanitize";
+import { triggerTitleGeneration } from "@/lib/chat/title-generation";
 import type { AgentMessageState, AgentResolvedContext, AgentRunStatus, AgentWorkspaceSelection, PermissionPreset } from "./types";
 import {
   applyOutputDelta,
@@ -148,6 +149,10 @@ export function useAgentRun({ selectedModels, selectedProviders }: UseAgentRunAr
       setStreamingConversationId(null);
       activeRef.current = null;
       setStatus(agent.status);
+
+      if (agent.status === "completed") {
+        triggerTitleGeneration(active.conversationId);
+      }
     },
     [addMessage, setStreamingConversationId, setStreamingMessage],
   );

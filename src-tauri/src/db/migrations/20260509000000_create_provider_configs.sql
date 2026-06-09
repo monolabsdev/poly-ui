@@ -1,22 +1,34 @@
--- Migration: Create provider_configs table
 CREATE TABLE IF NOT EXISTS provider_configs (
-    provider_type TEXT PRIMARY KEY,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    account_id TEXT NOT NULL DEFAULT '',
+    provider_type TEXT NOT NULL,
     enabled INTEGER NOT NULL DEFAULT 1,
     ollama_host TEXT,
     ollama_api_key TEXT,
     ollama_api_base_url TEXT,
+    api_key TEXT,
+    api_base_url TEXT,
+    preset TEXT,
+    headers TEXT,
+    model_suggestions TEXT,
     priority INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
--- Insert default Ollama Local config
-INSERT OR IGNORE INTO provider_configs (provider_type, enabled, ollama_host, priority)
-VALUES ('OllamaLocal', 1, 'http://127.0.0.1:11434', 0);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_provider_configs_unique_connection
+ON provider_configs (
+    account_id,
+    provider_type,
+    COALESCE(ollama_host, ''),
+    COALESCE(api_base_url, ''),
+    COALESCE(preset, '')
+);
 
--- Force update localhost to 127.0.0.1 for reliability on Windows if it hasn't been customized
-UPDATE provider_configs 
-SET ollama_host = 'http://127.0.0.1:11434' 
-WHERE provider_type = 'OllamaLocal' AND ollama_host = 'http://localhost:11434';
+INSERT OR IGNORE INTO provider_configs (account_id, provider_type, enabled, ollama_host, priority)
+VALUES ('', 'OllamaLocal', 1, 'http://127.0.0.1:11434', 0);
+
+INSERT OR IGNORE INTO provider_configs (account_id, provider_type, enabled, api_base_url, priority)
+VALUES ('', 'OpenAICompatible', 0, 'https://api.openai.com/v1', 1);
 
 

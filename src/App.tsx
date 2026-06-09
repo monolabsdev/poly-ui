@@ -175,7 +175,7 @@ function App() {
 
   const handleRenameConversation = useCallback(
     async (id: string, newTitle: string) => {
-      await renameConversation(id, newTitle);
+      await renameConversation(id, newTitle, "manual");
     },
     [renameConversation],
   );

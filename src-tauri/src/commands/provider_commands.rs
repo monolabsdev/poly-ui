@@ -57,7 +57,7 @@ async fn try_preload_models(
 }
 
 fn config_health_key(config: &ProviderConfig) -> i64 {
-    config.id.unwrap_or(0)
+    config.id
 }
 
 #[tauri::command]
@@ -144,8 +144,7 @@ pub async fn get_provider_models(
 pub struct UpdateProviderConfigRequest {
     pub provider_type: ProviderType,
     pub enabled: bool,
-    #[serde(default)]
-    pub id: Option<i64>,
+    pub id: i64,
     #[serde(default)]
     pub ollama_host: Option<String>,
     #[serde(default)]
