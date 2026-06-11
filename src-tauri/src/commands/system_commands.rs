@@ -170,7 +170,11 @@ fn changed_files_without_git(workspace: &Path) -> Result<Vec<ChangedFile>, Strin
     Ok(files)
 }
 
-fn collect_plain_files(root: &Path, dir: &Path, files: &mut Vec<ChangedFile>) -> Result<(), String> {
+fn collect_plain_files(
+    root: &Path,
+    dir: &Path,
+    files: &mut Vec<ChangedFile>,
+) -> Result<(), String> {
     for entry in std::fs::read_dir(dir).map_err(|err| err.to_string())? {
         let entry = entry.map_err(|err| err.to_string())?;
         let path = entry.path();

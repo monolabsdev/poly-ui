@@ -60,7 +60,7 @@ export const featureRegistry: FeatureDef[] = [
     id: "reasoning",
     name: "Reasoning",
     kind: "toggle",
-    description: "Enable thinking for reasoning models (DeepSeek, Qwen3, GPT-OSS)",
+    description: "Enable thinking for reasoning models (DeepSeek, Qwen3)",
     icon: Brain,
     useIsActive: () => useSettingsStore((state) => state.general.reasoningEnabled),
     getIsActive: () => useSettingsStore.getState().general.reasoningEnabled,

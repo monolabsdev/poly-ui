@@ -5,9 +5,27 @@ import {
   Paperclip,
   Image as ImageIcon,
   AlertTriangle,
+  Mic,
+  X,
 } from "lucide-react";
 import { useState, memo, useEffect, useCallback, useMemo } from "react";
-import { Box, InputBase, IconButton, Typography, Tooltip } from "@mui/material";
+import {
+  Box,
+  Button,
+  Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  InputBase,
+  IconButton,
+  LinearProgress,
+  Stack,
+  Typography,
+  Tooltip,
+  useTheme,
+} from "@mui/material";
+import StopIcon from "@mui/icons-material/Stop";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -20,8 +38,14 @@ import { motion, AnimatePresence } from "motion/react";
 import { useTiming } from "@/lib/motion";
 import { useFeatures, type FeatureDef } from "@/lib/featureRegistry";
 import { useChatAttachments } from "@/hooks/useChatAttachments";
-import { useChatTextarea } from "@/hooks/useChatTextarea";
+import {
+  useAutoResizeTextarea,
+  MAX_HEIGHT,
+} from "@/hooks/useAutoResizeTextarea";
 import { useSlashCommand } from "@/hooks/useSlashCommand";
+import { Ring2 } from "ldrs/react";
+import "ldrs/react/Ring2.css";
+import { useDictation } from "@/lib/useDictation";
 import { ActiveFeaturesList } from "@/components/Chat/ChatInput/ActiveFeaturesList";
 import { SlashCommandMenu } from "@/components/Chat/ChatInput/SlashCommandMenu";
 import { ChatAttachmentsList } from "@/components/Chat/ChatInput/ChatAttachmentsList";
@@ -51,6 +75,14 @@ export const ChatInput = memo(function ChatInput({
   conversationId,
 }: ChatInputProps) {
   const [draft, setDraft] = useState("");
+  const [pastedPreview, setPastedPreview] = useState<{
+    id: string;
+    text: string;
+    preview: string;
+    lines: number;
+    chars: number;
+  } | null>(null);
+  const theme = useTheme();
   const timing = useTiming();
   const experimentalFeatures = useSettingsStore(
     (state) => state.general.experimentalFeatures,
@@ -82,7 +114,39 @@ export const ChatInput = memo(function ChatInput({
     handlePaste,
   } = useChatAttachments();
 
-  const textareaRef = useChatTextarea(draft);
+  const handleTextPaste = useCallback((e: React.ClipboardEvent) => {
+    const text = e.clipboardData.getData("text/plain");
+    if (!text) return;
+    const lines = text.split("\n").length;
+    const chars = text.length;
+    if (chars > 500 || lines > 5) {
+      e.preventDefault();
+      e.stopPropagation();
+      setPastedPreview({
+        id: crypto.randomUUID(),
+        text,
+        preview: text.split("\n").slice(0, 3).join("\n").slice(0, 250),
+        lines,
+        chars,
+      });
+    }
+  }, []);
+
+  const handlePasteCombined = useCallback(
+    (e: React.ClipboardEvent) => {
+      handleTextPaste(e);
+      if (!e.defaultPrevented) {
+        handlePaste(e);
+      }
+    },
+    [handlePaste, handleTextPaste],
+  );
+
+  const dismissPastedPreview = useCallback(() => {
+    setPastedPreview(null);
+  }, []);
+
+  const textareaRef = useAutoResizeTextarea(draft);
   const { showSlashMenu, slashQuery, closeSlashMenu } = useSlashCommand(draft);
 
   const features = useFeatures();
@@ -109,18 +173,56 @@ export const ChatInput = memo(function ChatInput({
     [features],
   );
 
-  const hasContent = draft.trim() || currentAttachments.length > 0;
+  const hasContent =
+    draft.trim() || currentAttachments.length > 0 || !!pastedPreview;
+  const appendTranscript = useCallback((text: string) => {
+    const transcript = text.trim();
+    if (!transcript) return;
+
+    setDraft((previous) =>
+      previous.trim() ? `${previous.trimEnd()} ${transcript}` : transcript,
+    );
+  }, []);
+  const {
+    recording,
+    start,
+    stop,
+    installOpen,
+    models,
+    selectedModelId,
+    installingModelId,
+    downloadProgress,
+    closeInstall,
+    installModel,
+    selectInstalledModel,
+    processing,
+  } = useDictation(appendTranscript);
+
+  const downloadPercent =
+    downloadProgress?.totalBytes && downloadProgress.totalBytes > 0
+      ? Math.round(
+          (downloadProgress.downloadedBytes / downloadProgress.totalBytes) *
+            100,
+        )
+      : null;
 
   // Feature flag: toggle to disable image uploads in the attachment menu.
   const canUploadImages = true;
 
   const handleSubmit = useCallback(() => {
-    if (!hasContent) return;
+    if (!hasContent && !pastedPreview) return;
     if (agentEnabled && !hasWorkspace) return;
 
-    onSubmit(draft);
+    const finalText = pastedPreview
+      ? draft.trim()
+        ? `${draft}\n\n${pastedPreview.text}`
+        : pastedPreview.text
+      : draft;
+
+    onSubmit(finalText);
     setDraft("");
-  }, [hasContent, agentEnabled, hasWorkspace, draft, onSubmit]);
+    setPastedPreview(null);
+  }, [hasContent, agentEnabled, hasWorkspace, draft, pastedPreview, onSubmit]);
 
   const handleAction = useCallback(() => {
     if (isStreaming) {
@@ -323,7 +425,7 @@ export const ChatInput = memo(function ChatInput({
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={handleKeyDown}
-              onPaste={handlePaste}
+              onPaste={handlePasteCombined}
               onFocus={() => onFocusChange?.(true)}
               onBlur={() => onFocusChange?.(false)}
               sx={{
@@ -334,6 +436,13 @@ export const ChatInput = memo(function ChatInput({
                 pt: 1,
                 "& .MuiInputBase-input": {
                   p: 0,
+                  maxHeight: `${MAX_HEIGHT}px`, // Add this
+                  overflowY: "auto", // Add this
+                  transition: (theme) =>
+                    theme.transitions.create("height", {
+                      duration: theme.transitions.duration.short,
+                      easing: theme.transitions.easing.easeOut,
+                    }),
                   "&::placeholder": {
                     color: "text.secondary",
                     opacity: 1,
@@ -341,6 +450,93 @@ export const ChatInput = memo(function ChatInput({
                 },
               }}
             />
+
+            <AnimatePresence>
+              {pastedPreview && (
+                <Box
+                  component={motion.div}
+                  initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+                  animate={{ opacity: 1, height: "auto", marginBottom: 0 }}
+                  exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+                  transition={{
+                    duration: timing.duration("base"),
+                    ease: timing.ease,
+                  }}
+                  sx={{
+                    mx: 1.5,
+                    mt: 1,
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: 1.5,
+                    p: 1.5,
+                    borderRadius: "12px",
+                    bgcolor: "action.selected",
+                    border: "1px solid",
+                    borderColor: "divider",
+                    overflow: "hidden",
+                  }}
+                >
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1,
+                        mb: 0.25,
+                      }}
+                    >
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          fontWeight: 700,
+                          color: "primary.main",
+                          fontSize: "11px",
+                          letterSpacing: "0.08em",
+                          textTransform: "uppercase",
+                        }}
+                      >
+                        PASTED
+                      </Typography>
+                      <Typography
+                        variant="caption"
+                        sx={{ color: "text.disabled" }}
+                      >
+                        {pastedPreview.lines} lines · {pastedPreview.chars}{" "}
+                        chars
+                      </Typography>
+                    </Box>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        color: "text.secondary",
+                        whiteSpace: "pre-wrap",
+                        overflow: "hidden",
+                        display: "-webkit-box",
+                        WebkitLineClamp: 3,
+                        WebkitBoxOrient: "vertical",
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      {pastedPreview.preview}
+                    </Typography>
+                  </Box>
+                  <IconButton
+                    size="small"
+                    onClick={dismissPastedPreview}
+                    aria-label="Remove pasted content"
+                    sx={{
+                      mt: 0.25,
+                      flexShrink: 0,
+                      color: "text.secondary",
+                      p: 0.5,
+                      "&:hover": { bgcolor: "action.hover" },
+                    }}
+                  >
+                    <X size={14} />
+                  </IconButton>
+                </Box>
+              )}
+            </AnimatePresence>
 
             <Box
               sx={{
@@ -442,7 +638,7 @@ export const ChatInput = memo(function ChatInput({
                                 >
                                   <AlertTriangle
                                     size={14}
-                                    style={{ color: "orange" }}
+                                    color={theme.palette.warning.main}
                                   />
                                 </Box>
                               </Tooltip>
@@ -483,12 +679,55 @@ export const ChatInput = memo(function ChatInput({
                 }}
               >
                 <IconButton
+                  onClick={recording ? stop : start}
+                  disabled={isStreaming}
+                  aria-label={recording ? "Stop dictation" : "Start dictation"}
+                  sx={{
+                    width: 32,
+                    height: 32,
+                    p: 0,
+                    color: recording
+                      ? theme.palette.error.main
+                      : theme.palette.text.secondary,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    mb: 0.5,
+                    "&.Mui-disabled": {
+                      color: theme.palette.text.disabled,
+                    },
+                  }}
+                >
+                  {processing ? (
+                    <Box
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        lineHeight: 0,
+                      }}
+                    >
+                      <Ring2
+                        size={16}
+                        stroke="3"
+                        strokeLength="0.28"
+                        bgOpacity="0.2"
+                        speed="0.8"
+                        color={theme.palette.text.secondary}
+                      />
+                    </Box>
+                  ) : recording ? (
+                    <StopIcon sx={{ fontSize: 20 }} />
+                  ) : (
+                    <Mic size={18} />
+                  )}
+                </IconButton>
+                <IconButton
                   onClick={handleAction}
                   disabled={
                     isStreaming
                       ? false
-                      : !hasContent ||
-                        (agentEnabled && !hasWorkspace)
+                      : !hasContent || (agentEnabled && !hasWorkspace)
                   }
                   aria-label={isStreaming ? "Stop generation" : "Send message"}
                   sx={{
@@ -603,6 +842,147 @@ export const ChatInput = memo(function ChatInput({
           </Box>
         )}
       </Box>
+
+      <Dialog
+        open={installOpen}
+        onClose={closeInstall}
+        fullWidth
+        maxWidth="sm"
+        slotProps={{
+          paper: {
+            sx: {
+              bgcolor: "background.paper",
+              border: "1px solid",
+              borderColor: "divider",
+            },
+          },
+        }}
+      >
+        <DialogTitle sx={{ pb: 1 }}>Install dictation model</DialogTitle>
+        <DialogContent sx={{ pt: 1 }}>
+          <Typography variant="body2" sx={{ color: "text.secondary", mb: 2 }}>
+            Dictation runs locally. Choose a Whisper model to download before
+            recording.
+          </Typography>
+
+          <Stack spacing={1.25}>
+            {models.map((model) => {
+              const installing = installingModelId === model.id;
+              const selected = selectedModelId === model.id;
+              const actionLabel = model.installed ? "Use" : "Download";
+
+              return (
+                <Box
+                  key={model.id}
+                  sx={{
+                    border: "1px solid",
+                    borderColor: selected ? "primary.main" : "divider",
+                    borderRadius: 1,
+                    p: 1.5,
+                    bgcolor: selected ? "action.selected" : "background.paper",
+                  }}
+                >
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "flex-start",
+                      justifyContent: "space-between",
+                      gap: 2,
+                    }}
+                  >
+                    <Box sx={{ minWidth: 0 }}>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 1,
+                          mb: 0.5,
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        <Typography variant="subtitle2">
+                          {model.name}
+                        </Typography>
+                        {model.recommended && (
+                          <Chip
+                            label="Recommended"
+                            size="small"
+                            color="primary"
+                            variant="outlined"
+                          />
+                        )}
+                        {model.installed && (
+                          <Chip label="Installed" size="small" />
+                        )}
+                      </Box>
+                      <Typography
+                        variant="body2"
+                        sx={{ color: "text.secondary" }}
+                      >
+                        {model.description}
+                      </Typography>
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          color: "text.secondary",
+                          display: "block",
+                          mt: 1,
+                        }}
+                      >
+                        {model.sizeLabel} / {model.speedLabel} /{" "}
+                        {model.qualityLabel}
+                      </Typography>
+                    </Box>
+
+                    <Button
+                      size="small"
+                      variant={model.installed ? "outlined" : "contained"}
+                      disabled={!!installingModelId}
+                      onClick={() =>
+                        model.installed
+                          ? selectInstalledModel(model.id)
+                          : installModel(model.id)
+                      }
+                    >
+                      {installing ? "Downloading" : actionLabel}
+                    </Button>
+                  </Box>
+
+                  {installing && (
+                    <Box sx={{ mt: 1.5 }}>
+                      <LinearProgress
+                        variant={
+                          downloadPercent === null
+                            ? "indeterminate"
+                            : "determinate"
+                        }
+                        value={downloadPercent ?? undefined}
+                      />
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          color: "text.secondary",
+                          display: "block",
+                          mt: 0.75,
+                        }}
+                      >
+                        {downloadPercent === null
+                          ? "Starting download..."
+                          : `${downloadPercent}% downloaded`}
+                      </Typography>
+                    </Box>
+                  )}
+                </Box>
+              );
+            })}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={closeInstall} disabled={!!installingModelId}>
+            Cancel
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 });

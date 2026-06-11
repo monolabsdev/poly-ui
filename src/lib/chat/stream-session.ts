@@ -56,6 +56,11 @@ export class StreamSession {
     const content = previous + payload.content;
     this.accumulator.content[payload.request_id] = content;
 
+    if (payload.thinking) {
+      const prevThinking = this.accumulator.thinking[payload.request_id] ?? "";
+      this.accumulator.thinking[payload.request_id] = prevThinking + payload.thinking;
+    }
+
     if (!payload.done) {
       this.accumulator.queueTokenBatch(messageId, content);
       return null;

@@ -97,24 +97,13 @@ fn normalize_msg(msg: &str, raw: String) -> String {
     raw
 }
 
-fn is_gpt_oss_model(model: &str) -> bool {
-    let normalized = model.to_ascii_lowercase().replace('_', "-");
-    normalized.contains("gpt-oss")
-}
-
 fn is_gemma_think_token_model(model: &str) -> bool {
     let normalized = model.to_ascii_lowercase().replace('_', "-");
     normalized.contains("gemma4") || normalized.contains("gemma-4")
 }
 
-fn think_type_for_model(model: &str, reasoning_enabled: bool) -> ThinkType {
-    if is_gpt_oss_model(model) {
-        if reasoning_enabled {
-            ThinkType::Medium
-        } else {
-            ThinkType::Low
-        }
-    } else if reasoning_enabled {
+fn think_type_for_model(_model: &str, reasoning_enabled: bool) -> ThinkType {
+    if reasoning_enabled {
         ThinkType::True
     } else {
         ThinkType::False
@@ -249,7 +238,6 @@ impl LLMProvider for OllamaProvider {
                 request.options = Some(model_opts);
             }
         } else {
-            // Default reasoning off; GPT-OSS uses "low" because it does not accept false.
             request.think = Some(think_type_for_model(&model, false));
         }
 
@@ -413,6 +401,26 @@ mod tests {
                 "required": ["title"]
             })),
             Some(FormatType::StructuredJson(_))
+        ));
+    }
+
+    #[test]
+    fn sends_correct_think_type() {
+        assert!(matches!(
+            think_type_for_model("llama3.2", true),
+            ThinkType::True
+        ));
+        assert!(matches!(
+            think_type_for_model("deepseek-r1", true),
+            ThinkType::True
+        ));
+        assert!(matches!(
+            think_type_for_model("llama3.2", false),
+            ThinkType::False
+        ));
+        assert!(matches!(
+            think_type_for_model("deepseek-r1", false),
+            ThinkType::False
         ));
     }
 }

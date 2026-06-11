@@ -305,7 +305,9 @@ async fn fix_migration_checksums(pool: &SqlitePool) -> Result<(), String> {
             .and_then(|s| s.to_str())
             .ok_or("Invalid migration filename")?;
         let version_str = stem.split('_').next().ok_or("Missing version prefix")?;
-        let version: i64 = version_str.parse().map_err(|e| format!("Bad version: {e}"))?;
+        let version: i64 = version_str
+            .parse()
+            .map_err(|e| format!("Bad version: {e}"))?;
 
         if let Some((_, stored_checksum)) = applied.iter().find(|(v, _)| *v == version) {
             let content = std::fs::read(&path).map_err(|e| e.to_string())?;

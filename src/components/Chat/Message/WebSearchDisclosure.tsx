@@ -29,7 +29,6 @@ export const WebSearchDisclosure = React.memo(
   }: WebSearchDisclosureProps) => {
     const count = results?.length ?? 0;
     const hasResults = !isSearching && count > 0;
-    if (!query.trim() && !isSearching && count === 0) return null;
 
     const label = useMemo(
       () =>
@@ -41,6 +40,8 @@ export const WebSearchDisclosure = React.memo(
       () => (hasResults ? `- ${count} source${count === 1 ? "" : "s"}` : ""),
       [hasResults, count],
     );
+
+    if (!query.trim() && !isSearching && count === 0) return null;
 
     const truncate = (text: string) =>
       text.length > MAX_HIGHLIGHT_LENGTH

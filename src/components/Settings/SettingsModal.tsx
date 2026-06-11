@@ -245,7 +245,7 @@ export function SettingsModal({ isOpen, onClose, initialTab = "general" }: Setti
               {activeTab === "data-controls" && <DataControlsTab />}
               {activeTab === "about" && <AboutTab />}
               {activeTab === "advanced" && <AdvancedTab />}
-              {activeTab === "developer" && <DeveloperTab />}
+              {activeTab === "developer" && <DeveloperTab onClose={onClose} />}
             </Box>
           </AppDialogBody>
         </Box>
@@ -254,7 +254,7 @@ export function SettingsModal({ isOpen, onClose, initialTab = "general" }: Setti
   );
 }
 
-function DeveloperTab() {
+function DeveloperTab({ onClose }: { onClose: () => void }) {
   const notify = useNotify();
   const [sql, setSql] = useState("");
   const [isExecuting, setIsExecuting] = useState(false);
@@ -429,6 +429,23 @@ function DeveloperTab() {
           Clear
         </Button>
       } />
+      <SettingCard
+        title="Test Release Notes"
+        description="Show the release notes modal with confetti for the current version."
+        action={
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={() => {
+              window.dispatchEvent(new CustomEvent("force-release-notes"));
+              onClose();
+            }}
+            sx={{ textTransform: "none", fontWeight: 700 }}
+          >
+            Show
+          </Button>
+        }
+      />
       <SettingCard
         title="Deactivate Dev Mode"
         description="Exit developer mode and hide this tab."

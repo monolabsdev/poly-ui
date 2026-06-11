@@ -39,6 +39,11 @@ const AuthModal = lazy(() =>
     default: module.AuthModal,
   })),
 );
+const ReleaseNotesModal = lazy(() =>
+  import("@/features/release-notes/ReleaseNotesModal").then((module) => ({
+    default: module.ReleaseNotesModal,
+  })),
+);
 const ChatWorkspace = lazy(() => import("@/components/Chat/ChatWorkspace"));
 
 function App() {
@@ -281,6 +286,9 @@ function App() {
       ) : null}
       <Suspense fallback={null}>
         <AuthModal />
+      </Suspense>
+      <Suspense fallback={null}>
+        <ReleaseNotesModal />
       </Suspense>
     </SidebarProvider>
   );

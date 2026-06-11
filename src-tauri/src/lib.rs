@@ -9,23 +9,28 @@ mod title_generator;
 mod tool_loop;
 mod updater;
 mod web_search;
+mod whisper_state;
 
 use crate::commands::chat_commands::{chat, chat_stream, generate_chat_title};
 use crate::commands::config_commands::cancel_chat;
 use crate::commands::db_commands::execute_sql;
+use crate::commands::dictation_commands::{
+    download_whisper_model, get_whisper_models_status, select_whisper_model, transcribe_audio,
+};
 use crate::commands::model_commands::{cancel_pull, delete_model, get_local_models, pull_model};
 use crate::commands::system_commands::get_system_profile;
 use crate::commands::system_commands::{
     agent_changed_files, agent_file_diff, agent_list_workspaces,
 };
 use crate::updater::{check_for_updates, download_update, install_update};
+use crate::whisper_state::WhisperState;
 use providers::ProviderSelector;
 use sqlx::SqlitePool;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicUsize};
-use tokio::sync::Mutex;
 use std::time::Instant;
 use tauri::Manager;
+use tokio::sync::Mutex;
 
 pub struct AppState {
     pub db: SqlitePool,
@@ -62,6 +67,8 @@ pub fn run() {
             app.manage(poly_agent_tauri::AgentRunManager::new(Some(
                 poly_agent_tauri::tauri_event_sink(app.handle().clone()),
             )));
+            let app_data_dir = app.path().app_data_dir().map_err(std::io::Error::other)?;
+            app.manage(WhisperState::new(app_data_dir));
 
             if let Some(_window) = app.get_webview_window("main") {
                 #[cfg(target_os = "macos")]
@@ -104,6 +111,10 @@ pub fn run() {
             agent_list_workspaces,
             agent_changed_files,
             agent_file_diff,
+            get_whisper_models_status,
+            download_whisper_model,
+            select_whisper_model,
+            transcribe_audio,
             poly_agent_tauri::agent_run,
             poly_agent_tauri::agent_cancel,
             poly_agent_tauri::agent_delete_chat_sandbox,

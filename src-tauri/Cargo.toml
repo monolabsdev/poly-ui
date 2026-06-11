@@ -15,6 +15,7 @@ tauri-build = { version = "2", features = [] }
 [features]
 default = []
 dev-sql-console = []
+whisper-cuda = ["whisper-rs/cuda"]
 
 [dependencies]
 tauri = { version = "2", features = [] }
@@ -32,7 +33,7 @@ bcrypt = "0.15"
 uuid = { version = "1.0", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 sqlx = { version = "0.8", features = ["sqlite", "runtime-tokio", "macros", "migrate"] }
-reqwest = { version = "0.12", features = ["rustls-tls"] }
+reqwest = { version = "0.12", features = ["rustls-tls", "stream"] }
 async-trait = "0.1"
 async-stream = "0.3"
 futures = "0.3.32"
@@ -47,3 +48,6 @@ raw-window-handle = "0.6"
 dirs = "6"
 sysinfo = "0.32"
 poly-agent-tauri = { git = "https://github.com/monolabsdev/poly-agent.git", features = ["tauri"] }
+whisper-rs = "0.16"
+cpal = "0.15"
+hound = "3.5"

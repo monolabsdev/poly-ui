@@ -1,11 +1,23 @@
+import { useEffect, useState } from "react";
 import { Link, Stack, Typography } from "@mui/material";
 import { SettingCard, SectionHeader } from "../SettingComponents";
-
-declare const __APP_VERSION__: string;
+import { getBundledAppVersion, getInstalledAppVersion } from "@/lib/appVersion";
 
 const APP_REPO = "https://github.com/theoslater/polyui";
 
 export function AboutTab() {
+  const [version, setVersion] = useState(() => getBundledAppVersion());
+
+  useEffect(() => {
+    let cancelled = false;
+    void getInstalledAppVersion().then((installedVersion) => {
+      if (!cancelled && installedVersion) setVersion(installedVersion);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <Stack spacing={0}>
       <SectionHeader title="About" />
@@ -13,7 +25,7 @@ export function AboutTab() {
       <SettingCard title="PolyUI">
         <Stack spacing={1}>
           <Typography sx={{ fontSize: 12, color: "text.secondary" }}>
-            Version {__APP_VERSION__}
+            Version {version ?? "unknown"}
           </Typography>
           <Typography sx={{ fontSize: 12, color: "text.secondary", lineHeight: 1.6 }}>
             Desktop chat app for local LLM experiments via Ollama.

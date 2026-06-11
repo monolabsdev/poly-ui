@@ -133,18 +133,19 @@ export function useChatStream(selectedModels: string[], selectedProviders: Model
           conversationId: completed.conversationId,
           role: "assistant",
           content: sanitizeOutput(completed.content || ""),
+          thinking: completed.thinking,
           model: completedModel || "unknown",
           provider: completedProvider,
           status: "error",
           errorMessage: completed.error,
           webSearch: finalizedWebSearch,
         });
-      } else if (completed.content.trim() || completed.thinking?.trim()) {
+      } else {
         await addMessage({
           id: completed.messageId,
           conversationId: completed.conversationId,
           role: "assistant",
-          content: sanitizeOutput(completed.content),
+          content: sanitizeOutput(completed.content || ""),
           thinking: completed.thinking,
           thinkingDuration: sessionRef.current.thinkingDuration(completed.requestId),
           isThinking: false,
@@ -370,13 +371,10 @@ export function useChatStream(selectedModels: string[], selectedProviders: Model
 
     const { streamingMessages: snapshot } = useChatStore.getState();
     for (const [mid, msg] of Object.entries(snapshot)) {
-      if (!msg.content.trim() && !msg.thinking?.trim()) {
-        setStreamingMessage(mid, null);
-        continue;
-      }
       const rid = sessionRef.current.requestIdForMessage(mid);
       await addMessage({
         ...msg,
+        content: sanitizeOutput(msg.content || ""),
         isThinking: false,
         thinkingDuration: sessionRef.current.thinkingDuration(rid),
         status: "aborted",
