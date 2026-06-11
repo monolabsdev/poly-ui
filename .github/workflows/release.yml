@@ -170,12 +170,26 @@ jobs:
           mkdir -p release-files
           find artifacts -type f -exec mv {} release-files/ \;
 
+      - name: Generate changelog
+        id: changelog
+        run: |
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          if [ -z "$PREV_TAG" ]; then
+            LOG=$(git log --pretty=format:"* %s (%h)" "${{ github.ref_name }}" --not --tags)
+          else
+            LOG=$(git log --pretty=format:"* %s (%h)" "$PREV_TAG..${{ github.ref_name }}")
+          fi
+          DELIMITER=$(echo "END_OF_NOTES_$(openssl rand -hex 8)" )
+          echo "notes<<$DELIMITER" >> "$GITHUB_OUTPUT"
+          echo "$LOG" >> "$GITHUB_OUTPUT"
+          echo "$DELIMITER" >> "$GITHUB_OUTPUT"
+
       - name: Create release with generated notes
         uses: softprops/action-gh-release@v2
         with:
           draft: true
           prerelease: ${{ contains(github.ref_name, '-') }}
-          generate_release_notes: true
+          body: ${{ steps.changelog.outputs.notes }}
           files: release-files/*
 
   # =========================
@@ -193,9 +207,23 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Generate changelog
+        id: changelog
+        run: |
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          if [ -z "$PREV_TAG" ]; then
+            LOG=$(git log --pretty=format:"* %s (%h)" "${{ github.ref_name }}" --not --tags)
+          else
+            LOG=$(git log --pretty=format:"* %s (%h)" "$PREV_TAG..${{ github.ref_name }}")
+          fi
+          DELIMITER=$(echo "END_OF_NOTES_$(openssl rand -hex 8)" )
+          echo "notes<<$DELIMITER" >> "$GITHUB_OUTPUT"
+          echo "$LOG" >> "$GITHUB_OUTPUT"
+          echo "$DELIMITER" >> "$GITHUB_OUTPUT"
+
       - name: Create release with generated notes
         uses: softprops/action-gh-release@v2
         with:
           draft: true
           prerelease: ${{ contains(github.ref_name, '-') }}
-          generate_release_notes: true
+          body: ${{ steps.changelog.outputs.notes }}

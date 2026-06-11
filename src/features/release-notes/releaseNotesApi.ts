@@ -1,4 +1,4 @@
-const REPO = "theoslater/polyui";
+const REPO = "monolabsdev/poly-ui";
 const GH_API = "https://api.github.com";
 const TIMEOUT_MS = 8_000;
 
