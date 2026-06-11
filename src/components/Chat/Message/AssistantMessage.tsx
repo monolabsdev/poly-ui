@@ -39,10 +39,25 @@ import { AgentActivity } from "@/features/agent/AgentActivity";
 import { approveAgentToolCall, rejectAgentToolCall } from "@/features/agent/agentClient";
 import type { AgentApproval } from "@/features/agent/types";
 
+function agentResultText(agent: NonNullable<MessageProps["agent"]>, content: string): string | undefined {
+  const text = content.trim();
+  if (!text) return undefined;
+  if (agent.status === "failed") return undefined;
+  if (agent.editedFiles.length > 0) return text;
+  if (agent.approvals.length > 0) return text;
+  if (agent.request?.fileEditRequested) return text;
+  if (looksLikeClarification(text)) return text;
+  if (isFallbackAgentContent(text)) return text;
+  return undefined;
+}
+
 function isFallbackAgentContent(content: string): boolean {
   const trimmed = content.trim();
-  if (/^(I tried|I edited|I created|The Poly Agent)/i.test(trimmed)) return true;
-  return false;
+  return /^(I tried|I edited|I created|The Poly Agent)/i.test(trimmed);
+}
+
+function looksLikeClarification(text: string) {
+  return /\b(clarif|ambiguous|need (more|additional|details|information)|please specify|which file)\b/i.test(text);
 }
 
 export function AssistantMessage(props: MessageProps) {
@@ -86,6 +101,7 @@ export function AssistantMessage(props: MessageProps) {
     !agent &&
     !content.trim() &&
     Boolean(thinking?.trim());
+  const agentBodyText = agent ? agentResultText(agent, content) : undefined;
 
   useEffect(() => {
     if (!copied) return;
@@ -261,14 +277,14 @@ export function AssistantMessage(props: MessageProps) {
         {agent && (
           <AgentActivity
             agent={agent}
-            resultText={content}
+            resultText={agentBodyText}
             onResolveApproval={handleAgentApproval}
             onRetry={canRegenerate && typeof messageIndex === "number" ? () => onRegenerate(messageIndex) : undefined}
           />
         )}
 
         {/* ── Markdown Core Message Body ── */}
-        {content && !(agent && !isStreaming && isFallbackAgentContent(content)) ? (
+        {content && (!agent || !agentBodyText) ? (
           <Box
             id={`message-${messageIndex}`}
             sx={{

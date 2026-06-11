@@ -1,8 +1,0 @@
-[package]
-name = "moonshine-sys"
-version = "0.1.0"
-edition = "2021"
-links = "moonshine"
-
-[lib]
-path = "src/lib.rs"

@@ -36,7 +36,6 @@ export type PerformanceSettings = {
   profile: PerformanceProfile;
   reduceMotion: boolean;
   reduceTransparency: boolean;
-  dictationEnabled: boolean;
   lastHardwareScan: SystemProfile | null;
   optimizedAt: string | null;
 };
@@ -67,7 +66,6 @@ export const defaultPerformance: PerformanceSettings = {
   profile: "auto",
   reduceMotion: false,
   reduceTransparency: false,
-  dictationEnabled: false,
   lastHardwareScan: null,
   optimizedAt: null,
 };

@@ -13,7 +13,6 @@ mod web_search;
 use crate::commands::chat_commands::{chat, chat_stream, generate_chat_title};
 use crate::commands::config_commands::cancel_chat;
 use crate::commands::db_commands::execute_sql;
-use crate::commands::dictation::{is_dictation_available, transcribe_audio, DictationState};
 use crate::commands::model_commands::{cancel_pull, delete_model, get_local_models, pull_model};
 use crate::commands::system_commands::get_system_profile;
 use crate::commands::system_commands::{
@@ -33,7 +32,6 @@ pub struct AppState {
     pub current_generation_id: AtomicUsize,
     pub is_pull_cancelled: AtomicBool,
     pub provider_selector: ProviderSelector,
-    pub dictation: DictationState,
     pub last_update_check: Mutex<Option<Instant>>,
     pub update_download_path: Mutex<Option<PathBuf>>,
 }
@@ -58,7 +56,6 @@ pub fn run() {
                 current_generation_id: AtomicUsize::new(0),
                 is_pull_cancelled: AtomicBool::new(false),
                 provider_selector: ProviderSelector::new(db),
-                dictation: DictationState::new(),
                 last_update_check: Mutex::new(None),
                 update_download_path: Mutex::new(None),
             });
@@ -84,8 +81,6 @@ pub fn run() {
             chat_stream,
             chat,
             generate_chat_title,
-            is_dictation_available,
-            transcribe_audio,
             cancel_chat,
             cancel_pull,
             auth::auth_signup,

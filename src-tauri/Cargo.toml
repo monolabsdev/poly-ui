@@ -14,7 +14,6 @@ tauri-build = { version = "2", features = [] }
 
 [features]
 default = []
-dictation = ["dep:whisper-rs"]
 dev-sql-console = []
 
 [dependencies]
@@ -47,5 +46,4 @@ windows-sys = { version = "0.59", features = ["Win32_Graphics_Dwm", "Win32_Found
 raw-window-handle = "0.6"
 dirs = "6"
 sysinfo = "0.32"
-whisper-rs = { version = "0.16", optional = true }
 poly-agent-tauri = { git = "https://github.com/monolabsdev/poly-agent.git", features = ["tauri"] }

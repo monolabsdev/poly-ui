@@ -27,7 +27,6 @@ export function choosePerformanceSettings(
       profile: "low",
       reduceMotion: true,
       reduceTransparency: true,
-      dictationEnabled: false,
       lastHardwareScan: system,
       optimizedAt: new Date().toISOString(),
     };
@@ -38,7 +37,6 @@ export function choosePerformanceSettings(
       profile: "high",
       reduceMotion: prefersReducedMotion,
       reduceTransparency: false,
-      dictationEnabled: false,
       lastHardwareScan: system,
       optimizedAt: new Date().toISOString(),
     };

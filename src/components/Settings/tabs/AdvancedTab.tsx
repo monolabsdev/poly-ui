@@ -1,5 +1,4 @@
 import {
-  Alert,
   Button,
   FormControl,
   MenuItem,
@@ -144,20 +143,6 @@ export function AdvancedTab() {
         }
       />
 
-      <SettingCard
-        title="Dictation"
-        description="Keep off on low-memory systems. Requires a dictation-enabled build."
-        action={
-          <Switch
-            checked={performance.dictationEnabled}
-            onChange={(e) => actions.updatePerformance({ dictationEnabled: e.target.checked })}
-          />
-        }
-      >
-        <Alert severity="warning" variant="outlined" sx={{ fontSize: 12 }}>
-          Changes to dictation only take effect after restarting the app.
-        </Alert>
-      </SettingCard>
     </Stack>
   );
 }
