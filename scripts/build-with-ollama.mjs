@@ -1,10 +1,9 @@
-import { readFileSync, writeFileSync, mkdirSync } from "fs";
+import { writeFileSync, mkdirSync } from "fs";
 import { execSync } from "child_process";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const configPath = join(__dirname, "..", "src-tauri", "tauri.conf.json");
 const installerDest = join(
   __dirname,
   "..",
@@ -26,30 +25,10 @@ async function main() {
   writeFileSync(installerDest, script, "utf8");
   console.log("Downloaded Ollama installer");
 
-  const config = JSON.parse(readFileSync(configPath, "utf8"));
-
-  const originalProductName = config.productName;
-  const originalResources = config.bundle.resources;
-  const originalTargets = config.bundle.targets;
-
-  config.productName = originalProductName + "-Ollama";
-  config.bundle.targets = ["nsis"];
-  config.bundle.windows ??= {};
-  config.bundle.windows.nsis ??= {};
-  config.bundle.windows.nsis.installerHooks = "./windows/hooks.nsh";
-  config.bundle.resources = ["windows/install-ollama.ps1"];
-
-  writeFileSync(configPath, JSON.stringify(config, null, 2));
-
-  try {
-    execSync("bun run tauri build", { stdio: "inherit", shell: true });
-  } finally {
-    config.productName = originalProductName;
-    config.bundle.targets = originalTargets;
-    delete config.bundle.windows.nsis.installerHooks;
-    config.bundle.resources = originalResources;
-    writeFileSync(configPath, JSON.stringify(config, null, 2));
-  }
+  execSync(
+    "bun run tauri bundle --bundles nsis --config src-tauri/tauri.ollama.conf.json --ci",
+    { stdio: "inherit", shell: true },
+  );
 }
 
 main().catch((err) => {

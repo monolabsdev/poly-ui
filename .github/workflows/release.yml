@@ -97,7 +97,7 @@ jobs:
           fi
 
       - name: Build OpenBench installer
-        run: bun run tauri build
+        run: bun run tauri build --ci
 
       - name: Verify macOS app signature
         if: matrix.platform == 'macos'

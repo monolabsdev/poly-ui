@@ -1,0 +1,12 @@
+{
+  "productName": "PolyUI-Ollama",
+  "bundle": {
+    "targets": ["nsis"],
+    "resources": ["windows/install-ollama.ps1"],
+    "windows": {
+      "nsis": {
+        "installerHooks": "./windows/hooks.nsh"
+      }
+    }
+  }
+}
