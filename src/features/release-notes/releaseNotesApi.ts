@@ -1,3 +1,5 @@
+import bundledReleaseNotes from "@/generated/releaseNotes.json";
+
 const REPO = "monolabsdev/poly-ui";
 const GH_API = "https://api.github.com";
 const TIMEOUT_MS = 8_000;
@@ -15,6 +17,12 @@ export function clearReleaseNotesCache(): void {
 export async function fetchReleaseNotes(version: string): Promise<ReleaseNotesResult> {
   const cached = cache.get(version);
   if (cached) return cached;
+
+  const bundled = getBundledReleaseNotes(version);
+  if (bundled) {
+    cache.set(version, bundled);
+    return bundled;
+  }
 
   const tags = [`v${version}`, version];
   for (const tag of tags) {
@@ -34,6 +42,22 @@ export async function fetchReleaseNotes(version: string): Promise<ReleaseNotesRe
 }
 
 const NOT_FOUND: ReleaseNotesResult = { ok: false };
+
+function getBundledReleaseNotes(version: string): ReleaseNotesResult | null {
+  const notes = bundledReleaseNotes as Record<string, { body?: unknown; htmlUrl?: unknown }>;
+  const entry = notes[version] ?? notes[version.replace(/^v/i, "")];
+  const body = typeof entry?.body === "string" ? entry.body.trim() : "";
+  if (!body) return null;
+
+  return {
+    ok: true,
+    body,
+    htmlUrl:
+      typeof entry?.htmlUrl === "string"
+        ? entry.htmlUrl
+        : `https://github.com/${REPO}/releases/tag/v${version.replace(/^v/i, "")}`,
+  };
+}
 
 async function tryFetchTag(tag: string): Promise<ReleaseNotesResult> {
   const url = `${GH_API}/repos/${REPO}/releases/tags/${encodeURIComponent(tag)}`;

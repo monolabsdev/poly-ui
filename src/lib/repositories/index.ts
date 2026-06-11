@@ -284,13 +284,26 @@ let repository: ConversationRepository | null = null;
 export async function initRepository(): Promise<ConversationRepository> {
   if (repository) return repository;
 
-  const db = await Database.load("sqlite:chat.db").catch((error) => {
-    throw new Error(`SQLite repository failed to initialize: ${String(error)}`);
-  });
+  const db = await loadDatabaseWithRetry("sqlite:chat.db");
   repository = new SqliteConversationRepository(db);
   if (DEV) console.log("[repo] SQLite repository active");
 
   return repository;
+}
+
+async function loadDatabaseWithRetry(path: string): Promise<Database> {
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    try {
+      return await Database.load(path);
+    } catch (error) {
+      lastError = error;
+      await new Promise((resolve) => setTimeout(resolve, 200 * (attempt + 1)));
+    }
+  }
+
+  throw new Error(`SQLite repository failed to initialize: ${String(lastError)}`);
 }
 
 export function getRepository(): ConversationRepository {

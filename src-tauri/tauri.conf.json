@@ -29,7 +29,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; media-src 'self' blob: data:; form-action 'self'; connect-src 'self'"
+      "csp": "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; media-src 'self' blob: data:; form-action 'self'; connect-src 'self' https://api.github.com"
     }
   },
   "bundle": {

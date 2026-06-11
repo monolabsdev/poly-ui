@@ -10,6 +10,7 @@
     "tauri": "tauri",
     "test": "vitest run",
     "test:watch": "vitest",
+    "release-notes:generate": "node scripts/generate-release-notes.mjs",
     "ollama-setup": "node scripts/build-with-ollama.mjs"
   },
   "dependencies": {

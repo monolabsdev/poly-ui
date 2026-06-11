@@ -28,6 +28,8 @@ use providers::ProviderSelector;
 use sqlx::SqlitePool;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicUsize};
+use std::thread;
+use std::time::Duration;
 use std::time::Instant;
 use tauri::Manager;
 use tokio::sync::Mutex;
@@ -53,8 +55,7 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
-            let db = tauri::async_runtime::block_on(db::connection::init_db(app.handle()))
-                .map_err(std::io::Error::other)?;
+            let db = init_db_with_retry(app.handle()).map_err(std::io::Error::other)?;
 
             app.manage(AppState {
                 db: db.clone(),
@@ -124,6 +125,22 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+fn init_db_with_retry(app: &tauri::AppHandle) -> Result<SqlitePool, String> {
+    let mut last_error = String::new();
+
+    for attempt in 0..5 {
+        match tauri::async_runtime::block_on(db::connection::init_db(app)) {
+            Ok(db) => return Ok(db),
+            Err(error) => {
+                last_error = error;
+                thread::sleep(Duration::from_millis(200 * (attempt + 1)));
+            }
+        }
+    }
+
+    Err(last_error)
 }
 
 #[cfg(target_os = "windows")]

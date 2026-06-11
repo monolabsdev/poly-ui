@@ -55,6 +55,9 @@ jobs:
       - name: Install frontend dependencies
         run: bun install --frozen-lockfile
 
+      - name: Generate bundled release notes
+        run: bun run release-notes:generate
+
       - name: Configure macOS native build flags
         if: matrix.platform == 'macos'
         shell: bash

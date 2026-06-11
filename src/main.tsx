@@ -44,6 +44,7 @@ function Root() {
   const performance = useSettingsStore((state) => state.performance);
   const prefersDarkMode = useMediaQuery("(prefers-color-scheme: dark)");
   const [isAppReady, setIsAppReady] = useState(false);
+  const [startupError, setStartupError] = useState<string | null>(null);
   const [showStartupScreen, setShowStartupScreen] = useState(true);
   const [isStartupScreenVisible, setIsStartupScreenVisible] = useState(true);
 
@@ -52,9 +53,14 @@ function Root() {
   useEffect(() => {
     let cancelled = false;
 
-    prepareAppStartup().then(() => {
-      if (!cancelled) setIsAppReady(true);
-    });
+    prepareAppStartup()
+      .then(() => {
+        if (!cancelled) setIsAppReady(true);
+      })
+      .catch((error) => {
+        console.error("[startup] App startup failed:", error);
+        if (!cancelled) setStartupError(formatStartupError(error));
+      });
 
     return () => {
       cancelled = true;
@@ -62,20 +68,20 @@ function Root() {
   }, []);
 
   useEffect(() => {
-    if (isAppReady) {
+    if (isAppReady || startupError) {
       setIsStartupScreenVisible(false);
     }
-  }, [isAppReady]);
+  }, [isAppReady, startupError]);
 
   useEffect(() => {
-    if (!isAppReady) return;
+    if (!isAppReady && !startupError) return;
     const show = () => {
       getCurrentWindow().show().catch((e) => console.error("window.show failed:", e));
     };
     const t1 = setTimeout(show, 50);
     const t2 = setTimeout(show, 500);
     return () => { clearTimeout(t1); clearTimeout(t2); };
-  }, [isAppReady]);
+  }, [isAppReady, startupError]);
 
   useEffect(() => {
     window.addEventListener("error", onGlobalError);
@@ -122,7 +128,9 @@ function Root() {
         <ErrorBoundary>
           <div style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
             <WindowTitleBar />
-            {isAppReady && (
+            {startupError ? (
+              <StartupErrorScreen message={startupError} />
+            ) : isAppReady ? (
               <div
                 className="animate-fade-in"
                 style={{ flex: 1, minHeight: 0, overflow: "hidden" }}
@@ -131,7 +139,7 @@ function Root() {
                   <App />
                 </Suspense>
               </div>
-            )}
+            ) : null}
           </div>
           {showStartupScreen && (
             <StartupLoadingScreen
@@ -154,3 +162,28 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
     <Root />
   ),
 );
+
+function formatStartupError(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  return String(error);
+}
+
+function StartupErrorScreen({ message }: { message: string }) {
+  return (
+    <div
+      style={{
+        flex: 1,
+        minHeight: 0,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 24,
+      }}
+    >
+      <div style={{ maxWidth: 560 }}>
+        <h1 style={{ fontSize: 20, margin: "0 0 8px" }}>Poly UI could not start</h1>
+        <p style={{ color: "rgba(255,255,255,0.68)", margin: 0 }}>{message}</p>
+      </div>
+    </div>
+  );
+}
