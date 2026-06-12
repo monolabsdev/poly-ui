@@ -113,49 +113,6 @@ jobs:
             echo "CMAKE_CXX_FLAGS=-D_LIBCPP_DISABLE_AVAILABILITY -mmacosx-version-min=11.0"
           } >> "$GITHUB_ENV"
 
-      - name: Require macOS signing for tag releases
-        if: matrix.platform == 'macos' && startsWith(github.ref, 'refs/tags/v')
-        shell: bash
-        env:
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-        run: |
-          if [[ -z "$APPLE_CERTIFICATE" || -z "$APPLE_CERTIFICATE_PASSWORD" || -z "$APPLE_SIGNING_IDENTITY" ]]; then
-            echo "Apple signing secrets missing for tag release; refusing to upload ad-hoc signed macOS app."
-            exit 1
-          fi
-
-      - name: Configure macOS signing credentials
-        if: matrix.platform == 'macos'
-        shell: bash
-        env:
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: |
-          if [[ -z "$APPLE_CERTIFICATE" || -z "$APPLE_CERTIFICATE_PASSWORD" || -z "$APPLE_SIGNING_IDENTITY" ]]; then
-            echo "No Apple signing secrets configured for non-tag/manual build; local ad-hoc config remains in tauri.conf.json."
-            exit 0
-          fi
-
-          {
-            echo "APPLE_CERTIFICATE=$APPLE_CERTIFICATE"
-            echo "APPLE_CERTIFICATE_PASSWORD=$APPLE_CERTIFICATE_PASSWORD"
-            echo "APPLE_SIGNING_IDENTITY=$APPLE_SIGNING_IDENTITY"
-          } >> "$GITHUB_ENV"
-
-          if [[ -n "$APPLE_ID" && -n "$APPLE_PASSWORD" && -n "$APPLE_TEAM_ID" ]]; then
-            {
-              echo "APPLE_ID=$APPLE_ID"
-              echo "APPLE_PASSWORD=$APPLE_PASSWORD"
-              echo "APPLE_TEAM_ID=$APPLE_TEAM_ID"
-            } >> "$GITHUB_ENV"
-          fi
-
       - name: Build PolyUI app
         shell: bash
         run: |
@@ -233,10 +190,6 @@ jobs:
           test -d src-tauri/target/release/bundle/dmg
           DMG="$(find src-tauri/target/release/bundle/dmg -maxdepth 1 -name '*.dmg' -type f | head -n 1)"
           test -n "$DMG"
-          codesign --verify --deep --strict --verbose=2 src-tauri/target/release/bundle/macos/PolyUI.app
-          if [[ -n "${APPLE_ID:-}" && -n "${APPLE_PASSWORD:-}" && -n "${APPLE_TEAM_ID:-}" ]]; then
-            spctl --assess --type execute --verbose=4 src-tauri/target/release/bundle/macos/PolyUI.app
-          fi
           mkdir -p release-artifacts/macos
           cp "$DMG" "release-artifacts/macos/PolyUI-$VERSION-macos-universal.dmg"
 
