@@ -5,7 +5,7 @@ use crate::providers::base::{ChatProvider, ModelCatalog, ProviderStatus, Provide
 use async_stream::stream;
 use async_trait::async_trait;
 use futures::Stream;
-use reqwest::header::HeaderMap;
+use reqwest::header::{HeaderMap, ACCEPT};
 use reqwest::Client;
 use serde::Deserialize;
 use serde_json::{json, Map, Value};
@@ -83,7 +83,8 @@ impl ChatProvider for OpenAICompatibleProvider {
         let request = build_chat_request(&model, messages, system_prompt, options, tools);
         let request = self
             .client
-            .post(format!("{}/chat/completions", self.base_url))
+            .post(chat_completions_url(&self.base_url))
+            .header(ACCEPT, "text/event-stream")
             .json(&request);
         let response = self
             .with_optional_auth(request)
@@ -93,6 +94,10 @@ impl ChatProvider for OpenAICompatibleProvider {
 
         if !response.status().is_success() {
             return Err(api_error(response).await);
+        }
+
+        if !is_sse_response(&response) {
+            return Err(non_sse_response_error(response).await);
         }
 
         let mut bytes = response.bytes_stream();
@@ -119,28 +124,14 @@ impl ChatProvider for OpenAICompatibleProvider {
                         break;
                     }
 
-                    match serde_json::from_str::<ChatCompletionChunk>(&event) {
-                        Ok(chunk) => {
-                            metadata = chunk.usage.map(|usage| stream_metadata(&stream_model, usage)).or(metadata);
-                            for choice in chunk.choices {
-                                append_tool_call_deltas(&mut pending_tool_calls, choice.delta.tool_calls);
-                                if let Some(content) = choice.delta.content {
-                                    if !content.is_empty() {
-                                        yield Ok(StreamPayload {
-                                            request_id: String::new(),
-                                            content,
-                                            thinking: None,
-                                            done: false,
-                                            metadata: None,
-                                            tool_calls: None,
-                                            error: None,
-                                        });
-                                    }
-                                }
+                    match parse_stream_event(&event, &stream_model, &mut pending_tool_calls, &mut metadata) {
+                        Ok(payloads) => {
+                            for payload in payloads {
+                                yield Ok(payload);
                             }
                         }
                         Err(error) => {
-                            yield Err(format!("OpenAI-compatible stream parse failed: {error}"));
+                            yield Err(error);
                             return;
                         }
                     }
@@ -207,6 +198,15 @@ fn normalize_api_base_url(base_url: &str) -> String {
         trimmed.to_string()
     } else {
         format!("http://{trimmed}")
+    }
+}
+
+fn chat_completions_url(base_url: &str) -> String {
+    let normalized = normalize_api_base_url(base_url);
+    if normalized.ends_with("/chat/completions") {
+        normalized
+    } else {
+        format!("{normalized}/chat/completions")
     }
 }
 
@@ -376,6 +376,38 @@ fn append_tool_call_deltas(
     }
 }
 
+fn parse_stream_event(
+    event: &str,
+    model: &str,
+    pending_tool_calls: &mut BTreeMap<u64, PendingToolCall>,
+    metadata: &mut Option<StreamMetadata>,
+) -> Result<Vec<StreamPayload>, String> {
+    let chunk = serde_json::from_str::<ChatCompletionChunk>(event)
+        .map_err(|error| format!("OpenAI-compatible stream parse failed: {error}"))?;
+
+    if let Some(usage) = chunk.usage {
+        *metadata = Some(stream_metadata(model, usage));
+    }
+
+    let mut payloads = Vec::new();
+    for choice in chunk.choices {
+        append_tool_call_deltas(pending_tool_calls, choice.delta.tool_calls);
+        if let Some(content) = choice.delta.content.filter(|content| !content.is_empty()) {
+            payloads.push(StreamPayload {
+                request_id: String::new(),
+                content,
+                thinking: None,
+                done: false,
+                metadata: None,
+                tool_calls: None,
+                error: None,
+            });
+        }
+    }
+
+    Ok(payloads)
+}
+
 fn done_payload(
     model: &str,
     pending_tool_calls: &BTreeMap<u64, PendingToolCall>,
@@ -438,7 +470,58 @@ async fn parse_response<T: serde::de::DeserializeOwned>(
 async fn api_error(response: reqwest::Response) -> String {
     let status = response.status();
     let body = response.text().await.unwrap_or_default();
-    format!("OpenAI-compatible API error ({status}): {body}")
+    let message = extract_error_message(&body).unwrap_or_else(|| body.trim().to_string());
+    if message.is_empty() {
+        format!("OpenAI-compatible API error ({status})")
+    } else {
+        format!("OpenAI-compatible API error ({status}): {message}")
+    }
+}
+
+async fn non_sse_response_error(response: reqwest::Response) -> String {
+    let status = response.status();
+    let content_type = response
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or("unknown")
+        .to_string();
+    let body = response.text().await.unwrap_or_default();
+    let message = extract_error_message(&body).unwrap_or_else(|| body.trim().to_string());
+    if message.is_empty() {
+        format!(
+            "OpenAI-compatible API returned {content_type} instead of text/event-stream ({status})."
+        )
+    } else {
+        format!(
+            "OpenAI-compatible API returned {content_type} instead of text/event-stream ({status}): {message}"
+        )
+    }
+}
+
+fn is_sse_response(response: &reqwest::Response) -> bool {
+    response
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .map(|value| value.to_ascii_lowercase().contains("text/event-stream"))
+        .unwrap_or(false)
+}
+
+fn extract_error_message(body: &str) -> Option<String> {
+    let value = serde_json::from_str::<Value>(body).ok()?;
+    value
+        .get("error")
+        .and_then(|error| {
+            error
+                .get("message")
+                .and_then(Value::as_str)
+                .or_else(|| error.as_str())
+        })
+        .or_else(|| value.get("message").and_then(Value::as_str))
+        .map(str::trim)
+        .filter(|message| !message.is_empty())
+        .map(ToString::to_string)
 }
 
 fn normalize_network_error(error: reqwest::Error) -> String {
@@ -586,8 +669,51 @@ mod tests {
     }
 
     #[test]
+    fn builds_chat_completions_url_without_double_suffix() {
+        assert_eq!(
+            chat_completions_url("https://api.openai.com/v1"),
+            "https://api.openai.com/v1/chat/completions"
+        );
+        assert_eq!(
+            chat_completions_url("https://some-provider.com/v1/"),
+            "https://some-provider.com/v1/chat/completions"
+        );
+        assert_eq!(
+            chat_completions_url("https://some-provider.com/v1/chat/completions"),
+            "https://some-provider.com/v1/chat/completions"
+        );
+    }
+
+    #[test]
     fn configured_health_status_does_not_require_model_catalog_fetch() {
         assert_eq!(configured_health_status(), ProviderStatus::Online);
+    }
+
+    #[test]
+    fn injects_resolved_system_prompt_into_openai_messages() {
+        let request = build_chat_request(
+            "custom-model",
+            vec![ChatMessage {
+                role: "user".into(),
+                content: "Hello".into(),
+                attachments: None,
+                tool_calls: None,
+                tool_call_id: None,
+            }],
+            Some("Preset text\nCustom instructions".into()),
+            None,
+            None,
+        );
+
+        assert_eq!(request["model"], "custom-model");
+        assert_eq!(request["stream"], true);
+        assert_eq!(request["messages"][0]["role"], "system");
+        assert_eq!(
+            request["messages"][0]["content"],
+            "Preset text\nCustom instructions"
+        );
+        assert_eq!(request["messages"][1]["role"], "user");
+        assert_eq!(request["messages"][1]["content"], "Hello");
     }
 
     #[test]
@@ -672,6 +798,93 @@ mod tests {
         assert_eq!(
             parser.push_bytes(&event[split..]),
             vec!["{\"choices\":[{\"delta\":{\"content\":\"\u{00A3}\"}}]}".to_string()]
+        );
+    }
+
+    #[test]
+    fn parses_openai_streaming_fixture_incrementally() {
+        let mut parser = SseParser::default();
+        let mut pending_tool_calls = BTreeMap::new();
+        let mut metadata = None;
+        let fixture = concat!(
+            "data: {\"choices\":[{\"delta\":{\"content\":\"Hello\"}}]}\n\n",
+            "data: {\"choices\":[{\"delta\":{\"content\":\" world\"}}]}\n\n",
+            "data: [DONE]\n\n"
+        );
+
+        let events = parser.push(fixture);
+        let mut content = String::new();
+        let mut done = false;
+
+        for event in events {
+            if event == "[DONE]" {
+                done = true;
+                break;
+            }
+            let payloads = parse_stream_event(
+                &event,
+                "gpt-test",
+                &mut pending_tool_calls,
+                &mut metadata,
+            )
+            .unwrap();
+            for payload in payloads {
+                assert!(!payload.done);
+                content.push_str(&payload.content);
+            }
+        }
+
+        assert!(done);
+        assert_eq!(content, "Hello world");
+    }
+
+    #[test]
+    fn done_event_produces_terminal_payload_with_metadata() {
+        let mut pending_tool_calls = BTreeMap::new();
+        let mut metadata = None;
+
+        let payloads = parse_stream_event(
+            "{\"choices\":[{\"delta\":{}}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":5}}",
+            "gpt-test",
+            &mut pending_tool_calls,
+            &mut metadata,
+        )
+        .unwrap();
+        assert!(payloads.is_empty());
+
+        let done = done_payload("gpt-test", &pending_tool_calls, metadata);
+        assert!(done.done);
+        assert_eq!(done.metadata.unwrap().eval_count, Some(5));
+    }
+
+    #[test]
+    fn malformed_sse_event_returns_parse_error() {
+        let mut pending_tool_calls = BTreeMap::new();
+        let mut metadata = None;
+        let result = parse_stream_event(
+            "{\"choices\":[",
+            "gpt-test",
+            &mut pending_tool_calls,
+            &mut metadata,
+        );
+
+        assert!(matches!(
+            result,
+            Err(error) if error.contains("OpenAI-compatible stream parse failed")
+        ));
+    }
+
+    #[test]
+    fn extracts_json_error_message() {
+        assert_eq!(
+            extract_error_message(
+                r#"{"error":{"message":"Invalid API key","type":"invalid_request_error"}}"#
+            ),
+            Some("Invalid API key".to_string())
+        );
+        assert_eq!(
+            extract_error_message(r#"{"message":"plain error"}"#),
+            Some("plain error".to_string())
         );
     }
 }
