@@ -151,20 +151,36 @@ jobs:
           $stdout = Join-Path $env:RUNNER_TEMP "polyui-smoke.stdout.log"
           $stderr = Join-Path $env:RUNNER_TEMP "polyui-smoke.stderr.log"
           $startupLog = Join-Path $env:APPDATA "Poly UI/logs/startup.log"
+          function Write-CappedLog($path) {
+            if (Test-Path $path) {
+              Get-Content $path -Raw -ErrorAction SilentlyContinue | Select-Object -First 1 | ForEach-Object {
+                if ($_.Length -gt 6000) { $_.Substring(0, 6000) } else { $_ }
+              }
+            }
+          }
           Remove-Item $startupLog -Force -ErrorAction SilentlyContinue
           $proc = Start-Process -FilePath $exe -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
-          Start-Sleep -Seconds 8
-          $startupLines = Get-Content $startupLog -ErrorAction SilentlyContinue
-          if ($proc.HasExited) {
-            Get-Content $stdout -ErrorAction SilentlyContinue
-            Get-Content $stderr -ErrorAction SilentlyContinue
-            $startupLines
-            throw "PolyUI exited during Windows smoke test with code $($proc.ExitCode)"
+
+          $deadline = (Get-Date).AddSeconds(45)
+          $startupLines = @()
+          while ((Get-Date) -lt $deadline) {
+            $startupLines = @(Get-Content $startupLog -ErrorAction SilentlyContinue)
+            if ($startupLines -match "frontend loaded") {
+              break
+            }
+            if ($proc.HasExited) {
+              Write-CappedLog $stdout
+              Write-CappedLog $stderr
+              Write-CappedLog $startupLog
+              throw "PolyUI exited during Windows smoke test with code $($proc.ExitCode)"
+            }
+            Start-Sleep -Milliseconds 250
           }
+
           if (!($startupLines -match "frontend loaded")) {
-            Get-Content $stdout -ErrorAction SilentlyContinue
-            Get-Content $stderr -ErrorAction SilentlyContinue
-            $startupLines
+            Write-CappedLog $stdout
+            Write-CappedLog $stderr
+            Write-CappedLog $startupLog
             Stop-Process -Id $proc.Id -Force
             throw "PolyUI Windows smoke test did not reach frontend loaded"
           }
