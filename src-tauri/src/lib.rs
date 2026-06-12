@@ -5,6 +5,7 @@ mod error;
 mod models;
 mod providers;
 mod stream_emitter;
+mod startup_log;
 mod title_generator;
 mod tool_loop;
 mod updater;
@@ -45,7 +46,13 @@ pub struct AppState {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    startup_log::install_panic_hook();
+    startup_log::log_phase("app entry reached");
+
+    let context = tauri::generate_context!();
+    startup_log::log_phase("config loaded");
+
+    let builder = tauri::Builder::default()
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_sql::Builder::default().build())
@@ -53,9 +60,17 @@ pub fn run() {
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_notification::init())
-        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_dialog::init());
+
+    startup_log::log_phase("plugins registered");
+
+    let result = builder
         .setup(|app| {
-            let db = init_db_with_retry(app.handle()).map_err(std::io::Error::other)?;
+            startup_log::log_phase("setup hook entered");
+            let db = init_db_with_retry(app.handle()).map_err(|error| {
+                startup_log::log_error(format!("database init failed: {error}"));
+                std::io::Error::other(error)
+            })?;
 
             app.manage(AppState {
                 db: db.clone(),
@@ -68,16 +83,22 @@ pub fn run() {
             app.manage(poly_agent_tauri::AgentRunManager::new(Some(
                 poly_agent_tauri::tauri_event_sink(app.handle().clone()),
             )));
-            let app_data_dir = app.path().app_data_dir().map_err(std::io::Error::other)?;
+            let app_data_dir = app.path().app_data_dir().map_err(|error| {
+                startup_log::log_error(format!("app data dir failed: {error}"));
+                std::io::Error::other(error)
+            })?;
             app.manage(WhisperState::new(app_data_dir));
 
             if let Some(_window) = app.get_webview_window("main") {
+                startup_log::log_phase("main window created");
                 #[cfg(target_os = "macos")]
                 {
                     let _ = _window.set_title_bar_style(tauri::TitleBarStyle::Overlay);
                 }
                 #[cfg(target_os = "windows")]
                 apply_native_rounded_corners(&_window);
+            } else {
+                startup_log::log_error("main window missing during setup");
             }
 
             Ok(())
@@ -116,6 +137,8 @@ pub fn run() {
             download_whisper_model,
             select_whisper_model,
             transcribe_audio,
+            startup_frontend_loaded,
+            log_startup_error,
             poly_agent_tauri::agent_run,
             poly_agent_tauri::agent_cancel,
             poly_agent_tauri::agent_delete_chat_sandbox,
@@ -123,8 +146,23 @@ pub fn run() {
             poly_agent_tauri::agent_reject_tool_call,
             poly_agent_tauri::agent_get_run_state,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .run(context);
+
+    if let Err(error) = result {
+        startup_log::log_error(format!("tauri run failed: {error}"));
+        panic!("error while running tauri application: {error}");
+    }
+}
+
+#[tauri::command]
+fn startup_frontend_loaded() -> Option<String> {
+    startup_log::log_phase("frontend loaded");
+    startup_log::log_path().map(|path| path.display().to_string())
+}
+
+#[tauri::command]
+fn log_startup_error(message: String) {
+    startup_log::log_error(format!("frontend startup failed: {message}"));
 }
 
 fn init_db_with_retry(app: &tauri::AppHandle) -> Result<SqlitePool, String> {

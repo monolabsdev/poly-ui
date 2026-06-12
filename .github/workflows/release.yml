@@ -12,13 +12,14 @@ permissions:
 env:
   CARGO_TERM_COLOR: always
   OLLAMA_HOST: http://127.0.0.1:11434
+  RUST_BACKTRACE: "1"
   MACOSX_DEPLOYMENT_TARGET: "11.0"
 
 jobs:
   build:
     name: Build ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 60
+    timeout-minutes: 75
 
     strategy:
       fail-fast: false
@@ -27,7 +28,6 @@ jobs:
           - name: macOS
             os: macos-latest
             platform: macos
-
           - name: Windows
             os: windows-latest
             platform: windows
@@ -38,13 +38,29 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Read Bun version
+        id: bun
+        shell: bash
+        run: |
+          BUN_VERSION="$(node -p "require('./package.json').packageManager?.replace(/^bun@/, '') || '1.3.14'")"
+          echo "version=$BUN_VERSION" >> "$GITHUB_OUTPUT"
+
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.3.14
+          bun-version: ${{ steps.bun.outputs.version }}
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Print toolchain versions
+        shell: bash
+        run: |
+          node --version
+          bun --version
+          rustc --version
+          cargo --version
+          bunx tauri --version
 
       - name: Cache Rust
         uses: swatinem/rust-cache@v2
@@ -55,8 +71,34 @@ jobs:
       - name: Install frontend dependencies
         run: bun install --frozen-lockfile
 
+      - name: Typecheck and build frontend
+        run: bun run build
+
+      - name: Run lint if available
+        shell: bash
+        run: |
+          if node -e "const s=require('./package.json').scripts||{}; process.exit(s.lint ? 0 : 1)"; then
+            bun run lint
+          else
+            echo "No lint script configured; skipping."
+          fi
+
       - name: Generate bundled release notes
         run: bun run release-notes:generate
+
+      - name: Validate frontend build inputs
+        shell: bash
+        run: |
+          test -d dist
+          test -f dist/index.html
+          test -d dist/assets
+          find dist/assets -maxdepth 1 -name '*.js' -type f | grep -q .
+          find dist/assets -maxdepth 1 -name '*.css' -type f | grep -q .
+          test -f src/generated/releaseNotes.json
+          if grep -E 'src="/assets/|href="/assets/|href="/polyui-icon' dist/index.html; then
+            echo "dist/index.html contains absolute production asset paths."
+            exit 1
+          fi
 
       - name: Configure macOS native build flags
         if: matrix.platform == 'macos'
@@ -68,6 +110,19 @@ jobs:
             echo "CMAKE_C_FLAGS=-mmacosx-version-min=11.0"
             echo "CMAKE_CXX_FLAGS=-D_LIBCPP_DISABLE_AVAILABILITY -mmacosx-version-min=11.0"
           } >> "$GITHUB_ENV"
+
+      - name: Require macOS signing for tag releases
+        if: matrix.platform == 'macos' && startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+        run: |
+          if [[ -z "$APPLE_CERTIFICATE" || -z "$APPLE_CERTIFICATE_PASSWORD" || -z "$APPLE_SIGNING_IDENTITY" ]]; then
+            echo "Apple signing secrets missing for tag release; refusing to upload ad-hoc signed macOS app."
+            exit 1
+          fi
 
       - name: Configure macOS signing credentials
         if: matrix.platform == 'macos'
@@ -81,7 +136,7 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           if [[ -z "$APPLE_CERTIFICATE" || -z "$APPLE_CERTIFICATE_PASSWORD" || -z "$APPLE_SIGNING_IDENTITY" ]]; then
-            echo "Apple Developer signing secrets are not configured; using the ad-hoc signature fallback."
+            echo "No Apple signing secrets configured for non-tag/manual build; local ad-hoc config remains in tauri.conf.json."
             exit 0
           fi
 
@@ -99,74 +154,140 @@ jobs:
             } >> "$GITHUB_ENV"
           fi
 
-      - name: Build OpenBench installer
-        run: bun run tauri build --ci
+      - name: Build PolyUI app
+        shell: bash
+        run: |
+          rm -rf src-tauri/target/release/bundle
+          bun run tauri build --ci
 
-      - name: Stage Windows OpenBench installer
+      - name: List Tauri bundle outputs
+        shell: bash
+        run: find src-tauri/target/release/bundle -maxdepth 4 -type f
+
+      - name: Validate Windows normal bundle
         if: matrix.platform == 'windows'
         shell: powershell
         run: |
-          New-Item -ItemType Directory -Force release-artifacts/windows | Out-Null
-          Copy-Item src-tauri/target/release/bundle/nsis/*.exe release-artifacts/windows/ -ErrorAction SilentlyContinue
-          Copy-Item src-tauri/target/release/bundle/msi/*.msi release-artifacts/windows/ -ErrorAction SilentlyContinue
+          $ErrorActionPreference = "Stop"
+          $version = (Get-Content package.json | ConvertFrom-Json).version
+          $bundle = "src-tauri/target/release/bundle"
+          if (!(Test-Path "$bundle/nsis")) { throw "Missing NSIS bundle dir" }
+          if (!(Test-Path "src-tauri/target/release/polyui.exe")) { throw "Missing release executable" }
+          $nsis = Get-ChildItem "$bundle/nsis" -Filter "PolyUI_$($version)_x64-setup.exe" | Where-Object { $_.Name -notmatch "Ollama" } | Select-Object -First 1
+          if (!$nsis) { throw "Missing normal NSIS installer" }
+          $msi = Get-ChildItem "$bundle/msi" -Filter "PolyUI_$($version)_x64*.msi" -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (!$msi) { throw "Missing MSI installer" }
+          New-Item -ItemType Directory -Force "release-artifacts/windows" | Out-Null
+          Copy-Item $nsis.FullName "release-artifacts/windows/PolyUI-$version-windows-x64-setup.exe"
+          Copy-Item $msi.FullName "release-artifacts/windows/PolyUI-$version-windows-x64.msi"
 
-      - name: Verify macOS app signature
-        if: matrix.platform == 'macos'
-        run: codesign --verify --deep --strict --verbose=2 src-tauri/target/release/bundle/macos/PolyUI.app
+      - name: Smoke test Windows executable
+        if: matrix.platform == 'windows'
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+          $env:RUST_BACKTRACE = "1"
+          $env:RUST_LOG = "debug"
+          $exe = Resolve-Path "src-tauri/target/release/polyui.exe"
+          $stdout = Join-Path $env:RUNNER_TEMP "polyui-smoke.stdout.log"
+          $stderr = Join-Path $env:RUNNER_TEMP "polyui-smoke.stderr.log"
+          $proc = Start-Process -FilePath $exe -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+          Start-Sleep -Seconds 8
+          if ($proc.HasExited) {
+            Get-Content $stdout -ErrorAction SilentlyContinue
+            Get-Content $stderr -ErrorAction SilentlyContinue
+            $startupLog = Join-Path $env:APPDATA "Poly UI/logs/startup.log"
+            Get-Content $startupLog -ErrorAction SilentlyContinue
+            throw "PolyUI exited during Windows smoke test with code $($proc.ExitCode)"
+          }
+          Stop-Process -Id $proc.Id -Force
 
-      # =========================
-      # WINDOWS OLLAMA INSTALLER
-      # =========================
-
-      - name: Build OpenBench + Ollama Windows installer
+      - name: Build PolyUI Ollama Windows installer
         if: matrix.platform == 'windows'
         run: bun run ollama-setup
 
-      - name: Stage OpenBench + Ollama Windows installer
+      - name: Validate Windows Ollama bundle
         if: matrix.platform == 'windows'
         shell: powershell
         run: |
-          New-Item -ItemType Directory -Force release-artifacts/windows-ollama | Out-Null
-          Copy-Item src-tauri/target/release/bundle/nsis/*Ollama*.exe release-artifacts/windows-ollama/
+          $ErrorActionPreference = "Stop"
+          $version = (Get-Content package.json | ConvertFrom-Json).version
+          $ollama = Get-ChildItem "src-tauri/target/release/bundle/nsis" -Filter "PolyUI-Ollama_$($version)_x64-setup.exe" | Select-Object -First 1
+          if (!$ollama) { throw "Missing Ollama NSIS installer" }
+          New-Item -ItemType Directory -Force "release-artifacts/windows-ollama" | Out-Null
+          Copy-Item $ollama.FullName "release-artifacts/windows-ollama/PolyUI-$version-windows-x64-ollama-setup.exe"
+          if (!(Test-Path "release-artifacts/windows/PolyUI-$version-windows-x64-setup.exe")) {
+            throw "Normal installer missing after Ollama bundle; output was overwritten"
+          }
 
-      # =========================
-      # UPLOAD ARTIFACTS
-      # =========================
+      - name: Validate macOS bundle
+        if: matrix.platform == 'macos'
+        shell: bash
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          test -d src-tauri/target/release/bundle/macos/PolyUI.app
+          APP_EXE="$(find src-tauri/target/release/bundle/macos/PolyUI.app/Contents/MacOS -maxdepth 1 -type f | head -n 1)"
+          test -n "$APP_EXE"
+          test -d src-tauri/target/release/bundle/dmg
+          DMG="$(find src-tauri/target/release/bundle/dmg -maxdepth 1 -name '*.dmg' -type f | head -n 1)"
+          test -n "$DMG"
+          codesign --verify --deep --strict --verbose=2 src-tauri/target/release/bundle/macos/PolyUI.app
+          if [[ -n "${APPLE_ID:-}" && -n "${APPLE_PASSWORD:-}" && -n "${APPLE_TEAM_ID:-}" ]]; then
+            spctl --assess --type execute --verbose=4 src-tauri/target/release/bundle/macos/PolyUI.app
+          fi
+          mkdir -p release-artifacts/macos
+          cp "$DMG" "release-artifacts/macos/PolyUI-$VERSION-macos-universal.dmg"
 
-      - name: Upload macOS artifacts
+      - name: Smoke test macOS app
+        if: matrix.platform == 'macos'
+        shell: bash
+        run: |
+          set -euo pipefail
+          export RUST_BACKTRACE=1
+          export RUST_LOG=debug
+          APP_EXE="$(find src-tauri/target/release/bundle/macos/PolyUI.app/Contents/MacOS -maxdepth 1 -type f | head -n 1)"
+          test -n "$APP_EXE"
+          STDOUT="$RUNNER_TEMP/polyui-smoke.stdout.log"
+          STDERR="$RUNNER_TEMP/polyui-smoke.stderr.log"
+          "$APP_EXE" >"$STDOUT" 2>"$STDERR" &
+          PID=$!
+          sleep 8
+          if ! kill -0 "$PID" 2>/dev/null; then
+            cat "$STDOUT" || true
+            cat "$STDERR" || true
+            cat "$HOME/Library/Logs/Poly UI/startup.log" || true
+            wait "$PID"
+            echo "PolyUI exited during macOS smoke test"
+            exit 1
+          fi
+          kill "$PID" || true
+
+      - name: Upload macOS DMG
         if: matrix.platform == 'macos'
         uses: actions/upload-artifact@v4
         with:
           name: polyui-macos
           if-no-files-found: error
-          path: |
-            src-tauri/target/release/bundle/dmg/*.dmg
-            src-tauri/target/release/bundle/macos/*.app
+          path: release-artifacts/macos/*
 
-      - name: Upload Windows artifacts
+      - name: Upload Windows installers
         if: matrix.platform == 'windows'
         uses: actions/upload-artifact@v4
         with:
           name: polyui-windows
           if-no-files-found: error
-          path: |
-            release-artifacts/windows/*
+          path: release-artifacts/windows/*
 
-      - name: Upload OpenBench + Ollama Windows installer
+      - name: Upload Windows Ollama installer
         if: matrix.platform == 'windows'
         uses: actions/upload-artifact@v4
         with:
-          name: polyui-ollama-windows
+          name: polyui-windows-ollama
           if-no-files-found: error
-          path: |
-            release-artifacts/windows-ollama/*
-
-  # =========================
-  # CREATE DRAFT RELEASE
-  # =========================
+          path: release-artifacts/windows-ollama/*
 
   release:
-    name: Create Release
+    name: Create Draft Release
     needs: build
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
@@ -185,7 +306,8 @@ jobs:
       - name: Flatten artifacts directory
         run: |
           mkdir -p release-files
-          find artifacts -type f -exec mv {} release-files/ \;
+          find artifacts -type f -exec cp {} release-files/ \;
+          find release-files -maxdepth 1 -type f -print
 
       - name: Generate changelog
         id: changelog
@@ -208,10 +330,6 @@ jobs:
           prerelease: ${{ contains(github.ref_name, '-') }}
           body: ${{ steps.changelog.outputs.notes }}
           files: release-files/*
-
-  # =========================
-  # RELEASE NOTES ONLY
-  # =========================
 
   release-notes-only:
     name: Generate Release Notes Only

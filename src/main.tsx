@@ -13,6 +13,7 @@ import { WindowTitleBar } from "./components/Layout/WindowTitleBar";
 import { loadAppModule, prepareAppStartup } from "./startup";
 import { IS_LINUX, USE_CUSTOM_WINDOW_CONTROLS } from "./lib/platform";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { invoke } from "@tauri-apps/api/core";
 import "@fontsource-variable/geist";
 import "./App.css";
 
@@ -58,10 +59,14 @@ function Root() {
 
     prepareAppStartup()
       .then(() => {
+        invoke("startup_frontend_loaded").catch((e) => console.error("[startup] frontend log failed:", e));
         if (!cancelled) setIsAppReady(true);
       })
       .catch((error) => {
         console.error("[startup] App startup failed:", error);
+        invoke("log_startup_error", { message: formatStartupError(error) }).catch((e) =>
+          console.error("[startup] error log failed:", e),
+        );
         if (!cancelled) setStartupError(formatStartupError(error));
       });
 

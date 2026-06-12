@@ -1,6 +1,6 @@
 {
-  "0.13.2": {
-    "body": "* fix release notes and startup recovery (f198cb0)\n* fix: slow github action build on windows (d0dd4c2)\n* Update Cargo.lock (e800bf7)",
-    "htmlUrl": "https://github.com/monolabsdev/poly-ui/releases/tag/v0.13.2"
+  "0.13.3": {
+    "body": "* chore: bump to v0.13.3 (4801200)\n* fix: #53, #49 (029517b)\n* refactor provider model selection (c994c93)\n* fix: stage windows release artifacts (0fad084)",
+    "htmlUrl": "https://github.com/monolabsdev/poly-ui/releases/tag/v0.13.3"
   }
 }

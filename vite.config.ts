@@ -14,6 +14,7 @@ const serverHost = host || "127.0.0.1";
 // https://vite.dev/config/
 export default defineConfig(async () => ({
   plugins: [react()],
+  base: "./",
   define: {
     DEV: process.env.NODE_ENV !== "production",
     "process.env.NODE_ENV": JSON.stringify(process.env.NODE_ENV || "development"),

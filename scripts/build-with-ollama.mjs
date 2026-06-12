@@ -1,4 +1,4 @@
-import { writeFileSync, mkdirSync } from "fs";
+import { writeFileSync, mkdirSync, rmSync } from "fs";
 import { execSync } from "child_process";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
@@ -11,6 +11,7 @@ const installerDest = join(
   "windows",
   "install-ollama.ps1",
 );
+const nsisBundleDir = join(__dirname, "..", "src-tauri", "target", "release", "bundle", "nsis");
 
 async function main() {
   console.log("Downloading Ollama installer...");
@@ -25,6 +26,7 @@ async function main() {
   writeFileSync(installerDest, script, "utf8");
   console.log("Downloaded Ollama installer");
 
+  rmSync(nsisBundleDir, { recursive: true, force: true });
   execSync(
     "bun run tauri bundle --bundles nsis --config src-tauri/tauri.ollama.conf.json --ci",
     { stdio: "inherit", shell: true },
