@@ -60,7 +60,7 @@ jobs:
           bun --version
           rustc --version
           cargo --version
-          bunx tauri --version
+          bun run tauri --version
 
       - name: Cache Rust
         uses: swatinem/rust-cache@v2
