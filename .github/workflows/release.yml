@@ -150,14 +150,23 @@ jobs:
           $exe = Resolve-Path "src-tauri/target/release/polyui.exe"
           $stdout = Join-Path $env:RUNNER_TEMP "polyui-smoke.stdout.log"
           $stderr = Join-Path $env:RUNNER_TEMP "polyui-smoke.stderr.log"
+          $startupLog = Join-Path $env:APPDATA "Poly UI/logs/startup.log"
+          Remove-Item $startupLog -Force -ErrorAction SilentlyContinue
           $proc = Start-Process -FilePath $exe -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
           Start-Sleep -Seconds 8
+          $startupLines = Get-Content $startupLog -ErrorAction SilentlyContinue
           if ($proc.HasExited) {
             Get-Content $stdout -ErrorAction SilentlyContinue
             Get-Content $stderr -ErrorAction SilentlyContinue
-            $startupLog = Join-Path $env:APPDATA "Poly UI/logs/startup.log"
-            Get-Content $startupLog -ErrorAction SilentlyContinue
+            $startupLines
             throw "PolyUI exited during Windows smoke test with code $($proc.ExitCode)"
+          }
+          if (!($startupLines -match "frontend loaded")) {
+            Get-Content $stdout -ErrorAction SilentlyContinue
+            Get-Content $stderr -ErrorAction SilentlyContinue
+            $startupLines
+            Stop-Process -Id $proc.Id -Force
+            throw "PolyUI Windows smoke test did not reach frontend loaded"
           }
           Stop-Process -Id $proc.Id -Force
 
@@ -204,15 +213,25 @@ jobs:
           test -n "$APP_EXE"
           STDOUT="$RUNNER_TEMP/polyui-smoke.stdout.log"
           STDERR="$RUNNER_TEMP/polyui-smoke.stderr.log"
+          STARTUP_LOG="$HOME/Library/Logs/Poly UI/startup.log"
+          rm -f "$STARTUP_LOG"
           "$APP_EXE" >"$STDOUT" 2>"$STDERR" &
           PID=$!
           sleep 8
           if ! kill -0 "$PID" 2>/dev/null; then
             cat "$STDOUT" || true
             cat "$STDERR" || true
-            cat "$HOME/Library/Logs/Poly UI/startup.log" || true
+            cat "$STARTUP_LOG" || true
             wait "$PID"
             echo "PolyUI exited during macOS smoke test"
+            exit 1
+          fi
+          if ! grep -q "frontend loaded" "$STARTUP_LOG"; then
+            cat "$STDOUT" || true
+            cat "$STDERR" || true
+            cat "$STARTUP_LOG" || true
+            kill "$PID" || true
+            echo "PolyUI macOS smoke test did not reach frontend loaded"
             exit 1
           fi
           kill "$PID" || true

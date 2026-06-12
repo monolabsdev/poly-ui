@@ -1,17 +1,17 @@
 use sqlx::{sqlite::SqliteConnectOptions, sqlite::SqlitePoolOptions, Row, SqlitePool};
-use std::{str::FromStr, time::Duration};
+use std::time::Duration;
 use tauri::{AppHandle, Manager, Runtime};
 
 /// Opens local SQLite file, builds shared pool, runs bundled migrations.
 pub async fn init_db<R: Runtime>(app: &AppHandle<R>) -> Result<SqlitePool, String> {
     let app_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
-    std::fs::create_dir_all(&app_dir).map_err(|e| e.to_string())?;
+    std::fs::create_dir_all(&app_dir)
+        .map_err(|e| format!("failed to create app data directory {}: {e}", app_dir.display()))?;
 
     let db_path = app_dir.join("chat.db");
-    let db_url = format!("sqlite:{}", db_path.to_string_lossy());
 
-    let options = SqliteConnectOptions::from_str(&db_url)
-        .map_err(|e| e.to_string())?
+    let options = SqliteConnectOptions::new()
+        .filename(&db_path)
         .create_if_missing(true)
         .busy_timeout(Duration::from_secs(10))
         .foreign_keys(true);
@@ -20,7 +20,7 @@ pub async fn init_db<R: Runtime>(app: &AppHandle<R>) -> Result<SqlitePool, Strin
         .max_connections(5)
         .connect_with(options)
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| format!("failed to open SQLite database {}: {e}", db_path.display()))?;
 
     ensure_conversations_schema(&pool).await?;
     ensure_folders_schema(&pool).await?;
