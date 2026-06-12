@@ -1,37 +1,65 @@
-use crate::providers::base::{LLMProvider, ProviderConfig, ProviderType};
+use crate::providers::base::{
+    ChatProvider, LocalModelManager, ModelCatalog, ProviderConfig, ProviderType,
+};
 use crate::providers::ollama::OllamaProvider;
 use crate::providers::openai_compatible::OpenAICompatibleProvider;
+use crate::providers::profile::ProviderProfile;
 
 pub struct ProviderFactory;
 
 impl ProviderFactory {
-    pub fn create(config: ProviderConfig) -> Option<Box<dyn LLMProvider>> {
-        if !config.enabled {
+    pub fn create_chat_provider(config: ProviderConfig) -> Option<Box<dyn ChatProvider>> {
+        let profile = ProviderProfile::from_config(config);
+        if !profile.enabled {
             return None;
         }
 
-        match config.provider_type {
-            ProviderType::OllamaLocal => {
-                let host = config
-                    .ollama_host
-                    .unwrap_or_else(|| "http://localhost:11434".to_string());
-                let api_key = config.ollama_api_key.clone();
-                Some(Box::new(OllamaProvider::new(
-                    host,
-                    ProviderType::OllamaLocal,
-                    api_key,
-                )))
-            }
-            ProviderType::OpenAICompatible => {
-                let base_url = config
-                    .api_base_url
-                    .unwrap_or_else(|| "https://api.openai.com/v1".to_string());
-                Some(Box::new(OpenAICompatibleProvider::new(
-                    base_url,
-                    config.api_key.unwrap_or_default(),
-                    config.headers.clone(),
-                )))
-            }
+        match profile.provider_type {
+            ProviderType::OllamaLocal => Some(Box::new(OllamaProvider::new(
+                profile.endpoint,
+                ProviderType::OllamaLocal,
+                profile.api_key,
+            ))),
+            ProviderType::OpenAICompatible => Some(Box::new(OpenAICompatibleProvider::new(
+                profile.endpoint,
+                profile.api_key.unwrap_or_default(),
+                profile.headers,
+            ))),
         }
+    }
+
+    pub fn create_model_catalog(config: ProviderConfig) -> Option<Box<dyn ModelCatalog>> {
+        let profile = ProviderProfile::from_config(config);
+        if !profile.enabled {
+            return None;
+        }
+
+        match profile.provider_type {
+            ProviderType::OllamaLocal => Some(Box::new(OllamaProvider::new(
+                profile.endpoint,
+                ProviderType::OllamaLocal,
+                profile.api_key,
+            ))),
+            ProviderType::OpenAICompatible => Some(Box::new(OpenAICompatibleProvider::new(
+                profile.endpoint,
+                profile.api_key.unwrap_or_default(),
+                profile.headers,
+            ))),
+        }
+    }
+
+    pub fn create_local_model_manager(
+        config: ProviderConfig,
+    ) -> Option<Box<dyn LocalModelManager>> {
+        let profile = ProviderProfile::from_config(config);
+        if !profile.enabled || profile.provider_type != ProviderType::OllamaLocal {
+            return None;
+        }
+
+        Some(Box::new(OllamaProvider::new(
+            profile.endpoint,
+            ProviderType::OllamaLocal,
+            profile.api_key,
+        )))
     }
 }

@@ -1,12 +1,12 @@
 use crate::models::chat::ChatMessage;
-use crate::providers::base::LLMProvider;
+use crate::providers::base::ChatProvider;
 use chrono::Utc;
 use serde_json::Value;
 use std::env;
 use tokio_stream::StreamExt;
 
 pub async fn generate_title(
-    provider: &dyn LLMProvider,
+    provider: &dyn ChatProvider,
     model: &str,
     messages: &[ChatMessage],
     user_name: Option<&str>,
@@ -50,7 +50,7 @@ pub async fn generate_title(
 }
 
 async fn attempt_title_generation(
-    provider: &dyn LLMProvider,
+    provider: &dyn ChatProvider,
     task_model: &str,
     task_messages: &[ChatMessage],
     options: Value,
@@ -148,7 +148,7 @@ fn first_user_fallback_title(messages: &[ChatMessage]) -> Option<String> {
 }
 
 async fn run_title_completion(
-    provider: &dyn LLMProvider,
+    provider: &dyn ChatProvider,
     model: &str,
     messages: &[ChatMessage],
     options: Value,

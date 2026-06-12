@@ -30,7 +30,7 @@ fn should_preload_models(provider_type: ProviderType) -> bool {
 async fn try_preload_models(
     config: &ProviderConfig,
 ) -> Option<(Vec<ModelDetails>, ProviderStatus)> {
-    let provider = ProviderFactory::create(config.clone())?;
+    let provider = ProviderFactory::create_model_catalog(config.clone())?;
     let result = match tokio::time::timeout(
         std::time::Duration::from_secs(10),
         provider.get_available_models(),
@@ -129,7 +129,7 @@ pub async fn get_provider_models(
     let account_id = normalize_account_arg(account_id);
     let provider = state
         .provider_selector
-        .get_provider(provider_type, account_id.as_deref())
+        .get_model_catalog(provider_type, account_id.as_deref())
         .await?;
 
     tokio::time::timeout(

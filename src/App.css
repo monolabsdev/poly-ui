@@ -1,3 +1,11 @@
+:root {
+    --titlebar-height: 0px;
+    --z-titlebar: 10000;
+    --z-modal: 9000;
+    --z-popover: 8000;
+    --z-toast: 9999;
+}
+
 body {
     user-select: none;
     -webkit-user-select: none;

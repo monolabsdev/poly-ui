@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/Chat/EmptyState";
 import { useChatStream } from "@/hooks/useChatStream";
 import { useChatStore } from "@/store/chatStore";
 import type { ModelProvider } from "@/store/modelStore";
+import type { ModelChoice } from "@/lib/models/model-choice";
 import { materializeAttachments, releaseImageAttachment } from "@/lib/image-upload/attachments";
 import { useFolderStore } from "@/store/folderStore";
 import { FolderHome } from "@/components/Folders/FolderHome";
@@ -19,6 +20,7 @@ import { buildAgentResolvedContext } from "@/features/agent/context";
 type ChatWorkspaceProps = {
   selectedModels: string[];
   selectedProviders: ModelProvider[];
+  selectedModelChoices: ModelChoice[];
   systemPromptContent: string;
   userName?: string;
   isTemporary: boolean;
@@ -29,6 +31,7 @@ type ChatWorkspaceProps = {
 export default function ChatWorkspace({
   selectedModels,
   selectedProviders,
+  selectedModelChoices,
   systemPromptContent,
   userName,
   isTemporary,
@@ -41,7 +44,7 @@ export default function ChatWorkspace({
     ? `${systemPromptContent}\n${activeFolder.systemPrompt}`
     : systemPromptContent;
   const { messages, streamingMessagesList, isStreaming, sendMessage, regenerateMessage, stopStreaming, bottomRef, hasMessages } =
-    useChatStream(selectedModels, selectedProviders, effectiveSystemPrompt);
+    useChatStream(selectedModelChoices, effectiveSystemPrompt);
   const experimentalFeatures = useSettingsStore((state) => state.general.experimentalFeatures);
   const agentEnabled = useAgentStore((state) => state.enabled) && experimentalFeatures;
   const workspaces = useAgentStore((state) => state.workspaces);

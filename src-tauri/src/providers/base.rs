@@ -1,5 +1,5 @@
 use crate::models::chat::ToolDefinition;
-use crate::models::chat::{ChatMessage, StreamPayload};
+use crate::models::chat::{ChatMessage, ModelDetails, PullProgressPayload, StreamPayload};
 use async_trait::async_trait;
 use futures::Stream;
 use serde::{Deserialize, Serialize};
@@ -37,7 +37,7 @@ pub struct ProviderConfig {
 }
 
 #[async_trait]
-pub trait LLMProvider: Send + Sync {
+pub trait ChatProvider: Send + Sync {
     async fn health_check(&self) -> ProviderStatus;
     async fn chat_completion(
         &self,
@@ -47,17 +47,21 @@ pub trait LLMProvider: Send + Sync {
         options: Option<serde_json::Value>,
         tools: Option<Vec<ToolDefinition>>,
     ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamPayload, String>> + Send>>, String>;
-    async fn get_available_models(&self) -> Result<Vec<crate::models::chat::ModelDetails>, String>;
+    fn get_provider_name(&self) -> String;
+    fn get_provider_type(&self) -> ProviderType;
+}
+
+#[async_trait]
+pub trait ModelCatalog: Send + Sync {
+    async fn get_available_models(&self) -> Result<Vec<ModelDetails>, String>;
+    fn get_provider_type(&self) -> ProviderType;
+}
+
+#[async_trait]
+pub trait LocalModelManager: ModelCatalog {
     async fn pull_model(
         &self,
         model: String,
-    ) -> Result<
-        Pin<
-            Box<dyn Stream<Item = Result<crate::models::chat::PullProgressPayload, String>> + Send>,
-        >,
-        String,
-    >;
+    ) -> Result<Pin<Box<dyn Stream<Item = Result<PullProgressPayload, String>> + Send>>, String>;
     async fn delete_model(&self, model: String) -> Result<(), String>;
-    fn get_provider_name(&self) -> String;
-    fn get_provider_type(&self) -> ProviderType;
 }

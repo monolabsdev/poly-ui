@@ -513,12 +513,20 @@ export const AuthModal: React.FC = () => {
       open={isOpen}
       aria-labelledby="auth-dialog-title"
       aria-modal="true"
+      slotProps={{
+        backdrop: {
+          sx: { top: "var(--titlebar-height)" },
+        },
+      }}
     >
       <Box
         role="dialog"
         sx={{
           position: "fixed",
-          inset: 0,
+          top: "var(--titlebar-height)",
+          left: 0,
+          right: 0,
+          bottom: 0,
           zIndex: 1000,
           overflowY: "auto",
           overflowX: "hidden",

@@ -3,7 +3,7 @@ use crate::models::chat::{
     ChatMessage, SearchResultItem, StreamMetadata, StreamPayload, ThinkingPayload, ToolCallInfo,
     ToolDefinition, WebSearchEvent,
 };
-use crate::providers::base::LLMProvider;
+use crate::providers::base::ChatProvider;
 use crate::stream_emitter::StreamEmitter;
 use crate::web_search::{WebSearchClient, WebSearchConfig};
 use tokio_stream::StreamExt;
@@ -163,7 +163,7 @@ pub struct ToolLoop;
 impl ToolLoop {
     #[allow(clippy::too_many_arguments)]
     pub async fn run(
-        provider: &dyn LLMProvider,
+        provider: &dyn ChatProvider,
         model: &str,
         initial_messages: Vec<ChatMessage>,
         system_prompt: Option<String>,

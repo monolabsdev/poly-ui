@@ -51,6 +51,9 @@ const baseThemeOptions: ThemeOptions = {
     borderRadius: 12,
   },
   spacing: 8,
+  zIndex: {
+    modal: 9000,
+  },
   components: {
     MuiButtonBase: {
       defaultProps: {

@@ -14,6 +14,11 @@ function WindowTitleBar() {
       data-tauri-drag-region
       component="header"
       sx={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 10000,
         height: TITLE_BAR_HEIGHT,
         minHeight: TITLE_BAR_HEIGHT,
         display: "flex",

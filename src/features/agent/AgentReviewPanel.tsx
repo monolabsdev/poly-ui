@@ -105,6 +105,11 @@ export function AgentReviewPanel({
       anchor="right"
       open={open}
       onClose={onClose}
+      slotProps={{
+        backdrop: {
+          sx: { top: "var(--titlebar-height)" },
+        },
+      }}
       PaperProps={{
         sx: {
           width: { xs: "100vw", sm: 620 },

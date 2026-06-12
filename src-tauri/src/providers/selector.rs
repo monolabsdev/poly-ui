@@ -1,5 +1,7 @@
 use crate::db::connection::{ensure_default_provider_configs, normalize_provider_account_id};
-use crate::providers::base::{LLMProvider, ProviderConfig, ProviderStatus, ProviderType};
+use crate::providers::base::{
+    ChatProvider, LocalModelManager, ModelCatalog, ProviderConfig, ProviderStatus, ProviderType,
+};
 use crate::providers::factory::ProviderFactory;
 use sqlx::SqlitePool;
 use std::collections::HashMap;
@@ -87,7 +89,7 @@ impl ProviderSelector {
                     }
                 }
 
-                let provider_opt = ProviderFactory::create(config.clone());
+                let provider_opt = ProviderFactory::create_chat_provider(config.clone());
                 futures.push(async move {
                     let status = if let Some(provider) = provider_opt {
                         tokio::time::timeout(Duration::from_secs(10), provider.health_check())
@@ -119,7 +121,7 @@ impl ProviderSelector {
         results
     }
 
-    pub async fn get_active_provider(&self) -> Result<Box<dyn LLMProvider>, String> {
+    pub async fn get_active_provider(&self) -> Result<Box<dyn ChatProvider>, String> {
         let configs = self.get_provider_configs(None).await?;
         let health = self.check_all_providers(None).await;
 
@@ -131,7 +133,7 @@ impl ProviderSelector {
             if !matches!(health.get(&config_id), Some(ProviderStatus::Online)) {
                 continue;
             }
-            if let Some(provider) = ProviderFactory::create(config.clone()) {
+            if let Some(provider) = ProviderFactory::create_chat_provider(config.clone()) {
                 let mut active = self.active_provider.lock().await;
                 *active = Some(config.provider_type);
                 return Ok(provider);
@@ -145,7 +147,7 @@ impl ProviderSelector {
         &self,
         provider_type: ProviderType,
         account_id: Option<&str>,
-    ) -> Result<Box<dyn LLMProvider>, String> {
+    ) -> Result<Box<dyn ChatProvider>, String> {
         let config = self
             .get_provider_configs(account_id)
             .await?
@@ -153,7 +155,39 @@ impl ProviderSelector {
             .find(|config| config.provider_type == provider_type)
             .ok_or_else(|| format!("{provider_type:?} provider is not configured."))?;
 
-        ProviderFactory::create(config)
+        ProviderFactory::create_chat_provider(config)
+            .ok_or_else(|| format!("{provider_type:?} provider is disabled."))
+    }
+
+    pub async fn get_model_catalog(
+        &self,
+        provider_type: ProviderType,
+        account_id: Option<&str>,
+    ) -> Result<Box<dyn ModelCatalog>, String> {
+        let config = self
+            .get_provider_configs(account_id)
+            .await?
+            .into_iter()
+            .find(|config| config.provider_type == provider_type)
+            .ok_or_else(|| format!("{provider_type:?} provider is not configured."))?;
+
+        ProviderFactory::create_model_catalog(config)
+            .ok_or_else(|| format!("{provider_type:?} provider is disabled."))
+    }
+
+    pub async fn get_local_model_manager(
+        &self,
+        account_id: Option<&str>,
+    ) -> Result<Box<dyn LocalModelManager>, String> {
+        let provider_type = ProviderType::OllamaLocal;
+        let config = self
+            .get_provider_configs(account_id)
+            .await?
+            .into_iter()
+            .find(|config| config.provider_type == provider_type)
+            .ok_or_else(|| format!("{provider_type:?} provider is not configured."))?;
+
+        ProviderFactory::create_local_model_manager(config)
             .ok_or_else(|| format!("{provider_type:?} provider is disabled."))
     }
 

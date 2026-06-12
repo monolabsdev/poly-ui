@@ -1,5 +1,4 @@
 use crate::models::chat::ModelDetails;
-use crate::providers::base::ProviderType;
 use crate::AppState;
 use std::sync::atomic::Ordering;
 use tauri::{AppHandle, Emitter};
@@ -12,7 +11,10 @@ pub async fn get_local_models(
 ) -> Result<Vec<ModelDetails>, String> {
     let provider = state
         .provider_selector
-        .get_provider(ProviderType::OllamaLocal, account_id.as_deref())
+        .get_model_catalog(
+            crate::providers::base::ProviderType::OllamaLocal,
+            account_id.as_deref(),
+        )
         .await?;
     provider.get_available_models().await
 }
@@ -25,7 +27,7 @@ pub async fn delete_model(
 ) -> Result<(), String> {
     let provider = state
         .provider_selector
-        .get_provider(ProviderType::OllamaLocal, account_id.as_deref())
+        .get_local_model_manager(account_id.as_deref())
         .await?;
     provider.delete_model(model).await
 }
@@ -40,7 +42,7 @@ pub async fn pull_model(
     state.is_pull_cancelled.store(false, Ordering::SeqCst);
     let provider = state
         .provider_selector
-        .get_provider(ProviderType::OllamaLocal, account_id.as_deref())
+        .get_local_model_manager(account_id.as_deref())
         .await?;
 
     let mut stream = provider

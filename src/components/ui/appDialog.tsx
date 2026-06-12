@@ -35,12 +35,12 @@ export function AppDialogFrame({
           sm: `min(${APP_DIALOG_WIDTH}px, calc(100vw - 32px))`,
         },
         height: {
-          xs: "100dvh",
-          sm: "min(680px, calc(100dvh - 48px))",
+          xs: "calc(100dvh - var(--titlebar-height))",
+          sm: "min(680px, calc(100dvh - var(--titlebar-height) - 48px))",
         },
         maxHeight: {
-          xs: "100dvh",
-          sm: "min(680px, calc(100dvh - 48px))",
+          xs: "calc(100dvh - var(--titlebar-height))",
+          sm: "min(680px, calc(100dvh - var(--titlebar-height) - 48px))",
         },
         borderRadius: { xs: 0, sm: "12px" },
         bgcolor: "background.paper",

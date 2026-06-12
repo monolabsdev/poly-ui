@@ -22,6 +22,9 @@ if (IS_LINUX) {
   document.documentElement.dataset.chrome = "borderless";
 }
 
+const TITLE_BAR_HEIGHT = IS_LINUX ? 0 : 36;
+document.documentElement.style.setProperty("--titlebar-height", `${TITLE_BAR_HEIGHT}px`);
+
 const App = lazy(loadAppModule);
 
 function onGlobalError(event: ErrorEvent) {
@@ -126,7 +129,7 @@ function Root() {
       <CssBaseline />
       <NotificationProvider>
         <ErrorBoundary>
-          <div style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+          <div style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden", paddingTop: "var(--titlebar-height)" }}>
             <WindowTitleBar />
             {startupError ? (
               <StartupErrorScreen message={startupError} />

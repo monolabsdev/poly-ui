@@ -71,7 +71,7 @@ export function ConversationSearchModal({
       <DialogContent
         sx={{
           width: "min(1120px, calc(100vw - 40px))",
-          height: "min(710px, calc(100dvh - 48px))",
+          height: "min(710px, calc(100dvh - var(--titlebar-height) - 48px))",
           borderRadius: "30px",
           bgcolor: "background.paper",
           display: "flex",

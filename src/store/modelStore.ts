@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { ProviderType } from "@/services/providers";
+import type { ModelChoice } from "@/lib/models/model-choice";
 
 export type ModelProvider = ProviderType;
 
@@ -22,6 +23,7 @@ type ModelStore = {
   selectedModels: string[];
   selectedProvider: ModelProvider;
   selectedProviders: ModelProvider[];
+  selectedModelChoices: ModelChoice[];
   availableModels: AvailableModels;
   defaultModel: string;
   systemPrompts: SystemPrompt[];
@@ -80,6 +82,7 @@ export const useModelStore = create<ModelStore>((set) => ({
   selectedModels: [],
   selectedProvider: "OllamaLocal",
   selectedProviders: [],
+  selectedModelChoices: [],
   availableModels: defaultAvailableModels,
   systemPrompts: [defaultSystemPrompt],
   activeSystemPromptId: defaultSystemPrompt.id,
@@ -90,11 +93,13 @@ export const useModelStore = create<ModelStore>((set) => ({
       selectedModel: model,
       selectedProviders: [provider],
       selectedModels: [model],
+      selectedModelChoices: [{ provider, model }],
     }),
   setSelectedModels: (models) =>
     set({
       selectedProviders: models.map((m) => m.provider),
       selectedModels: models.map((m) => m.model),
+      selectedModelChoices: models,
       selectedProvider: models[0]?.provider || "OllamaLocal",
       selectedModel: models[0]?.model || "",
     }),
@@ -107,6 +112,7 @@ export const useModelStore = create<ModelStore>((set) => ({
       return {
         selectedProviders: [...state.selectedProviders, provider],
         selectedModels: [...state.selectedModels, model],
+        selectedModelChoices: [...state.selectedModelChoices, { provider, model }],
       };
     }),
   removeSelectedModel: (index: number) =>
@@ -118,6 +124,10 @@ export const useModelStore = create<ModelStore>((set) => ({
       return {
         selectedProviders: nextProviders,
         selectedModels: nextModels,
+        selectedModelChoices: nextModels.map((model, i) => ({
+          provider: nextProviders[i],
+          model,
+        })),
         selectedProvider: nextProviders[0] || "OllamaLocal",
         selectedModel: nextModels[0] || "",
       };
@@ -134,6 +144,10 @@ export const useModelStore = create<ModelStore>((set) => ({
       return {
         selectedProviders: nextProviders,
         selectedModels: nextModels,
+        selectedModelChoices: nextModels.map((model, i) => ({
+          provider: nextProviders[i],
+          model,
+        })),
         selectedProvider: nextProviders[0] || "OllamaLocal",
         selectedModel: nextModels[0] || "",
       };

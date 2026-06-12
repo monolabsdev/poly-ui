@@ -5,6 +5,11 @@ export type ProviderModel = {
   provider_type: ProviderType;
 };
 
+export type ModelChoice = {
+  provider: ProviderType;
+  model: string;
+};
+
 export function modelChoiceId(provider: ProviderType, model: string): string {
   return `${provider}:${encodeURIComponent(model)}`;
 }

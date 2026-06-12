@@ -1,7 +1,9 @@
 use crate::models::chat::{
     ChatMessage, StreamMetadata, StreamPayload, ToolCallInfo, ToolDefinition,
 };
-use crate::providers::base::{LLMProvider, ProviderStatus, ProviderType};
+use crate::providers::base::{
+    ChatProvider, LocalModelManager, ModelCatalog, ProviderStatus, ProviderType,
+};
 use async_trait::async_trait;
 use futures::Stream;
 use ollama_rs::generation::chat::request::ChatMessageRequest;
@@ -135,7 +137,7 @@ fn with_model_thinking_prompt(
 }
 
 #[async_trait]
-impl LLMProvider for OllamaProvider {
+impl ChatProvider for OllamaProvider {
     async fn health_check(&self) -> ProviderStatus {
         match self.client.list_local_models().await {
             Ok(models) => {
@@ -316,6 +318,17 @@ impl LLMProvider for OllamaProvider {
         Ok(Box::pin(mapped_stream))
     }
 
+    fn get_provider_name(&self) -> String {
+        "Ollama".to_string()
+    }
+
+    fn get_provider_type(&self) -> ProviderType {
+        self.provider_type
+    }
+}
+
+#[async_trait]
+impl ModelCatalog for OllamaProvider {
     async fn get_available_models(&self) -> Result<Vec<crate::models::chat::ModelDetails>, String> {
         self.client
             .list_local_models()
@@ -334,6 +347,13 @@ impl LLMProvider for OllamaProvider {
             })
     }
 
+    fn get_provider_type(&self) -> ProviderType {
+        self.provider_type
+    }
+}
+
+#[async_trait]
+impl LocalModelManager for OllamaProvider {
     async fn pull_model(
         &self,
         model: String,
@@ -367,14 +387,6 @@ impl LLMProvider for OllamaProvider {
             .delete_model(model)
             .await
             .map_err(normalize_ollama_error)
-    }
-
-    fn get_provider_name(&self) -> String {
-        "Ollama".to_string()
-    }
-
-    fn get_provider_type(&self) -> ProviderType {
-        self.provider_type
     }
 }
 

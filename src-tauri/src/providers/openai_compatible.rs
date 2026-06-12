@@ -1,8 +1,7 @@
 use crate::models::chat::{
-    ChatMessage, ModelDetails, PullProgressPayload, StreamMetadata, StreamPayload, ToolCallInfo,
-    ToolDefinition,
+    ChatMessage, ModelDetails, StreamMetadata, StreamPayload, ToolCallInfo, ToolDefinition,
 };
-use crate::providers::base::{LLMProvider, ProviderStatus, ProviderType};
+use crate::providers::base::{ChatProvider, ModelCatalog, ProviderStatus, ProviderType};
 use async_stream::stream;
 use async_trait::async_trait;
 use futures::Stream;
@@ -68,7 +67,7 @@ impl OpenAICompatibleProvider {
 }
 
 #[async_trait]
-impl LLMProvider for OpenAICompatibleProvider {
+impl ChatProvider for OpenAICompatibleProvider {
     async fn health_check(&self) -> ProviderStatus {
         configured_health_status()
     }
@@ -168,6 +167,17 @@ impl LLMProvider for OpenAICompatibleProvider {
         Ok(Box::pin(output))
     }
 
+    fn get_provider_name(&self) -> String {
+        "OpenAI-compatible API".to_string()
+    }
+
+    fn get_provider_type(&self) -> ProviderType {
+        ProviderType::OpenAICompatible
+    }
+}
+
+#[async_trait]
+impl ModelCatalog for OpenAICompatibleProvider {
     async fn get_available_models(&self) -> Result<Vec<ModelDetails>, String> {
         self.models().await.map(|models| {
             models
@@ -180,22 +190,6 @@ impl LLMProvider for OpenAICompatibleProvider {
                 })
                 .collect()
         })
-    }
-
-    async fn pull_model(
-        &self,
-        _model: String,
-    ) -> Result<Pin<Box<dyn Stream<Item = Result<PullProgressPayload, String>> + Send>>, String>
-    {
-        Err("Model pull is only available for Ollama.".to_string())
-    }
-
-    async fn delete_model(&self, _model: String) -> Result<(), String> {
-        Err("Model deletion is only available for Ollama.".to_string())
-    }
-
-    fn get_provider_name(&self) -> String {
-        "OpenAI-compatible API".to_string()
     }
 
     fn get_provider_type(&self) -> ProviderType {

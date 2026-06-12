@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { Box, Typography, Stack, IconButton } from "@mui/material";
-import { motion, AnimatePresence, useReducedMotion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 import { X, ExternalLink, Sparkles } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
@@ -24,19 +24,11 @@ const VARIANTS = {
 };
 
 export function ReleaseNotesModal() {
-  const { show, loading, data, version, isFirstLaunchForVersion, dismiss } = useReleaseNotes();
-  const prefersReducedMotion = useReducedMotion();
+  const { show, loading, data, version, dismiss } = useReleaseNotes();
   const confettiFiredRef = useRef(false);
 
-  const shouldShowConfetti =
-    show &&
-    isFirstLaunchForVersion &&
-    data?.ok === true &&
-    (data.ok ? data.body.trim().length > 0 : false) &&
-    !prefersReducedMotion;
-
   useEffect(() => {
-    if (shouldShowConfetti && !confettiFiredRef.current) {
+    if (show && !confettiFiredRef.current) {
       confettiFiredRef.current = true;
       const timer = setTimeout(() => fireConfettiBothSides(), 300);
       return () => clearTimeout(timer);
@@ -44,7 +36,7 @@ export function ReleaseNotesModal() {
     if (!show) {
       confettiFiredRef.current = false;
     }
-  }, [shouldShowConfetti, show]);
+  }, [show]);
 
   return (
     <Modal open={show} onOpenChange={(open) => { if (!open) dismiss(); }} maxWidth={600} showCloseButton={false}>
@@ -66,7 +58,7 @@ export function ReleaseNotesModal() {
               exit="exit"
               transition={{ duration: MOTION_TOKENS.duration.slow, ease: MOTION_TOKENS.ease.out, delay: 0.04 }}
             >
-              <Box sx={{ position: "relative", display: "flex", flexDirection: "column", maxHeight: "80vh" }}>
+              <Box sx={{ position: "relative", display: "flex", flexDirection: "column", maxHeight: "calc(100vh - var(--titlebar-height) - 32px)" }}>
                 <IconButton
                   onClick={dismiss}
                   size="small"

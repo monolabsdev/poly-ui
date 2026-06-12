@@ -56,6 +56,7 @@ function App() {
   const {
     selectedModels,
     selectedProviders,
+    selectedModelChoices,
     updateSelectedModel,
     addSelectedModel,
     removeSelectedModel,
@@ -66,6 +67,7 @@ function App() {
     useShallow((state) => ({
       selectedModels: state.selectedModels,
       selectedProviders: state.selectedProviders,
+      selectedModelChoices: state.selectedModelChoices,
       updateSelectedModel: state.updateSelectedModel,
       addSelectedModel: state.addSelectedModel,
       removeSelectedModel: state.removeSelectedModel,
@@ -267,6 +269,7 @@ function App() {
             <ChatWorkspace
               selectedModels={selectedModels}
               selectedProviders={selectedProviders}
+              selectedModelChoices={selectedModelChoices}
               systemPromptContent={systemPromptContent}
               userName={user?.fullName || user?.email}
               isTemporary={isTemporary}

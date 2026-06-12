@@ -15,13 +15,18 @@ export function Dialog({
       open={open || false}
       onClose={() => onOpenChange?.(false)}
       maxWidth={false}
+      slotProps={{
+        backdrop: {
+          sx: { top: "var(--titlebar-height)" },
+        },
+      }}
       PaperProps={{
         sx: {
           bgcolor: "transparent",
           backgroundImage: "none",
           boxShadow: "none",
           m: 0,
-          maxHeight: "100%",
+          maxHeight: "calc(100vh - var(--titlebar-height) - 32px)",
         },
       }}
     >

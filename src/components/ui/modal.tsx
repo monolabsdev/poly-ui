@@ -49,7 +49,7 @@ export function Modal({
           height: height,
           display: "flex",
           flexDirection: "column",
-          maxHeight: "85vh",
+          maxHeight: "calc(100vh - var(--titlebar-height) - 32px)",
           ...sx as any,
         }}
       >
