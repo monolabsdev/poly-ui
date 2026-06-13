@@ -191,6 +191,14 @@ pub fn select_whisper_model(
 }
 
 #[tauri::command]
+pub fn release_whisper_model(
+    state: State<'_, WhisperState>,
+) -> Result<(), String> {
+    state.release_model();
+    Ok(())
+}
+
+#[tauri::command]
 pub async fn download_whisper_model(
     app_handle: AppHandle,
     model_id: String,
@@ -263,6 +271,7 @@ pub async fn download_whisper_model(
 #[tauri::command]
 pub fn transcribe_audio(
     audio_samples: Vec<f32>,
+    language: Option<String>,
     state: State<'_, WhisperState>,
 ) -> Result<String, String> {
     let selected_model_id = read_selected_model_id(&state)?
@@ -274,7 +283,7 @@ pub fn transcribe_audio(
         let mut whisper_state = context.create_state().map_err(|error| error.to_string())?;
         let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
 
-        params.set_language(Some("en"));
+        params.set_language(language.as_deref());
         params.set_print_special(false);
         params.set_print_progress(false);
         params.set_print_realtime(false);

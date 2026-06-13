@@ -60,4 +60,12 @@ impl WhisperState {
 
         transcribe(&loaded_context.context)
     }
+
+    pub fn release_model(&self) {
+        if let Ok(mut loaded) = self.context.lock() {
+            if loaded.is_some() {
+                *loaded = None;
+            }
+        }
+    }
 }
