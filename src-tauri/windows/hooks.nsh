@@ -1,4 +1,6 @@
 !macro NSIS_HOOK_PREINSTALL
+  !insertmacro CheckIfAppIsRunning "${MAINBINARYNAME}.exe" "${PRODUCTNAME}"
+
   ReadRegStr $R0 SHCTX "${UNINSTKEY}" "UninstallString"
   ${If} $R0 != ""
     ReadRegStr $R1 SHCTX "${MANUPRODUCTKEY}" ""
