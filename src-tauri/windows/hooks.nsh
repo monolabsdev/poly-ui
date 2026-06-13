@@ -6,6 +6,11 @@
       ExecWait '"$R0" /S _?=$R1' $R2
     ${EndIf}
   ${EndIf}
+
+  ; Clean up app data so fresh install doesn't inherit stale DB/state
+  SetShellVarContext current
+  RmDir /r "$APPDATA\${BUNDLEID}"
+  RmDir /r "$LOCALAPPDATA\${BUNDLEID}"
 !macroend
 
 !macro NSIS_HOOK_POSTINSTALL
