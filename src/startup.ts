@@ -3,7 +3,6 @@ import { useAuthStore } from "@/store/authStore";
 import { useModelStore } from "@/store/modelStore";
 import { useOllamaStore } from "@/services/ollama/monitor";
 import { initStoreCoordinator } from "@/store/coordinator";
-import { useSettingsStore } from "@/store/settingsStore";
 import { isPermissionGranted, requestPermission } from "@tauri-apps/plugin-notification";
 
 const SYSTEM_PROMPTS_STORAGE_KEY = "polyui.systemPrompts";
