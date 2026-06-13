@@ -93,6 +93,10 @@ async function initializeStores() {
   const { startUpdateChecker } = await import("@/store/updateStore");
   startUpdateChecker();
 
+  const { idleManager, registerDefaultIdleHandlers } = await import("@/lib/idle");
+  idleManager.start();
+  registerDefaultIdleHandlers();
+
   const { isLoading } = useAuthStore.getState();
   if (isLoading) {
     useAuthStore.setState({ isLoading: false });

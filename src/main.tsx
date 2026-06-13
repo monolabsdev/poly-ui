@@ -128,6 +128,15 @@ function Root() {
     return () => { unlisten.forEach((fn) => fn()); };
   }, [isAppReady]);
 
+  useEffect(() => {
+    if (!DEV) return;
+    const id = setInterval(() => {
+      window.performance.clearMeasures();
+      window.performance.clearMarks();
+    }, 30_000);
+    return () => clearInterval(id);
+  }, []);
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
