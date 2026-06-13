@@ -26,14 +26,9 @@ import {
 } from "@/components/Sidebar/components/SidebarPrimitives";
 import { Conversation } from "@/types/chat";
 
-const ConversationSearchModal = React.lazy(() =>
-  import("@/components/Chat/ConversationSearchModal").then((module) => ({
-    default: module.ConversationSearchModal,
-  })),
-);
-
 interface SidebarProps {
   onOpenSettings: () => void;
+  onOpenCommandPalette: () => void;
   onNewChat: () => void;
   onSelectConversation: (id: string) => void;
   onDeleteConversation: (id: string) => Promise<void>;
@@ -45,12 +40,12 @@ interface SidebarProps {
 
 function SidebarBody({
   onOpenSettings,
+  onOpenCommandPalette,
   onNewChat,
-  onSelectConversation,
   conversations,
   collapsible,
 }: Omit<SidebarProps, "onDeleteConversation" | "onRenameConversation" | "activeConversationId">) {
-  const { isCollapsed, isMobile, setOpenMobile } = useSidebar();
+  const { isCollapsed } = useSidebar();
   const theme = useTheme();
   const timing = useTiming();
   const reducedMotion = useReducedMotion();
@@ -63,7 +58,6 @@ function SidebarBody({
   );
   const loadFolders = useFolderStore((s) => s.actions.loadFolders);
   const { conv, folder } = useSidebarActions();
-  const [isSearchOpen, setIsSearchOpen] = React.useState(false);
 
   const groupedConversations = useConversationGroups(conversations);
   const folderConversations = React.useMemo(
@@ -78,20 +72,6 @@ function SidebarBody({
     loadFolders();
   }, [loadFolders]);
 
-  React.useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (
-        (event.ctrlKey || event.metaKey) &&
-        event.key.toLocaleLowerCase() === "k"
-      ) {
-        event.preventDefault();
-        setIsSearchOpen(true);
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
-
   const sidebarContent = (
     <>
       <SidebarHeader>
@@ -103,7 +83,7 @@ function SidebarBody({
           <NewChatButton onClick={onNewChat} />
         </Box>
         <Box sx={{ px: isCollapsed ? 1 : 1.5, pb: isCollapsed ? 1 : 2 }}>
-          <SearchButton onClick={() => setIsSearchOpen(true)} />
+          <SearchButton onClick={onOpenCommandPalette} />
         </Box>
 
         {!isCollapsed && (
@@ -155,21 +135,6 @@ function SidebarBody({
         title={conv.deleteTitle}
       />
 
-      {isSearchOpen ? (
-        <React.Suspense fallback={null}>
-          <ConversationSearchModal
-            open
-            onOpenChange={setIsSearchOpen}
-            conversations={conversations}
-            onNewChat={onNewChat}
-            onOpenConversation={(id) => {
-              onSelectConversation(id);
-              if (isMobile) setOpenMobile(false);
-            }}
-          />
-        </React.Suspense>
-      ) : null}
-
       <CreateFolderDialog folder={folder} />
     </>
   );
@@ -215,6 +180,7 @@ function SidebarBody({
 
 export const Sidebar = React.memo(function Sidebar({
   onOpenSettings,
+  onOpenCommandPalette,
   onNewChat,
   onSelectConversation,
   onDeleteConversation,
@@ -231,6 +197,7 @@ export const Sidebar = React.memo(function Sidebar({
     >
       <SidebarBody
         onOpenSettings={onOpenSettings}
+        onOpenCommandPalette={onOpenCommandPalette}
         onNewChat={onNewChat}
         onSelectConversation={onSelectConversation}
         conversations={conversations}

@@ -19,6 +19,8 @@ import { useAuthStore } from "@/store/authStore";
 import { useNotify } from "@/hooks/useNotify";
 import { useShallow } from "zustand/react/shallow";
 import { retryTitleForConversation, type TitleStore } from "@/lib/chat/title-generation";
+import { useFeatures } from "@/lib/featureRegistry";
+import { IS_MAC } from "@/lib/platform";
 
 const titleStore: TitleStore = {
   findConversation: (id) => useChatStore.getState().conversations.find((c) => c.id === id),
@@ -33,6 +35,24 @@ import {
 import { shouldLoadExternalDefault } from "@/lib/models/model-selector";
 import { useFolderStore } from "@/store/folderStore";
 import { SettingsModal } from "./components/Settings/SettingsModal";
+import type { SettingsTab } from "./components/Settings/SettingsModal";
+import { ArchivedChatsDialog } from "@/components/Chat/ArchivedChatsDialog";
+import { CommandPalette } from "@/features/command-palette/CommandPalette";
+import { useRegisteredCommandPaletteActions } from "@/features/command-palette/actionRegistry";
+import { useSettingsCommands } from "@/features/command-palette/settingsRegistry";
+import {
+  exportConversation,
+  importConversations,
+} from "@/features/command-palette/chatDataActions";
+import type { CommandPaletteItem } from "@/features/command-palette/types";
+import {
+  Archive,
+  Download,
+  FileInput,
+  MessageSquare,
+  Settings,
+  SquarePen,
+} from "lucide-react";
 
 const AuthModal = lazy(() =>
   import("@/components/Auth/AuthModal").then((module) => ({
@@ -48,9 +68,10 @@ const ChatWorkspace = lazy(() => import("@/components/Chat/ChatWorkspace"));
 
 function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [settingsInitialTab, setSettingsInitialTab] = useState<
-    "general" | "connections"
-  >("general");
+  const [settingsInitialTab, setSettingsInitialTab] =
+    useState<SettingsTab>("general");
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [isArchivedOpen, setIsArchivedOpen] = useState(false);
   const stopStreamingRef = useRef<(() => void) | null>(null);
   const notify = useNotify();
   const {
@@ -79,8 +100,8 @@ function App() {
 
   const ollama = useOllama();
 
-  const handleOpenSettings = useCallback(() => {
-    setSettingsInitialTab("general");
+  const handleOpenSettings = useCallback((tab: SettingsTab = "general") => {
+    setSettingsInitialTab(tab);
     setIsSettingsOpen(true);
   }, []);
   const handleOpenConnections = useCallback(() => {
@@ -99,7 +120,18 @@ function App() {
     const handler = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key === ",") {
         event.preventDefault();
-        setIsSettingsOpen(true);
+        handleOpenSettings("general");
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [handleOpenSettings]);
+
+  useEffect(() => {
+    const handler = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setIsCommandPaletteOpen(true);
       }
     };
     window.addEventListener("keydown", handler);
@@ -226,10 +258,145 @@ function App() {
     addSelectedModel("OllamaLocal", "");
   }, [addSelectedModel]);
 
+  const features = useFeatures();
+  const registeredActions = useRegisteredCommandPaletteActions();
+  const settingsCommands = useSettingsCommands({ openSettings: handleOpenSettings });
+
+  const commandPaletteItems = useMemo<CommandPaletteItem[]>(() => {
+    const activeConversation = conversations.find(
+      (conversation) => conversation.id === activeConversationId,
+    );
+    const sortedConversations = [...conversations].sort(
+      (a, b) =>
+        new Date(b.updatedAt || b.createdAt).getTime() -
+        new Date(a.updatedAt || a.createdAt).getTime(),
+    );
+
+    const conversationItems: CommandPaletteItem[] = sortedConversations.map(
+      (conversation, index) => ({
+        id: `conversation:${conversation.id}`,
+        title: conversation.title || "Untitled",
+        description: conversation.isArchived
+          ? "Archived conversation"
+          : index < 10
+            ? "Recent conversation"
+            : "Conversation",
+        category: "conversation",
+        keywords: [
+          "chat",
+          "conversation",
+          conversation.isArchived ? "archived" : "recent",
+        ],
+        icon: <MessageSquare size={16} />,
+        execute: () => handleSelectConversation(conversation.id),
+      }),
+    );
+
+    const coreActions: CommandPaletteItem[] = [
+      {
+        id: "action:new-conversation",
+        title: "New Conversation",
+        description: "Start a blank chat",
+        category: "action",
+        keywords: ["new", "chat", "compose"],
+        icon: <SquarePen size={16} />,
+        shortcut: IS_MAC ? "Cmd N" : "Ctrl N",
+        execute: handleNewChat,
+      },
+      {
+        id: "action:open-settings",
+        title: "Open Settings",
+        description: "Open Poly UI settings",
+        category: "action",
+        keywords: ["settings", "preferences", "sett"],
+        icon: <Settings size={16} />,
+        shortcut: IS_MAC ? "Cmd ," : "Ctrl ,",
+        execute: () => handleOpenSettings("general"),
+      },
+      {
+        id: "action:archived-conversations",
+        title: "Archived Conversations",
+        description: "View archived chats",
+        category: "action",
+        keywords: ["archive", "archived", "old chats"],
+        icon: <Archive size={16} />,
+        execute: () => setIsArchivedOpen(true),
+      },
+      {
+        id: "action:import-chat",
+        title: "Import Chat",
+        description: "Import a Poly UI chat JSON file",
+        category: "action",
+        keywords: ["import", "restore", "json"],
+        icon: <FileInput size={16} />,
+        execute: () => void importConversations(notify),
+      },
+      {
+        id: "action:export-current-chat",
+        title: "Export Current Chat",
+        description: activeConversation
+          ? `Export ${activeConversation.title || "Untitled"}`
+          : "No active chat selected",
+        category: "action",
+        keywords: ["export", "download", "backup", "json"],
+        icon: <Download size={16} />,
+        execute: () => {
+          if (activeConversation) void exportConversation(activeConversation, notify);
+        },
+      },
+    ];
+
+    const featureItems: CommandPaletteItem[] = features.map((feature) => {
+      const Icon = feature.icon;
+      const active = feature.active;
+      const title =
+        feature.id === "poly-agent"
+          ? "Experimental Agent Mode"
+          : feature.name;
+      return {
+        id: `feature:${feature.id}`,
+        title: `${active ? "\u2713" : "\u2715"} ${title}`,
+        description: feature.warning
+          ? `${feature.description ?? "Feature toggle"} - ${feature.warning}`
+          : feature.description,
+        category: "feature",
+        keywords: [
+          feature.id,
+          feature.name,
+          title,
+          feature.experimental ? "experimental" : "",
+          "toggle",
+          active ? "enabled" : "disabled",
+        ],
+        icon: <Icon size={16} />,
+        execute: feature.toggle,
+      };
+    });
+
+    return [
+      ...conversationItems,
+      ...coreActions,
+      ...registeredActions,
+      ...featureItems,
+      ...settingsCommands,
+    ];
+  }, [
+    activeConversationId,
+    conversations,
+    features,
+    handleNewChat,
+    handleOpenSettings,
+    handleSelectConversation,
+    notify,
+    registeredActions,
+    settingsCommands,
+  ]);
+
   return (
     <SidebarProvider>
       <Sidebar
         onOpenSettings={handleOpenSettings}
+        onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
         onNewChat={handleNewChat}
         onSelectConversation={handleSelectConversation}
         onDeleteConversation={handleDeleteConversation}
@@ -287,6 +454,15 @@ function App() {
           initialTab={settingsInitialTab}
         />
       ) : null}
+      <ArchivedChatsDialog
+        open={isArchivedOpen}
+        onOpenChange={setIsArchivedOpen}
+      />
+      <CommandPalette
+        open={isCommandPaletteOpen}
+        onOpenChange={setIsCommandPaletteOpen}
+        items={commandPaletteItems}
+      />
       <Suspense fallback={null}>
         <AuthModal />
       </Suspense>

@@ -2,6 +2,7 @@ import { ButtonBase, Typography } from "@mui/material";
 import { Search } from "lucide-react";
 import { useSidebar } from "@/components/Sidebar/hooks/useSidebar";
 import { SidebarRailIconButton } from "@/components/Sidebar/components/SidebarPrimitives";
+import { IS_MAC } from "@/lib/platform";
 
 export function SearchButton({ onClick }: { onClick: () => void }) {
   const { isCollapsed } = useSidebar();
@@ -38,7 +39,7 @@ export function SearchButton({ onClick }: { onClick: () => void }) {
         Search
       </Typography>
       <Typography sx={{ fontSize: 12, opacity: 0.6 }}>
-        Ctrl+K
+        {IS_MAC ? "Cmd+K" : "Ctrl+K"}
       </Typography>
     </ButtonBase>
   );

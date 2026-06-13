@@ -50,7 +50,7 @@ const ADVANCED_ITEM = {
   icon: SlidersHorizontal,
 };
 
-type SettingsTab = (typeof SIDEBAR_ITEMS)[number]["id"] | "developer" | "advanced";
+export type SettingsTab = (typeof SIDEBAR_ITEMS)[number]["id"] | "developer" | "advanced";
 
 export function SettingsModal({ isOpen, onClose, initialTab = "general" }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
