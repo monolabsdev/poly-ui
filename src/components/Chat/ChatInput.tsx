@@ -11,12 +11,6 @@ import {
 import { useState, memo, useEffect, useCallback, useMemo } from "react";
 import {
   Box,
-  Button,
-  Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   InputBase,
   IconButton,
   LinearProgress,
@@ -46,6 +40,7 @@ import { useSlashCommand } from "@/hooks/useSlashCommand";
 import { Ring2 } from "ldrs/react";
 import "ldrs/react/Ring2.css";
 import { useDictation } from "@/lib/useDictation";
+import { DictationModelDialog } from "@/components/Dictation/DictationModelDialog";
 import { ActiveFeaturesList } from "@/components/Chat/ChatInput/ActiveFeaturesList";
 import { SlashCommandMenu } from "@/components/Chat/ChatInput/SlashCommandMenu";
 import { ChatAttachmentsList } from "@/components/Chat/ChatInput/ChatAttachmentsList";
@@ -339,49 +334,14 @@ export const ChatInput = memo(function ChatInput({
         </AnimatePresence>
 
         <Box
-          sx={{
-            position: "relative",
-            zIndex: 2,
-            width: "100%",
-            mb: agentEnabled ? "-8px" : 0,
-            borderRadius: "24px",
-            overflow: "hidden",
-            bgcolor: isDragging ? "action.selected" : "background.paper",
-            border: isDragging
-              ? "2px dashed"
-              : isTemporary
-                ? "1px dashed"
-                : "1px solid",
-            borderColor: isDragging || isTemporary ? "border.main" : "divider",
-            boxShadow: agentEnabled ? 2 : 1,
-            transition: (theme) =>
-              theme.transitions.create(
-                ["border-color", "box-shadow", "background-color"],
-                {
-                  duration: theme.transitions.duration.short,
-                },
-              ),
-            "&:focus-within": {
-              borderColor: "border.main",
-              boxShadow: (theme) =>
-                agentEnabled ? theme.shadows[3] : theme.shadows[2],
-            },
-          }}
+          sx={inputBoxSx}
         >
           <Box
             onDragEnter={handleDragEnter}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
-            sx={{
-              display: "flex",
-              flexDirection: "column",
-              minHeight: currentAttachments.length > 0 ? 160 : 120,
-              width: "100%",
-              borderRadius: "inherit",
-              bgcolor: "transparent",
-              p: 1.5,
-            }}
+            sx={dropAreaSx}
           >
             <AnimatePresence>
               {activeFeatures.length > 0 && (
@@ -678,50 +638,52 @@ export const ChatInput = memo(function ChatInput({
                   flexShrink: 0,
                 }}
               >
-                <IconButton
-                  onClick={recording ? stop : start}
-                  disabled={isStreaming}
-                  aria-label={recording ? "Stop dictation" : "Start dictation"}
-                  sx={{
-                    width: 32,
-                    height: 32,
-                    p: 0,
-                    color: recording
-                      ? theme.palette.error.main
-                      : theme.palette.text.secondary,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    mb: 0.5,
-                    "&.Mui-disabled": {
-                      color: theme.palette.text.disabled,
-                    },
-                  }}
-                >
-                  {processing ? (
-                    <Box
-                      sx={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        lineHeight: 0,
-                      }}
-                    >
-                      <Ring2
-                        size={16}
-                        stroke="3"
-                        strokeLength="0.28"
-                        bgOpacity="0.2"
-                        speed="0.8"
-                        color={theme.palette.text.secondary}
-                      />
-                    </Box>
-                  ) : recording ? (
-                    <StopIcon sx={{ fontSize: 20 }} />
-                  ) : (
-                    <Mic size={18} />
-                  )}
-                </IconButton>
+                {dictationEnabled && (
+                  <IconButton
+                    onClick={recording ? stop : start}
+                    disabled={isStreaming}
+                    aria-label={recording ? "Stop dictation" : "Start dictation"}
+                    sx={{
+                      width: 32,
+                      height: 32,
+                      p: 0,
+                      color: recording
+                        ? theme.palette.error.main
+                        : theme.palette.text.secondary,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      mb: 0.5,
+                      "&.Mui-disabled": {
+                        color: theme.palette.text.disabled,
+                      },
+                    }}
+                  >
+                    {processing ? (
+                      <Box
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          lineHeight: 0,
+                        }}
+                      >
+                        <Ring2
+                          size={16}
+                          stroke="3"
+                          strokeLength="0.28"
+                          bgOpacity="0.2"
+                          speed="0.8"
+                          color={theme.palette.text.secondary}
+                        />
+                      </Box>
+                    ) : recording ? (
+                      <StopIcon sx={{ fontSize: 20 }} />
+                    ) : (
+                      <Mic size={18} />
+                    )}
+                  </IconButton>
+                )}
                 <IconButton
                   onClick={handleAction}
                   disabled={

@@ -23,6 +23,12 @@ export type TtsSettings = {
   browser: BrowserTtsSettings;
 };
 
+export type DictationSettings = {
+  enabled: boolean;
+  language: string;
+  autoStart: boolean;
+};
+
 export type PerformanceSettings = {
   reduceMotion: boolean;
   reduceTransparency: boolean;
@@ -31,11 +37,13 @@ export type PerformanceSettings = {
 type SettingsState = {
   general: GeneralSettings;
   tts: TtsSettings;
+  dictation: DictationSettings;
   performance: PerformanceSettings;
   selectedPromptPreset: PromptPresetId;
   actions: {
     updateGeneral: (update: Partial<GeneralSettings>) => void;
     updateTts: (update: Partial<TtsSettings>) => void;
+    updateDictation: (update: Partial<DictationSettings>) => void;
     updatePerformance: (update: Partial<PerformanceSettings>) => void;
     setPromptPreset: (id: PromptPresetId) => void;
   };
@@ -47,6 +55,12 @@ const defaultTts: TtsSettings = {
     speed: 1.0,
     pitch: 1.0,
   },
+};
+
+export const defaultDictation: DictationSettings = {
+  enabled: true,
+  language: "auto",
+  autoStart: false,
 };
 
 export const defaultPerformance: PerformanceSettings = {
@@ -74,6 +88,7 @@ export const useSettingsStore = create<SettingsState>()(
         experimentalFeatures: false,
       },
       tts: { ...defaultTts },
+      dictation: { ...defaultDictation },
       performance: { ...defaultPerformance },
       selectedPromptPreset: "default" as PromptPresetId,
       actions: {
@@ -90,6 +105,9 @@ export const useSettingsStore = create<SettingsState>()(
             },
           })),
 
+        updateDictation: (update) =>
+          set((s) => ({ dictation: { ...s.dictation, ...update } })),
+
         updatePerformance: (update) =>
           set((s) => ({ performance: { ...s.performance, ...update } })),
 
@@ -98,7 +116,7 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: "polyui:settings",
-      version: 11,
+      version: 12,
       migrate: (persisted, version) => {
         const state = persisted as any;
         if (state?.tts) {
@@ -134,10 +152,13 @@ export const useSettingsStore = create<SettingsState>()(
           delete state.performance.lastHardwareScan;
           delete state.performance.optimizedAt;
         }
+        if (version < 12) {
+          state.dictation = { ...defaultDictation, ...state.dictation };
+        }
         return state as SettingsState;
       },
-      partialize: ({ general, tts, performance, selectedPromptPreset }) => ({
-        general, tts, performance, selectedPromptPreset,
+      partialize: ({ general, tts, dictation, performance, selectedPromptPreset }) => ({
+        general, tts, dictation, performance, selectedPromptPreset,
       }) as SettingsState,
     },
   ),

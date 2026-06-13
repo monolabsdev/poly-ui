@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { useSettingsStore } from "@/store/settingsStore";
 
 export interface WhisperModelInfo {
   id: string;
@@ -26,6 +27,8 @@ interface WhisperDownloadProgress {
   totalBytes: number | null;
 }
 
+const IDLE_TIMEOUT_MS = 5 * 60 * 1000;
+
 export function useDictation(onTranscript: (text: string) => void) {
   const [recording, setRecording] = useState(false);
   const [processing, setProcessing] = useState(false);
@@ -40,6 +43,11 @@ export function useDictation(onTranscript: (text: string) => void) {
   const chunksRef = useRef<Blob[]>([]);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const lastActivityRef = useRef<number>(Date.now());
+
+  const touchActivity = useCallback(() => {
+    lastActivityRef.current = Date.now();
+  }, []);
 
   useEffect(() => {
     const unlisten = listen<WhisperDownloadProgress>(
@@ -51,6 +59,17 @@ export function useDictation(onTranscript: (text: string) => void) {
       void unlisten.then((dispose) => dispose());
     };
   }, []);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (recording || processing) return;
+      if (Date.now() - lastActivityRef.current >= IDLE_TIMEOUT_MS) {
+        void invoke("release_whisper_model");
+      }
+    }, 30_000);
+
+    return () => clearInterval(id);
+  }, [recording, processing]);
 
   const stopTracks = useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -83,6 +102,7 @@ export function useDictation(onTranscript: (text: string) => void) {
   }, []);
 
   const start = useCallback(async () => {
+    touchActivity();
     const status = await refreshModels();
     if (!status.selectedModelId) {
       setInstallOpen(true);
@@ -90,7 +110,7 @@ export function useDictation(onTranscript: (text: string) => void) {
     }
 
     await beginRecording();
-  }, [beginRecording, refreshModels]);
+  }, [beginRecording, refreshModels, touchActivity]);
 
   const closeInstall = useCallback(() => {
     if (!installingModelId) {
@@ -100,6 +120,7 @@ export function useDictation(onTranscript: (text: string) => void) {
 
   const installModel = useCallback(
     async (modelId: string) => {
+      touchActivity();
       setInstallingModelId(modelId);
       setDownloadProgress({
         modelId,
@@ -117,17 +138,18 @@ export function useDictation(onTranscript: (text: string) => void) {
         setDownloadProgress(null);
       }
     },
-    [beginRecording, refreshModels],
+    [beginRecording, refreshModels, touchActivity],
   );
 
   const selectInstalledModel = useCallback(
     async (modelId: string) => {
+      touchActivity();
       await invoke("select_whisper_model", { modelId });
       await refreshModels();
       setInstallOpen(false);
       await beginRecording();
     },
-    [beginRecording, refreshModels],
+    [beginRecording, refreshModels, touchActivity],
   );
 
   const stop = useCallback(async () => {
@@ -158,8 +180,10 @@ export function useDictation(onTranscript: (text: string) => void) {
 
       try {
         const samples = Array.from(audioBuffer.getChannelData(0));
+        const language = useSettingsStore.getState().dictation.language;
         const transcript = await invoke<string>("transcribe_audio", {
           audioSamples: samples,
+          language: language === "auto" ? null : language,
         });
 
         if (transcript.trim()) {
@@ -172,8 +196,9 @@ export function useDictation(onTranscript: (text: string) => void) {
       chunksRef.current = [];
       stopTracks();
       setProcessing(false);
+      touchActivity();
     }
-  }, [onTranscript, stopTracks]);
+  }, [onTranscript, stopTracks, touchActivity]);
 
   return {
     recording,
@@ -188,5 +213,6 @@ export function useDictation(onTranscript: (text: string) => void) {
     closeInstall,
     installModel,
     selectInstalledModel,
+    refreshModels,
   };
 }

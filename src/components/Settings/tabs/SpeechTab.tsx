@@ -1,4 +1,5 @@
-import { useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { useShallow } from "zustand/react/shallow";
 import {
   AlertCircle,
@@ -8,23 +9,45 @@ import {
 import {
   Box,
   Button,
+  Chip,
   CircularProgress,
   FormControl,
   MenuItem,
   Select,
   Slider,
   Stack,
+  Switch,
   Typography,
 } from "@mui/material";
 import { SettingCard, SectionHeader, selectSx } from "../SettingComponents";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useTtsStore } from "@/store/ttsStore";
 import { useNotify } from "@/hooks/useNotify";
+import { useDictation } from "@/lib/useDictation";
+import { DictationModelDialog } from "@/components/Dictation/DictationModelDialog";
+
+const WHISPER_LANGUAGES = [
+  { code: "auto", label: "Auto-detect" },
+  { code: "en", label: "English" },
+  { code: "fr", label: "French" },
+  { code: "de", label: "German" },
+  { code: "es", label: "Spanish" },
+  { code: "it", label: "Italian" },
+  { code: "pt", label: "Portuguese" },
+  { code: "nl", label: "Dutch" },
+  { code: "ru", label: "Russian" },
+  { code: "ja", label: "Japanese" },
+  { code: "ko", label: "Korean" },
+  { code: "zh", label: "Chinese" },
+  { code: "ar", label: "Arabic" },
+  { code: "hi", label: "Hindi" },
+];
 
 export function SpeechTab() {
-  const { tts, actions } = useSettingsStore(
+  const { tts, dictation, actions } = useSettingsStore(
     useShallow((state) => ({
       tts: state.tts,
+      dictation: state.dictation,
       actions: state.actions,
     })),
   );
@@ -85,6 +108,41 @@ export function SpeechTab() {
 
   const isTesting = ttsPlayback.activeMessageId === "test-synthesis";
   const isDisabled = (ttsPlayback.isGenerating && !isTesting) || !speechSupported;
+
+  const appendTranscript = useCallback(() => {}, []);
+  const {
+    models,
+    selectedModelId,
+    installingModelId,
+    downloadProgress,
+    installOpen,
+    closeInstall,
+    installModel,
+    selectInstalledModel,
+    refreshModels,
+  } = useDictation(appendTranscript);
+
+  const [manageOpen, setManageOpen] = useState(false);
+
+  useEffect(() => {
+    void refreshModels();
+  }, [refreshModels]);
+
+  useEffect(() => {
+    if (manageOpen) {
+      void refreshModels();
+    }
+  }, [manageOpen, refreshModels]);
+
+  const downloadPercent =
+    downloadProgress?.totalBytes && downloadProgress.totalBytes > 0
+      ? Math.round(
+          (downloadProgress.downloadedBytes / downloadProgress.totalBytes) *
+            100,
+        )
+      : null;
+
+  const currentModel = models.find((m) => m.id === selectedModelId);
 
   return (
     <Stack spacing={0}>
@@ -224,6 +282,114 @@ export function SpeechTab() {
               : "Test Voice"}
         </Button>
       </Box>
+
+      <SectionHeader
+        title="Dictation"
+        description="Local voice dictation using Whisper speech recognition models."
+      />
+
+      <SettingCard
+        title="Enable dictation"
+        description="Show the microphone button in chat input for voice dictation."
+        action={
+          <Switch
+            checked={dictation.enabled}
+            onChange={(e) => {
+              if (!e.target.checked) {
+                void invoke("release_whisper_model");
+              }
+              actions.updateDictation({ enabled: e.target.checked });
+            }}
+          />
+        }
+      />
+
+      {dictation.enabled && (
+        <>
+          <SettingCard
+            title="Language"
+            description="Language for speech recognition. Auto-detect works for most cases."
+            action={
+              <FormControl size="small" sx={{ minWidth: 180, maxWidth: 240 }}>
+                <Select
+                  value={dictation.language}
+                  onChange={(event) =>
+                    actions.updateDictation({ language: event.target.value })
+                  }
+                  sx={selectSx}
+                >
+                  {WHISPER_LANGUAGES.map((lang) => (
+                    <MenuItem key={lang.code} value={lang.code} sx={{ fontSize: 13 }}>
+                      {lang.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            }
+          />
+
+          <SettingCard
+            title="Auto-start recording"
+            description="Start recording immediately when pressing the mic button, skipping the model selection dialog."
+            action={
+              <Switch
+                checked={dictation.autoStart}
+                onChange={(e) => actions.updateDictation({ autoStart: e.target.checked })}
+              />
+            }
+          />
+
+          <SettingCard
+            title="Model"
+            description={
+              currentModel
+                ? `Currently using ${currentModel.name} (${currentModel.sizeLabel})`
+                : "No Whisper model installed. Install one to use dictation."
+            }
+            action={
+              <Button
+                size="small"
+                variant="outlined"
+                onClick={() => setManageOpen(true)}
+                sx={{ textTransform: "none", fontWeight: 600, fontSize: 12 }}
+              >
+                {models.length > 0 ? "Manage models" : "Install model"}
+              </Button>
+            }
+          >
+            {currentModel && (
+              <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+                <Chip
+                  label={currentModel.speedLabel}
+                  size="small"
+                  variant="outlined"
+                  sx={{ fontSize: 11 }}
+                />
+                <Chip
+                  label={currentModel.qualityLabel}
+                  size="small"
+                  variant="outlined"
+                  sx={{ fontSize: 11 }}
+                />
+              </Box>
+            )}
+          </SettingCard>
+        </>
+      )}
+
+      <DictationModelDialog
+        open={manageOpen || installOpen}
+        models={models}
+        selectedModelId={selectedModelId}
+        installingModelId={installingModelId}
+        downloadPercent={downloadPercent}
+        onClose={() => {
+          setManageOpen(false);
+          closeInstall();
+        }}
+        onInstall={installModel}
+        onSelect={selectInstalledModel}
+      />
     </Stack>
   );
 }
