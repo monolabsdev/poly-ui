@@ -13,8 +13,6 @@ import {
   Box,
   InputBase,
   IconButton,
-  LinearProgress,
-  Stack,
   Typography,
   Tooltip,
   useTheme,
@@ -84,6 +82,9 @@ export const ChatInput = memo(function ChatInput({
   );
   const agentEnabled =
     useAgentStore((state) => state.enabled) && experimentalFeatures;
+  const dictationEnabled = useSettingsStore(
+    (state) => state.dictation.enabled,
+  );
 
   const workspaceSelectionKey =
     conversationId ?? DRAFT_WORKSPACE_SELECTION_CHAT_ID;
@@ -167,6 +168,99 @@ export const ChatInput = memo(function ChatInput({
     () => features.filter((feature) => feature.active),
     [features],
   );
+
+  const inputBoxSx = useMemo(() => ({
+    position: "relative",
+    zIndex: 2,
+    width: "100%",
+    mb: agentEnabled ? "-8px" : 0,
+    borderRadius: "24px",
+    overflow: "hidden",
+    bgcolor: isDragging ? "action.selected" : "background.paper",
+    border: isDragging ? "2px dashed" : isTemporary ? "1px dashed" : "1px solid",
+    borderColor: isDragging || isTemporary ? "border.main" : "divider",
+    boxShadow: agentEnabled ? 2 : 1,
+    transition: theme.transitions.create(
+      ["border-color", "box-shadow", "background-color"],
+      { duration: theme.transitions.duration.short },
+    ),
+    "&:focus-within": {
+      borderColor: "border.main",
+      boxShadow: agentEnabled ? theme.shadows[3] : theme.shadows[2],
+    },
+  }), [isDragging, isTemporary, agentEnabled, theme]);
+
+  const dropAreaSx = useMemo(() => ({
+    display: "flex",
+    flexDirection: "column",
+    minHeight: currentAttachments.length > 0 ? 160 : 120,
+    width: "100%",
+    borderRadius: "inherit",
+    bgcolor: "transparent",
+    p: 1.5,
+  }), [currentAttachments.length]);
+
+  const inputBaseSx = useMemo(() => ({
+    flex: 1,
+    color: "text.primary",
+    fontSize: "17px",
+    px: 1.5,
+    pt: 1,
+    "& .MuiInputBase-input": {
+      p: 0,
+      maxHeight: `${MAX_HEIGHT}px`,
+      overflowY: "auto",
+      transition: theme.transitions.create("height", {
+        duration: theme.transitions.duration.short,
+        easing: theme.transitions.easing.easeOut,
+      }),
+      "&::placeholder": {
+        color: "text.secondary",
+        opacity: 1,
+      },
+    },
+  }), [theme]);
+
+  const agentBarSx = useMemo(() => {
+    const isDark = theme.palette.mode === "dark";
+    return {
+      position: "absolute",
+      left: 0,
+      right: 0,
+      bottom: 0,
+      zIndex: 1,
+      width: "100%",
+      minHeight: { xs: 56, sm: 58 },
+      display: "flex",
+      alignItems: "flex-end",
+      justifyContent: "flex-start",
+      px: { xs: 2.5, sm: 3 },
+      pt: { xs: 3.4, sm: 3.6 },
+      pb: { xs: 1.15, sm: 1.25 },
+      borderRadius: "0 0 24px 24px",
+      overflow: "hidden",
+      pointerEvents: "auto",
+      bgcolor: isDark ? "rgba(255,255,255,0.026)" : "rgba(15,23,42,0.03)",
+      border: "1px solid",
+      borderTopColor: "transparent",
+      borderColor: isDark ? "rgba(255,255,255,0.055)" : "rgba(15,23,42,0.065)",
+      boxShadow: isDark
+        ? "inset 0 -1px 0 rgba(255,255,255,0.025)"
+        : "inset 0 -1px 0 rgba(255,255,255,0.45)",
+      "&::before": {
+        content: '""',
+        position: "absolute",
+        left: 0,
+        right: 0,
+        top: 0,
+        height: 28,
+        pointerEvents: "none",
+        background: isDark
+          ? "linear-gradient(to bottom, rgba(0,0,0,0.42), rgba(0,0,0,0))"
+          : "linear-gradient(to bottom, rgba(15,23,42,0.08), rgba(15,23,42,0))",
+      },
+    };
+  }, [theme.palette.mode]);
 
   const hasContent =
     draft.trim() || currentAttachments.length > 0 || !!pastedPreview;
@@ -388,27 +482,7 @@ export const ChatInput = memo(function ChatInput({
               onPaste={handlePasteCombined}
               onFocus={() => onFocusChange?.(true)}
               onBlur={() => onFocusChange?.(false)}
-              sx={{
-                flex: 1,
-                color: "text.primary",
-                fontSize: "17px",
-                px: 1.5,
-                pt: 1,
-                "& .MuiInputBase-input": {
-                  p: 0,
-                  maxHeight: `${MAX_HEIGHT}px`, // Add this
-                  overflowY: "auto", // Add this
-                  transition: (theme) =>
-                    theme.transitions.create("height", {
-                      duration: theme.transitions.duration.short,
-                      easing: theme.transitions.easing.easeOut,
-                    }),
-                  "&::placeholder": {
-                    color: "text.secondary",
-                    opacity: 1,
-                  },
-                },
-              }}
+              sx={inputBaseSx}
             />
 
             <AnimatePresence>
@@ -734,51 +808,7 @@ export const ChatInput = memo(function ChatInput({
 
         {agentEnabled && (
           <Box
-            sx={{
-              position: "absolute",
-              left: 0,
-              right: 0,
-              bottom: 0,
-              zIndex: 1,
-              width: "100%",
-              minHeight: { xs: 56, sm: 58 },
-              display: "flex",
-              alignItems: "flex-end",
-              justifyContent: "flex-start",
-              px: { xs: 2.5, sm: 3 },
-              pt: { xs: 3.4, sm: 3.6 },
-              pb: { xs: 1.15, sm: 1.25 },
-              borderRadius: "0 0 24px 24px",
-              overflow: "hidden",
-              pointerEvents: "auto",
-              bgcolor: (theme) =>
-                theme.palette.mode === "dark"
-                  ? "rgba(255,255,255,0.026)"
-                  : "rgba(15,23,42,0.03)",
-              border: "1px solid",
-              borderTopColor: "transparent",
-              borderColor: (theme) =>
-                theme.palette.mode === "dark"
-                  ? "rgba(255,255,255,0.055)"
-                  : "rgba(15,23,42,0.065)",
-              boxShadow: (theme) =>
-                theme.palette.mode === "dark"
-                  ? "inset 0 -1px 0 rgba(255,255,255,0.025)"
-                  : "inset 0 -1px 0 rgba(255,255,255,0.45)",
-              "&::before": {
-                content: '""',
-                position: "absolute",
-                left: 0,
-                right: 0,
-                top: 0,
-                height: 28,
-                pointerEvents: "none",
-                background: (theme) =>
-                  theme.palette.mode === "dark"
-                    ? "linear-gradient(to bottom, rgba(0,0,0,0.42), rgba(0,0,0,0))"
-                    : "linear-gradient(to bottom, rgba(15,23,42,0.08), rgba(15,23,42,0))",
-              },
-            }}
+            sx={agentBarSx}
           >
             <Box
               sx={{
@@ -805,146 +835,16 @@ export const ChatInput = memo(function ChatInput({
         )}
       </Box>
 
-      <Dialog
+      <DictationModelDialog
         open={installOpen}
+        models={models}
+        selectedModelId={selectedModelId}
+        installingModelId={installingModelId}
+        downloadPercent={downloadPercent}
         onClose={closeInstall}
-        fullWidth
-        maxWidth="sm"
-        slotProps={{
-          paper: {
-            sx: {
-              bgcolor: "background.paper",
-              border: "1px solid",
-              borderColor: "divider",
-            },
-          },
-        }}
-      >
-        <DialogTitle sx={{ pb: 1 }}>Install dictation model</DialogTitle>
-        <DialogContent sx={{ pt: 1 }}>
-          <Typography variant="body2" sx={{ color: "text.secondary", mb: 2 }}>
-            Dictation runs locally. Choose a Whisper model to download before
-            recording.
-          </Typography>
-
-          <Stack spacing={1.25}>
-            {models.map((model) => {
-              const installing = installingModelId === model.id;
-              const selected = selectedModelId === model.id;
-              const actionLabel = model.installed ? "Use" : "Download";
-
-              return (
-                <Box
-                  key={model.id}
-                  sx={{
-                    border: "1px solid",
-                    borderColor: selected ? "primary.main" : "divider",
-                    borderRadius: 1,
-                    p: 1.5,
-                    bgcolor: selected ? "action.selected" : "background.paper",
-                  }}
-                >
-                  <Box
-                    sx={{
-                      display: "flex",
-                      alignItems: "flex-start",
-                      justifyContent: "space-between",
-                      gap: 2,
-                    }}
-                  >
-                    <Box sx={{ minWidth: 0 }}>
-                      <Box
-                        sx={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 1,
-                          mb: 0.5,
-                          flexWrap: "wrap",
-                        }}
-                      >
-                        <Typography variant="subtitle2">
-                          {model.name}
-                        </Typography>
-                        {model.recommended && (
-                          <Chip
-                            label="Recommended"
-                            size="small"
-                            color="primary"
-                            variant="outlined"
-                          />
-                        )}
-                        {model.installed && (
-                          <Chip label="Installed" size="small" />
-                        )}
-                      </Box>
-                      <Typography
-                        variant="body2"
-                        sx={{ color: "text.secondary" }}
-                      >
-                        {model.description}
-                      </Typography>
-                      <Typography
-                        variant="caption"
-                        sx={{
-                          color: "text.secondary",
-                          display: "block",
-                          mt: 1,
-                        }}
-                      >
-                        {model.sizeLabel} / {model.speedLabel} /{" "}
-                        {model.qualityLabel}
-                      </Typography>
-                    </Box>
-
-                    <Button
-                      size="small"
-                      variant={model.installed ? "outlined" : "contained"}
-                      disabled={!!installingModelId}
-                      onClick={() =>
-                        model.installed
-                          ? selectInstalledModel(model.id)
-                          : installModel(model.id)
-                      }
-                    >
-                      {installing ? "Downloading" : actionLabel}
-                    </Button>
-                  </Box>
-
-                  {installing && (
-                    <Box sx={{ mt: 1.5 }}>
-                      <LinearProgress
-                        variant={
-                          downloadPercent === null
-                            ? "indeterminate"
-                            : "determinate"
-                        }
-                        value={downloadPercent ?? undefined}
-                      />
-                      <Typography
-                        variant="caption"
-                        sx={{
-                          color: "text.secondary",
-                          display: "block",
-                          mt: 0.75,
-                        }}
-                      >
-                        {downloadPercent === null
-                          ? "Starting download..."
-                          : `${downloadPercent}% downloaded`}
-                      </Typography>
-                    </Box>
-                  )}
-                </Box>
-              );
-            })}
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={closeInstall} disabled={!!installingModelId}>
-            Cancel
-          </Button>
-        </DialogActions>
-      </Dialog>
+        onInstall={installModel}
+        onSelect={selectInstalledModel}
+      />
     </Box>
   );
 });

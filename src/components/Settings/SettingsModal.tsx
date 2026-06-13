@@ -28,6 +28,7 @@ import { DataControlsTab } from "./tabs/DataControlsTab";
 import { AboutTab } from "./tabs/AboutTab";
 import { ConnectionsTab } from "./tabs/ConnectionsTab";
 import { AdvancedTab } from "./tabs/AdvancedTab";
+import { idleManager } from "@/lib/idle";
 import { APP_DIALOG_SIDEBAR_WIDTH } from "@/components/ui/appDialog";
 type SettingsModalProps = {
   isOpen: boolean;
@@ -443,6 +444,48 @@ function DeveloperTab({ onClose }: { onClose: () => void }) {
             sx={{ textTransform: "none", fontWeight: 700 }}
           >
             Show
+          </Button>
+        }
+      />
+      <SectionHeader title="Idle System" description="Force idle state transitions for testing." />
+      <SettingCard
+        title="Idle State"
+        description={`Current: ${import.meta.env.DEV ? idleManager.state : 'n/a'}`}
+        action={
+          <Stack direction="row" spacing={1}>
+            <Button
+              size="small" variant="outlined"
+              onClick={() => idleManager.forceIdle()}
+              sx={{ textTransform: "none", fontWeight: 700 }}
+            >
+              Force Idle
+            </Button>
+            <Button
+              size="small" variant="outlined"
+              onClick={() => idleManager.forceActive()}
+              sx={{ textTransform: "none", fontWeight: 700 }}
+            >
+              Force Active
+            </Button>
+          </Stack>
+        }
+      />
+      <SettingCard
+        title="Unload Whisper Model"
+        description="Release the dictation model from memory."
+        action={
+          <Button
+            size="small" variant="outlined"
+            onClick={async () => {
+              try {
+                const { invoke } = await import('@tauri-apps/api/core')
+                await invoke('release_whisper_model')
+                notify.success('Model released')
+              } catch { notify.error('No model loaded or unavailable') }
+            }}
+            sx={{ textTransform: "none", fontWeight: 700 }}
+          >
+            Release
           </Button>
         }
       />

@@ -52,7 +52,7 @@ export const ThinkingDisclosure = React.memo(
         if (startTimeRef.current !== null) {
           setSeconds((Date.now() - startTimeRef.current) / 1000);
         }
-      }, 100);
+      }, 1000);
       return () => clearInterval(interval);
     }, [isThinking]);
 

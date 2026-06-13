@@ -62,8 +62,9 @@ export const ConversationItem = React.memo(function ConversationItem({
 }: ConversationItemProps) {
   const isFolder = variant === "folder";
   const isFolderTree = variant === "folderTree";
+  const isActive = activeConversationId === conv.id;
 
-  const rootSx = isFolder ? {
+  const rootSx = React.useMemo(() => isFolder ? {
     display: "flex",
     alignItems: "center",
     width: "100%",
@@ -71,7 +72,7 @@ export const ConversationItem = React.memo(function ConversationItem({
     p: 1.25,
     gap: 1,
     borderRadius: "10px",
-    bgcolor: activeConversationId === conv.id ? "action.selected" : "transparent" as const,
+    bgcolor: isActive ? "action.selected" : "transparent" as const,
     color: "inherit",
     cursor: "pointer",
     textAlign: "left" as const,
@@ -85,7 +86,7 @@ export const ConversationItem = React.memo(function ConversationItem({
     width: "100%",
     minWidth: 0,
     height: "100%",
-  };
+  }, [isFolder, isActive]);
 
   const content = editingId === conv.id ? (
     <Box sx={{ display: "flex", alignItems: "center", width: "100%", gap: 0.5 }}>

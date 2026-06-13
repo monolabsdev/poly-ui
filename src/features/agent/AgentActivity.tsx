@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import {
   Box,
   Button,
@@ -637,6 +637,8 @@ function ApprovalContent({
     }
   };
 
+  const approveBtnSx = useMemo(() => ({ ...agentBtn, ...agentPrimaryBtn }), []);
+
   return (
     <Box>
       {approval.reason && (
@@ -715,7 +717,7 @@ function ApprovalContent({
             variant="contained"
             disabled={!canResolve || Boolean(busy)}
             onClick={() => resolve("approve")}
-            sx={{ ...agentBtn, ...agentPrimaryBtn }}
+            sx={approveBtnSx}
           >
             {busy === "approve" ? "..." : "Approve"}
           </Button>
@@ -732,6 +734,7 @@ function ErrorContent({
   error: string;
   onRetry?: () => void;
 }) {
+  const retryBtnSx = useMemo(() => ({ ...agentBtn, mt: 0.35, color: "error.main" }), []);
   return (
     <Box>
       <Typography sx={{ fontSize: 12, lineHeight: 1.4, color: "error.main" }}>
@@ -743,7 +746,7 @@ function ErrorContent({
           color="inherit"
           startIcon={<RotateCcw size={11} />}
           onClick={onRetry}
-          sx={{ ...agentBtn, mt: 0.35, color: "error.main" }}
+          sx={retryBtnSx}
         >
           Retry
         </Button>
@@ -848,6 +851,16 @@ function CommandContent({ call }: { call: AgentToolCall }) {
 function AgentDebugTrace({ agent }: { agent: AgentMessageState }) {
   const [open, setOpen] = useState(false);
   const events = agent.debugEvents ?? [];
+  const debugBtnSx = useMemo(() => ({
+    ...agentBtn,
+    justifyContent: "flex-start",
+    width: "100%",
+    height: 26,
+    borderRadius: 0,
+    color: "text.disabled",
+    px: 1,
+    "& .MuiButton-endIcon": { ml: "auto" },
+  }), []);
   if (!events.length) return null;
 
   return (
@@ -866,16 +879,7 @@ function AgentDebugTrace({ agent }: { agent: AgentMessageState }) {
         aria-expanded={open}
         startIcon={<Bug size={12} />}
         endIcon={open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-        sx={{
-          ...agentBtn,
-          justifyContent: "flex-start",
-          width: "100%",
-          height: 26,
-          borderRadius: 0,
-          color: "text.disabled",
-          px: 1,
-          "& .MuiButton-endIcon": { ml: "auto" },
-        }}
+            sx={debugBtnSx}
       >
         Debug · {events.length} events
       </Button>
