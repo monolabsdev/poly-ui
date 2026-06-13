@@ -262,15 +262,11 @@ export function SidebarMenuButton({
 }
 
 export function SidebarTrigger({ sx }: { sx?: CSSObject }) {
-  const { isCollapsed, setIsCollapsed, isMobile, setOpenMobile } = useSidebar();
+  const { isCollapsed, setIsCollapsed } = useSidebar();
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (isMobile) {
-      setOpenMobile(true);
-    } else {
-      setIsCollapsed(!isCollapsed);
-    }
+    setIsCollapsed(!isCollapsed);
   };
 
   return (

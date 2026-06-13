@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Box, Drawer, useTheme } from "@mui/material";
+import { Box, useTheme } from "@mui/material";
 import { motion } from "motion/react";
 import { useTiming } from "@/lib/motion";
 import { useFolderStore } from "@/store/folderStore";
@@ -50,7 +50,7 @@ function SidebarBody({
   conversations,
   collapsible,
 }: Omit<SidebarProps, "onDeleteConversation" | "onRenameConversation" | "activeConversationId">) {
-  const { isCollapsed, isMobile, openMobile, setOpenMobile } = useSidebar();
+  const { isCollapsed, isMobile, setOpenMobile } = useSidebar();
   const theme = useTheme();
   const timing = useTiming();
   const reducedMotion = useReducedMotion();
@@ -173,27 +173,6 @@ function SidebarBody({
       <CreateFolderDialog folder={folder} />
     </>
   );
-
-  if (isMobile) {
-    return (
-      <Drawer
-        open={openMobile}
-        onClose={() => setOpenMobile(false)}
-        transitionDuration={reducedMotion ? 0 : undefined}
-        PaperProps={{
-          sx: {
-            width: 260,
-            bgcolor: "background.sidebar",
-            borderRight: "1px solid",
-            borderColor: "divider",
-            backgroundImage: "none",
-          },
-        }}
-      >
-        {sidebarContent}
-      </Drawer>
-    );
-  }
 
   const width = isCollapsed && collapsible === "icon" ? 60 : 260;
 

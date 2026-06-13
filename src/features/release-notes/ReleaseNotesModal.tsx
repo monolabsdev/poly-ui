@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { Box, Typography, Stack, IconButton } from "@mui/material";
 import { motion, AnimatePresence } from "motion/react";
 import { X, ExternalLink, Sparkles } from "lucide-react";
@@ -25,21 +25,24 @@ const VARIANTS = {
 
 export function ReleaseNotesModal() {
   const { show, loading, data, version, dismiss } = useReleaseNotes();
-  const confettiFiredRef = useRef(false);
 
   useEffect(() => {
-    if (show && !confettiFiredRef.current) {
-      confettiFiredRef.current = true;
-      const timer = setTimeout(() => fireConfettiBothSides(), 300);
-      return () => clearTimeout(timer);
-    }
     if (!show) {
-      confettiFiredRef.current = false;
+      return;
     }
+
+    const timer = setTimeout(() => fireConfettiBothSides(), 300);
+    return () => clearTimeout(timer);
   }, [show]);
 
   return (
-    <Modal open={show} onOpenChange={(open) => { if (!open) dismiss(); }} maxWidth={600} showCloseButton={false}>
+    <Modal
+      open={show}
+      onOpenChange={(open) => { if (!open) dismiss(); }}
+      maxWidth={600}
+      showCloseButton={false}
+      contentSx={{ overflow: "hidden", flex: "0 1 auto" }}
+    >
       <AnimatePresence mode="wait">
         {show && (
           <motion.div

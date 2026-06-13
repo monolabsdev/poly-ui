@@ -26,12 +26,42 @@ export function useSidebar() {
 
 export function SidebarProvider({ children }: { children: React.ReactNode }) {
   const rootRef = React.useRef<HTMLDivElement>(null);
+  const autoCollapsedForSmallRef = React.useRef(false);
   const [isMobile, setIsMobile] = React.useState(false);
-  const [openMobile, setOpenMobile] = React.useState(false);
-  const [isCollapsed, setIsCollapsed] = React.useState(false);
-  const handleBreakpointChange = React.useCallback((matches: boolean) => {
-    setIsMobile((current) => (current === matches ? current : matches));
+  const [openMobile, setOpenMobileState] = React.useState(false);
+  const [isCollapsed, setIsCollapsedState] = React.useState(false);
+  const setIsCollapsed = React.useCallback((collapsed: boolean) => {
+    autoCollapsedForSmallRef.current = false;
+    setIsCollapsedState(collapsed);
   }, []);
+  const setOpenMobile = React.useCallback(
+    (open: boolean) => {
+      setOpenMobileState(open);
+      if (!open && isMobile) {
+        autoCollapsedForSmallRef.current = false;
+        setIsCollapsedState(true);
+      }
+    },
+    [isMobile],
+  );
+  const handleBreakpointChange = React.useCallback(
+    (matches: boolean) => {
+      setIsMobile((current) => {
+        if (current === matches) return current;
+
+        if (matches && !isCollapsed) {
+          autoCollapsedForSmallRef.current = true;
+          setIsCollapsedState(true);
+        } else if (!matches && autoCollapsedForSmallRef.current) {
+          autoCollapsedForSmallRef.current = false;
+          setIsCollapsedState(false);
+        }
+
+        return matches;
+      });
+    },
+    [isCollapsed],
+  );
 
   useElementBreakpoint(rootRef, 900, handleBreakpointChange);
 
