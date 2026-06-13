@@ -50,6 +50,14 @@ jobs:
         with:
           bun-version: ${{ steps.bun.outputs.version }}
 
+      - name: Cache bun dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
@@ -301,17 +309,9 @@ jobs:
 
       - name: Generate changelog
         id: changelog
-        run: |
-          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
-          if [ -z "$PREV_TAG" ]; then
-            LOG=$(git log --pretty=format:"* %s (%h)" "${{ github.ref_name }}" --not --tags)
-          else
-            LOG=$(git log --pretty=format:"* %s (%h)" "$PREV_TAG..${{ github.ref_name }}")
-          fi
-          DELIMITER=$(echo "END_OF_NOTES_$(openssl rand -hex 8)" )
-          echo "notes<<$DELIMITER" >> "$GITHUB_OUTPUT"
-          echo "$LOG" >> "$GITHUB_OUTPUT"
-          echo "$DELIMITER" >> "$GITHUB_OUTPUT"
+        uses: ./.github/actions/release-notes
+        with:
+          tag_name: ${{ github.ref_name }}
 
       - name: Create release with generated notes
         uses: softprops/action-gh-release@v2
@@ -334,17 +334,9 @@ jobs:
 
       - name: Generate changelog
         id: changelog
-        run: |
-          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
-          if [ -z "$PREV_TAG" ]; then
-            LOG=$(git log --pretty=format:"* %s (%h)" "${{ github.ref_name }}" --not --tags)
-          else
-            LOG=$(git log --pretty=format:"* %s (%h)" "$PREV_TAG..${{ github.ref_name }}")
-          fi
-          DELIMITER=$(echo "END_OF_NOTES_$(openssl rand -hex 8)" )
-          echo "notes<<$DELIMITER" >> "$GITHUB_OUTPUT"
-          echo "$LOG" >> "$GITHUB_OUTPUT"
-          echo "$DELIMITER" >> "$GITHUB_OUTPUT"
+        uses: ./.github/actions/release-notes
+        with:
+          tag_name: ${{ github.ref_name }}
 
       - name: Create release with generated notes
         uses: softprops/action-gh-release@v2
