@@ -1,18 +1,12 @@
 import {
-  Button,
-  FormControl,
-  MenuItem,
-  Select,
   Stack,
   Switch,
   Typography,
 } from "@mui/material";
 import { useShallow } from "zustand/react/shallow";
-import { SettingCard, SectionHeader, selectSx } from "../SettingComponents";
+import { SettingCard, SectionHeader } from "../SettingComponents";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useAgentStore } from "@/features/agent/agentStore";
-import { choosePerformanceSettings, readSystemProfile } from "@/lib/performance";
-
 export function AdvancedTab() {
   const { general, performance, actions } = useSettingsStore(
     useShallow((state) => ({
@@ -21,20 +15,8 @@ export function AdvancedTab() {
       actions: state.actions,
     })),
   );
-  const hardwareLabel = performance.lastHardwareScan
-    ? `${Math.round(performance.lastHardwareScan.totalMemoryMb / 1024)} GB RAM, ${performance.lastHardwareScan.cpuCount} CPU threads`
-    : "Not scanned yet";
   const agentEnabled = useAgentStore((state) => state.enabled);
   const setAgentEnabled = useAgentStore((state) => state.actions.setEnabled);
-
-  const rerunOptimization = async () => {
-    const system = await readSystemProfile();
-    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    actions.updatePerformance({
-      autoOptimize: true,
-      ...choosePerformanceSettings(system, prefersReducedMotion),
-    });
-  };
 
   const handleExperimentalToggle = (checked: boolean) => {
     actions.updateGeneral({ experimentalFeatures: checked });
@@ -79,46 +61,7 @@ export function AdvancedTab() {
 
       <SectionHeader
         title="Performance"
-        description="Startup can tune heavier features for this device."
-        action={
-          <Button size="small" variant="text" onClick={rerunOptimization}>
-            Re-run
-          </Button>
-        }
-      />
-
-      <SettingCard
-        title="Auto optimize"
-        description="Scan this device on first start and save sensible defaults."
-        action={
-          <Switch
-            checked={performance.autoOptimize}
-            onChange={(e) => actions.updatePerformance({ autoOptimize: e.target.checked })}
-          />
-        }
-      >
-        <Typography sx={{ fontSize: 12, color: "text.secondary" }}>
-          {hardwareLabel}
-        </Typography>
-      </SettingCard>
-
-      <SettingCard
-        title="Profile"
-        description="Manual profile for visual and background feature defaults."
-        action={
-          <FormControl size="small" sx={{ minWidth: 150 }}>
-            <Select
-              value={performance.profile}
-              onChange={(e) => actions.updatePerformance({ profile: e.target.value as typeof performance.profile })}
-              sx={selectSx}
-            >
-              <MenuItem value="auto">Auto</MenuItem>
-              <MenuItem value="low">Low</MenuItem>
-              <MenuItem value="balanced">Balanced</MenuItem>
-              <MenuItem value="high">High</MenuItem>
-            </Select>
-          </FormControl>
-        }
+        description="Tune heavier features for this device."
       />
 
       <SettingCard

@@ -113,8 +113,7 @@ function Root() {
   useEffect(() => {
     document.documentElement.classList.toggle("reduce-motion", performance.reduceMotion);
     document.documentElement.classList.toggle("reduce-transparency", performance.reduceTransparency);
-    document.documentElement.dataset.performanceProfile = performance.profile;
-  }, [performance.profile, performance.reduceMotion, performance.reduceTransparency]);
+  }, [performance.reduceMotion, performance.reduceTransparency]);
   useEffect(() => {
     if (!USE_CUSTOM_WINDOW_CONTROLS || !isAppReady) return;
     const w = getCurrentWindow();

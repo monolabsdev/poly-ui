@@ -23,21 +23,9 @@ export type TtsSettings = {
   browser: BrowserTtsSettings;
 };
 
-export type PerformanceProfile = "auto" | "low" | "balanced" | "high";
-
-export type SystemProfile = {
-  totalMemoryMb: number;
-  availableMemoryMb: number;
-  cpuCount: number;
-};
-
 export type PerformanceSettings = {
-  autoOptimize: boolean;
-  profile: PerformanceProfile;
   reduceMotion: boolean;
   reduceTransparency: boolean;
-  lastHardwareScan: SystemProfile | null;
-  optimizedAt: string | null;
 };
 
 type SettingsState = {
@@ -62,12 +50,8 @@ const defaultTts: TtsSettings = {
 };
 
 export const defaultPerformance: PerformanceSettings = {
-  autoOptimize: true,
-  profile: "auto",
   reduceMotion: false,
   reduceTransparency: false,
-  lastHardwareScan: null,
-  optimizedAt: null,
 };
 
 function createDefaultWebSearchSettings(): WebSearchSettings {
@@ -114,7 +98,7 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: "polyui:settings",
-      version: 10,
+      version: 11,
       migrate: (persisted, version) => {
         const state = persisted as any;
         if (state?.tts) {
@@ -143,6 +127,12 @@ export const useSettingsStore = create<SettingsState>()(
         if (version < 10 && state?.general) {
           state.general.experimentalFeatures = Boolean(state.general.experimentalFeatures);
           state.general.reasoningEnabled = Boolean(state.general.reasoningEnabled);
+        }
+        if (version < 11 && state?.performance) {
+          delete state.performance.autoOptimize;
+          delete state.performance.profile;
+          delete state.performance.lastHardwareScan;
+          delete state.performance.optimizedAt;
         }
         return state as SettingsState;
       },

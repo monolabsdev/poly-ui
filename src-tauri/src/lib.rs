@@ -19,7 +19,6 @@ use crate::commands::dictation_commands::{
     download_whisper_model, get_whisper_models_status, select_whisper_model, transcribe_audio,
 };
 use crate::commands::model_commands::{cancel_pull, delete_model, get_local_models, pull_model};
-use crate::commands::system_commands::get_system_profile;
 use crate::commands::system_commands::{
     agent_changed_files, agent_file_diff, agent_list_workspaces,
 };
@@ -129,7 +128,6 @@ pub fn run() {
             check_for_updates,
             download_update,
             install_update,
-            get_system_profile,
             agent_list_workspaces,
             agent_changed_files,
             agent_file_diff,
