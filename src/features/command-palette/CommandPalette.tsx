@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "motion/react";
 import {
   Check,
   CornerDownLeft,
+  AlertTriangle,
   MessageSquare,
   Search,
   Settings,
@@ -13,6 +14,11 @@ import {
   Zap,
 } from "lucide-react";
 import type { CommandPaletteCategory, CommandPaletteItem } from "./types";
+import {
+  getIntentSummary,
+  parseCommandIntent,
+  type ParsedIntent,
+} from "./intentParser";
 
 type CommandPaletteProps = {
   open: boolean;
@@ -28,6 +34,8 @@ const HEADER_ROW_HEIGHT = 30;
 const ITEM_ROW_HEIGHT = 56;
 const ITEM_ROW_WITH_DESCRIPTION_HEIGHT = 68;
 const ROW_VERTICAL_GAP = 4;
+const HIGH_CONFIDENCE = 0.86;
+const MEDIUM_CONFIDENCE = 0.62;
 
 const CATEGORY_LABELS: Record<CommandPaletteCategory, string> = {
   conversation: "Conversations",
@@ -118,6 +126,10 @@ function getPaletteRowHeight(row: PaletteRow | undefined) {
     : ITEM_ROW_HEIGHT;
 }
 
+function getIntentKey(intent: ParsedIntent) {
+  return `${intent.command}:${JSON.stringify(intent.args)}`;
+}
+
 export function CommandPalette({
   open,
   onOpenChange,
@@ -128,8 +140,28 @@ export function CommandPalette({
   const parentRef = React.useRef<HTMLDivElement>(null);
   const [query, setQuery] = React.useState("");
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
+  const [pendingIntentKey, setPendingIntentKey] = React.useState<string | null>(
+    null,
+  );
 
   const rows = React.useMemo(() => buildRows(items, query), [items, query]);
+  const parsedIntent = React.useMemo(() => parseCommandIntent(query), [query]);
+  const intentKey = parsedIntent ? getIntentKey(parsedIntent) : null;
+  const intentAction = React.useMemo(
+    () => items.find((item) => item.smartCommand?.command === parsedIntent?.command),
+    [items, parsedIntent?.command],
+  );
+  const showIntent = Boolean(
+    parsedIntent &&
+      (parsedIntent.confidence >= MEDIUM_CONFIDENCE || parsedIntent.destructive),
+  );
+  const intentNeedsConfirmation =
+    showIntent &&
+    (Boolean(parsedIntent?.destructive) ||
+      (parsedIntent ? parsedIntent.confidence < HIGH_CONFIDENCE : false));
+  const intentConfirming = Boolean(
+    parsedIntent && pendingIntentKey === intentKey,
+  );
   const selectableItems = React.useMemo(
     () =>
       rows.filter(
@@ -156,8 +188,13 @@ export function CommandPalette({
   React.useEffect(() => {
     if (!open) return;
     setQuery("");
+    setPendingIntentKey(null);
     requestAnimationFrame(() => inputRef.current?.focus());
   }, [open]);
+
+  React.useEffect(() => {
+    setPendingIntentKey(null);
+  }, [query]);
 
   React.useEffect(() => {
     if (!open || selectableItems.length === 0) {
@@ -185,6 +222,28 @@ export function CommandPalette({
     [onOpenChange],
   );
 
+  const executeIntent = React.useCallback(
+    (intent: ParsedIntent | null) => {
+      if (!intent) return;
+      if (intent.command === "search-chats") {
+        setQuery(intent.args.query);
+        setPendingIntentKey(null);
+        requestAnimationFrame(() => inputRef.current?.focus());
+        return;
+      }
+
+      const action = items.find(
+        (item) => item.smartCommand?.command === intent.command,
+      );
+      if (!action) return;
+      const executor = action.smartCommand?.execute;
+      if (executor) void executor(intent.args as never);
+      else action.execute();
+      onOpenChange(false);
+    },
+    [items, onOpenChange],
+  );
+
   const moveSelection = React.useCallback(
     (direction: 1 | -1) => {
       if (selectableItems.length === 0) return;
@@ -197,6 +256,12 @@ export function CommandPalette({
   );
 
   const handleKeyDown = (event: React.KeyboardEvent) => {
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+      event.preventDefault();
+      event.stopPropagation();
+      onOpenChange(false);
+      return;
+    }
     if (event.key === "Escape") {
       event.preventDefault();
       onOpenChange(false);
@@ -214,6 +279,14 @@ export function CommandPalette({
     }
     if (event.key === "Enter") {
       event.preventDefault();
+      if (parsedIntent && showIntent) {
+        if (intentNeedsConfirmation && !intentConfirming) {
+          setPendingIntentKey(intentKey);
+          return;
+        }
+        executeIntent(parsedIntent);
+        return;
+      }
       execute(selectedItem);
     }
   };
@@ -339,6 +412,14 @@ export function CommandPalette({
               </KeyHint>
             </Box>
 
+            {showIntent && parsedIntent ? (
+              <IntentPreview
+                intent={parsedIntent}
+                confirming={intentConfirming}
+                actionTitle={intentAction?.title}
+              />
+            ) : null}
+
             <Box
               ref={parentRef}
               role="listbox"
@@ -457,7 +538,10 @@ export function CommandPalette({
                 },
               }}
             >
-              <FooterHint icon={<CornerDownLeft size={13} />} label="Open" />
+              <FooterHint
+                icon={<CornerDownLeft size={13} />}
+                label={intentNeedsConfirmation ? "Confirm" : "Open"}
+              />
               <FooterHint label="↑↓ Navigate" />
               <FooterHint label="Esc Close" />
             </Box>
@@ -465,6 +549,96 @@ export function CommandPalette({
         </Box>
       ) : null}
     </AnimatePresence>
+  );
+}
+
+function IntentPreview({
+  intent,
+  confirming,
+  actionTitle,
+}: {
+  intent: ParsedIntent;
+  confirming: boolean;
+  actionTitle?: string;
+}) {
+  const summary = getIntentSummary(intent);
+  const label = confirming
+    ? intent.destructive
+      ? "Press Enter again to delete"
+      : "Press Enter again to confirm"
+    : actionTitle
+      ? "Interpreted action"
+      : "Interpreted action";
+
+  return (
+    <Box
+      sx={(theme) => ({
+        display: "flex",
+        alignItems: "center",
+        gap: 1,
+        px: { xs: 1.5, sm: 2 },
+        py: 1,
+        borderBottom: "1px solid",
+        borderColor: intent.destructive
+          ? alpha(theme.palette.error.main, 0.32)
+          : "divider",
+        bgcolor: intent.destructive
+          ? alpha(theme.palette.error.main, 0.08)
+          : alpha(theme.palette.primary.main, 0.06),
+        color: intent.destructive ? "error.main" : "text.primary",
+        flexShrink: 0,
+      })}
+    >
+      {intent.destructive ? <AlertTriangle size={15} /> : <Sparkles size={15} />}
+      <Box sx={{ minWidth: 0, flex: 1 }}>
+        <Typography
+          sx={{
+            fontSize: 11,
+            fontWeight: 750,
+            color: "text.secondary",
+            lineHeight: 1.2,
+          }}
+        >
+          {label}
+        </Typography>
+        <Typography
+          sx={{
+            mt: 0.25,
+            fontSize: 13,
+            fontWeight: 650,
+            color: intent.destructive ? "error.main" : "text.primary",
+            lineHeight: 1.25,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {summary.action}
+          {summary.argument ? (
+            <>
+              {" "}
+              <Box
+                component="span"
+                sx={(theme) => ({
+                  px: 0.45,
+                  py: 0.1,
+                  borderRadius: "5px",
+                  bgcolor: intent.destructive
+                    ? alpha(theme.palette.error.main, 0.14)
+                    : alpha(theme.palette.primary.main, 0.16),
+                  color: intent.destructive ? "error.main" : "primary.main",
+                })}
+              >
+                {summary.argument}
+              </Box>
+            </>
+          ) : null}
+        </Typography>
+      </Box>
+      {import.meta.env.DEV ? (
+        <KeyHint>{Math.round(intent.confidence * 100)}%</KeyHint>
+      ) : null}
+    </Box>
   );
 }
 

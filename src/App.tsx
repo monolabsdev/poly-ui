@@ -34,6 +34,7 @@ import {
 } from "@/lib/models/model-choice";
 import { shouldLoadExternalDefault } from "@/lib/models/model-selector";
 import { useFolderStore } from "@/store/folderStore";
+import { useThemeStore, type ThemeMode } from "@/store/themeStore";
 import { SettingsModal } from "./components/Settings/SettingsModal";
 import type { SettingsTab } from "./components/Settings/SettingsModal";
 import { ArchivedChatsDialog } from "@/components/Chat/ArchivedChatsDialog";
@@ -52,6 +53,7 @@ import {
   MessageSquare,
   Settings,
   SquarePen,
+  Trash2,
 } from "lucide-react";
 
 const AuthModal = lazy(() =>
@@ -131,7 +133,7 @@ function App() {
     const handler = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
-        setIsCommandPaletteOpen(true);
+        setIsCommandPaletteOpen((open) => !open);
       }
     };
     window.addEventListener("keydown", handler);
@@ -190,6 +192,7 @@ function App() {
     createConversation,
     setActiveConversationId,
     deleteConversation,
+    deleteAllConversations,
     renameConversation,
   } = useChatStore((state) => state.actions);
 
@@ -224,6 +227,35 @@ function App() {
       await renameConversation(id, newTitle, "manual");
     },
     [renameConversation],
+  );
+
+  const handleDeleteAllConversations = useCallback(async (options?: { confirmed?: boolean }) => {
+    if (
+      !options?.confirmed &&
+      !window.confirm("Delete all chats? This cannot be undone.")
+    ) {
+      return;
+    }
+    stopStreamingRef.current?.();
+    await deleteAllConversations();
+    notify.success("All chats deleted");
+  }, [deleteAllConversations, notify]);
+
+  const handleRenameCurrentChat = useCallback(
+    async ({ title }: { title: string }) => {
+      if (!activeConversationId || !title.trim()) return;
+      await renameConversation(activeConversationId, title.trim(), "manual");
+      notify.success("Conversation renamed");
+    },
+    [activeConversationId, notify, renameConversation],
+  );
+
+  const handleSetTheme = useCallback(
+    ({ theme }: { theme: ThemeMode }) => {
+      useThemeStore.getState().setMode(theme);
+      notify.success(`Theme: ${theme.charAt(0).toUpperCase() + theme.slice(1)}`);
+    },
+    [notify],
   );
 
   const handleSetDefaultModel = useCallback(
@@ -302,6 +334,7 @@ function App() {
         icon: <SquarePen size={16} />,
         shortcut: IS_MAC ? "Cmd N" : "Ctrl N",
         execute: handleNewChat,
+        smartCommand: { command: "new-chat" },
       },
       {
         id: "action:open-settings",
@@ -312,6 +345,20 @@ function App() {
         icon: <Settings size={16} />,
         shortcut: IS_MAC ? "Cmd ," : "Ctrl ,",
         execute: () => handleOpenSettings("general"),
+        smartCommand: { command: "open-settings" },
+      },
+      {
+        id: "action:delete-all-chats",
+        title: "Delete All Chats",
+        description: "Permanently remove every chat",
+        category: "action",
+        keywords: ["delete", "remove", "clear", "all", "chats", "conversations"],
+        icon: <Trash2 size={16} />,
+        execute: () => void handleDeleteAllConversations(),
+        smartCommand: {
+          command: "delete-all-chats",
+          execute: () => handleDeleteAllConversations({ confirmed: true }),
+        },
       },
       {
         id: "action:archived-conversations",
@@ -342,6 +389,34 @@ function App() {
         icon: <Download size={16} />,
         execute: () => {
           if (activeConversation) void exportConversation(activeConversation, notify);
+        },
+      },
+      {
+        id: "action:rename-current-chat",
+        title: "Rename Current Chat",
+        description: activeConversation
+          ? `Rename ${activeConversation.title || "Untitled"}`
+          : "No active chat selected",
+        category: "action",
+        keywords: ["rename", "name", "title", "chat", "conversation"],
+        icon: <MessageSquare size={16} />,
+        execute: () => undefined,
+        smartCommand: {
+          command: "rename-chat",
+          execute: (args) => handleRenameCurrentChat(args as { title: string }),
+        },
+      },
+      {
+        id: "action:set-theme",
+        title: "Set Theme",
+        description: "Set appearance to light, dark, or system",
+        category: "action",
+        keywords: ["theme", "appearance", "light", "dark", "system"],
+        icon: <Settings size={16} />,
+        execute: () => undefined,
+        smartCommand: {
+          command: "set-theme",
+          execute: (args) => handleSetTheme(args as { theme: ThemeMode }),
         },
       },
     ];
@@ -385,7 +460,10 @@ function App() {
     conversations,
     features,
     handleNewChat,
+    handleDeleteAllConversations,
     handleOpenSettings,
+    handleRenameCurrentChat,
+    handleSetTheme,
     handleSelectConversation,
     notify,
     registeredActions,

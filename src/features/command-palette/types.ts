@@ -6,6 +6,21 @@ export type CommandPaletteCategory =
   | "setting"
   | "feature";
 
+export type CommandPaletteIntentArgs = {
+  "set-theme": { theme: "light" | "dark" | "system" };
+  "delete-all-chats": {};
+  "new-chat": {};
+  "open-settings": {};
+  "search-chats": { query: string };
+  "rename-chat": { title: string };
+};
+
+export type CommandPaletteIntentCommand = keyof CommandPaletteIntentArgs;
+
+export type CommandPaletteExecuteIntent = <T extends CommandPaletteIntentCommand>(
+  args: CommandPaletteIntentArgs[T],
+) => void | Promise<void>;
+
 export interface CommandPaletteItem {
   id: string;
   title: string;
@@ -15,5 +30,8 @@ export interface CommandPaletteItem {
   icon?: ReactNode;
   shortcut?: string;
   execute: () => void;
+  smartCommand?: {
+    command: CommandPaletteIntentCommand;
+    execute?: CommandPaletteExecuteIntent;
+  };
 }
-
