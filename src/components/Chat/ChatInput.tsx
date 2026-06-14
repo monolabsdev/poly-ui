@@ -30,6 +30,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { useTiming } from "@/lib/motion";
 import { useFeatures, type FeatureDef } from "@/lib/featureRegistry";
 import { useChatAttachments } from "@/hooks/useChatAttachments";
+import { useFileDragDetection } from "@/hooks/useFileDragDetection";
 import {
   useAutoResizeTextarea,
   MAX_HEIGHT,
@@ -98,17 +99,16 @@ export const ChatInput = memo(function ChatInput({
   const {
     fileInputRef,
     fileAccept,
-    isDragging,
     currentAttachments,
     removeCurrentAttachment,
+    processFiles,
     openFilePicker,
     handleFileChange,
-    handleDragEnter,
-    handleDragLeave,
-    handleDragOver,
-    handleDrop,
     handlePaste,
   } = useChatAttachments();
+  const { isDraggingFiles } = useFileDragDetection({
+    onFilesDropped: processFiles,
+  });
 
   const handleTextPaste = useCallback((e: React.ClipboardEvent) => {
     const text = e.clipboardData.getData("text/plain");
@@ -176,19 +176,20 @@ export const ChatInput = memo(function ChatInput({
     mb: agentEnabled ? "-8px" : 0,
     borderRadius: "24px",
     overflow: "hidden",
-    bgcolor: isDragging ? "action.selected" : "background.paper",
-    border: isDragging ? "2px dashed" : isTemporary ? "1px dashed" : "1px solid",
-    borderColor: isDragging || isTemporary ? "border.main" : "divider",
+    pointerEvents: "auto",
+    bgcolor: "background.paper",
+    border: isTemporary ? "1px dashed" : "1px solid",
+    borderColor: isTemporary ? "border.main" : "divider",
     boxShadow: agentEnabled ? 2 : 1,
     transition: theme.transitions.create(
-      ["border-color", "box-shadow", "background-color"],
+      ["border-color", "box-shadow", "background-color", "background-image"],
       { duration: theme.transitions.duration.short },
     ),
     "&:focus-within": {
       borderColor: "border.main",
       boxShadow: agentEnabled ? theme.shadows[3] : theme.shadows[2],
     },
-  }), [isDragging, isTemporary, agentEnabled, theme]);
+  }), [isTemporary, agentEnabled, theme]);
 
   const dropAreaSx = useMemo(() => ({
     display: "flex",
@@ -197,6 +198,7 @@ export const ChatInput = memo(function ChatInput({
     width: "100%",
     borderRadius: "inherit",
     bgcolor: "transparent",
+    pointerEvents: "auto",
     p: 1.5,
   }), [currentAttachments.length]);
 
@@ -428,15 +430,38 @@ export const ChatInput = memo(function ChatInput({
         </AnimatePresence>
 
         <Box
+          className={`chat-file-drop-target${isDraggingFiles ? " chat-file-drop-target--active" : ""}`}
           sx={inputBoxSx}
+          aria-label="Chat message composer. Drop files here to attach them."
+          aria-describedby={isDraggingFiles ? "chat-file-drop-status" : undefined}
+          data-file-drag-active={isDraggingFiles ? "true" : "false"}
         >
           <Box
-            onDragEnter={handleDragEnter}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
             sx={dropAreaSx}
           >
+            <Box
+              id="chat-file-drop-status"
+              aria-live="polite"
+              sx={{
+                position: "absolute",
+                width: 1,
+                height: 1,
+                p: 0,
+                m: -1,
+                overflow: "hidden",
+                clip: "rect(0 0 0 0)",
+                whiteSpace: "nowrap",
+                border: 0,
+              }}
+            >
+              {isDraggingFiles ? "Drop files to attach them to this message." : ""}
+            </Box>
+            <Box
+              className="chat-file-drop-label"
+              aria-hidden="true"
+            >
+              Drop files to attach
+            </Box>
             <AnimatePresence>
               {activeFeatures.length > 0 && (
                 <motion.div

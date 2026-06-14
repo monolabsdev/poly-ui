@@ -158,6 +158,7 @@ export function useChatAttachments() {
     isDragging,
     currentAttachments,
     removeCurrentAttachment: removeAttachment,
+    processFiles,
     openFilePicker,
     handleFileChange,
     handleDragEnter,
