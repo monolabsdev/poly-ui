@@ -211,7 +211,19 @@ jobs:
           Remove-Item (Join-Path $env:LOCALAPPDATA "com.tslater.polyui") -Recurse -Force -ErrorAction SilentlyContinue
           Start-Process -FilePath $installer -ArgumentList "/S" -Wait
           $exe = Join-Path $installDir "polyui.exe"
-          powershell -ExecutionPolicy Bypass -File scripts/windows-relaunch-smoke.ps1 -ExePath $exe -Cycles 10
+          $sourceMigrations = (Resolve-Path "src-tauri/src/db/migrations").Path
+          $hiddenMigrations = Join-Path $env:RUNNER_TEMP "polyui-hidden-source-migrations"
+          if (Test-Path $hiddenMigrations) {
+            Remove-Item $hiddenMigrations -Recurse -Force
+          }
+          Move-Item $sourceMigrations $hiddenMigrations
+          try {
+            powershell -ExecutionPolicy Bypass -File scripts/windows-relaunch-smoke.ps1 -ExePath $exe -Cycles 10 -PostReadyHoldSeconds 6
+          } finally {
+            if (Test-Path $hiddenMigrations) {
+              Move-Item $hiddenMigrations $sourceMigrations
+            }
+          }
           if (Test-Path $uninstall) {
             Start-Process -FilePath $uninstall -ArgumentList "/S" -Wait
           }

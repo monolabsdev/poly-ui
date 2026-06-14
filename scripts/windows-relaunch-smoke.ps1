@@ -2,7 +2,8 @@ param(
   [string]$ExePath = "$env:LOCALAPPDATA\PolyUI\polyui.exe",
   [int]$Cycles = 10,
   [int]$ReadyTimeoutSeconds = 45,
-  [int]$ExitTimeoutSeconds = 15
+  [int]$ExitTimeoutSeconds = 15,
+  [int]$PostReadyHoldSeconds = 6
 )
 
 $ErrorActionPreference = "Stop"
@@ -73,7 +74,7 @@ for ($cycle = 1; $cycle -le $Cycles; $cycle++) {
   Remove-Item $StartupLog -Force -ErrorAction SilentlyContinue
   $process = Start-Process -FilePath $ExePath -PassThru
   Wait-Ready -Process $process -Cycle $cycle
-  Start-Sleep -Milliseconds 800
+  Start-Sleep -Seconds $PostReadyHoldSeconds
   Close-Normally -Process $process -Cycle $cycle
 
   $remaining = @(Get-CimInstance Win32_Process | Where-Object { $_.Name -ieq "polyui.exe" })

@@ -276,6 +276,7 @@ async fn ensure_folders_schema(pool: &SqlitePool) -> Result<(), String> {
 
 async fn run_migrations(pool: &SqlitePool) -> Result<(), String> {
     fix_migration_checksums(pool).await?;
+    startup_log::log_phase("database embedded migrations");
     let migrator = sqlx::migrate!("./src/db/migrations");
     migrator.run(pool).await.map_err(|e| e.to_string())
 }
@@ -284,6 +285,15 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), String> {
 /// against the actual migration files on disk. This prevents panics when a
 /// migration file is modified after being applied (common during development).
 async fn fix_migration_checksums(pool: &SqlitePool) -> Result<(), String> {
+    let manifest_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let migrations_dir = manifest_dir.join("src/db/migrations");
+    fix_migration_checksums_from_dir(pool, &migrations_dir).await
+}
+
+async fn fix_migration_checksums_from_dir(
+    pool: &SqlitePool,
+    migrations_dir: &std::path::Path,
+) -> Result<(), String> {
     let has_table: bool = sqlx::query_scalar(
         "SELECT COUNT(*) > 0 FROM sqlite_master WHERE name = '_sqlx_migrations' AND type = 'table'",
     )
@@ -292,6 +302,14 @@ async fn fix_migration_checksums(pool: &SqlitePool) -> Result<(), String> {
     .map_err(|e| e.to_string())?;
 
     if !has_table {
+        return Ok(());
+    }
+
+    if !migrations_dir.is_dir() {
+        startup_log::log_phase(format!(
+            "migration checksum repair skipped: source dir missing: {}",
+            migrations_dir.display()
+        ));
         return Ok(());
     }
 
@@ -305,8 +323,6 @@ async fn fix_migration_checksums(pool: &SqlitePool) -> Result<(), String> {
         .map(|row| (row.get::<i64, _>(0), row.get::<Vec<u8>, _>(1)))
         .collect();
 
-    let manifest_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let migrations_dir = manifest_dir.join("src/db/migrations");
     let mut read_dir = std::fs::read_dir(&migrations_dir).map_err(|e| e.to_string())?;
 
     while let Some(entry) = read_dir.next().transpose().map_err(|e| e.to_string())? {
@@ -394,5 +410,41 @@ mod tests {
         .unwrap();
 
         assert_eq!(account_count, 2);
+    }
+
+    #[tokio::test]
+    async fn checksum_repair_skips_missing_source_migration_dir() {
+        let pool = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect("sqlite::memory:")
+            .await
+            .unwrap();
+
+        sqlx::query(
+            r#"
+            CREATE TABLE _sqlx_migrations (
+                version INTEGER PRIMARY KEY,
+                checksum BLOB NOT NULL
+            )
+            "#,
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+        sqlx::query("INSERT INTO _sqlx_migrations (version, checksum) VALUES (1, ?1)")
+            .bind(vec![1_u8, 2, 3])
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        let missing_dir = std::env::temp_dir().join(format!(
+            "polyui-missing-migrations-{}",
+            uuid::Uuid::new_v4()
+        ));
+        assert!(!missing_dir.exists());
+
+        fix_migration_checksums_from_dir(&pool, &missing_dir)
+            .await
+            .unwrap();
     }
 }
