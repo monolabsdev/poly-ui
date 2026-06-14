@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Dialog as MuiDialog, Box, SxProps, Theme } from "@mui/material";
+import { Modal as MuiModal, Box, SxProps, Theme } from "@mui/material";
 
 export function Dialog({
   children,
@@ -11,27 +11,33 @@ export function Dialog({
   onOpenChange?: (open: boolean) => void;
 }) {
   return (
-    <MuiDialog
+    <MuiModal
       open={open || false}
       onClose={() => onOpenChange?.(false)}
-      maxWidth={false}
       slotProps={{
         backdrop: {
           sx: { top: "var(--titlebar-height)" },
         },
       }}
-      PaperProps={{
-        sx: {
-          bgcolor: "transparent",
-          backgroundImage: "none",
-          boxShadow: "none",
-          m: 0,
-          maxHeight: "calc(100vh - var(--titlebar-height) - 32px)",
-        },
-      }}
     >
-      {children}
-    </MuiDialog>
+      <Box
+        onMouseDown={(event) => {
+          if (event.target === event.currentTarget) onOpenChange?.(false);
+        }}
+        sx={{
+          position: "fixed",
+          inset: "var(--titlebar-height) 0 0 0",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          overflow: "hidden",
+          p: { xs: 0, sm: 2 },
+          outline: "none",
+        }}
+      >
+        {children}
+      </Box>
+    </MuiModal>
   );
 }
 
@@ -53,6 +59,7 @@ export function DialogContent({
         border: "1px solid",
         borderColor: "divider",
         borderRadius: "12px",
+        boxSizing: "border-box",
         overflow: "hidden",
         position: "relative",
         ...sx as any,

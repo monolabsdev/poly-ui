@@ -100,6 +100,16 @@ const baseThemeOptions: ThemeOptions = {
         },
       },
     },
+    MuiDialog: {
+      styleOverrides: {
+        container: {
+          position: "relative",
+          top: "var(--titlebar-height)",
+          height: "calc(100% - var(--titlebar-height))",
+          overflow: "hidden",
+        },
+      },
+    },
     MuiMenuItem: {
       styleOverrides: {
         root: {

@@ -4,6 +4,13 @@
     --z-modal: 9000;
     --z-popover: 8000;
     --z-toast: 9999;
+    --background: #f3f3f3;
+    --border: rgba(0, 0, 0, 0.05);
+}
+
+:root.dark {
+    --background: #121212;
+    --border: rgba(255, 255, 255, 0.05);
 }
 
 body {
@@ -29,16 +36,16 @@ html.reduce-transparency,
 html.reduce-transparency body,
 html.reduce-transparency[data-chrome="borderless"],
 html.reduce-transparency[data-chrome="borderless"] body {
-    background: var(--mui-palette-background-default, #171717) !important;
+    background: var(--background, #f3f3f3) !important;
 }
 
 html[data-chrome="borderless"] #root {
     border-radius: 12px;
     overflow: hidden;
-    border: 1px solid var(--border, var(--mui-palette-divider, #27272a));
+    border: 1px solid var(--border, var(--mui-palette-divider, rgba(0, 0, 0, 0.05)));
     background: var(
         --background,
-        var(--mui-palette-background-default, #09090b)
+        var(--mui-palette-background-sidebar, #f3f3f3)
     );
 }
 
@@ -137,6 +144,47 @@ code {
     .action-bar {
         opacity: 1;
     }
+}
+
+.chat-file-drop-target {
+    transition:
+        border-color 160ms ease,
+        box-shadow 160ms ease,
+        background-color 160ms ease,
+        opacity 160ms ease;
+}
+
+.chat-file-drop-target--active {
+    background-color: rgba(59, 130, 246, 0.08) !important;
+    background-image: none !important;
+    border: 1.5px dashed rgba(59, 130, 246, 0.9) !important;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1) !important;
+}
+
+.chat-file-drop-label {
+    position: absolute;
+    top: 10px;
+    right: 14px;
+    z-index: 3;
+    pointer-events: none;
+    border: 1px solid rgba(59, 130, 246, 0.24);
+    border-radius: 9999px;
+    background: rgba(59, 130, 246, 0.12);
+    color: var(--mui-palette-primary-main, #3b82f6);
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1;
+    opacity: 0;
+    padding: 6px 9px;
+    transform: translateY(-2px);
+    transition:
+        opacity 140ms ease,
+        transform 140ms ease;
+}
+
+.chat-file-drop-target--active .chat-file-drop-label {
+    opacity: 1;
+    transform: translateY(0);
 }
 
 /* Spin animation for refresh icon */

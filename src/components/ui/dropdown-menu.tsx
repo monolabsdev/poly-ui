@@ -25,9 +25,17 @@ function DropdownMenu({
     onOpenChange?.(false);
   };
 
+  const setOpenAnchor = React.useCallback(
+    (el: HTMLElement | null) => {
+      setAnchorEl(el);
+      if (el) onOpenChange?.(true);
+    },
+    [onOpenChange],
+  );
+
   return (
     <DropdownMenuContext.Provider
-      value={{ anchorEl, setAnchorEl, handleClose, isOpen }}
+      value={{ anchorEl, setAnchorEl: setOpenAnchor, handleClose, isOpen }}
     >
       {children}
     </DropdownMenuContext.Provider>

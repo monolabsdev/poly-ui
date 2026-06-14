@@ -449,7 +449,8 @@ function AuthPage({
   return (
     <Box
       sx={{
-        minHeight: "100vh",
+        minHeight: "100%",
+        boxSizing: "border-box",
         bgcolor: "#070707",
         color: "#f5f5f5",
         display: "flex",
@@ -528,7 +529,7 @@ export const AuthModal: React.FC = () => {
           right: 0,
           bottom: 0,
           zIndex: 1000,
-          overflowY: "auto",
+          overflowY: "hidden",
           overflowX: "hidden",
         }}
       >

@@ -81,6 +81,7 @@ export function SettingsModal({ isOpen, onClose, initialTab = "general" }: Setti
           width: "100%",
           height: "100%",
           minWidth: 0,
+          boxSizing: "border-box",
         }}
       >
         <Box
@@ -90,6 +91,7 @@ export function SettingsModal({ isOpen, onClose, initialTab = "general" }: Setti
             flexDirection: "column",
             height: "100%",
             minHeight: 0,
+            boxSizing: "border-box",
             bgcolor: "transparent",
             p: 2,
           }}
