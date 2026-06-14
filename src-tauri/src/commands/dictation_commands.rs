@@ -191,9 +191,7 @@ pub fn select_whisper_model(
 }
 
 #[tauri::command]
-pub fn release_whisper_model(
-    state: State<'_, WhisperState>,
-) -> Result<(), String> {
+pub fn release_whisper_model(state: State<'_, WhisperState>) -> Result<(), String> {
     state.release_model();
     Ok(())
 }

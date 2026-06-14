@@ -46,7 +46,7 @@ tauri-plugin-dialog = "2"
 windows-sys = { version = "0.59", features = ["Win32_Graphics_Dwm", "Win32_Foundation"] }
 raw-window-handle = "0.6"
 dirs = "6"
-poly-agent-tauri = { git = "https://github.com/monolabsdev/poly-agent.git", features = ["tauri"] }
+poly-agent-tauri = { path = "../../poly-agent/crates/poly-agent-tauri", features = ["tauri"] }
 whisper-rs = "0.16"
 cpal = "0.15"
 hound = "3.5"

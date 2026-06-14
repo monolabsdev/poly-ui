@@ -1,0 +1,49 @@
+import { invoke } from "@tauri-apps/api/core";
+
+const MAX_LOG_MESSAGE_LENGTH = 1200;
+
+function safeMessage(value: unknown): string {
+  const message =
+    value instanceof Error
+      ? `${value.name}: ${value.message}\n${value.stack ?? ""}`
+      : typeof value === "string"
+        ? value
+        : JSON.stringify(value);
+  return (message || "unknown").slice(0, MAX_LOG_MESSAGE_LENGTH);
+}
+
+export function startupPhase(message: string): void {
+  console.info(`[startup] ${message}`);
+  void invoke("log_startup_phase", { message }).catch(() => undefined);
+}
+
+export function startupError(message: string, error?: unknown): void {
+  const detail = error === undefined ? message : `${message}: ${safeMessage(error)}`;
+  console.error(`[startup] ${detail}`);
+  void invoke("log_startup_error", { message: detail }).catch(() => undefined);
+}
+
+export function installFrontendDiagnostics(): void {
+  startupPhase("diagnostics installed");
+  window.addEventListener("error", (event) => {
+    startupError(event.message, event.error);
+  });
+  window.addEventListener("unhandledrejection", (event) => {
+    startupError("unhandled rejection", event.reason);
+  });
+}
+
+export function backupCorruptStorageItem(key: string, raw: string, error: unknown): void {
+  const backupKey = `${key}.corrupt-${Date.now()}`;
+  try {
+    localStorage.setItem(backupKey, raw);
+  } catch {
+    // Storage may be unavailable or quota-limited. Original key is still removed below.
+  }
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    // Nothing else to recover.
+  }
+  startupError(`recovered corrupt localStorage item ${key}; backup=${backupKey}`, error);
+}

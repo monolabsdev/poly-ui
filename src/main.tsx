@@ -11,11 +11,19 @@ import StartupLoadingScreen from "./components/StartupLoadingScreen";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { WindowTitleBar } from "./components/Layout/WindowTitleBar";
 import { loadAppModule, prepareAppStartup } from "./startup";
+import {
+  installFrontendDiagnostics,
+  startupError as reportStartupError,
+  startupPhase,
+} from "./lib/startupDiagnostics";
 import { IS_LINUX, USE_CUSTOM_WINDOW_CONTROLS } from "./lib/platform";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { invoke } from "@tauri-apps/api/core";
 import "@fontsource-variable/geist";
 import "./App.css";
+
+installFrontendDiagnostics();
+startupPhase("main module loaded");
 
 if (IS_LINUX) {
   document.documentElement.dataset.chrome = "native";
@@ -27,14 +35,6 @@ const TITLE_BAR_HEIGHT = IS_LINUX ? 0 : 36;
 document.documentElement.style.setProperty("--titlebar-height", `${TITLE_BAR_HEIGHT}px`);
 
 const App = lazy(loadAppModule);
-
-function onGlobalError(event: ErrorEvent) {
-  console.error("[Global]", event.error ?? event.message);
-}
-
-function onGlobalRejection(event: PromiseRejectionEvent) {
-  console.error("[Global] Unhandled rejection:", event.reason);
-}
 
 function getTheme(mode: string, prefersDark: boolean) {
   if (mode === "system") {
@@ -55,18 +55,22 @@ function Root() {
   const theme = useMemo(() => getTheme(mode, prefersDarkMode), [mode, prefersDarkMode]);
 
   useEffect(() => {
+    document.documentElement.style.setProperty("--background", theme.palette.background.sidebar);
+    document.documentElement.style.setProperty("--border", theme.palette.divider);
+  }, [theme]);
+
+  useEffect(() => {
     let cancelled = false;
 
+    startupPhase("prepareAppStartup begin");
     prepareAppStartup()
       .then(() => {
+        startupPhase("prepareAppStartup complete");
         invoke("startup_frontend_loaded").catch((e) => console.error("[startup] frontend log failed:", e));
         if (!cancelled) setIsAppReady(true);
       })
       .catch((error) => {
-        console.error("[startup] App startup failed:", error);
-        invoke("log_startup_error", { message: formatStartupError(error) }).catch((e) =>
-          console.error("[startup] error log failed:", e),
-        );
+        reportStartupError("App startup failed", error);
         if (!cancelled) setStartupError(formatStartupError(error));
       });
 
@@ -84,21 +88,13 @@ function Root() {
   useEffect(() => {
     if (!isAppReady && !startupError) return;
     const show = () => {
-      getCurrentWindow().show().catch((e) => console.error("window.show failed:", e));
+      startupPhase("window show requested");
+      getCurrentWindow().show().catch((e) => reportStartupError("window.show failed", e));
     };
     const t1 = setTimeout(show, 50);
     const t2 = setTimeout(show, 500);
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, [isAppReady, startupError]);
-
-  useEffect(() => {
-    window.addEventListener("error", onGlobalError);
-    window.addEventListener("unhandledrejection", onGlobalRejection);
-    return () => {
-      window.removeEventListener("error", onGlobalError);
-      window.removeEventListener("unhandledrejection", onGlobalRejection);
-    };
-  }, []);
 
   // Toggle dark class for Tailwind
   useEffect(() => {
@@ -169,6 +165,7 @@ function Root() {
   );
 }
 
+startupPhase("react root render begin");
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   DEV ? (
     <React.StrictMode>
@@ -178,6 +175,7 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
     <Root />
   ),
 );
+startupPhase("react root render requested");
 
 function formatStartupError(error: unknown): string {
   if (error instanceof Error) return error.message;
@@ -185,6 +183,14 @@ function formatStartupError(error: unknown): string {
 }
 
 function StartupErrorScreen({ message }: { message: string }) {
+  const [logPath, setLogPath] = useState<string | null>(null);
+
+  useEffect(() => {
+    invoke<string | null>("startup_log_path")
+      .then((path) => setLogPath(path))
+      .catch(() => setLogPath(null));
+  }, []);
+
   return (
     <div
       style={{
@@ -199,6 +205,25 @@ function StartupErrorScreen({ message }: { message: string }) {
       <div style={{ maxWidth: 560 }}>
         <h1 style={{ fontSize: 20, margin: "0 0 8px" }}>Poly UI could not start</h1>
         <p style={{ color: "rgba(255,255,255,0.68)", margin: 0 }}>{message}</p>
+        {logPath ? (
+          <p style={{ color: "rgba(255,255,255,0.58)", margin: "12px 0 0", fontSize: 13 }}>
+            Log: {logPath}
+          </p>
+        ) : null}
+        <button
+          onClick={() => window.location.reload()}
+          style={{
+            marginTop: 18,
+            padding: "8px 14px",
+            borderRadius: 6,
+            border: "1px solid rgba(255,255,255,0.18)",
+            background: "rgba(255,255,255,0.08)",
+            color: "inherit",
+            cursor: "pointer",
+          }}
+        >
+          Restart
+        </button>
       </div>
     </div>
   );

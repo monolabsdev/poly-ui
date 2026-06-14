@@ -25,6 +25,7 @@
           "x": 14,
           "y": 20
         },
+        "dragDropEnabled": false,
         "visible": false
       }
     ],

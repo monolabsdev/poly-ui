@@ -821,13 +821,9 @@ mod tests {
                 done = true;
                 break;
             }
-            let payloads = parse_stream_event(
-                &event,
-                "gpt-test",
-                &mut pending_tool_calls,
-                &mut metadata,
-            )
-            .unwrap();
+            let payloads =
+                parse_stream_event(&event, "gpt-test", &mut pending_tool_calls, &mut metadata)
+                    .unwrap();
             for payload in payloads {
                 assert!(!payload.done);
                 content.push_str(&payload.content);

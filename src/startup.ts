@@ -4,6 +4,7 @@ import { useModelStore } from "@/store/modelStore";
 import { useOllamaStore } from "@/services/ollama/monitor";
 import { initStoreCoordinator } from "@/store/coordinator";
 import { isPermissionGranted, requestPermission } from "@tauri-apps/plugin-notification";
+import { backupCorruptStorageItem, startupError, startupPhase } from "@/lib/startupDiagnostics";
 
 const SYSTEM_PROMPTS_STORAGE_KEY = "polyui.systemPrompts";
 
@@ -33,7 +34,18 @@ function restoreSystemPrompts() {
       activeSystemPromptId:
         parsed.activeSystemPromptId ?? parsed.systemPrompts[0]?.id ?? null,
     });
-  } catch {}
+    startupPhase("system prompts restored");
+  } catch (error) {
+    let raw: string | null = null;
+    try {
+      raw = localStorage.getItem(SYSTEM_PROMPTS_STORAGE_KEY);
+    } catch {
+      raw = null;
+    }
+    if (raw) {
+      backupCorruptStorageItem(SYSTEM_PROMPTS_STORAGE_KEY, raw, error);
+    }
+  }
 }
 
 function startSystemPromptPersistence() {
@@ -60,11 +72,13 @@ function startSystemPromptPersistence() {
 }
 
 async function preloadVisibleAppChunks() {
+  startupPhase("preload visible chunks start");
   await Promise.all([
     loadAppModule(),
     import("@/components/Chat/ChatWorkspace"),
     import("@/components/Auth/AuthModal"),
   ]);
+  startupPhase("preload visible chunks complete");
 }
 
 /*
@@ -75,32 +89,47 @@ async function preloadVisibleAppChunks() {
  * - See connection.rs for backend schema, repositories/index.ts for frontend.
  */
 async function initializeStores() {
+  startupPhase("initialize stores start");
   restoreSystemPrompts();
   startSystemPromptPersistence();
 
+  startupPhase("notification permission start");
   requestNotificationPermission();
 
+  startupPhase("repository init start");
   const repo = await import("@/lib/repositories");
   await repo.initRepository();
+  startupPhase("repository init complete");
+  startupPhase("store coordinator init start");
   initStoreCoordinator();
+  startupPhase("store coordinator init complete");
 
+  startupPhase("auth restore start");
   await useAuthStore.getState().actions.restoreSession().catch((err) => {
+    startupError("Session restore failed", err);
     console.warn("[startup] Session restore failed:", err);
   });
+  startupPhase("auth restore complete");
 
+  startupPhase("ollama monitor start");
   useOllamaStore.getState().actions.start();
 
+  startupPhase("update checker init start");
   const { startUpdateChecker } = await import("@/store/updateStore");
   startUpdateChecker();
+  startupPhase("update checker init complete");
 
+  startupPhase("idle manager init start");
   const { idleManager, registerDefaultIdleHandlers } = await import("@/lib/idle");
   idleManager.start();
   registerDefaultIdleHandlers();
+  startupPhase("idle manager init complete");
 
   const { isLoading } = useAuthStore.getState();
   if (isLoading) {
     useAuthStore.setState({ isLoading: false });
   }
+  startupPhase("initialize stores complete");
 }
 
 async function requestNotificationPermission() {
@@ -109,6 +138,7 @@ async function requestNotificationPermission() {
       await requestPermission();
     }
   } catch {
+    startupPhase("notification permission unavailable");
     // Notification permission not available (e.g. non-Tauri or Linux without .desktop file)
   }
 }

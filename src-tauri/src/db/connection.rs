@@ -1,14 +1,22 @@
+use crate::startup_log;
 use sqlx::{sqlite::SqliteConnectOptions, sqlite::SqlitePoolOptions, Row, SqlitePool};
 use std::time::Duration;
 use tauri::{AppHandle, Manager, Runtime};
 
 /// Opens local SQLite file, builds shared pool, runs bundled migrations.
 pub async fn init_db<R: Runtime>(app: &AppHandle<R>) -> Result<SqlitePool, String> {
+    startup_log::log_phase("database app data lookup");
     let app_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
-    std::fs::create_dir_all(&app_dir)
-        .map_err(|e| format!("failed to create app data directory {}: {e}", app_dir.display()))?;
+    startup_log::log_phase(format!("database app data dir: {}", app_dir.display()));
+    std::fs::create_dir_all(&app_dir).map_err(|e| {
+        format!(
+            "failed to create app data directory {}: {e}",
+            app_dir.display()
+        )
+    })?;
 
     let db_path = app_dir.join("chat.db");
+    startup_log::log_phase(format!("database path: {}", db_path.display()));
 
     let options = SqliteConnectOptions::new()
         .filename(&db_path)
@@ -22,9 +30,12 @@ pub async fn init_db<R: Runtime>(app: &AppHandle<R>) -> Result<SqlitePool, Strin
         .await
         .map_err(|e| format!("failed to open SQLite database {}: {e}", db_path.display()))?;
 
+    startup_log::log_phase("database core schema");
     ensure_conversations_schema(&pool).await?;
     ensure_folders_schema(&pool).await?;
+    startup_log::log_phase("database migrations");
     run_migrations(&pool).await?;
+    startup_log::log_phase("database migrations complete");
 
     // Remove stale rows from earlier provider types.
     sqlx::query("DELETE FROM provider_configs WHERE provider_type NOT IN ('OllamaLocal', 'OpenAICompatible')")
@@ -234,7 +245,10 @@ async fn ensure_folders_schema(pool: &SqlitePool) -> Result<(), String> {
         "contextFiles TEXT",
         "userId TEXT DEFAULT ''",
     ] {
-        let name = column.split_whitespace().next().unwrap();
+        let name = column
+            .split_whitespace()
+            .next()
+            .ok_or_else(|| format!("invalid folders schema column definition: {column}"))?;
         let exists =
             sqlx::query("SELECT COUNT(*) FROM pragma_table_info('folders') WHERE name = ?")
                 .bind(name)

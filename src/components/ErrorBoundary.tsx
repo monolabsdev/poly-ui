@@ -1,4 +1,5 @@
 import { Component } from "react";
+import { startupError } from "@/lib/startupDiagnostics";
 
 interface Props {
   children: React.ReactNode;
@@ -21,6 +22,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
     console.error("[ErrorBoundary]", error, info.componentStack);
+    startupError("React error boundary caught render failure", `${error.message}\n${info.componentStack}`);
   }
 
   handleReset = () => {

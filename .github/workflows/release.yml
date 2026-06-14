@@ -38,6 +38,12 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Checkout poly-agent path dependency
+        shell: bash
+        run: |
+          git clone https://github.com/monolabsdev/poly-agent.git ../poly-agent
+          git -C ../poly-agent checkout 04c5d347291754a60a43773cac48735dce59ca1d
+
       - name: Read Bun version
         id: bun
         shell: bash
@@ -193,6 +199,28 @@ jobs:
             throw "PolyUI Windows smoke test did not reach frontend loaded"
           }
           Stop-Process -Id $proc.Id -Force
+
+      - name: Smoke test installed Windows app relaunch
+        if: matrix.platform == 'windows'
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+          $version = (Get-Content package.json | ConvertFrom-Json).version
+          $installer = Resolve-Path "release-artifacts/windows/PolyUI-$version-windows-x64-setup.exe"
+          $installDir = Join-Path $env:LOCALAPPDATA "PolyUI"
+          $uninstall = Join-Path $installDir "uninstall.exe"
+          if (Test-Path $uninstall) {
+            Start-Process -FilePath $uninstall -ArgumentList "/S" -Wait
+          }
+          Remove-Item (Join-Path $env:APPDATA "Poly UI") -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item (Join-Path $env:APPDATA "com.tslater.polyui") -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item (Join-Path $env:LOCALAPPDATA "com.tslater.polyui") -Recurse -Force -ErrorAction SilentlyContinue
+          Start-Process -FilePath $installer -ArgumentList "/S" -Wait
+          $exe = Join-Path $installDir "polyui.exe"
+          powershell -ExecutionPolicy Bypass -File scripts/windows-relaunch-smoke.ps1 -ExePath $exe -Cycles 10
+          if (Test-Path $uninstall) {
+            Start-Process -FilePath $uninstall -ArgumentList "/S" -Wait
+          }
 
       - name: Build PolyUI Ollama Windows installer
         if: matrix.platform == 'windows'

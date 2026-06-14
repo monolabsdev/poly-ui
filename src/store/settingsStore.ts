@@ -2,6 +2,8 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { PromptPresetId } from "@/constants/promptPresets";
 import type { WebSearchSettings } from "@/features/web-search/types";
+import { startupError, startupPhase } from "@/lib/startupDiagnostics";
+import { createSafeJsonStorage } from "./persistStorage";
 
 export type GeneralSettings = {
   language: string;
@@ -57,6 +59,8 @@ const defaultTts: TtsSettings = {
   },
 };
 
+const SETTINGS_VERSION = 12;
+
 export const defaultDictation: DictationSettings = {
   enabled: true,
   language: "auto",
@@ -75,22 +79,28 @@ function createDefaultWebSearchSettings(): WebSearchSettings {
   };
 }
 
+function defaultSettingsState(): Omit<SettingsState, "actions"> {
+  return {
+    general: {
+      language: "en",
+      notifications: true,
+      systemPrompt: "",
+      webSearch: createDefaultWebSearchSettings(),
+      webSearchEnabled: false,
+      reasoningEnabled: false,
+      experimentalFeatures: false,
+    },
+    tts: { ...defaultTts },
+    dictation: { ...defaultDictation },
+    performance: { ...defaultPerformance },
+    selectedPromptPreset: "default" as PromptPresetId,
+  };
+}
+
 export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
-      general: {
-        language: "en",
-        notifications: true,
-        systemPrompt: "",
-        webSearch: createDefaultWebSearchSettings(),
-        webSearchEnabled: false,
-        reasoningEnabled: false,
-        experimentalFeatures: false,
-      },
-      tts: { ...defaultTts },
-      dictation: { ...defaultDictation },
-      performance: { ...defaultPerformance },
-      selectedPromptPreset: "default" as PromptPresetId,
+      ...defaultSettingsState(),
       actions: {
         updateGeneral: (update) =>
           set((s) => ({ general: { ...s.general, ...update } })),
@@ -116,8 +126,14 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: "polyui:settings",
-      version: 12,
+      version: SETTINGS_VERSION,
+      storage: createSafeJsonStorage<SettingsState>(),
       migrate: (persisted, version) => {
+        startupPhase(`settings migration start: ${version} -> ${SETTINGS_VERSION}`);
+        if (version > SETTINGS_VERSION) {
+          startupError(`settings future version ${version}; using defaults`);
+          return defaultSettingsState() as SettingsState;
+        }
         const state = persisted as any;
         if (state?.tts) {
           state.tts = {
@@ -155,7 +171,18 @@ export const useSettingsStore = create<SettingsState>()(
         if (version < 12) {
           state.dictation = { ...defaultDictation, ...state.dictation };
         }
+        startupPhase("settings migration complete");
         return state as SettingsState;
+      },
+      onRehydrateStorage: () => {
+        startupPhase("settings hydrate begin");
+        return (_state, error) => {
+          if (error) {
+            startupError("settings hydrate failed", error);
+          } else {
+            startupPhase("settings hydrate complete");
+          }
+        };
       },
       partialize: ({ general, tts, dictation, performance, selectedPromptPreset }) => ({
         general, tts, dictation, performance, selectedPromptPreset,
