@@ -38,12 +38,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Checkout poly-agent path dependency
-        shell: bash
-        run: |
-          git clone https://github.com/monolabsdev/poly-agent.git ../poly-agent
-          git -C ../poly-agent checkout 04c5d347291754a60a43773cac48735dce59ca1d
-
       - name: Read Bun version
         id: bun
         shell: bash

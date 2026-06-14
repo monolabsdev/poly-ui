@@ -3511,6 +3511,7 @@ dependencies = [
 [[package]]
 name = "poly-agent-core"
 version = "0.1.0"
+source = "git+https://github.com/monolabsdev/poly-agent.git#58aac9028995bd34f9f0316e561b6dc9713f7a09"
 dependencies = [
  "serde",
  "serde_json",
@@ -3521,6 +3522,7 @@ dependencies = [
 [[package]]
 name = "poly-agent-providers"
 version = "0.1.0"
+source = "git+https://github.com/monolabsdev/poly-agent.git#58aac9028995bd34f9f0316e561b6dc9713f7a09"
 dependencies = [
  "async-stream",
  "async-trait",
@@ -3540,6 +3542,7 @@ dependencies = [
 [[package]]
 name = "poly-agent-runtime"
 version = "0.1.0"
+source = "git+https://github.com/monolabsdev/poly-agent.git#58aac9028995bd34f9f0316e561b6dc9713f7a09"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3557,6 +3560,7 @@ dependencies = [
 [[package]]
 name = "poly-agent-tauri"
 version = "0.1.0"
+source = "git+https://github.com/monolabsdev/poly-agent.git#58aac9028995bd34f9f0316e561b6dc9713f7a09"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3576,6 +3580,7 @@ dependencies = [
 [[package]]
 name = "poly-agent-tools"
 version = "0.1.0"
+source = "git+https://github.com/monolabsdev/poly-agent.git#58aac9028995bd34f9f0316e561b6dc9713f7a09"
 dependencies = [
  "anyhow",
  "async-trait",
