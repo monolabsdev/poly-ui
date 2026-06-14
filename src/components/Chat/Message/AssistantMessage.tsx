@@ -36,7 +36,11 @@ import {
 } from "./hooks";
 import { MarkdownProse } from "./MarkdownProse";
 import { AgentActivity } from "@/features/agent/AgentActivity";
-import { approveAgentToolCall, rejectAgentToolCall } from "@/features/agent/agentClient";
+import {
+  approveAgentToolCall,
+  getAgentRunState,
+  rejectAgentToolCall,
+} from "@/features/agent/agentClient";
 import type { AgentApproval } from "@/features/agent/types";
 
 function agentResultText(agent: NonNullable<MessageProps["agent"]>, content: string): string | undefined {
@@ -125,13 +129,17 @@ export function AssistantMessage(props: MessageProps) {
   const handleAgentApproval = async (kind: "approve" | "reject", approval: AgentApproval) => {
     if (!agent?.runId) return;
     try {
+      const state = await getAgentRunState(agent.runId).catch(() => null);
+      const approvalId = state?.pending_approval?.approval_id ?? approval.approvalId;
       if (kind === "approve") {
-        await approveAgentToolCall(agent.runId, approval.approvalId);
+        await approveAgentToolCall(agent.runId, approvalId);
         return;
       }
-      await rejectAgentToolCall(agent.runId, approval.approvalId);
+      await rejectAgentToolCall(agent.runId, approvalId);
     } catch (err) {
-      notify.error("Approval failed", err instanceof Error ? err.message : String(err));
+      const message = err instanceof Error ? err.message : String(err);
+      if (message.toLowerCase().includes("no pending approval")) return;
+      notify.error("Approval failed", message);
       throw err;
     }
   };
