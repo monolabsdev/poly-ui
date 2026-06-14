@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
-import { Box, Chip, InputBase, Typography } from "@mui/material";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Box, ButtonBase, Chip, InputBase, Typography } from "@mui/material";
 import {
   Check,
   ChevronDown,
+  ChevronRight,
   Folder,
   FolderPlus,
   FolderX,
@@ -17,7 +18,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { listAgentWorkspaces } from "./agentClient";
+import { listAgentWorkspaces, pickAgentWorkspace } from "./agentClient";
 import { useAgentStore } from "./agentStore";
 import type { PermissionPreset } from "./types";
 
@@ -57,9 +58,11 @@ export function AgentComposerControls({
   chatId?: string | null;
   mode?: "all" | "permission" | "workspace";
 }) {
-  const { permissionPreset, workspaceSelections, workspaces, actions } =
+  const { permissionPreset, workspaceSelections, workspaces, recentWorkspaces, actions } =
     useAgentStore();
   const [query, setQuery] = useState("");
+  const [workspaceOpen, setWorkspaceOpen] = useState(false);
+  const searchRef = useRef<HTMLInputElement>(null);
   const selectedSelection = chatId ? workspaceSelections[chatId] : undefined;
   const selectedWorkspace =
     selectedSelection?.type === "project"
@@ -72,19 +75,81 @@ export function AgentComposerControls({
   const selectedPreset =
     PRESETS.find((preset) => preset.value === permissionPreset) ?? PRESETS[0];
   const SelectedPresetIcon = selectedPreset.icon;
-  const filteredWorkspaces = useMemo(() => {
+  const dedupedWorkspaces = useMemo(() => {
+    const seenIds = new Set<string>();
+    const seenPaths = new Set<string>();
+    return workspaces.filter((workspace) => {
+      if (!workspace.id || !workspace.path) return false;
+      if (seenIds.has(workspace.id) || seenPaths.has(workspace.path)) {
+        return false;
+      }
+      seenIds.add(workspace.id);
+      seenPaths.add(workspace.path);
+      return true;
+    });
+  }, [workspaces]);
+  const recentWorkspaceList = useMemo(() => {
+    const byKey = new Map<string, (typeof workspaces)[number]>();
+    for (const workspace of dedupedWorkspaces) {
+      byKey.set(workspace.id, workspace);
+      byKey.set(workspace.path, workspace);
+    }
+    const seen = new Set<string>();
+    return [...recentWorkspaces]
+      .sort((a, b) => b.lastUsedAt - a.lastUsedAt)
+      .map((recent) => byKey.get(recent.id) ?? byKey.get(recent.path))
+      .filter((workspace): workspace is (typeof workspaces)[number] => {
+        if (!workspace) return false;
+        const key = workspace.id || workspace.path;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .slice(0, 2);
+  }, [dedupedWorkspaces, recentWorkspaces, workspaces]);
+  const visibleWorkspaces = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    if (!needle) return workspaces;
-    return workspaces.filter((workspace) =>
+    if (!needle) return recentWorkspaceList;
+    return dedupedWorkspaces.filter((workspace) =>
       [workspace.name, workspace.path].some((value) =>
         value.toLowerCase().includes(needle),
       ),
     );
-  }, [query, workspaces]);
+  }, [dedupedWorkspaces, query, recentWorkspaceList]);
   const workspaceLabel =
     selectedSelection?.type === "sandbox"
       ? "No project"
       : (selectedWorkspace?.name ?? "Select project");
+
+  const selectWorkspace = (workspace: (typeof workspaces)[number]) => {
+    if (!chatId) return;
+    actions.setSelectedWorkspaceSelection(chatId, {
+      type: "project",
+      projectId: workspace.id,
+      path: workspace.path,
+    });
+    actions.markWorkspaceUsed(workspace);
+    setWorkspaceOpen(false);
+  };
+
+  const selectSandbox = () => {
+    if (!chatId) return;
+    actions.setSelectedWorkspaceSelection(chatId, {
+      type: "sandbox",
+      chatId,
+    });
+    setWorkspaceOpen(false);
+  };
+
+  const handleWorkspaceKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+    event.preventDefault();
+    const items = Array.from(
+      document.querySelectorAll<HTMLElement>("[data-workspace-menu-item]"),
+    );
+    const target = event.key === "ArrowDown" ? items[0] : items[items.length - 1];
+    target?.focus();
+  };
 
   useEffect(() => {
     if (workspaces.length) return;
@@ -177,7 +242,13 @@ export function AgentComposerControls({
       )}
 
       {(mode === "all" || mode === "workspace") && (
-        <DropdownMenu>
+        <DropdownMenu
+          open={workspaceOpen}
+          onOpenChange={(open) => {
+            setWorkspaceOpen(open);
+            if (!open) setQuery("");
+          }}
+        >
           <DropdownMenuTrigger>
             <Chip
               size="small"
@@ -245,27 +316,32 @@ export function AgentComposerControls({
           <DropdownMenuContent
             align="start"
             sx={{
-              width: 264,
+              width: 260,
+              minWidth: 260,
+              maxWidth: 260,
               borderRadius: "10px",
-              p: 0.55,
-              bgcolor: "background.paper",
-              border: "1px solid",
-              borderColor: "divider",
-              boxShadow: "0 18px 40px rgba(0,0,0,0.28)",
+              p: "6px",
+              bgcolor: "#2b2b2b",
+              border: "1px solid rgba(255,255,255,0.08)",
+              boxShadow: "0 8px 24px rgba(0,0,0,0.35)",
+              color: "#f2f2f2",
+              ".MuiList-root": { p: 0 },
             }}
           >
             <Box
+              onKeyDown={handleWorkspaceKeyDown}
               sx={{
                 display: "flex",
                 alignItems: "center",
-                gap: 0.75,
-                px: 1,
-                py: 0.7,
-                mb: 0.3,
+                gap: "8px",
+                height: 32,
+                px: "10px",
+                color: "rgba(255,255,255,0.48)",
               }}
             >
-              <Search size={14} />
+              <Search size={13} />
               <InputBase
+                inputRef={searchRef}
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search projects"
@@ -273,98 +349,156 @@ export function AgentComposerControls({
                 sx={{
                   flex: 1,
                   fontSize: 13,
-                  color: "text.primary",
-                  ".MuiInputBase-input": { p: 0 },
+                  color: "#f2f2f2",
+                  fontWeight: 500,
+                  ".MuiInputBase-input": {
+                    height: 32,
+                    p: 0,
+                    "&::placeholder": {
+                      color: "rgba(255,255,255,0.44)",
+                      opacity: 1,
+                    },
+                  },
                 }}
                 inputProps={{ "aria-label": "Search projects" }}
               />
             </Box>
-            {filteredWorkspaces.map((workspace) => (
-              <DropdownMenuItem
+            {visibleWorkspaces.map((workspace) => (
+              <ProjectMenuRow
                 key={workspace.path}
-                onClick={() =>
-                  chatId &&
+                icon={<Folder size={14} />}
+                label={workspace.name}
+                selected={
+                  selectedSelection?.type === "project" &&
+                  selectedSelection.path === workspace.path
+                }
+                onClick={() => selectWorkspace(workspace)}
+              />
+            ))}
+            <ProjectMenuRow
+              icon={<FolderPlus size={14} />}
+              label="Add new project"
+              trailing={<ChevronRight size={13} />}
+              onClick={async () => {
+                const workspace = await pickAgentWorkspace();
+                if (!workspace) {
+                  searchRef.current?.focus();
+                  return;
+                }
+                actions.addWorkspace(workspace);
+                if (chatId) {
                   actions.setSelectedWorkspaceSelection(chatId, {
                     type: "project",
                     projectId: workspace.id,
                     path: workspace.path,
-                  })
+                  });
+                  actions.markWorkspaceUsed(workspace);
                 }
-                sx={{
-                  minHeight: 32,
-                  alignItems: "center",
-                  borderRadius: "7px",
-                  gap: 1,
-                  py: 0.65,
-                }}
-              >
-                <Folder size={15} />
-                <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <Typography
-                    sx={{
-                      fontSize: 13,
-                      fontWeight: 700,
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {workspace.name}
-                  </Typography>
-                </Box>
-                {selectedSelection?.type === "project" &&
-                  selectedSelection.path === workspace.path && (
-                    <Check size={15} />
-                  )}
-              </DropdownMenuItem>
-            ))}
-            <Box sx={{ height: 1, bgcolor: "divider", my: 0.35 }} />
-            <DropdownMenuItem
-              disabled
-              onClick={() => undefined}
-              sx={{
-                minHeight: 32,
-                alignItems: "center",
-                borderRadius: "7px",
-                gap: 1,
-                py: 0.65,
+                setWorkspaceOpen(false);
               }}
-            >
-              <FolderPlus size={15} />
-              <Typography sx={{ flex: 1, fontSize: 13, fontWeight: 700 }}>
-                Add project from settings
-              </Typography>
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() =>
-                chatId &&
-                actions.setSelectedWorkspaceSelection(chatId, {
-                  type: "sandbox",
-                  chatId,
-                })
-              }
-              sx={{
-                minHeight: 32,
-                alignItems: "center",
-                borderRadius: "7px",
-                gap: 1,
-                py: 0.65,
-              }}
-            >
-              <FolderX size={15} />
-              <Box sx={{ flex: 1, minWidth: 0 }}>
-                <Typography sx={{ fontSize: 13, fontWeight: 700 }}>
-                  Do not work in a project
-                </Typography>
-                <Typography sx={{ fontSize: 11.5, color: "text.secondary" }}>
-                  Use this chat's isolated sandbox.
-                </Typography>
-              </Box>
-              {selectedSelection?.type === "sandbox" && <Check size={15} />}
-            </DropdownMenuItem>
+            />
+            <ProjectMenuRow
+              icon={<FolderX size={14} />}
+              label="Don't work in a project"
+              selected={selectedSelection?.type === "sandbox"}
+              onClick={selectSandbox}
+            />
           </DropdownMenuContent>
         </DropdownMenu>
       )}
     </Box>
+  );
+}
+
+function ProjectMenuRow({
+  icon,
+  label,
+  selected,
+  trailing,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  selected?: boolean;
+  trailing?: React.ReactNode;
+  onClick: () => void;
+}) {
+  return (
+    <ButtonBase
+      data-workspace-menu-item
+      onKeyDown={(event) => {
+        if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+        event.preventDefault();
+        const items = Array.from(
+          document.querySelectorAll<HTMLElement>("[data-workspace-menu-item]"),
+        );
+        const index = items.indexOf(event.currentTarget);
+        const offset = event.key === "ArrowDown" ? 1 : -1;
+        const next = items[(index + offset + items.length) % items.length];
+        next?.focus();
+      }}
+      onClick={(event) => {
+        event.stopPropagation();
+        onClick();
+      }}
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        width: "100%",
+        minHeight: 34,
+        height: 34,
+        px: "10px",
+        my: "1px",
+        gap: "9px",
+        borderRadius: "6px",
+        color: "#f2f2f2",
+        textAlign: "left",
+        outline: 0,
+        "&:hover, &.Mui-focusVisible": {
+          bgcolor: "rgba(255,255,255,0.07)",
+        },
+      }}
+    >
+      <Box
+        sx={{
+          width: 16,
+          height: 16,
+          display: "grid",
+          placeItems: "center",
+          color: "rgba(255,255,255,0.48)",
+          flexShrink: 0,
+        }}
+      >
+        {icon}
+      </Box>
+      <Typography
+        sx={{
+          flex: 1,
+          minWidth: 0,
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+          fontSize: 13,
+          fontWeight: 500,
+          color: "inherit",
+          lineHeight: 1.2,
+          letterSpacing: 0,
+        }}
+      >
+        {label}
+      </Typography>
+      <Box
+        sx={{
+          width: 16,
+          height: 16,
+          display: "grid",
+          placeItems: "center",
+          color: selected ? "#6ee787" : "rgba(255,255,255,0.45)",
+          flexShrink: 0,
+        }}
+      >
+        {selected ? <Check size={14} strokeWidth={2.4} /> : trailing}
+      </Box>
+    </ButtonBase>
   );
 }

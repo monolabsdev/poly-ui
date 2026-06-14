@@ -38,25 +38,36 @@ export function AgentReviewPanel({
 
   useEffect(() => {
     if (!open) return;
+    let cancelled = false;
+    const fallbackFilesNext = fallbackChangedFiles(fallbackFiles);
+    setFiles(fallbackFilesNext);
+    setError(fallbackFilesNext.length ? "" : "");
     if (!workspacePath) {
-      const nextFiles = fallbackChangedFiles(fallbackFiles);
-      setFiles(nextFiles);
-      setError(fallbackFiles.length ? "" : "Select a workspace to review changes.");
-      return;
+      setError(fallbackFilesNext.length ? "" : "Select a workspace to review changes.");
+      setLoadingFiles(false);
+      return () => {
+        cancelled = true;
+      };
     }
-    setLoadingFiles(true);
+    setLoadingFiles(fallbackFilesNext.length === 0);
     setError("");
     getAgentChangedFiles(workspacePath)
       .then((changedFiles) => {
-        const nextFiles = changedFiles.length ? changedFiles : fallbackChangedFiles(fallbackFiles);
+        if (cancelled) return;
+        const nextFiles = changedFiles.length ? changedFiles : fallbackFilesNext;
         setFiles(nextFiles);
       })
       .catch((err: unknown) => {
-        const nextFiles = fallbackChangedFiles(fallbackFiles);
-        setFiles(nextFiles);
-        setError(nextFiles.length ? "" : friendlyGitError(messageFromError(err)));
+        if (cancelled) return;
+        setFiles(fallbackFilesNext);
+        setError(fallbackFilesNext.length ? "" : friendlyGitError(messageFromError(err)));
       })
-      .finally(() => setLoadingFiles(false));
+      .finally(() => {
+        if (!cancelled) setLoadingFiles(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [fallbackFiles, initialPath, open, workspacePath]);
 
   useEffect(() => {
@@ -64,13 +75,22 @@ export function AgentReviewPanel({
       setDiffs({});
       return;
     }
-    setLoadingDiff(true);
+    let cancelled = false;
+    const fallbackDiffs = Object.fromEntries(
+      files.map((file) => [
+        file.path,
+        buildFallbackDiff(file.path, Object.values(toolCalls)),
+      ]),
+    );
+    setDiffs(fallbackDiffs);
     setDiffError({});
     if (!workspacePath) {
-      setDiffs(Object.fromEntries(files.map((file) => [file.path, buildFallbackDiff(file.path, Object.values(toolCalls))])));
       setLoadingDiff(false);
-      return;
+      return () => {
+        cancelled = true;
+      };
     }
+    setLoadingDiff(true);
     Promise.all(
       files.map((file) =>
         getAgentFileDiff(workspacePath, file.path)
@@ -82,10 +102,16 @@ export function AgentReviewPanel({
       ),
     )
       .then((results) => {
+        if (cancelled) return;
         setDiffs(Object.fromEntries(results.map((result) => [result.path, result.diff])));
         setDiffError(Object.fromEntries(results.filter((result) => result.error).map((result) => [result.path, result.error])));
       })
-      .finally(() => setLoadingDiff(false));
+      .finally(() => {
+        if (!cancelled) setLoadingDiff(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [files, open, toolCalls, workspacePath]);
 
   const totals = useMemo(
@@ -112,6 +138,8 @@ export function AgentReviewPanel({
       }}
       PaperProps={{
         sx: {
+          top: "var(--titlebar-height)",
+          height: "calc(100dvh - var(--titlebar-height))",
           width: { xs: "100vw", sm: 620 },
           bgcolor: "#151515",
           color: "text.primary",
@@ -158,7 +186,7 @@ export function AgentReviewPanel({
         </Box>
 
         <Box sx={{ flex: 1, overflow: "auto", minHeight: 0 }}>
-          {loadingFiles ? (
+          {loadingFiles && files.length === 0 ? (
             <PanelState icon={<CircularProgress size={16} />} label="Loading changed files..." />
           ) : error ? (
             <PanelState label={error} />
@@ -179,7 +207,7 @@ export function AgentReviewPanel({
                       <Typography sx={{ color: "success.main", fontSize: 12, fontWeight: 800 }}>+{file.additions}</Typography>
                       <Typography sx={{ color: "error.main", fontSize: 12, fontWeight: 800 }}>-{file.deletions}</Typography>
                     </Box>
-                    {loadingDiff ? (
+                    {loadingDiff && !diffs[file.path] ? (
                       <PanelState icon={<CircularProgress size={18} />} label="Loading diff..." />
                     ) : diffError[file.path] ? (
                       <PanelState label={diffError[file.path]} />
