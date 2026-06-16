@@ -3,6 +3,7 @@ import { createTheme, ThemeOptions } from "@mui/material/styles";
 declare module "@mui/material/styles" {
   interface TypeBackground {
     sidebar: string;
+    chatPanel: string;
   }
   interface Palette {
     border: {
@@ -179,6 +180,7 @@ export const darkTheme = createTheme({
       default: "#171717", // Subtle dark grey from reference
       paper: "#1a1a1a", // Slightly lighter for inputs/cards
       sidebar: "#121212", // Darker background for sidebar
+      chatPanel: "#181818", // Slightly lighter than sidebar for chat area
     },
     text: {
       primary: "#ececec", // Soft white for better readability
@@ -240,6 +242,7 @@ export const lightTheme = createTheme({
       default: "#ffffff",
       paper: "#f9f9f9",
       sidebar: "#f3f3f3",
+      chatPanel: "#f5f5f5",
     },
     text: {
       primary: "#1a1a1a",
