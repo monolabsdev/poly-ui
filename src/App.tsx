@@ -101,6 +101,15 @@ function App() {
   );
 
   const ollama = useOllama();
+  const { user, isAuthenticated, isAuthLoading, isGuest } = useAuthStore(
+    useShallow((state) => ({
+      user: state.user,
+      isAuthenticated: state.isAuthenticated,
+      isAuthLoading: state.isLoading,
+      isGuest: state.isGuest,
+    })),
+  );
+  const isAuthGateOpen = !isAuthenticated && !isAuthLoading && !isGuest;
 
   const handleOpenSettings = useCallback((tab: SettingsTab = "general") => {
     setSettingsInitialTab(tab);
@@ -111,6 +120,10 @@ function App() {
     setIsSettingsOpen(true);
   }, []);
   const handleCloseSettings = useCallback(() => setIsSettingsOpen(false), []);
+  const handleOpenCommandPalette = useCallback(() => {
+    if (isAuthGateOpen) return;
+    setIsCommandPaletteOpen(true);
+  }, [isAuthGateOpen]);
   const handleStopStreamingReady = useCallback(
     (stopStreaming: (() => void) | null) => {
       stopStreamingRef.current = stopStreaming;
@@ -133,12 +146,20 @@ function App() {
     const handler = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
+        if (isAuthGateOpen) {
+          setIsCommandPaletteOpen(false);
+          return;
+        }
         setIsCommandPaletteOpen((open) => !open);
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, []);
+  }, [isAuthGateOpen]);
+
+  useEffect(() => {
+    if (isAuthGateOpen) setIsCommandPaletteOpen(false);
+  }, [isAuthGateOpen]);
 
   useEffect(() => {
     if (!ollama.online || selectedModels.length > 0) return;
@@ -187,7 +208,6 @@ function App() {
       activeConversationId: state.activeConversationId,
     })),
   );
-  const user = useAuthStore((state) => state.user);
   const {
     createConversation,
     setActiveConversationId,
@@ -474,7 +494,7 @@ function App() {
     <SidebarProvider>
       <Sidebar
         onOpenSettings={handleOpenSettings}
-        onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
+        onOpenCommandPalette={handleOpenCommandPalette}
         onNewChat={handleNewChat}
         onSelectConversation={handleSelectConversation}
         onDeleteConversation={handleDeleteConversation}
@@ -537,7 +557,7 @@ function App() {
         onOpenChange={setIsArchivedOpen}
       />
       <CommandPalette
-        open={isCommandPaletteOpen}
+        open={!isAuthGateOpen && isCommandPaletteOpen}
         onOpenChange={setIsCommandPaletteOpen}
         items={commandPaletteItems}
       />
