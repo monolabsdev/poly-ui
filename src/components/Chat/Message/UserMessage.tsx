@@ -1,11 +1,23 @@
 import { useState, useEffect } from "react";
 import { Box, Typography, IconButton, Tooltip, useTheme } from "@mui/material";
-import { Paperclip, Copy, Check } from "lucide-react";
+import { Paperclip, Copy, Check, MoreHorizontal, Brain, Trash2, Search } from "lucide-react";
 import { isImageAttachment, createDataUrl, formatFileSize } from "@/lib/utils";
 import { useNotify } from "@/hooks/useNotify";
 import type { MessageProps } from "./types";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  forgetMessageMemory,
+  isMemoryUiEnabled,
+  relatedMessageMemory,
+  rememberMessageMemory,
+} from "@/features/memory/messageMemoryActions";
 
-export function UserMessage({ content, attachments }: MessageProps) {
+export function UserMessage({ id, conversationId, content, attachments }: MessageProps) {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
   const [copied, setCopied] = useState(false);
@@ -28,6 +40,34 @@ export function UserMessage({ content, attachments }: MessageProps) {
       .catch(() => {
         notify.error("Failed to copy");
       });
+  };
+
+  const handleRemember = async () => {
+    try {
+      notify.success(await rememberMessageMemory({ messageId: id, conversationId, content }));
+    } catch (error) {
+      notify.error("Memory save failed", String(error));
+    }
+  };
+
+  const handleForget = async () => {
+    try {
+      notify.success(await forgetMessageMemory({ messageId: id, content }));
+    } catch (error) {
+      notify.error("Memory delete failed", String(error));
+    }
+  };
+
+  const handleRelated = async () => {
+    try {
+      const related = await relatedMessageMemory({ messageId: id, content });
+      notify.info(
+        related.length ? `${related.length} related ${related.length === 1 ? "memory" : "memories"}` : "No related memories",
+        related.slice(0, 3).map((record) => record.summary).join("\n"),
+      );
+    } catch (error) {
+      notify.error("Memory lookup failed", String(error));
+    }
   };
 
   return (
@@ -183,6 +223,35 @@ export function UserMessage({ content, attachments }: MessageProps) {
             </Box>
           </IconButton>
         </Tooltip>
+        {isMemoryUiEnabled() && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <IconButton
+                size="small"
+                sx={{
+                  color: "text.secondary",
+                  "&:hover": { color: "text.primary", bgcolor: "action.hover" },
+                }}
+              >
+                <MoreHorizontal size={14} />
+              </IconButton>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleRemember} sx={{ gap: 2 }}>
+                <Brain size={14} />
+                Remember this
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleForget} sx={{ gap: 2 }}>
+                <Trash2 size={14} />
+                Forget this
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleRelated} sx={{ gap: 2 }}>
+                <Search size={14} />
+                View related memories
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </Box>
     </Box>
   );

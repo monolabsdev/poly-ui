@@ -27,10 +27,35 @@ import {
 import { StreamSession } from "@/lib/chat/stream-session";
 import { getWebSearchConfig } from "@/features/web-search/useWebSearchConfig";
 import { getCurrentProviderAccountId } from "@/services/providers";
+import { useSettingsStore } from "@/store/settingsStore";
 import type { ModelChoice } from "@/lib/models/model-choice";
 
 function validModelChoices(choices: ModelChoice[]): ModelChoice[] {
   return choices.filter((item) => Boolean(item.model && item.provider));
+}
+
+async function enqueueMemoryProcessing(conversationId: string, assistantMessageId: string) {
+  if (!useSettingsStore.getState().general.experimentalFeatures) return;
+  const ownerId = getCurrentProviderAccountId();
+  if (!ownerId) return;
+
+  const userMessage = [...useChatStore.getState().messages]
+    .reverse()
+    .find((message) => message.conversationId === conversationId && message.role === "user");
+  if (!userMessage) return;
+
+  try {
+    await invoke("memory_enqueue_completed_turn", {
+      input: {
+        ownerId,
+        conversationId,
+        userMessageId: userMessage.id,
+        assistantMessageId,
+      },
+    });
+  } catch (error) {
+    console.warn("[Memory] Completed turn enqueue skipped", error);
+  }
 }
 
 export function useChatStream(modelChoices: ModelChoice[], systemPrompt = "") {
@@ -149,6 +174,7 @@ export function useChatStream(modelChoices: ModelChoice[], systemPrompt = "") {
           status: "complete",
           webSearch: finalizedWebSearch,
         });
+        void enqueueMemoryProcessing(completed.conversationId, completed.messageId);
       }
 
       setStreamingMessage(completed.messageId, null);
@@ -250,6 +276,7 @@ export function useChatStream(modelChoices: ModelChoice[], systemPrompt = "") {
           try {
             await invoke("chat_stream", {
               requestId: rid,
+              conversationId,
               model,
               messages: history,
               systemPrompt: system,

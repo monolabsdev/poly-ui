@@ -8,6 +8,9 @@ import {
   StopCircle,
   Volume2,
   Square,
+  Brain,
+  Trash2,
+  Search,
 } from "lucide-react";
 import {
   Box,
@@ -42,6 +45,12 @@ import {
   rejectAgentToolCall,
 } from "@/features/agent/agentClient";
 import type { AgentApproval } from "@/features/agent/types";
+import {
+  forgetMessageMemory,
+  isMemoryUiEnabled,
+  relatedMessageMemory,
+  rememberMessageMemory,
+} from "@/features/memory/messageMemoryActions";
 
 function agentResultText(agent: NonNullable<MessageProps["agent"]>, content: string): string | undefined {
   const text = content.trim();
@@ -67,6 +76,8 @@ function looksLikeClarification(text: string) {
 export function AssistantMessage(props: MessageProps) {
   const {
     content,
+    id,
+    conversationId,
     messageIndex,
     model,
     thinking,
@@ -141,6 +152,34 @@ export function AssistantMessage(props: MessageProps) {
       if (message.toLowerCase().includes("no pending approval")) return;
       notify.error("Approval failed", message);
       throw err;
+    }
+  };
+
+  const handleRemember = async () => {
+    try {
+      notify.success(await rememberMessageMemory({ messageId: id, conversationId, content }));
+    } catch (error) {
+      notify.error("Memory save failed", String(error));
+    }
+  };
+
+  const handleForget = async () => {
+    try {
+      notify.success(await forgetMessageMemory({ messageId: id, content }));
+    } catch (error) {
+      notify.error("Memory delete failed", String(error));
+    }
+  };
+
+  const handleRelated = async () => {
+    try {
+      const related = await relatedMessageMemory({ messageId: id, content });
+      notify.info(
+        related.length ? `${related.length} related ${related.length === 1 ? "memory" : "memories"}` : "No related memories",
+        related.slice(0, 3).map((record) => record.summary).join("\n"),
+      );
+    } catch (error) {
+      notify.error("Memory lookup failed", String(error));
     }
   };
 
@@ -441,6 +480,22 @@ export function AssistantMessage(props: MessageProps) {
               </IconButton>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              {isMemoryUiEnabled() && (
+                <>
+                  <DropdownMenuItem onClick={handleRemember} sx={{ gap: 2 }}>
+                    <Brain size={14} />
+                    Remember this
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleForget} sx={{ gap: 2 }}>
+                    <Trash2 size={14} />
+                    Forget this
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleRelated} sx={{ gap: 2 }}>
+                    <Search size={14} />
+                    View related memories
+                  </DropdownMenuItem>
+                </>
+              )}
               <DropdownMenuItem onClick={handleCopy} sx={{ gap: 2 }}>
                 <Copy size={14} />
                 Copy message

@@ -3,6 +3,8 @@ import type { AgentMessageState } from "@/features/agent/types";
 
 export interface MessageProps {
   role: Role;
+  id?: string;
+  conversationId?: string;
   content: string;
   attachments?: Attachment[];
   messageIndex?: number;

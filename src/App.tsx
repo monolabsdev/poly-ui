@@ -22,6 +22,8 @@ import { useShallow } from "zustand/react/shallow";
 import { retryTitleForConversation, type TitleStore } from "@/lib/chat/title-generation";
 import { useFeatures } from "@/lib/featureRegistry";
 import { IS_MAC } from "@/lib/platform";
+import { disableMemoryForOwner } from "@/features/memory/memoryClient";
+import { getCurrentProviderAccountId } from "@/services/providers";
 
 const titleStore: TitleStore = {
   findConversation: (id) => useChatStore.getState().conversations.find((c) => c.id === id),
@@ -204,6 +206,10 @@ function App() {
     return general.systemPrompt ? `${preset}\n${general.systemPrompt}` : preset;
   }, [selectedPromptPreset, general.systemPrompt]);
 
+  useEffect(() => {
+    if (general.experimentalFeatures) return;
+    void disableMemoryForOwner(getCurrentProviderAccountId()).catch(() => undefined);
+  }, [general.experimentalFeatures]);
   const { conversations, activeConversationId } = useChatStore(
     useShallow((state) => ({
       conversations: state.conversations,

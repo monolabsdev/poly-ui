@@ -92,6 +92,8 @@ const TurnItem = memo(function TurnItem({
         <Box sx={{ maxWidth: 768, mx: "auto", width: "100%", minWidth: 0, boxSizing: "border-box" }}>
           <Message
             role={turn.userMessage.role}
+            id={turn.userMessage.id}
+            conversationId={turn.userMessage.conversationId}
             content={turn.userMessage.content}
             attachments={turn.userMessage.attachments}
             model={turn.userMessage.model}
@@ -136,6 +138,8 @@ const TurnItem = memo(function TurnItem({
             >
               <Message
                 role={msg.role}
+                id={msg.id}
+                conversationId={msg.conversationId}
                 content={msg.content}
                 attachments={msg.attachments}
                 model={msg.model}
