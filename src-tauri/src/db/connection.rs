@@ -138,7 +138,9 @@ async fn ensure_conversations_schema(pool: &SqlitePool) -> Result<(), String> {
             thinking TEXT,
             thinkingDuration REAL,
             webSearch TEXT,
-            agent TEXT
+            agent TEXT,
+            status TEXT,
+            errorMessage TEXT
         )",
     )
     .execute(pool)
@@ -185,6 +187,37 @@ async fn ensure_conversations_schema(pool: &SqlitePool) -> Result<(), String> {
 
     if !has_agent {
         sqlx::query("ALTER TABLE messages ADD COLUMN agent TEXT")
+            .execute(pool)
+            .await
+            .map_err(|e| e.to_string())?;
+    }
+
+    let has_status =
+        sqlx::query("SELECT COUNT(*) FROM pragma_table_info('messages') WHERE name = 'status'")
+            .fetch_one(pool)
+            .await
+            .map_err(|e| e.to_string())?
+            .get::<i64, _>(0)
+            > 0;
+
+    if !has_status {
+        sqlx::query("ALTER TABLE messages ADD COLUMN status TEXT")
+            .execute(pool)
+            .await
+            .map_err(|e| e.to_string())?;
+    }
+
+    let has_error_message = sqlx::query(
+        "SELECT COUNT(*) FROM pragma_table_info('messages') WHERE name = 'errorMessage'",
+    )
+    .fetch_one(pool)
+    .await
+    .map_err(|e| e.to_string())?
+    .get::<i64, _>(0)
+        > 0;
+
+    if !has_error_message {
+        sqlx::query("ALTER TABLE messages ADD COLUMN errorMessage TEXT")
             .execute(pool)
             .await
             .map_err(|e| e.to_string())?;
@@ -323,7 +356,7 @@ async fn fix_migration_checksums_from_dir(
         .map(|row| (row.get::<i64, _>(0), row.get::<Vec<u8>, _>(1)))
         .collect();
 
-    let mut read_dir = std::fs::read_dir(&migrations_dir).map_err(|e| e.to_string())?;
+    let mut read_dir = std::fs::read_dir(migrations_dir).map_err(|e| e.to_string())?;
 
     while let Some(entry) = read_dir.next().transpose().map_err(|e| e.to_string())? {
         let path = entry.path();
