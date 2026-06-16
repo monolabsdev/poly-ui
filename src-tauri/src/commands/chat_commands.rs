@@ -1,4 +1,5 @@
 use crate::error::AppError;
+use crate::memory::service::MemoryService;
 use crate::models::chat::ChatMessage;
 use crate::providers::base::ProviderType;
 use crate::stream_emitter::TauriStreamEmitter;
@@ -16,6 +17,7 @@ pub async fn chat_stream(
     app_handle: AppHandle,
     state: tauri::State<'_, AppState>,
     request_id: String,
+    conversation_id: String,
     model: String,
     messages: Vec<ChatMessage>,
     system_prompt: Option<String>,
@@ -34,6 +36,29 @@ pub async fn chat_stream(
         )
         .await
         .map_err(|e| e.to_string())?;
+
+    let memory_context = match account_id.as_deref() {
+        Some(owner_id) if !owner_id.trim().is_empty() => {
+            let recall_query = messages
+                .iter()
+                .rev()
+                .find(|message| message.role == "user")
+                .map(|message| message.content.as_str())
+                .unwrap_or_default();
+            match MemoryService::new(state.db.clone())
+                .build_context_for_chat(owner_id, &conversation_id, recall_query)
+                .await
+            {
+                Ok(context) => context,
+                Err(error) => {
+                    log::warn!("Memory recall skipped: {error}");
+                    String::new()
+                }
+            }
+        }
+        _ => String::new(),
+    };
+    let system_prompt = append_memory_context(system_prompt, memory_context);
 
     let emitter = TauriStreamEmitter::new(app_handle.clone());
     let web_search = web_search_config.as_ref().map(create_web_search_client);
@@ -56,6 +81,38 @@ pub async fn chat_stream(
         Ok(_) => Ok(()),
         Err(AppError::Cancelled) => Ok(()),
         Err(e) => Err(e.to_string()),
+    }
+}
+
+fn append_memory_context(system_prompt: Option<String>, memory_context: String) -> Option<String> {
+    if memory_context.trim().is_empty() {
+        return system_prompt;
+    }
+    Some(match system_prompt {
+        Some(prompt) if !prompt.trim().is_empty() => format!("{prompt}\n\n{memory_context}"),
+        _ => memory_context,
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::append_memory_context;
+
+    #[test]
+    fn memory_context_appends_without_replacing_prompt() {
+        let prompt = append_memory_context(
+            Some("System".to_string()),
+            "<poly_memory>x</poly_memory>".to_string(),
+        );
+        assert_eq!(prompt.unwrap(), "System\n\n<poly_memory>x</poly_memory>");
+    }
+
+    #[test]
+    fn empty_memory_context_preserves_prompt() {
+        assert_eq!(
+            append_memory_context(Some("System".to_string()), String::new()).unwrap(),
+            "System"
+        );
     }
 }
 
