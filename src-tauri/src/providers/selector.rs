@@ -204,6 +204,7 @@ impl ProviderSelector {
         self.check_all_providers(account_id).await
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn update_provider_config(
         &self,
         account_id: Option<&str>,
@@ -264,6 +265,7 @@ impl ProviderSelector {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn add_provider_config(
         &self,
         account_id: Option<&str>,

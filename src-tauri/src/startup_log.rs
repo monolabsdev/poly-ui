@@ -99,12 +99,12 @@ fn write_line(line: &str) {
 fn log_dir() -> Option<PathBuf> {
     #[cfg(target_os = "windows")]
     {
-        return dirs::data_dir().map(|dir| dir.join(LOG_DIR_NAME).join("logs"));
+        dirs::data_dir().map(|dir| dir.join(LOG_DIR_NAME).join("logs"))
     }
 
     #[cfg(target_os = "macos")]
     {
-        return dirs::home_dir().map(|dir| dir.join("Library").join("Logs").join(LOG_DIR_NAME));
+        dirs::home_dir().map(|dir| dir.join("Library").join("Logs").join(LOG_DIR_NAME))
     }
 
     #[cfg(not(any(target_os = "windows", target_os = "macos")))]

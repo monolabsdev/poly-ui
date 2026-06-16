@@ -232,10 +232,7 @@ Respond with only this JSON: {"title": "..."}"#
 fn render_message_template(template: &str, messages: &[ChatMessage]) -> String {
     let mut rendered = template.replace("{{MESSAGES}}", &format_messages(messages));
 
-    loop {
-        let Some(start) = rendered.find("{{MESSAGES:END:") else {
-            break;
-        };
+    while let Some(start) = rendered.find("{{MESSAGES:END:") {
         let Some(relative_end) = rendered[start..].find("}}") else {
             break;
         };
