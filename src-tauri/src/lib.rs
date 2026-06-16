@@ -2,6 +2,7 @@ mod auth;
 mod commands;
 mod db;
 mod error;
+mod memory;
 mod models;
 mod providers;
 mod startup_log;
@@ -169,6 +170,19 @@ pub fn run() {
             commands::provider_commands::update_provider_config,
             commands::provider_commands::add_provider,
             commands::provider_commands::delete_provider,
+            commands::memory_commands::memory_get_settings,
+            commands::memory_commands::memory_update_settings,
+            commands::memory_commands::memory_test_connection,
+            commands::memory_commands::memory_list,
+            commands::memory_commands::memory_search,
+            commands::memory_commands::memory_update,
+            commands::memory_commands::memory_delete,
+            commands::memory_commands::memory_clear_scope,
+            commands::memory_commands::memory_clear_all,
+            commands::memory_commands::memory_remember_message,
+            commands::memory_commands::memory_forget_message,
+            commands::memory_commands::memory_get_related,
+            commands::memory_commands::memory_enqueue_completed_turn,
             execute_sql,
             #[cfg(feature = "dev-sql-console")]
             commands::db_commands::clear_database,
