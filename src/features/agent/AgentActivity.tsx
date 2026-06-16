@@ -5,6 +5,7 @@ import {
   Collapse,
   Typography,
 } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import { useDevStore } from "@/store/devStore";
 import {
   AlertTriangle,
@@ -624,9 +625,9 @@ function EditedFilesSummaryCard({
         ml: 0,
         width: "min(520px, 100%)",
         border: "1px solid",
-        borderColor: "rgba(255,255,255,0.1)",
+        borderColor: "border.main",
         borderRadius: "8px",
-        bgcolor: "rgba(255,255,255,0.035)",
+        bgcolor: "background.paper",
         overflow: "hidden",
       }}
     >
@@ -647,7 +648,7 @@ function EditedFilesSummaryCard({
             borderRadius: "8px",
             display: "grid",
             placeItems: "center",
-            bgcolor: "rgba(255,255,255,0.06)",
+            bgcolor: "action.hover",
             color: "text.secondary",
           }}
         >
@@ -701,10 +702,10 @@ function EditedFilesSummaryCard({
               ...agentBtn,
               height: 30,
               px: 1.2,
-              borderColor: "rgba(255,255,255,0.14)",
+              borderColor: "border.main",
               "&:hover": {
-                borderColor: "rgba(255,255,255,0.24)",
-                bgcolor: "rgba(255,255,255,0.06)",
+                borderColor: "action.selected",
+                bgcolor: "action.hover",
               },
             }}
           >
@@ -712,7 +713,7 @@ function EditedFilesSummaryCard({
           </Button>
         </Box>
       </Box>
-      <Box sx={{ borderTop: "1px solid", borderColor: "rgba(255,255,255,0.08)" }}>
+      <Box sx={{ borderTop: "1px solid", borderColor: "border.light" }}>
         {files.map((file) => (
           <Box
             component="button"
@@ -728,14 +729,14 @@ function EditedFilesSummaryCard({
               py: 0.75,
               border: 0,
               borderTop: "1px solid",
-              borderTopColor: "rgba(255,255,255,0.055)",
+              borderTopColor: "border.light",
               bgcolor: "transparent",
               color: "text.primary",
               cursor: "pointer",
               font: "inherit",
               textAlign: "left",
               "&:first-of-type": { borderTop: 0 },
-              "&:hover": { bgcolor: "rgba(255,255,255,0.045)" },
+              "&:hover": { bgcolor: "action.hover" },
               "&:focus-visible": {
                 outline: "2px solid",
                 outlineColor: "primary.main",
@@ -854,7 +855,7 @@ function ApprovalContent({
             m: 0,
             p: 0.6,
             mb: 0.35,
-            bgcolor: "rgba(0,0,0,0.15)",
+            bgcolor: (theme) => alpha(theme.palette.common.black, 0.3),
             borderRadius: "4px",
             color: "text.secondary",
             fontSize: 11,
@@ -954,7 +955,7 @@ function CommandContent({ call }: { call: AgentToolCall }) {
           cursor: "pointer",
           font: "inherit",
           borderRadius: "3px",
-          "&:hover": { bgcolor: "rgba(255,255,255,0.03)" },
+          "&:hover": { bgcolor: "action.hover" },
           "&:focus-visible": {
             outline: "2px solid",
             outlineColor: "primary.main",
@@ -1003,7 +1004,7 @@ function CommandContent({ call }: { call: AgentToolCall }) {
           sx={{
             m: 0,
             p: 0.6,
-            bgcolor: "rgba(0,0,0,0.15)",
+            bgcolor: (theme) => alpha(theme.palette.common.black, 0.3),
             borderRadius: "4px",
             color: "text.secondary",
             fontSize: 11,
@@ -1063,7 +1064,7 @@ function AgentDebugTrace({ agent }: { agent: AgentMessageState }) {
           sx={{
             m: 0,
             p: 0.75,
-            bgcolor: "rgba(0,0,0,0.2)",
+            bgcolor: (theme) => alpha(theme.palette.common.black, 0.35),
             borderTop: "1px solid",
             borderColor: "divider",
             color: "text.disabled",
@@ -1311,8 +1312,8 @@ function statusMeta(
     return {
       label: status === "cancelling" ? "Cancelling" : "Running",
       color: "primary.main",
-      bg: "rgba(59,130,246,0.1)",
-      border: "rgba(59,130,246,0.24)",
+      bg: "info.soft",
+      border: "info.soft",
       icon: (
         <LoaderCircle
           size={14}
@@ -1326,8 +1327,8 @@ function statusMeta(
     return {
       label: "Waiting",
       color: "warning.main",
-      bg: "rgba(245,158,11,0.1)",
-      border: "rgba(245,158,11,0.26)",
+      bg: "warning.soft",
+      border: "warning.soft",
       icon: <ShieldAlert size={14} aria-hidden />,
     };
   }
@@ -1335,8 +1336,8 @@ function statusMeta(
     return {
       label: "Failed",
       color: "error.main",
-      bg: "rgba(239,68,68,0.1)",
-      border: "rgba(239,68,68,0.24)",
+      bg: "error.soft",
+      border: "error.soft",
       icon: <AlertTriangle size={14} aria-hidden />,
     };
   }
@@ -1344,16 +1345,16 @@ function statusMeta(
     return {
       label: "No changes",
       color: "warning.main",
-      bg: "rgba(245,158,11,0.1)",
-      border: "rgba(245,158,11,0.26)",
+      bg: "warning.soft",
+      border: "warning.soft",
       icon: <AlertTriangle size={14} aria-hidden />,
     };
   }
   return {
     label: status === "cancelled" ? "Cancelled" : "Completed",
     color: "success.main",
-    bg: "rgba(34,197,94,0.1)",
-    border: "rgba(34,197,94,0.22)",
+    bg: "success.soft",
+    border: "success.soft",
     icon: <Check size={14} aria-hidden />,
   };
 }

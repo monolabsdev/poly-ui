@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Box, ButtonBase, Chip, InputBase, Typography } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import {
   Check,
   ChevronDown,
@@ -321,10 +322,11 @@ export function AgentComposerControls({
               maxWidth: 260,
               borderRadius: "10px",
               p: "6px",
-              bgcolor: "#2b2b2b",
-              border: "1px solid rgba(255,255,255,0.08)",
-              boxShadow: "0 8px 24px rgba(0,0,0,0.35)",
-              color: "#f2f2f2",
+              bgcolor: "background.paper",
+              border: "1px solid",
+              borderColor: "border.light",
+              boxShadow: (theme) => `0 8px 24px ${alpha(theme.palette.common.black, 0.35)}`,
+              color: "text.primary",
               ".MuiList-root": { p: 0 },
             }}
           >
@@ -336,7 +338,7 @@ export function AgentComposerControls({
                 gap: "8px",
                 height: 32,
                 px: "10px",
-                color: "rgba(255,255,255,0.48)",
+                color: "text.disabled",
               }}
             >
               <Search size={13} />
@@ -346,20 +348,20 @@ export function AgentComposerControls({
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search projects"
                 autoFocus
-                sx={{
-                  flex: 1,
-                  fontSize: 13,
-                  color: "#f2f2f2",
-                  fontWeight: 500,
-                  ".MuiInputBase-input": {
-                    height: 32,
-                    p: 0,
-                    "&::placeholder": {
-                      color: "rgba(255,255,255,0.44)",
-                      opacity: 1,
+                  sx={{
+                    flex: 1,
+                    fontSize: 13,
+                    color: "text.primary",
+                    fontWeight: 500,
+                    ".MuiInputBase-input": {
+                      height: 32,
+                      p: 0,
+                      "&::placeholder": {
+                        color: "text.disabled",
+                        opacity: 1,
+                      },
                     },
-                  },
-                }}
+                  }}
                 inputProps={{ "aria-label": "Search projects" }}
               />
             </Box>
@@ -451,11 +453,11 @@ function ProjectMenuRow({
         my: "1px",
         gap: "9px",
         borderRadius: "6px",
-        color: "#f2f2f2",
+        color: "text.primary",
         textAlign: "left",
         outline: 0,
         "&:hover, &.Mui-focusVisible": {
-          bgcolor: "rgba(255,255,255,0.07)",
+          bgcolor: "action.hover",
         },
       }}
     >
@@ -465,7 +467,7 @@ function ProjectMenuRow({
           height: 16,
           display: "grid",
           placeItems: "center",
-          color: "rgba(255,255,255,0.48)",
+          color: "text.disabled",
           flexShrink: 0,
         }}
       >
@@ -493,7 +495,7 @@ function ProjectMenuRow({
           height: 16,
           display: "grid",
           placeItems: "center",
-          color: selected ? "#6ee787" : "rgba(255,255,255,0.45)",
+          color: selected ? "success.main" : "text.disabled",
           flexShrink: 0,
         }}
       >

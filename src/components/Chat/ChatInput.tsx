@@ -310,10 +310,18 @@ export const ChatInput = memo(function ChatInput({
         : pastedPreview.text
       : draft;
 
-    onSubmit(finalText);
+    const trimmed = finalText.trim();
+    onSubmit(trimmed);
     setDraft("");
     setPastedPreview(null);
-  }, [hasContent, agentEnabled, hasWorkspace, draft, pastedPreview, onSubmit]);
+  }, [
+    hasContent,
+    agentEnabled,
+    hasWorkspace,
+    draft,
+    pastedPreview,
+    onSubmit,
+  ]);
 
   const handleAction = useCallback(() => {
     if (isStreaming) {
@@ -380,6 +388,7 @@ export const ChatInput = memo(function ChatInput({
     [
       closeSlashMenu,
       filteredFeatures,
+      draft,
       handleSlashSelect,
       handleSubmit,
       showSlashMenu,

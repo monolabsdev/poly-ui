@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { Box, Button, CircularProgress, Drawer, IconButton, Typography } from "@mui/material";
+import { Box, Button, CircularProgress, Drawer, IconButton, Typography, useTheme } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import { ChevronRight, FileDiff, Maximize2, X } from "lucide-react";
 import { getAgentChangedFiles, getAgentFileDiff } from "./agentClient";
 import type { AgentChangedFile, AgentEditedFile, AgentToolCall } from "./types";
@@ -141,10 +142,10 @@ export function AgentReviewPanel({
           top: "var(--titlebar-height)",
           height: "calc(100dvh - var(--titlebar-height))",
           width: { xs: "100vw", sm: 620 },
-          bgcolor: "#151515",
+          bgcolor: "background.default",
           color: "text.primary",
           borderLeft: "1px solid",
-          borderColor: "rgba(255,255,255,0.1)",
+          borderColor: "border.main",
         },
       }}
     >
@@ -158,11 +159,11 @@ export function AgentReviewPanel({
             sx={{
               height: 30,
               borderRadius: "8px",
-              bgcolor: "rgba(255,255,255,0.08)",
+              bgcolor: "action.hover",
               boxShadow: "none",
               fontSize: 12,
               fontWeight: 800,
-              "&:hover": { bgcolor: "rgba(255,255,255,0.12)", boxShadow: "none" },
+              "&:hover": { bgcolor: "action.selected", boxShadow: "none" },
             }}
           >
             Review
@@ -177,7 +178,7 @@ export function AgentReviewPanel({
           </IconButton>
         </Box>
 
-        <Box sx={{ height: 38, display: "flex", alignItems: "center", gap: 1, px: 1.5, borderBottom: "1px solid", borderColor: "rgba(255,255,255,0.1)" }}>
+        <Box sx={{ height: 38, display: "flex", alignItems: "center", gap: 1, px: 1.5, borderBottom: "1px solid", borderColor: "border.main" }}>
           <Typography sx={{ fontSize: 12, fontWeight: 800 }}>
             {files.length ? `${files.length} changed ${files.length === 1 ? "file" : "files"}` : "Last turn"}
           </Typography>
@@ -197,8 +198,8 @@ export function AgentReviewPanel({
               {orderedFiles.map((file) => {
                 const renderedLines = collapseContext(parseUnifiedDiff(diffs[file.path] ?? ""));
                 return (
-                  <Box key={file.path} sx={{ borderBottom: "1px solid", borderColor: "rgba(255,255,255,0.08)" }}>
-                    <Box sx={{ position: "sticky", top: 0, zIndex: 2, bgcolor: "#151515", display: "flex", alignItems: "center", gap: 1, px: 1.5, py: 1 }}>
+                  <Box key={file.path} sx={{ borderBottom: "1px solid", borderColor: "border.light" }}>
+                    <Box sx={{ position: "sticky", top: 0, zIndex: 2, bgcolor: "background.default", display: "flex", alignItems: "center", gap: 1, px: 1.5, py: 1 }}>
                       <ChevronRight size={14} />
                       <Typography sx={{ fontSize: 12.5, fontWeight: 800, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {file.path}
@@ -232,6 +233,8 @@ export function AgentReviewPanel({
 }
 
 function DiffRow({ line }: { line: DiffLine }) {
+  const theme = useTheme();
+
   if (line.kind === "fold") {
     return (
       <Box
@@ -243,7 +246,7 @@ function DiffRow({ line }: { line: DiffLine }) {
           px: 1,
           py: 0.55,
           borderRadius: "5px",
-          bgcolor: "rgba(255,255,255,0.1)",
+          bgcolor: "action.hover",
           color: "text.secondary",
           fontSize: 12,
           fontFamily: "ui-monospace, SFMono-Regular, Consolas, monospace",
@@ -255,11 +258,11 @@ function DiffRow({ line }: { line: DiffLine }) {
   }
 
   const tone = {
-    add: { bg: "rgba(39, 174, 96, 0.22)", bar: "#2fe37f", fg: "#d9ffe8" },
-    remove: { bg: "rgba(231, 76, 60, 0.22)", bar: "#ff5f57", fg: "#ffe1df" },
-    hunk: { bg: "transparent", bar: "transparent", fg: "#8d96a0" },
-    meta: { bg: "transparent", bar: "transparent", fg: "#6f7780" },
-    context: { bg: "transparent", bar: "transparent", fg: "#d6d6d6" },
+    add: { bg: alpha(theme.palette.success.main, 0.18), bar: theme.palette.success.main, fg: alpha(theme.palette.success.main, 0.85) },
+    remove: { bg: alpha(theme.palette.error.main, 0.18), bar: theme.palette.error.main, fg: alpha(theme.palette.error.main, 0.85) },
+    hunk: { bg: "transparent", bar: "transparent", fg: "text.disabled" },
+    meta: { bg: "transparent", bar: "transparent", fg: "text.disabled" },
+    context: { bg: "transparent", bar: "transparent", fg: "text.secondary" },
   }[line.kind];
 
   return (
@@ -285,7 +288,7 @@ function DiffRow({ line }: { line: DiffLine }) {
         },
       }}
     >
-      <Box sx={{ pr: 1.25, textAlign: "right", color: line.kind === "add" ? "#46f28e" : "text.secondary", userSelect: "none" }}>
+      <Box sx={{ pr: 1.25, textAlign: "right", color: line.kind === "add" ? "success.main" : "text.secondary", userSelect: "none" }}>
         {line.newNumber ?? line.oldNumber ?? ""}
       </Box>
       <Box sx={{ px: 1.25, whiteSpace: "pre" }}>{line.text || " "}</Box>

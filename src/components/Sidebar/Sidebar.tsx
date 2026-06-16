@@ -11,6 +11,7 @@ import { useSidebar } from "@/components/Sidebar/hooks/useSidebar";
 import { useReducedMotion } from "@/components/Sidebar/hooks/useReducedMotion";
 import { useSidebarActions, SidebarActionsProvider } from "@/components/Sidebar/hooks/useSidebarActions";
 import { useConversationGroups } from "@/components/Sidebar/hooks/useConversationGroups";
+import type { SettingsTab } from "@/components/Settings/SettingsModal";
 import { SidebarBrand } from "@/components/Sidebar/components/SidebarBrand";
 import { NewChatButton } from "@/components/Sidebar/components/NewChatButton";
 import { SearchButton } from "@/components/Sidebar/components/SearchButton";
@@ -27,7 +28,7 @@ import {
 import { Conversation } from "@/types/chat";
 
 interface SidebarProps {
-  onOpenSettings: () => void;
+  onOpenSettings: (tab?: SettingsTab) => void;
   onOpenCommandPalette: () => void;
   onNewChat: () => void;
   onSelectConversation: (id: string) => void;
@@ -118,6 +119,7 @@ function SidebarBody({
             streamingConversationId={streamingConversationId}
           />
         </Box>
+
       </SidebarContent>
 
       <SidebarFooter>

@@ -54,7 +54,6 @@ export function initStoreCoordinator() {
 
     useChatStore.getState().actions.setAccountId(authId);
     useFolderStore.getState().actions.setAccountId(authId);
-
     if (!authId) {
       useChatStore.setState({
         conversations: [],
