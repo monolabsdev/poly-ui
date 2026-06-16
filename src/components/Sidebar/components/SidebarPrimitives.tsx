@@ -60,8 +60,6 @@ export function SidebarFooter({
         display: "flex",
         flexDirection: "column",
         gap: 0.75,
-        borderTop: "1px solid",
-        borderColor: "divider",
         transition: reducedMotion ? "none" : "padding 0.2s",
         ...sx,
       }}
@@ -296,13 +294,7 @@ export function SidebarTrigger({ sx }: { sx?: CSSObject }) {
   );
 }
 
-export function SidebarInset({
-  children,
-  backgroundImage,
-}: {
-  children: React.ReactNode;
-  backgroundImage?: string;
-}) {
+export function SidebarInset({ children }: { children: React.ReactNode }) {
   return (
     <Box
       sx={{
@@ -311,37 +303,10 @@ export function SidebarInset({
         flexDirection: "column",
         height: "100%",
         overflow: "hidden",
-        position: "relative",
-        bgcolor: backgroundImage ? "transparent" : undefined,
-        "&::before": backgroundImage
-          ? {
-              content: '""',
-              position: "absolute",
-              inset: 0,
-              backgroundImage: `url(${backgroundImage})`,
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-              backgroundRepeat: "no-repeat",
-              filter: "blur(16px)",
-              opacity: 0.25,
-              zIndex: 0,
-            }
-          : undefined,
+        bgcolor: "background.sidebar",
       }}
     >
-      <Box
-        sx={{
-          position: "relative",
-          zIndex: 1,
-          display: "flex",
-          flexDirection: "column",
-          flex: 1,
-          overflow: "hidden",
-          bgcolor: backgroundImage ? "rgba(0,0,0,0.4)" : undefined,
-        }}
-      >
-        {children}
-      </Box>
+      {children}
     </Box>
   );
 }

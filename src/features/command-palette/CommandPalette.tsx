@@ -349,9 +349,8 @@ export function CommandPalette({
                   : alpha("#f8f8f8", 0.9),
               boxShadow:
                 theme.palette.mode === "dark"
-                  ? "0 24px 80px rgba(0,0,0,0.55)"
-                  : "0 24px 80px rgba(0,0,0,0.18)",
-              backdropFilter: "blur(28px) saturate(1.25)",
+                  ? "0 8px 24px rgba(0,0,0,0.28)"
+                  : "0 8px 24px rgba(0,0,0,0.16)",
               "@media (min-height: 720px)": {
                 minHeight: 420,
               },

@@ -80,14 +80,9 @@ export const Header = memo(function Header({
         alignItems: "flex-start",
         justifyContent: "space-between",
         bgcolor: transparent ? "transparent" : "background.default",
-        backdropFilter: "blur(12px)",
         px: { xs: 2, md: 3 },
         py: { xs: 1.5, sm: 1 },
-        position: "sticky",
-        top: 0,
-        left: 0,
-        right: 0,
-        zIndex: 20,
+        ...(transparent && { borderRadius: "14px 0 0 0" }),
       }}
     >
       <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 1, sm: 2 }, minWidth: 0, flex: 1 }}>

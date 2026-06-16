@@ -159,8 +159,7 @@ function SidebarBody({
         display: "flex",
         flexDirection: "column",
         backgroundColor: theme.palette.background.sidebar,
-        borderRight: "1px solid",
-        borderColor: theme.palette.divider,
+        borderTopLeftRadius: 12,
         overflowX: "hidden",
         position: "relative",
       }}

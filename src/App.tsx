@@ -13,6 +13,7 @@ import { useSettingsStore } from "@/store/settingsStore";
 import { getPresetContent } from "@/constants/promptPresets";
 import { useOllama } from "@/services/ollama";
 import { Sidebar, SidebarInset, SidebarProvider } from "@/components/Sidebar";
+import { ChatPanel } from "@/components/Layout/ChatPanel";
 import { Box } from "@mui/material";
 import { useChatStore } from "@/store/chatStore";
 import { useAuthStore } from "@/store/authStore";
@@ -202,6 +203,7 @@ function App() {
     const preset = getPresetContent(selectedPromptPreset);
     return general.systemPrompt ? `${preset}\n${general.systemPrompt}` : preset;
   }, [selectedPromptPreset, general.systemPrompt]);
+
   const { conversations, activeConversationId } = useChatStore(
     useShallow((state) => ({
       conversations: state.conversations,
@@ -296,7 +298,6 @@ function App() {
       state.folders.find((folder) => folder.id === state.activeFolderId)
         ?.backgroundImage,
   );
-
   const handleToggleTemporaryChat = useCallback(async () => {
     if (isTemporary) {
       setActiveConversationId(null);
@@ -504,45 +505,44 @@ function App() {
         collapsible="icon"
       />
 
-      <SidebarInset backgroundImage={activeFolderBackground}>
-        <Header
-          selectedModels={selectedModels}
-          selectedProviders={selectedProviders}
-          onModelChange={updateSelectedModel}
-          onAddModel={handleAddModel}
-          onRemoveModel={removeSelectedModel}
-          onSetDefault={handleSetDefaultModel}
-          isTemporary={isTemporary}
-          onToggleTemporaryChat={handleToggleTemporaryChat}
-          transparent={Boolean(activeFolderBackground)}
-        />
+      <SidebarInset>
+        <ChatPanel backgroundImage={activeFolderBackground}>
+          <Header
+            selectedModels={selectedModels}
+            selectedProviders={selectedProviders}
+            onModelChange={updateSelectedModel}
+            onAddModel={handleAddModel}
+            onRemoveModel={removeSelectedModel}
+            onSetDefault={handleSetDefaultModel}
+            isTemporary={isTemporary}
+            onToggleTemporaryChat={handleToggleTemporaryChat}
+            transparent
+          />
 
-        <Box
-          component="main"
-          sx={{
-            flex: 1,
-            display: "flex",
-            flexDirection: "row",
-            overflow: "hidden",
-            position: "relative",
-            bgcolor: activeFolderBackground
-              ? "transparent"
-              : "background.default",
-          }}
-        >
-          <Suspense fallback={<Box sx={{ flex: 1 }} />}>
-            <ChatWorkspace
-              selectedModels={selectedModels}
-              selectedProviders={selectedProviders}
-              selectedModelChoices={selectedModelChoices}
-              systemPromptContent={systemPromptContent}
-              userName={user?.fullName || user?.email}
-              isTemporary={isTemporary}
-              onStopStreamingReady={handleStopStreamingReady}
-              onOpenConnections={handleOpenConnections}
-            />
-          </Suspense>
-        </Box>
+          <Box
+            component="main"
+            sx={{
+              flex: 1,
+              display: "flex",
+              flexDirection: "row",
+              overflow: "hidden",
+              position: "relative",
+            }}
+          >
+            <Suspense fallback={<Box sx={{ flex: 1 }} />}>
+              <ChatWorkspace
+                selectedModels={selectedModels}
+                selectedProviders={selectedProviders}
+                selectedModelChoices={selectedModelChoices}
+                systemPromptContent={systemPromptContent}
+                userName={user?.fullName || user?.email}
+                isTemporary={isTemporary}
+                onStopStreamingReady={handleStopStreamingReady}
+                onOpenConnections={handleOpenConnections}
+              />
+            </Suspense>
+          </Box>
+        </ChatPanel>
       </SidebarInset>
 
       {isSettingsOpen ? (
