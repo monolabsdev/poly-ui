@@ -7,6 +7,8 @@ import { useShallow } from "zustand/react/shallow";
 import { SettingCard, SectionHeader } from "../SettingComponents";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useAgentStore } from "@/features/agent/agentStore";
+import { disableMemoryForOwner } from "@/features/memory/memoryClient";
+import { getCurrentProviderAccountId } from "@/services/providers";
 export function AdvancedTab() {
   const { general, performance, actions } = useSettingsStore(
     useShallow((state) => ({
@@ -22,6 +24,7 @@ export function AdvancedTab() {
     actions.updateGeneral({ experimentalFeatures: checked });
     if (!checked) {
       setAgentEnabled(false);
+      void disableMemoryForOwner(getCurrentProviderAccountId()).catch(() => undefined);
     }
   };
 
@@ -34,7 +37,7 @@ export function AdvancedTab() {
 
       <SettingCard
         title="Enable experimental features"
-        description="Unlocks in-development features like Poly Agent and advanced reasoning controls."
+        description="Unlocks in-development features like Poly Agent, memory, and advanced reasoning controls."
         action={
           <Switch
             checked={general.experimentalFeatures}
@@ -42,6 +45,15 @@ export function AdvancedTab() {
           />
         }
       />
+
+      <SettingCard
+        title="Memory"
+        description="Persistent memory UI and background processing stay inactive unless experimental features are enabled."
+      >
+        <Typography sx={{ fontSize: 12, color: "text.secondary" }}>
+          Open the Memory tab after enabling experimental features. Turning this switch off disables memory processing for current profile.
+        </Typography>
+      </SettingCard>
 
       <SettingCard
         title="Poly Agent"

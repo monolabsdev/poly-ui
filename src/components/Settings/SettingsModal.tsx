@@ -16,6 +16,7 @@ import {
   Volume2,
   Cpu,
   SlidersHorizontal,
+  Brain,
 } from "lucide-react";
 import { SettingCard, SectionHeader } from "./SettingComponents";
 import { useDevStore } from "@/store/devStore";
@@ -28,8 +29,10 @@ import { DataControlsTab } from "./tabs/DataControlsTab";
 import { AboutTab } from "./tabs/AboutTab";
 import { ConnectionsTab } from "./tabs/ConnectionsTab";
 import { AdvancedTab } from "./tabs/AdvancedTab";
+import { MemoryTab } from "@/features/memory/MemoryTab";
 import { idleManager } from "@/lib/idle";
 import { APP_DIALOG_SIDEBAR_WIDTH } from "@/components/ui/appDialog";
+import { useSettingsStore } from "@/store/settingsStore";
 type SettingsModalProps = {
   isOpen: boolean;
   onClose: () => void;
@@ -51,23 +54,35 @@ const ADVANCED_ITEM = {
   icon: SlidersHorizontal,
 };
 
-export type SettingsTab = (typeof SIDEBAR_ITEMS)[number]["id"] | "developer" | "advanced";
+const MEMORY_ITEM = {
+  id: "memory" as const,
+  label: "Memory",
+  icon: Brain,
+};
+
+export type SettingsTab = (typeof SIDEBAR_ITEMS)[number]["id"] | "developer" | "advanced" | "memory";
 
 export function SettingsModal({ isOpen, onClose, initialTab = "general" }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
   const devMode = useDevStore((s) => s.devMode);
+  const experimentalEnabled = useSettingsStore((state) => state.general.experimentalFeatures);
   useEffect(() => {
     if (isOpen) setActiveTab(initialTab);
   }, [initialTab, isOpen]);
 
+  useEffect(() => {
+    if (!experimentalEnabled && activeTab === "memory") setActiveTab("advanced");
+  }, [activeTab, experimentalEnabled]);
+
   const sidebarItems = devMode
     ? [
         ...SIDEBAR_ITEMS,
+        ...(experimentalEnabled ? [MEMORY_ITEM] : []),
         { id: "developer" as const, label: "Developer", icon: Terminal },
       ]
-    : [...SIDEBAR_ITEMS];
+    : [...SIDEBAR_ITEMS, ...(experimentalEnabled ? [MEMORY_ITEM] : [])];
 
-  const activeItem = sidebarItems.find((item) => item.id === activeTab);
+  const activeItem = [...sidebarItems, ADVANCED_ITEM].find((item) => item.id === activeTab);
 
   return (
     <AppDialogFrame open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -247,6 +262,7 @@ export function SettingsModal({ isOpen, onClose, initialTab = "general" }: Setti
               {activeTab === "speech" && <SpeechTab />}
               {activeTab === "data-controls" && <DataControlsTab />}
               {activeTab === "about" && <AboutTab />}
+              {activeTab === "memory" && experimentalEnabled && <MemoryTab />}
               {activeTab === "advanced" && <AdvancedTab />}
               {activeTab === "developer" && <DeveloperTab onClose={onClose} />}
             </Box>
