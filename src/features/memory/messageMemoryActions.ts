@@ -1,5 +1,5 @@
 import { useSettingsStore } from "@/store/settingsStore";
-import { getCurrentProviderAccountId } from "@/services/providers";
+import { getCurrentProviderAccountId } from "@/features/providers";
 import { memoryDelete, memoryGetRelated, memoryRememberMessage } from "./memoryClient";
 
 function summarize(content: string) {

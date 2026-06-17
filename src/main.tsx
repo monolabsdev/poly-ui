@@ -15,8 +15,8 @@ import {
   installFrontendDiagnostics,
   startupError as reportStartupError,
   startupPhase,
-} from "./lib/startupDiagnostics";
-import { IS_LINUX, USE_CUSTOM_WINDOW_CONTROLS } from "./lib/platform";
+} from "./lib/utils/startupDiagnostics";
+import { IS_LINUX, USE_CUSTOM_WINDOW_CONTROLS } from "./lib/utils/platform";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { invoke } from "@tauri-apps/api/core";
 import "@fontsource-variable/geist";

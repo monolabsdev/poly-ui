@@ -1,10 +1,10 @@
 import type { SystemPrompt } from "@/store/modelStore";
 import { useAuthStore } from "@/store/authStore";
 import { useModelStore } from "@/store/modelStore";
-import { useOllamaStore } from "@/services/ollama/monitor";
+import { useOllamaStore } from "@/features/ollama/monitor";
 import { initStoreCoordinator } from "@/store/coordinator";
 import { isPermissionGranted, requestPermission } from "@tauri-apps/plugin-notification";
-import { backupCorruptStorageItem, startupError, startupPhase } from "@/lib/startupDiagnostics";
+import { backupCorruptStorageItem, startupError, startupPhase } from "@/lib/utils/startupDiagnostics";
 
 const SYSTEM_PROMPTS_STORAGE_KEY = "polyui.systemPrompts";
 
@@ -75,8 +75,8 @@ async function preloadVisibleAppChunks() {
   startupPhase("preload visible chunks start");
   await Promise.all([
     loadAppModule(),
-    import("@/components/Chat/ChatWorkspace"),
-    import("@/components/Auth/AuthModal"),
+    import("@/features/chat/components/ChatWorkspace"),
+    import("@/features/auth/AuthModal"),
   ]);
   startupPhase("preload visible chunks complete");
 }

@@ -2,7 +2,7 @@ import { Box } from "@mui/material";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useEffect, useState } from "react";
 import { Minus, Square, X } from "lucide-react";
-import { USE_CUSTOM_WINDOW_CONTROLS } from "@/lib/platform";
+import { USE_CUSTOM_WINDOW_CONTROLS } from "@/lib/utils/platform";
 
 export function WindowControls({ closeOnly = false }: { closeOnly?: boolean }) {
   const [maximized, setMaximized] = useState(false);

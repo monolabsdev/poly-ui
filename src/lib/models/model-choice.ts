@@ -1,4 +1,4 @@
-import type { ProviderType } from "@/services/providers";
+import type { ProviderType } from "@/features/providers";
 
 export type ProviderModel = {
   name: string;

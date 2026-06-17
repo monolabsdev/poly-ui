@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import React from "react";
 import { useShallow } from "zustand/react/shallow";
-import type { SettingsTab } from "@/components/Settings/SettingsModal";
+import type { SettingsTab } from "@/features/settings/SettingsModal";
 import { useNotificationStore } from "@/store/notificationStore";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useThemeStore } from "@/store/themeStore";

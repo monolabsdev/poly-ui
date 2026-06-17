@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { User, AuthResponse } from "@/types/auth";
-import { loggedInvoke } from "@/lib/utils";
+import { loggedInvoke } from "@/lib/utils/utils";
 
 const GUEST_ID_KEY = "polyui.guestId";
 

@@ -1,5 +1,5 @@
 import { idleManager } from './manager'
-import { getHealthMonitor } from '@/services/ollama/health-monitor'
+import { getHealthMonitor } from '@/features/ollama/health-monitor'
 import { startUpdateChecker, stopUpdateChecker } from '@/store/updateStore'
 import { registerDictationOffload } from './dictation'
 import { registerMemoryPurge } from './purge'

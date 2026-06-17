@@ -1,5 +1,5 @@
 import { Box } from "@mui/material";
-import { IS_MAC, IS_LINUX, USE_CUSTOM_WINDOW_CONTROLS } from "@/lib/platform";
+import { IS_MAC, IS_LINUX, USE_CUSTOM_WINDOW_CONTROLS } from "@/lib/utils/platform";
 import { WindowControls } from "@/components/WindowControls";
 import { UpdateChip } from "@/components/UpdateChip";
 

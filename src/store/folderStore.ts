@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { getRepository } from "@/lib/repositories";
-import { collectDescendantFolderIds } from "@/lib/folders";
+import { collectDescendantFolderIds } from "@/lib/utils/folders";
 import { Folder, Attachment } from "@/types/chat";
 
 async function getRepo() {

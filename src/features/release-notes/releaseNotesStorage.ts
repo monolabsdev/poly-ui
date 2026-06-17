@@ -1,4 +1,4 @@
-import { normalizeAppVersion } from "@/lib/appVersion";
+import { normalizeAppVersion } from "@/lib/utils/appVersion";
 
 const STORAGE_KEY = "polyui.releaseNotes.lastSeenVersion";
 

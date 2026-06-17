@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { fetchReleaseNotes, type ReleaseNotesResult } from "./releaseNotesApi";
 import { getLastSeenVersion, setLastSeenVersion } from "./releaseNotesStorage";
-import { getInstalledAppVersion } from "@/lib/appVersion";
+import { getInstalledAppVersion } from "@/lib/utils/appVersion";
 
 export interface ReleaseNotesState {
   show: boolean;

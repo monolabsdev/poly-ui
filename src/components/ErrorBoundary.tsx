@@ -1,5 +1,5 @@
 import { Component } from "react";
-import { startupError } from "@/lib/startupDiagnostics";
+import { startupError } from "@/lib/utils/startupDiagnostics";
 
 interface Props {
   children: React.ReactNode;

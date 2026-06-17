@@ -21,9 +21,9 @@ import {
 import type { SelectChangeEvent } from "@mui/material";
 import { RefreshCcw, Search, Trash2 } from "lucide-react";
 import { appTextFieldSx } from "@/components/ui/appDialog";
-import { EmptyState, SectionHeader, SettingCard, selectSx } from "@/components/Settings/SettingComponents";
+import { EmptyState, SectionHeader, SettingCard, selectSx } from "@/features/settings/SettingComponents";
 import { useNotify } from "@/hooks/useNotify";
-import { getCurrentProviderAccountId } from "@/services/providers";
+import { getCurrentProviderAccountId } from "@/features/providers";
 import {
   memoryClearAll,
   memoryClearScope,

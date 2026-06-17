@@ -22,7 +22,7 @@ function accountIdFromAuth(state: AuthSnapshot) {
 }
 
 async function refreshProviders() {
-  const { useProviderStore } = await import("@/services/providers");
+  const { useProviderStore } = await import("@/features/providers");
   await useProviderStore.getState().actions.refresh().catch((err) => {
     console.warn("[coordinator] Provider refresh failed:", err);
   });

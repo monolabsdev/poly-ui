@@ -1,7 +1,7 @@
-import { loggedInvoke } from "@/lib/utils";
+import { loggedInvoke } from "@/lib/utils/utils";
 import type { ChatMessage } from "@/types/chat";
 import type { ModelProvider } from "@/store/modelStore";
-import { getCurrentProviderAccountId } from "@/services/providers";
+import { getCurrentProviderAccountId } from "@/features/providers";
 
 export interface TitleStore {
   findConversation(id: string): { title: string; titleSource?: string; isTemporary?: boolean } | undefined;

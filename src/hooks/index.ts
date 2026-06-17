@@ -1,1 +1,1 @@
-export { useChatStream } from "./useChatStream";
+export { useChatStream } from "@/features/chat/hooks/useChatStream";

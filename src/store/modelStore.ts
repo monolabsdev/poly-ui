@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { ProviderType } from "@/services/providers";
+import type { ProviderType } from "@/features/providers";
 import type { ModelChoice } from "@/lib/models/model-choice";
 
 export type ModelProvider = ProviderType;

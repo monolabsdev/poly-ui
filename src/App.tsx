@@ -7,12 +7,12 @@ import {
   useState,
   useEffect,
 } from "react";
-import { Header } from "@/components/Chat/Header";
+import { Header } from "@/features/chat/components/Header";
 import { useModelStore } from "@/store/modelStore";
 import { useSettingsStore } from "@/store/settingsStore";
-import { getPresetContent } from "@/constants/promptPresets";
-import { useOllama } from "@/services/ollama";
-import { Sidebar, SidebarInset, SidebarProvider } from "@/components/Sidebar";
+import { getPresetContent } from "@/lib/constants/promptPresets";
+import { useOllama } from "@/features/ollama";
+import { Sidebar, SidebarInset, SidebarProvider } from "@/features/sidebar";
 import { ChatPanel } from "@/components/Layout/ChatPanel";
 import { Box } from "@mui/material";
 import { useChatStore } from "@/store/chatStore";
@@ -21,9 +21,9 @@ import { useNotify } from "@/hooks/useNotify";
 import { useShallow } from "zustand/react/shallow";
 import { retryTitleForConversation, type TitleStore } from "@/lib/chat/title-generation";
 import { useFeatures } from "@/lib/featureRegistry";
-import { IS_MAC } from "@/lib/platform";
+import { IS_MAC } from "@/lib/utils/platform";
 import { disableMemoryForOwner } from "@/features/memory/memoryClient";
-import { getCurrentProviderAccountId } from "@/services/providers";
+import { getCurrentProviderAccountId } from "@/features/providers";
 
 const titleStore: TitleStore = {
   findConversation: (id) => useChatStore.getState().conversations.find((c) => c.id === id),
@@ -38,9 +38,9 @@ import {
 import { shouldLoadExternalDefault } from "@/lib/models/model-selector";
 import { useFolderStore } from "@/store/folderStore";
 import { useThemeStore, type ThemeMode } from "@/store/themeStore";
-import { SettingsModal } from "./components/Settings/SettingsModal";
-import type { SettingsTab } from "./components/Settings/SettingsModal";
-import { ArchivedChatsDialog } from "@/components/Chat/ArchivedChatsDialog";
+import { SettingsModal } from "./features/settings/SettingsModal";
+import type { SettingsTab } from "./features/settings/SettingsModal";
+import { ArchivedChatsDialog } from "@/features/chat/components/ArchivedChatsDialog";
 import { CommandPalette } from "@/features/command-palette/CommandPalette";
 import { useRegisteredCommandPaletteActions } from "@/features/command-palette/actionRegistry";
 import { useSettingsCommands } from "@/features/command-palette/settingsRegistry";
@@ -60,7 +60,7 @@ import {
 } from "lucide-react";
 
 const AuthModal = lazy(() =>
-  import("@/components/Auth/AuthModal").then((module) => ({
+  import("@/features/auth/AuthModal").then((module) => ({
     default: module.AuthModal,
   })),
 );
@@ -69,7 +69,7 @@ const ReleaseNotesModal = lazy(() =>
     default: module.ReleaseNotesModal,
   })),
 );
-const ChatWorkspace = lazy(() => import("@/components/Chat/ChatWorkspace"));
+const ChatWorkspace = lazy(() => import("@/features/chat/components/ChatWorkspace"));
 
 function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);

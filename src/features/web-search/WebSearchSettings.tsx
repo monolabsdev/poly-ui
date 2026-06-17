@@ -1,6 +1,6 @@
 import { FormControl, Link, MenuItem, Select, Stack, TextField, Typography } from "@mui/material";
 import { appTextFieldSx } from "@/components/ui/appDialog";
-import { SettingCard, selectSx } from "@/components/Settings/SettingComponents";
+import { SettingCard, selectSx } from "@/features/settings/SettingComponents";
 import { useSettingsStore } from "@/store/settingsStore";
 import { webSearchProviderRegistry } from "./registry";
 import type { WebSearchProviderId } from "./types";

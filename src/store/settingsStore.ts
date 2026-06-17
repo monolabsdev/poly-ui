@@ -1,8 +1,8 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { PromptPresetId } from "@/constants/promptPresets";
+import type { PromptPresetId } from "@/lib/constants/promptPresets";
 import type { WebSearchSettings } from "@/features/web-search/types";
-import { startupError, startupPhase } from "@/lib/startupDiagnostics";
+import { startupError, startupPhase } from "@/lib/utils/startupDiagnostics";
 import { createSafeJsonStorage } from "./persistStorage";
 
 export type GeneralSettings = {

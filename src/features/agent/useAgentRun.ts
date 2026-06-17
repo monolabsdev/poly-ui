@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useChatStore } from "@/store/chatStore";
 import { useNotify } from "@/hooks/useNotify";
-import { useProviderStore } from "@/services/providers";
+import { useProviderStore } from "@/features/providers";
 import type { ModelProvider } from "@/store/modelStore";
 import { appendAgentEvent } from "./activity";
 import { cancelAgent, listenToAgentEvents, runAgent } from "./agentClient";
