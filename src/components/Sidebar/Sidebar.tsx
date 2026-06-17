@@ -1,7 +1,6 @@
 import * as React from "react";
 import { Box, useTheme } from "@mui/material";
-import { motion } from "motion/react";
-import { useTiming } from "@/lib/motion";
+import { MOTION_TOKENS } from "@/lib/motion";
 import { useFolderStore } from "@/store/folderStore";
 import { useChatStore } from "@/store/chatStore";
 import { DeleteConversationDialog } from "@/components/Chat/DeleteConversationDialog";
@@ -48,7 +47,6 @@ function SidebarBody({
 }: Omit<SidebarProps, "onDeleteConversation" | "onRenameConversation" | "activeConversationId">) {
   const { isCollapsed } = useSidebar();
   const theme = useTheme();
-  const timing = useTiming();
   const reducedMotion = useReducedMotion();
   const isGuest = useAuthStore((s) => s.isGuest);
   const conversationsLoading = useChatStore(
@@ -145,15 +143,7 @@ function SidebarBody({
 
   return (
     <Box
-      component={motion.div}
-      initial={false}
-      animate={{ width }}
-      transition={
-        reducedMotion
-          ? { duration: 0 }
-          : { duration: timing.duration("base"), ease: timing.ease }
-      }
-      style={{
+      sx={{
         flexShrink: 0,
         height: "100%",
         display: "flex",
@@ -162,11 +152,15 @@ function SidebarBody({
         borderTopLeftRadius: 12,
         overflowX: "hidden",
         position: "relative",
+        width,
+        transition: reducedMotion
+          ? "none"
+          : `width ${MOTION_TOKENS.duration.base}s cubic-bezier(${MOTION_TOKENS.ease.out.join(",")})`,
       }}
     >
       <Box
         sx={{
-          width: isCollapsed ? 60 : 260,
+          width: "100%",
           height: "100%",
           display: "flex",
           flexDirection: "column",
