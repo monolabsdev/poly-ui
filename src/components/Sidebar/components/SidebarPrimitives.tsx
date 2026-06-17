@@ -177,10 +177,14 @@ export function SidebarRailIconButton({
             display: "grid",
             placeItems: "center",
             color: "text.secondary",
-            bgcolor: "action.hover",
+            bgcolor: "transparent",
+            transition: "background-color 0.18s ease-in-out",
             "&:hover": {
-              bgcolor: "action.selected",
+              bgcolor: "action.hover",
               color: "text.primary",
+            },
+            "&:active": {
+              bgcolor: "action.selected",
             },
           }}
         >
@@ -280,9 +284,13 @@ export function SidebarTrigger({ sx }: { sx?: CSSObject }) {
           color: "text.secondary",
           width: 36,
           height: 36,
-          bgcolor: isCollapsed ? "action.hover" : "transparent",
+          bgcolor: "transparent",
+          transition: "background-color 0.18s ease-in-out",
           "&:hover": {
             color: "text.primary",
+            bgcolor: "action.hover",
+          },
+          "&:active": {
             bgcolor: "action.selected",
           },
           ...sx,
