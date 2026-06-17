@@ -180,14 +180,14 @@ export const ChatInput = memo(function ChatInput({
     bgcolor: "background.paper",
     border: isTemporary ? "1px dashed" : "1px solid",
     borderColor: isTemporary ? "border.main" : "divider",
-    boxShadow: agentEnabled ? 2 : 1,
+    boxShadow: theme.palette.mode === "dark" ? (agentEnabled ? 2 : 1) : "none",
     transition: theme.transitions.create(
       ["border-color", "box-shadow", "background-color", "background-image"],
       { duration: theme.transitions.duration.short },
     ),
     "&:focus-within": {
       borderColor: "border.main",
-      boxShadow: agentEnabled ? theme.shadows[3] : theme.shadows[2],
+      boxShadow: theme.palette.mode === "dark" ? (agentEnabled ? theme.shadows[3] : theme.shadows[2]) : "none",
     },
   }), [isTemporary, agentEnabled, theme]);
 
