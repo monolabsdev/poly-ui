@@ -63,7 +63,7 @@ const SETTINGS_VERSION = 12;
 
 export const defaultDictation: DictationSettings = {
   enabled: true,
-  language: "auto",
+  language: "en",
   autoStart: false,
 };
 

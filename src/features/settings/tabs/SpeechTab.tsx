@@ -308,7 +308,7 @@ export function SpeechTab() {
         <>
           <SettingCard
             title="Language"
-            description="Language for speech recognition. Auto-detect works for most cases."
+            description="Language for speech recognition. Auto-detect defaults to English for reliability."
             action={
               <FormControl size="small" sx={{ minWidth: 180, maxWidth: 240 }}>
                 <Select
