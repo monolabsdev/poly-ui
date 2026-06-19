@@ -2,12 +2,18 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { UnlistenFn } from "@tauri-apps/api/event";
 import type { AgentChangedFile, AgentFileDiff, AgentRunStartOptions, AgentWorkspace } from "./types";
+import type { AgentRunInput } from "./generated/AgentRunInput";
+import type { AgentUiEvent } from "./generated/AgentUiEvent";
 
-export type AgentRawEvent = {
-  run_id: string;
-  event_type: string;
-  timestamp: string;
-  data: { kind: string; value?: any };
+export type AgentRawEvent = AgentUiEvent;
+
+const DEFAULT_RUNTIME_LIMITS: AgentRunInput["limits"] = {
+  max_steps: 8,
+  max_file_read_bytes: 256 * 1024,
+  max_tool_output_bytes: 64 * 1024,
+  max_search_results: 50,
+  max_context_messages: 32,
+  command_timeout_secs: 60,
 };
 
 export async function listAgentWorkspaces(): Promise<AgentWorkspace[]> {
@@ -45,40 +51,44 @@ export async function runAgent(options: AgentRunStartOptions): Promise<string> {
     options.provider === "OpenAICompatible"
       ? "OpenAICompatible"
       : "Ollama";
+  const input: AgentRunInput = {
+    prompt: options.prompt,
+    workspace_path: options.workspacePath ?? null,
+    workspace_selection: toBackendWorkspaceSelection(options.workspaceSelection),
+    limits: DEFAULT_RUNTIME_LIMITS,
+    permission_preset: options.permissionPreset,
+    resolved_context: options.resolvedContext
+      ? {
+          active_workspace: options.resolvedContext.activeWorkspace ?? null,
+          active_file: options.resolvedContext.activeFile ?? null,
+          recently_viewed_files: options.resolvedContext.recentlyViewedFiles,
+          recently_edited_files: options.resolvedContext.recentlyEditedFiles,
+          recent_constraints: options.resolvedContext.recentConstraints ?? [],
+          last_tool_call: options.resolvedContext.lastToolCall
+            ? {
+                tool_name: options.resolvedContext.lastToolCall.toolName,
+                target_path: options.resolvedContext.lastToolCall.targetPath ?? null,
+              }
+            : null,
+        }
+      : null,
+    model: {
+      provider,
+      model: options.model,
+      base_url: options.baseUrl ?? null,
+      api_key: options.apiKey ?? null,
+    },
+    debug: options.debug ?? false,
+  };
 
   return invoke<string>("agent_run", {
-    input: {
-      prompt: options.prompt,
-      workspace_path: options.workspacePath ?? null,
-      workspace_selection: toBackendWorkspaceSelection(options.workspaceSelection),
-      permission_preset: options.permissionPreset,
-      resolved_context: options.resolvedContext
-        ? {
-            active_workspace: options.resolvedContext.activeWorkspace ?? null,
-            active_file: options.resolvedContext.activeFile ?? null,
-            recently_viewed_files: options.resolvedContext.recentlyViewedFiles,
-            recently_edited_files: options.resolvedContext.recentlyEditedFiles,
-            recent_constraints: options.resolvedContext.recentConstraints ?? [],
-            last_tool_call: options.resolvedContext.lastToolCall
-              ? {
-                  tool_name: options.resolvedContext.lastToolCall.toolName,
-                  target_path: options.resolvedContext.lastToolCall.targetPath ?? null,
-                }
-              : null,
-          }
-        : null,
-      model: {
-        provider,
-        model: options.model,
-        base_url: options.baseUrl ?? null,
-        api_key: options.apiKey ?? null,
-      },
-      debug: options.debug ?? false,
-    },
+    input,
   });
 }
 
-function toBackendWorkspaceSelection(selection: AgentRunStartOptions["workspaceSelection"]) {
+function toBackendWorkspaceSelection(
+  selection: AgentRunStartOptions["workspaceSelection"],
+): AgentRunInput["workspace_selection"] {
   if (selection.type === "project") {
     return {
       type: "project",

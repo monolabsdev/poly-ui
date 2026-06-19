@@ -6,6 +6,7 @@ import type {
   AgentToolCall,
 } from "./types";
 import type { AgentRawEvent } from "./agentClient";
+import type { AgentUiEventPayload } from "./generated/AgentUiEventPayload";
 
 const PHASE_ORDER: Record<string, number> = {
   run: 0,
@@ -35,7 +36,7 @@ export function appendAgentEvent(
   event: AgentRawEvent,
 ): AgentMessageState {
   const kind = event.data.kind;
-  const value = event.data.value ?? {};
+  const value = eventValue(event.data);
   const next: AgentMessageState = {
     ...state,
     context: state.context
@@ -69,11 +70,14 @@ export function appendAgentEvent(
 
   switch (kind) {
     case "started":
-    case "run_started":
       next.status = "running";
       next.responseText = "";
       next.respondedStreaming = false;
       upsertActivity(next, "run", activity("status", "Starting", "Preparing agent run.", "running", "run"));
+      break;
+    case "thinking":
+      completeEarlierRunningPhases(next, "thinking");
+      upsertActivity(next, "thinking", activity("reasoning", "Thinking", "Choosing the next action.", "running", "thinking"));
       break;
     case "activity":
       if (!safeSummary(value.title) && !safeSummary(value.summary) && !safeDetails(value.details)?.length) {
@@ -111,7 +115,6 @@ export function appendAgentEvent(
       completeActivity(next, "summarizing", "complete");
       break;
     case "tool_call_requested":
-    case "tool_call_planned":
       next.toolCalls[value.tool_call_id] = {
         id: value.tool_call_id,
         name: value.tool_name,
@@ -152,7 +155,7 @@ export function appendAgentEvent(
       }
       break;
     }
-    case "model_token_delta": {
+    case "text_delta": {
       const text = typeof value?.text === "string" ? value.text : "";
       if (text) {
         const mode = value?.mode;
@@ -161,6 +164,21 @@ export function appendAgentEvent(
       }
       break;
     }
+    case "step_limit_reached":
+      completeAllRunning(next, "complete");
+      upsertActivity(
+        next,
+        "summarizing",
+        activity("reasoning", "Step limit reached", `Stopped after ${value.max_steps} steps.`, "complete", "summarizing"),
+      );
+      break;
+    case "unknown_tool_requested":
+      upsertActivity(
+        next,
+        `unknown_tool:${value.tool_name}`,
+        activity("error", "Unknown tool requested", value.tool_name, "error", `unknown_tool:${value.tool_name}`),
+      );
+      break;
     case "final_response_delta": {
       const text = typeof value?.text === "string" ? value.text : "";
       if (text) {
@@ -223,8 +241,7 @@ export function appendAgentEvent(
         ),
       );
       break;
-    case "finished":
-    case "run_finished": {
+    case "finished": {
       completeAllRunning(next, "complete");
       next.status = "completed";
       next.completedAt = event.timestamp;
@@ -238,7 +255,6 @@ export function appendAgentEvent(
       break;
     }
     case "failed":
-    case "run_failed":
       next.status = "failed";
       next.completedAt = event.timestamp;
       next.error = value.error;
@@ -246,7 +262,6 @@ export function appendAgentEvent(
       upsertActivity(next, "failed", activity("error", "Run failed", value.error, "error", "failed"));
       break;
     case "cancelled":
-    case "run_cancelled":
       next.status = "cancelled";
       next.completedAt = event.timestamp;
       upsertActivity(next, "cancelled", activity("status", "Cancelled", "Stopped the agent run.", "complete", "cancelled"));
@@ -263,6 +278,10 @@ export function appendAgentEvent(
   }
 
   return next;
+}
+
+function eventValue(data: AgentUiEventPayload): Record<string, any> {
+  return "value" in data && data.value && typeof data.value === "object" ? data.value : {};
 }
 
 function updateContextFromTool(

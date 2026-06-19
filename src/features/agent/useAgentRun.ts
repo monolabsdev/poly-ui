@@ -8,6 +8,7 @@ import { cancelAgent, listenToAgentEvents, runAgent } from "./agentClient";
 import { detectFileEditIntent, extractFileMentions } from "./context";
 import { sanitizeOutput } from "@/lib/chat/sanitize";
 import { triggerTitleGeneration, type TitleStore } from "@/lib/chat/title-generation";
+import type { AgentUiEventPayload } from "./generated/AgentUiEventPayload";
 import type { AgentMessageState, AgentResolvedContext, AgentRunStatus, AgentWorkspaceSelection, PermissionPreset } from "./types";
 import {
   applyFinalResponseDelta,
@@ -69,16 +70,13 @@ export function useAgentRun({ selectedModels, selectedProviders }: UseAgentRunAr
       if (!active || event.run_id !== active.runId) return;
 
       const kind = event.data.kind;
-      const value = event.data.value ?? {};
-      const isDelta = kind === "final_response_delta" || kind === "model_token_delta" || kind === "text_delta";
-      const isTerminal = ["finished", "run_finished", "failed", "run_failed", "cancelled", "run_cancelled"].includes(kind);
+      const value = eventValue(event.data);
+      const isDelta = kind === "final_response_delta" || kind === "text_delta";
+      const isTerminal = kind === "finished" || kind === "failed" || kind === "cancelled";
 
       if (kind === "final_response_delta") {
         outputRef.current = applyFinalResponseDelta(outputRef.current, value.text ?? "");
-      } else if (
-        (kind === "text_delta" || kind === "model_token_delta") &&
-        !hasFinalDelta(agentRef.current)
-      ) {
+      } else if (kind === "text_delta" && !hasFinalDelta(agentRef.current)) {
         outputRef.current = applyOutputDelta(outputRef.current, value.text ?? "", value.mode);
       } else if (isTerminal && typeof value.text === "string") {
         outputRef.current = applyOutputFinal(outputRef.current, value.text);
@@ -350,4 +348,8 @@ function hasFinalDelta(agent: AgentMessageState | null) {
   return Boolean(
     agent?.debugEvents?.some((event) => event.kind === "final_response_delta"),
   );
+}
+
+function eventValue(data: AgentUiEventPayload): Record<string, any> {
+  return "value" in data && data.value && typeof data.value === "object" ? data.value : {};
 }
