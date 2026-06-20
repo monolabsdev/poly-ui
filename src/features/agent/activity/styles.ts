@@ -1,10 +1,11 @@
 export const agentBtn = {
-  height: 24,
+  height: 26,
   minWidth: 0,
-  px: 0.65,
-  borderRadius: "5px",
+  px: 0.85,
+  borderRadius: "6px",
   fontSize: 11,
-  fontWeight: 600,
+  fontWeight: 650,
+  lineHeight: 1,
   "&:focus-visible": {
     outline: "2px solid",
     outlineColor: "primary.main",

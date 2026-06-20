@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
 import { Box, Button, Typography } from "@mui/material";
-import { ChevronDown, FileDiff, RotateCcw } from "lucide-react";
+import { ChevronDown, FileDiff } from "lucide-react";
 import { AgentTraceBadge } from "@/components/ui/agent-trace";
 import type { AgentEditedFile } from "../../types";
+import { DiffStat } from "../primitives";
 import { fileName } from "../summaries";
 import { agentBtn } from "../styles";
 
@@ -45,10 +46,7 @@ export function EditingContent({
         <Box sx={{ minWidth: 0, maxWidth: 300 }}>
           <AgentTraceBadge>{fileName(f.path)}</AgentTraceBadge>
         </Box>
-        <Box sx={{ fontSize: 11, fontWeight: 600, whiteSpace: "nowrap", color: "text.secondary", fontFamily: "monospace" }}>
-          <Box component="span" sx={{ color: "success.main" }}>+{f.additions}</Box>
-          <Box component="span" sx={{ color: "error.main", ml: 0.3 }}>-{f.deletions}</Box>
-        </Box>
+        <DiffStat additions={f.additions} deletions={f.deletions} />
       </Box>
     );
   }
@@ -62,10 +60,7 @@ export function EditingContent({
         <Box sx={{ fontSize: 12, color: "text.secondary" }}>
           Edited {files.length} files
         </Box>
-        <Box sx={{ fontSize: 11, fontWeight: 600, whiteSpace: "nowrap", color: "text.secondary", fontFamily: "monospace" }}>
-          <Box component="span" sx={{ color: "success.main" }}>+{additions}</Box>
-          <Box component="span" sx={{ color: "error.main", ml: 0.3 }}>-{deletions}</Box>
-        </Box>
+        <DiffStat additions={additions} deletions={deletions} />
       </Box>
       {visible.map((f) => (
         <Box
@@ -97,10 +92,7 @@ export function EditingContent({
           <Box sx={{ minWidth: 0, maxWidth: 300, fontSize: 11.5 }}>
             <AgentTraceBadge>{fileName(f.path)}</AgentTraceBadge>
           </Box>
-          <Box sx={{ fontSize: 11, fontWeight: 600, whiteSpace: "nowrap", fontFamily: "monospace" }}>
-            <Box component="span" sx={{ color: "success.main" }}>+{f.additions}</Box>
-            <Box component="span" sx={{ color: "error.main", ml: 0.3 }}>-{f.deletions}</Box>
-          </Box>
+          <DiffStat additions={f.additions} deletions={f.deletions} />
         </Box>
       ))}
       {hidden > 0 && (
@@ -148,78 +140,48 @@ export function EditedFilesSummaryCard({
   return (
     <Box
       sx={{
-        mt: 1,
+        mt: 0.85,
         ml: 0,
-        width: "min(520px, 100%)",
+        width: "min(540px, 100%)",
         border: "1px solid",
-        borderColor: "border.main",
-        borderRadius: "8px",
-        bgcolor: "background.paper",
+        borderColor: "border.light",
+        borderRadius: "7px",
+        bgcolor: "transparent",
         overflow: "hidden",
       }}
     >
       <Box
         sx={{
           display: "grid",
-          gridTemplateColumns: "30px 1fr auto",
+          gridTemplateColumns: "26px minmax(0, 1fr) auto",
           alignItems: "center",
-          gap: 1,
+          gap: 0.85,
           px: 1,
-          py: 1,
+          py: 0.85,
         }}
       >
         <Box
           sx={{
-            width: 30,
-            height: 30,
-            borderRadius: "8px",
+            width: 26,
+            height: 26,
+            borderRadius: "6px",
             display: "grid",
             placeItems: "center",
-            bgcolor: "action.hover",
+            bgcolor: "success.soft",
             color: "text.secondary",
           }}
         >
           <FileDiff size={17} />
         </Box>
         <Box sx={{ minWidth: 0 }}>
-          <Typography sx={{ fontSize: 13, fontWeight: 800, lineHeight: 1.25 }}>
+          <Typography sx={{ fontSize: 13, fontWeight: 750, lineHeight: 1.25 }}>
             Edited {files.length} {files.length === 1 ? "file" : "files"}
           </Typography>
-          <Box
-            sx={{
-              display: "flex",
-              gap: 0.7,
-              mt: 0.2,
-              fontSize: 12,
-              fontWeight: 800,
-              fontFamily: "ui-monospace, SFMono-Regular, Consolas, monospace",
-            }}
-          >
-            <Box component="span" sx={{ color: "success.main" }}>
-              +{totals.additions}
-            </Box>
-            <Box component="span" sx={{ color: "error.main" }}>
-              -{totals.deletions}
-            </Box>
+          <Box sx={{ mt: 0.15 }}>
+            <DiffStat additions={totals.additions} deletions={totals.deletions} />
           </Box>
         </Box>
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-          <Button
-            size="small"
-            color="inherit"
-            disabled
-            sx={{
-              ...agentBtn,
-              height: 28,
-              px: 1,
-              color: "text.secondary",
-              "&.Mui-disabled": {
-                color: "text.disabled",
-              },
-            }}
-          >
-            Undo <RotateCcw size={11} style={{ marginLeft: 4 }} />
-          </Button>
           <Button
             size="small"
             color="inherit"
@@ -227,7 +189,7 @@ export function EditedFilesSummaryCard({
             onClick={() => onReview(files[0]?.path)}
             sx={{
               ...agentBtn,
-              height: 30,
+              height: 28,
               px: 1.2,
               borderColor: "border.main",
               "&:hover": {
@@ -249,11 +211,11 @@ export function EditedFilesSummaryCard({
             sx={{
               width: "100%",
               display: "grid",
-              gridTemplateColumns: "1fr auto",
+              gridTemplateColumns: "minmax(0, 1fr) auto",
               alignItems: "center",
               gap: 1,
               px: 1,
-              py: 0.75,
+              py: 0.65,
               border: 0,
               borderTop: "1px solid",
               borderTopColor: "border.light",
@@ -283,22 +245,7 @@ export function EditedFilesSummaryCard({
             >
               {file.path}
             </Typography>
-            <Box
-              sx={{
-                display: "flex",
-                gap: 0.6,
-                fontSize: 12,
-                fontWeight: 800,
-                fontFamily: "ui-monospace, SFMono-Regular, Consolas, monospace",
-              }}
-            >
-              <Box component="span" sx={{ color: "success.main" }}>
-                +{file.additions}
-              </Box>
-              <Box component="span" sx={{ color: "error.main" }}>
-                -{file.deletions}
-              </Box>
-            </Box>
+            <DiffStat additions={file.additions} deletions={file.deletions} />
           </Box>
         ))}
       </Box>

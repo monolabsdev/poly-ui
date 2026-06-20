@@ -11,6 +11,12 @@ export function CommandContent({ call }: { call: AgentToolCall }) {
       ? call.arguments.command
       : "Command";
   const output = call.outputDelta || call.output || "";
+  const exitCode = /Exit code:\s*([^\n]+)/i.exec(output)?.[1]?.trim();
+  const statusColor = call.isError || call.status === "failed"
+    ? "error.main"
+    : call.status === "running"
+      ? "primary.main"
+      : "success.main";
 
   return (
     <Box>
@@ -22,13 +28,15 @@ export function CommandContent({ call }: { call: AgentToolCall }) {
           display: "flex",
           alignItems: "center",
           gap: 0.6,
-          p: 0.3,
-          border: "none",
-          bgcolor: "transparent",
+          px: 0.55,
+          py: 0.35,
+          border: "1px solid",
+          borderColor: "border.light",
+          bgcolor: "action.hover",
           color: "text.primary",
           cursor: "pointer",
           font: "inherit",
-          borderRadius: "3px",
+          borderRadius: "6px",
           "&:hover": { bgcolor: "action.hover" },
           "&:focus-visible": {
             outline: "2px solid",
@@ -54,17 +62,19 @@ export function CommandContent({ call }: { call: AgentToolCall }) {
         </Typography>
         <Box
           sx={{
-            px: 0.4,
+            px: 0.55,
             py: 0.05,
-            borderRadius: "999px",
+            borderRadius: "5px",
             fontSize: 10,
-            fontWeight: 600,
-            color: "text.disabled",
-            bgcolor: "action.hover",
+            fontWeight: 700,
+            color: statusColor,
+            bgcolor: "background.paper",
+            border: "1px solid",
+            borderColor: "border.light",
             lineHeight: 1.5,
           }}
         >
-          {call.status}
+          {exitCode ? `exit ${exitCode}` : call.status}
         </Box>
         {expanded ? (
           <ChevronDown size={10} />
@@ -77,9 +87,12 @@ export function CommandContent({ call }: { call: AgentToolCall }) {
           component="pre"
           sx={{
             m: 0,
-            p: 0.6,
-            bgcolor: (theme) => alpha(theme.palette.common.black, 0.3),
-            borderRadius: "4px",
+            mt: 0.45,
+            p: 0.75,
+            bgcolor: (theme) => alpha(theme.palette.common.black, theme.palette.mode === "dark" ? 0.28 : 0.04),
+            border: "1px solid",
+            borderColor: "border.light",
+            borderRadius: "6px",
             color: "text.secondary",
             fontSize: 11,
             maxHeight: 180,

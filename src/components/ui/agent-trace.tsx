@@ -43,7 +43,7 @@ export type AgentTraceProps = {
 export function AgentTrace({ children }: AgentTraceProps) {
   const array = Children.toArray(children);
   return (
-    <Box sx={{ display: "flex", flexDirection: "column" }}>
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 0.15 }}>
       {array.map((child, i) =>
         isValidElement(child)
           ? cloneElement(child as React.ReactElement<{ isLast?: boolean }>, {
@@ -105,13 +105,14 @@ export function AgentTraceStep({
   const wasAutoOpened = useRef(false);
 
   useEffect(() => {
+    if (defaultExpanded === false) return;
     if (status === "running" || status === "error" || status === "waiting") {
       if (!wasAutoOpened.current) {
         setInternalExpanded(true);
         wasAutoOpened.current = true;
       }
     }
-  }, [status]);
+  }, [defaultExpanded, status]);
 
   const expanded = internalExpanded;
 
@@ -135,9 +136,8 @@ export function AgentTraceStep({
       <Box
         sx={{
           display: "grid",
-          gridTemplateColumns: "20px 1fr",
-          columnGap: 1.25,
-          "&:not(:last-child)": { mb: 0.75 },
+          gridTemplateColumns: "18px minmax(0, 1fr)",
+          columnGap: 1,
         }}
       >
         {/* Icon / connector column */}
@@ -153,8 +153,8 @@ export function AgentTraceStep({
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              height: 20,
-              width: 20,
+              height: 18,
+              width: 18,
               flexShrink: 0,
               color: statusColor(status),
             }}
@@ -166,18 +166,20 @@ export function AgentTraceStep({
               sx={{
                 width: "1px",
                 flex: 1,
-                bgcolor: (theme) => alpha(theme.palette.text.primary, 0.12),
+                bgcolor: (theme) => alpha(theme.palette.text.primary, 0.1),
               }}
             />
           )}
         </Box>
 
         {/* Content column */}
-        <Box sx={{ minWidth: 0, pb: isLast ? 0 : 0.5 }}>
+        <Box sx={{ minWidth: 0, pb: isLast ? 0 : 0.65 }}>
           {trigger}
           {hasContent && (
             <Collapse in={expanded} timeout={200}>
-              <Box sx={{ mt: 0.2 }}>{content}</Box>
+              <Box sx={{ mt: 0.35, pl: 0.1, display: "flex", flexDirection: "column", gap: 0.2 }}>
+                {content}
+              </Box>
             </Collapse>
           )}
         </Box>
@@ -206,7 +208,7 @@ export function AgentTraceTrigger({ children, leftIcon }: AgentTraceTriggerProps
       sx={{
         display: "flex",
         alignItems: "center",
-        gap: 0.6,
+        gap: 0.65,
         width: "100%",
         cursor: hasContent ? "pointer" : "default",
         border: "none",
@@ -214,7 +216,7 @@ export function AgentTraceTrigger({ children, leftIcon }: AgentTraceTriggerProps
         p: 0,
         fontFamily: "inherit",
         fontSize: 12.5,
-        fontWeight: status === "running" ? 600 : 450,
+        fontWeight: status === "running" ? 650 : 500,
         color:
           status === "error"
             ? "error.main"
@@ -224,9 +226,10 @@ export function AgentTraceTrigger({ children, leftIcon }: AgentTraceTriggerProps
                 ? "text.primary"
                 : "text.secondary",
         textAlign: "left",
-        lineHeight: 1.4,
-        minHeight: 20,
-        borderRadius: "3px",
+        lineHeight: 1.35,
+        minHeight: 22,
+        borderRadius: "5px",
+        px: hasContent ? 0.25 : 0,
         transition: "color 0.15s",
         "&:hover": { color: "text.primary" },
         "&:focus-visible": {
@@ -251,7 +254,7 @@ export function AgentTraceTrigger({ children, leftIcon }: AgentTraceTriggerProps
             display: "flex",
             flexShrink: 0,
             color: "text.disabled",
-            opacity: 0.45,
+            opacity: 0.55,
             transform: expanded ? "rotate(180deg)" : "rotate(0deg)",
             transition: "transform 0.2s ease",
           }}
@@ -282,8 +285,8 @@ export type AgentTraceItemProps = {
 
 export function AgentTraceItem({ children, secondary }: AgentTraceItemProps) {
   return (
-    <Box sx={{ display: "flex", alignItems: "baseline", gap: 0.75, py: 0.1 }}>
-      <Box sx={{ flex: 1, minWidth: 0, fontSize: 12, color: "text.secondary", lineHeight: 1.4 }}>
+    <Box sx={{ display: "flex", alignItems: "baseline", gap: 0.75, py: 0.05 }}>
+      <Box sx={{ flex: 1, minWidth: 0, fontSize: 12, color: "text.secondary", lineHeight: 1.45 }}>
         {children}
       </Box>
       {secondary && (
@@ -309,12 +312,14 @@ export function AgentTraceBadge({ children, color }: AgentTraceBadgeProps) {
         alignItems: "center",
         px: 0.5,
         py: 0.05,
-        borderRadius: "999px",
+        borderRadius: "5px",
         fontSize: 10.5,
-        fontWeight: 600,
-        fontFamily: "monospace",
+        fontWeight: 650,
+        fontFamily: "ui-monospace, SFMono-Regular, Consolas, monospace",
         color: color ?? "text.secondary",
         bgcolor: "action.hover",
+        border: "1px solid",
+        borderColor: "border.light",
         lineHeight: 1.5,
         maxWidth: 320,
         overflow: "hidden",

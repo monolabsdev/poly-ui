@@ -31,13 +31,13 @@ const PRESETS: Array<{
 }> = [
   {
     value: "default",
-    label: "Ask for approval",
+    label: "Ask",
     description: "Always ask before risky actions.",
     icon: ShieldAlert,
   },
   {
     value: "auto-review",
-    label: "Approve for me",
+    label: "Auto",
     description: "Only ask for actions detected as potentially unsafe.",
     icon: ShieldCheck,
   },
@@ -185,37 +185,27 @@ export function AgentComposerControls({
                 </Box>
               }
               sx={{
-                height: 28,
-                borderRadius: "999px",
+                height: 30,
+                borderRadius: "8px",
+                px: 0.25,
+                fontWeight: 650,
                 color:
                   permissionPreset === "full-access"
                     ? "warning.main"
                     : "text.primary",
-                bgcolor: disabled
-                  ? "action.disabledBackground"
-                  : "action.hover",
+                bgcolor: disabled ? "action.disabledBackground" : "background.paper",
                 border: "1px solid",
                 borderColor: "divider",
                 ".MuiChip-icon": { color: "inherit", ml: 1 },
-                "&:hover": { bgcolor: "action.selected" },
+                ".MuiChip-label": { px: 0.75 },
+                "&:hover": { bgcolor: "action.hover" },
               }}
             />
           </DropdownMenuTrigger>
           <DropdownMenuContent
             align="start"
-            sx={{ minWidth: 360, borderRadius: "12px" }}
+            sx={{ minWidth: 320, borderRadius: "10px", p: 0.5 }}
           >
-            <Typography
-              sx={{
-                px: 2,
-                pt: 1.25,
-                pb: 0.5,
-                fontSize: 12,
-                color: "text.secondary",
-              }}
-            >
-              How should actions be approved?
-            </Typography>
             {PRESETS.map((preset) => {
               const Icon = preset.icon;
               const active = preset.value === permissionPreset;
@@ -223,11 +213,11 @@ export function AgentComposerControls({
                 <DropdownMenuItem
                   key={preset.value}
                   onClick={() => actions.setPermissionPreset(preset.value)}
-                  sx={{ alignItems: "flex-start", borderRadius: "10px", py: 1 }}
+                  sx={{ alignItems: "flex-start", borderRadius: "8px", py: 0.9 }}
                 >
                   <Icon size={16} />
                   <Box sx={{ flex: 1 }}>
-                    <Typography sx={{ fontSize: 13, fontWeight: 700 }}>
+                    <Typography sx={{ fontSize: 13, fontWeight: 750 }}>
                       {preset.label}
                     </Typography>
                     <Typography sx={{ fontSize: 12, color: "text.secondary" }}>
@@ -279,9 +269,10 @@ export function AgentComposerControls({
                 </Box>
               }
               sx={{
-                height: mode === "workspace" ? 26 : 28,
+                height: mode === "workspace" ? 28 : 30,
                 maxWidth: { xs: 220, sm: 280 },
-                borderRadius: mode === "workspace" ? "8px" : "999px",
+                borderRadius: "8px",
+                fontWeight: 650,
                 color: selectedSelection
                   ? mode === "workspace"
                     ? "text.secondary"
@@ -291,11 +282,11 @@ export function AgentComposerControls({
                   ? "action.disabledBackground"
                   : mode === "workspace"
                     ? "transparent"
-                    : "action.hover",
+                    : "background.paper",
                 border: "1px solid",
                 borderColor: selectedSelection
                   ? mode === "workspace"
-                    ? "transparent"
+                    ? "border.light"
                     : "divider"
                   : "error.main",
                 px: mode === "workspace" ? 0.25 : 0,
@@ -309,7 +300,7 @@ export function AgentComposerControls({
                 },
                 "&:hover": {
                   bgcolor:
-                    mode === "workspace" ? "action.hover" : "action.selected",
+                    mode === "workspace" ? "action.hover" : "action.hover",
                 },
               }}
             />
@@ -320,12 +311,12 @@ export function AgentComposerControls({
               width: 260,
               minWidth: 260,
               maxWidth: 260,
-              borderRadius: "10px",
+              borderRadius: "8px",
               p: "6px",
               bgcolor: "background.paper",
               border: "1px solid",
               borderColor: "border.light",
-              boxShadow: (theme) => `0 8px 24px ${alpha(theme.palette.common.black, 0.35)}`,
+              boxShadow: (theme) => `0 14px 40px ${alpha(theme.palette.common.black, theme.palette.mode === "dark" ? 0.38 : 0.12)}`,
               color: "text.primary",
               ".MuiList-root": { p: 0 },
             }}
@@ -452,7 +443,7 @@ function ProjectMenuRow({
         px: "10px",
         my: "1px",
         gap: "9px",
-        borderRadius: "6px",
+        borderRadius: "7px",
         color: "text.primary",
         textAlign: "left",
         outline: 0,
@@ -481,7 +472,7 @@ function ProjectMenuRow({
           textOverflow: "ellipsis",
           whiteSpace: "nowrap",
           fontSize: 13,
-          fontWeight: 500,
+          fontWeight: 550,
           color: "inherit",
           lineHeight: 1.2,
           letterSpacing: 0,

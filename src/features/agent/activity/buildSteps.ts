@@ -63,7 +63,7 @@ export function buildSteps(agent: AgentMessageState): StepDef[] {
       type: "default",
       summary,
       details: uniqueDisplayDetails(act.details, summary),
-      defaultExpanded: s === "running" || s === "error" || s === "waiting",
+      defaultExpanded: s === "error" || s === "waiting",
     };
 
     if (act.kind === "error") {

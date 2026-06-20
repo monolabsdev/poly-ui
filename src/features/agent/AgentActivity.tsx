@@ -46,7 +46,12 @@ export function AgentActivity({ agent, resultText, onResolveApproval, onRetry }:
       {steps.length > 0 && (
         <AgentTrace>
           {steps.map((step) => (
-            <AgentTraceStep key={step.id} status={step.status} hasContent={hasDisclosureContent(step)}>
+            <AgentTraceStep
+              key={step.id}
+              status={step.status}
+              defaultExpanded={step.defaultExpanded}
+              hasContent={hasDisclosureContent(step)}
+            >
               <AgentTraceTrigger>{step.label}</AgentTraceTrigger>
               {hasDisclosureContent(step) && (
                 <AgentTraceContent>
@@ -77,7 +82,6 @@ export function AgentActivity({ agent, resultText, onResolveApproval, onRetry }:
     </Box>
   );
 }
-
 function AgentRunHeader({
   elapsed,
   status,
@@ -91,47 +95,22 @@ function AgentRunHeader({
     <Box
       sx={{
         display: "grid",
-        gridTemplateColumns: "20px 1fr",
-        columnGap: 1.25,
-        py: 0.3,
-        mb: 0.15,
+        gridTemplateColumns: "18px minmax(0, 1fr)",
+        columnGap: 1,
+        py: 0.35,
+        mb: 0.2,
       }}
     >
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          height: 20,
-        }}
-      >
-        <Box sx={{ color: status.color, display: "flex" }}>
-          {status.icon}
-        </Box>
+      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: 18 }}>
+        <Box sx={{ color: status.color, display: "flex" }}>{status.icon}</Box>
       </Box>
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          gap: 0.6,
-          minWidth: 0,
-        }}
-      >
-        <Typography
-          sx={{ fontSize: 12.5, fontWeight: 600, lineHeight: 1.3, color: "text.primary" }}
-        >
-          Poly Agent
+      <Box sx={{ display: "flex", alignItems: "center", gap: 0.65, minWidth: 0 }}>
+        <Typography sx={{ fontSize: 12.5, fontWeight: 650, lineHeight: 1.3, color: "text.primary" }}>
+          {elapsed ? `Worked for ${elapsed}` : "Working"}
         </Typography>
-        {elapsed && (
-          <Typography
-            sx={{
-              fontSize: 11,
-              color: "text.disabled",
-              lineHeight: 1.3,
-            }}
-          >
-            · {elapsed}
-            {waitingMessage ? ` · ${waitingMessage}` : ""}
+        {waitingMessage && (
+          <Typography sx={{ fontSize: 11, color: "text.disabled", lineHeight: 1.3, minWidth: 0 }}>
+            {waitingMessage}
           </Typography>
         )}
         <Box sx={{ ml: "auto" }}>
@@ -139,15 +118,15 @@ function AgentRunHeader({
             sx={{
               display: "inline-flex",
               alignItems: "center",
-              px: 0.55,
-              py: 0.1,
-              borderRadius: "999px",
+              px: 0.6,
+              py: 0.15,
+              borderRadius: "6px",
               color: status.color,
               bgcolor: status.bg,
               border: "1px solid",
               borderColor: status.border,
               fontSize: 10.5,
-              fontWeight: 600,
+              fontWeight: 650,
               lineHeight: 1.5,
               whiteSpace: "nowrap",
             }}
@@ -159,6 +138,4 @@ function AgentRunHeader({
     </Box>
   );
 }
-
-/* ─── Step building ─── */
 

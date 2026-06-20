@@ -42,7 +42,15 @@ export function ApprovalContent({
   const approveBtnSx = useMemo(() => ({ ...agentBtn, ...agentPrimaryBtn }), []);
 
   return (
-    <Box>
+    <Box
+      sx={{
+        border: "1px solid",
+        borderColor: "border.light",
+        borderRadius: "7px",
+        p: 0.75,
+        bgcolor: "warning.soft",
+      }}
+    >
       {approval.reason && (
         <Typography
           sx={{ fontSize: 11.5, color: "text.disabled", mb: 0.35 }}
@@ -82,8 +90,10 @@ export function ApprovalContent({
             m: 0,
             p: 0.6,
             mb: 0.35,
-            bgcolor: (theme) => alpha(theme.palette.common.black, 0.3),
-            borderRadius: "4px",
+            bgcolor: (theme) => alpha(theme.palette.common.black, theme.palette.mode === "dark" ? 0.28 : 0.04),
+            border: "1px solid",
+            borderColor: "border.light",
+            borderRadius: "6px",
             color: "text.secondary",
             fontSize: 11,
             maxHeight: 140,
@@ -96,7 +106,7 @@ export function ApprovalContent({
         </Box>
       )}
       {!autoApproved && agent.status === "waiting_for_approval" && (
-        <Box sx={{ display: "flex", gap: 0.5, mt: 0.3 }}>
+        <Box sx={{ display: "flex", gap: 0.5, mt: 0.45, flexWrap: "wrap" }}>
           <Button
             size="small"
             color="inherit"
