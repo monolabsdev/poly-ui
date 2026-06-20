@@ -9,17 +9,18 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Box, Typography, Button as MuiButton, Tooltip } from "@mui/material";
 import { Settings, Archive, LogOut, LogIn } from "lucide-react";
 
 import { useSidebar } from "@/features/sidebar";
 import { ArchivedChatsDialog } from "@/features/chat/components/ArchivedChatsDialog";
+import type { SettingsTab } from "@/features/settings/SettingsModal";
 
 
 
 interface ProfileMenuProps {
-  onOpenSettings?: () => void;
+  onOpenSettings?: (tab?: SettingsTab) => void;
 }
 
 export const ProfileMenu: React.FC<ProfileMenuProps> = ({
@@ -140,7 +141,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
               </Box>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={onOpenSettings} sx={{ gap: 2 }}>
+            <DropdownMenuItem onClick={() => onOpenSettings?.("profile")} sx={{ gap: 2 }}>
               <Settings size={16} />
               <span>Settings</span>
             </DropdownMenuItem>
@@ -195,16 +196,19 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
     >
       <Box sx={{ display: "flex", flexShrink: 0, position: "relative" }}>
         <Avatar sx={{ width: isCollapsed ? 28 : 32, height: isCollapsed ? 28 : 32 }}>
-
-          <AvatarFallback
-            sx={{
-              bgcolor: "action.selected",
-              color: "text.primary",
-              fontSize: isCollapsed ? "0.65rem" : "0.7rem",
-            }}
-          >
-            {initials}
-          </AvatarFallback>
+          {user.avatarUrl ? (
+            <AvatarImage src={user.avatarUrl} alt={user.fullName || user.email} />
+          ) : (
+            <AvatarFallback
+              sx={{
+                bgcolor: "action.selected",
+                color: "text.primary",
+                fontSize: isCollapsed ? "0.65rem" : "0.7rem",
+              }}
+            >
+              {initials}
+            </AvatarFallback>
+          )}
         </Avatar>
         {!isCollapsed && (
           <Box
@@ -259,25 +263,42 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" sx={{ width: 256 }}>
           <DropdownMenuLabel>
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
-              <Typography
-                variant="body2"
-                sx={{ fontWeight: 500, lineHeight: 1.2 }}
-              >
-                {user.fullName || "User"}
-              </Typography>
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                sx={{ lineHeight: 1.2 }}
-              >
-                {user.email}
-              </Typography>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, minWidth: 0 }}>
+              <Avatar sx={{ width: 34, height: 34, flexShrink: 0 }}>
+                {user.avatarUrl ? (
+                  <AvatarImage src={user.avatarUrl} alt={user.fullName || user.email} />
+                ) : (
+                  <AvatarFallback
+                    sx={{
+                      bgcolor: "action.selected",
+                      color: "text.primary",
+                      fontSize: "0.72rem",
+                    }}
+                  >
+                    {initials}
+                  </AvatarFallback>
+                )}
+              </Avatar>
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5, minWidth: 0 }}>
+                <Typography
+                  variant="body2"
+                  sx={{ fontWeight: 500, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                >
+                  {user.fullName || "User"}
+                </Typography>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                >
+                  {user.email}
+                </Typography>
+              </Box>
             </Box>
           </DropdownMenuLabel>
 
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={onOpenSettings} sx={{ gap: 2 }}>
+          <DropdownMenuItem onClick={() => onOpenSettings?.("profile")} sx={{ gap: 2 }}>
             <Settings size={16} />
             <span>Settings</span>
           </DropdownMenuItem>

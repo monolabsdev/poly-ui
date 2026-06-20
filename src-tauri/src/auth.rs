@@ -421,11 +421,23 @@ fn normalize_avatar_url(value: Option<&str>) -> Result<Option<String>, AuthError
         return Ok(None);
     };
     let lower = value.to_lowercase();
-    if value.len() <= 2048 && (lower.starts_with("https://") || lower.starts_with("http://")) {
+    let valid_remote =
+        value.len() <= 2048 && (lower.starts_with("https://") || lower.starts_with("http://"));
+    let valid_local = value.len() <= 3_000_000
+        && [
+            "data:image/jpeg;base64,",
+            "data:image/png;base64,",
+            "data:image/webp;base64,",
+            "data:image/gif;base64,",
+            "data:image/avif;base64,",
+        ]
+        .iter()
+        .any(|prefix| lower.starts_with(prefix));
+    if valid_remote || valid_local {
         Ok(Some(value.to_string()))
     } else {
         Err(AuthError::InvalidInput(
-            "Profile picture must be an http or https URL".to_string(),
+            "Profile picture must be a supported local image".to_string(),
         ))
     }
 }
@@ -641,6 +653,29 @@ mod tests {
         .unwrap_err();
 
         assert!(matches!(error, AuthError::InvalidInput(_)));
+    }
+
+    #[tokio::test]
+    async fn update_profile_accepts_local_image_data_url() {
+        let pool = pool().await;
+        let auth = signup(&pool, "person@example.com", "password-1", None)
+            .await
+            .unwrap();
+
+        let updated = update_profile(
+            &pool,
+            &auth.token,
+            "person@example.com",
+            None,
+            Some("data:image/png;base64,aGVsbG8="),
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(
+            updated.avatar_url.as_deref(),
+            Some("data:image/png;base64,aGVsbG8=")
+        );
     }
 
     #[tokio::test]
