@@ -29,6 +29,8 @@ type AuthStore = {
     signup: (email: string, password: string, fullName?: string) => Promise<void>;
     logout: () => Promise<void>;
     updateStatus: (status: string) => Promise<void>;
+    updateProfile: (input: { email: string; fullName?: string; avatarUrl?: string }) => Promise<void>;
+    changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
     restoreSession: () => Promise<void>;
     clearError: () => void;
     skipAuth: () => void;
@@ -102,6 +104,35 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         }));
       } catch (err) {
         set({ error: err as string });
+      }
+    },
+    updateProfile: async ({ email, fullName, avatarUrl }) => {
+      const token = localStorage.getItem("session_token");
+      if (!token) throw new Error("Session expired");
+      set({ isLoading: true, error: null });
+      try {
+        const user = await loggedInvoke<User>("auth_update_profile", {
+          token,
+          email,
+          fullName,
+          avatarUrl,
+        });
+        set({ user, isLoading: false });
+      } catch (err) {
+        set({ error: err as string, isLoading: false });
+        throw err;
+      }
+    },
+    changePassword: async (currentPassword, newPassword) => {
+      const token = localStorage.getItem("session_token");
+      if (!token) throw new Error("Session expired");
+      set({ isLoading: true, error: null });
+      try {
+        await loggedInvoke("auth_change_password", { token, currentPassword, newPassword });
+        set({ isLoading: false });
+      } catch (err) {
+        set({ error: err as string, isLoading: false });
+        throw err;
       }
     },
     restoreSession: async () => {

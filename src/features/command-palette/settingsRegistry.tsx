@@ -10,6 +10,7 @@ import {
   SlidersHorizontal,
   Sparkles,
   User,
+  CircleUserRound,
   Zap,
 } from "lucide-react";
 import React from "react";
@@ -54,11 +55,19 @@ export const settingsRegistry: SettingsEntry[] = [
     icon: Cpu,
   },
   {
+    id: "settings-profile",
+    title: "Profile",
+    description: "Display name, email, picture, and password",
+    tab: "profile",
+    keywords: ["account", "email", "password", "avatar"],
+    icon: CircleUserRound,
+  },
+  {
     id: "settings-personalisation",
     title: "Personalisation",
-    description: "Profile and assistant preferences",
+    description: "Assistant preferences",
     tab: "personalisation",
-    keywords: ["profile", "assistant"],
+    keywords: ["assistant", "prompt"],
     icon: User,
   },
   {

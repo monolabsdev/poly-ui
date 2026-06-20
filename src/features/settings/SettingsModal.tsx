@@ -17,12 +17,14 @@ import {
   Cpu,
   SlidersHorizontal,
   Brain,
+  CircleUserRound,
 } from "lucide-react";
 import { SettingCard, SectionHeader } from "./SettingComponents";
 import { useDevStore } from "@/store/devStore";
 import { useNotify } from "@/hooks/useNotify";
 import { loggedInvoke } from "@/lib/utils/utils";
 import { GeneralTab } from "./tabs/GeneralTab";
+import { ProfileTab } from "./tabs/ProfileTab";
 import { PersonalisationTab } from "./tabs/PersonalisationTab";
 import { SpeechTab } from "./tabs/SpeechTab";
 import { DataControlsTab } from "./tabs/DataControlsTab";
@@ -41,6 +43,7 @@ type SettingsModalProps = {
 
 const SIDEBAR_ITEMS = [
   { id: "general", label: "General", icon: Settings },
+  { id: "profile", label: "Profile", icon: CircleUserRound },
   { id: "connections", label: "Connections", icon: Cpu },
   { id: "personalisation", label: "Personalisation", icon: User },
   { id: "speech", label: "Speech", icon: Volume2 },
@@ -257,6 +260,7 @@ export function SettingsModal({ isOpen, onClose, initialTab = "general" }: Setti
           <AppDialogBody>
             <Box key={activeTab}>
               {activeTab === "general" && <GeneralTab />}
+              {activeTab === "profile" && <ProfileTab />}
               {activeTab === "connections" && <ConnectionsTab />}
               {activeTab === "personalisation" && <PersonalisationTab />}
               {activeTab === "speech" && <SpeechTab />}

@@ -164,6 +164,8 @@ pub fn run() {
             auth::auth_logout,
             auth::auth_get_current_user,
             auth::auth_update_status,
+            auth::auth_update_profile,
+            auth::auth_change_password,
             commands::provider_commands::get_providers,
             commands::provider_commands::get_provider_and_models,
             commands::provider_commands::get_provider_models,
