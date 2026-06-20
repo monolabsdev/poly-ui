@@ -1,6 +1,6 @@
 import { getLastSeenVersion, setLastSeenVersion } from "../src/features/release-notes/releaseNotesStorage";
 import { fetchReleaseNotes, clearReleaseNotesCache } from "../src/features/release-notes/releaseNotesApi";
-import { normalizeAppVersion } from "../src/lib/appVersion";
+import { normalizeAppVersion } from "../src/lib/utils/appVersion";
 
 const store = new Map<string, string>();
 Object.defineProperty(globalThis, "localStorage", {
