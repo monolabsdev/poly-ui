@@ -13,6 +13,13 @@ use std::collections::BTreeMap;
 use std::pin::Pin;
 use tokio_stream::StreamExt;
 
+const DIRECT_OPTION_KEYS: &[&str] = &[
+    "temperature",
+    "top_p",
+    "max_tokens",
+    "max_completion_tokens",
+];
+
 pub struct OpenAICompatibleProvider {
     client: Client,
     base_url: String,
@@ -226,44 +233,42 @@ fn build_chat_request(
         ("stream".to_string(), Value::Bool(true)),
     ]);
 
-    if let Some(options) = options.and_then(|value| value.as_object().cloned()) {
-        for key in ["temperature", "top_p"] {
-            if let Some(value) = options.get(key) {
-                body.insert(key.to_string(), value.clone());
-            }
-        }
-        for key in ["max_tokens", "max_completion_tokens"] {
-            if let Some(value) = options.get(key) {
-                body.insert(key.to_string(), value.clone());
-            }
-        }
-        if let Some(format) = options.get("format").and_then(openai_response_format) {
-            body.insert("response_format".to_string(), format);
-        }
-    }
+    append_chat_options(&mut body, options);
 
     if let Some(tools) = tools.filter(|tools| !tools.is_empty()) {
         body.insert(
             "tools".to_string(),
-            Value::Array(
-                tools
-                    .into_iter()
-                    .map(|tool| {
-                        json!({
-                            "type": "function",
-                            "function": {
-                                "name": tool.name,
-                                "description": tool.description,
-                                "parameters": tool.parameters,
-                            }
-                        })
-                    })
-                    .collect(),
-            ),
+            Value::Array(tools.into_iter().map(tool_definition_value).collect()),
         );
     }
 
     Value::Object(body)
+}
+
+fn append_chat_options(body: &mut Map<String, Value>, options: Option<Value>) {
+    let Some(options) = options.and_then(|value| value.as_object().cloned()) else {
+        return;
+    };
+
+    for key in DIRECT_OPTION_KEYS {
+        if let Some(value) = options.get(*key) {
+            body.insert((*key).to_string(), value.clone());
+        }
+    }
+    if let Some(format) = options.get("format").and_then(openai_response_format) {
+        body.insert("response_format".to_string(), format);
+    }
+}
+
+fn tool_definition_value(tool: ToolDefinition) -> Value {
+    json!({
+        "type": "function",
+        "function": {
+            "name": tool.name,
+            "description": tool.description,
+            "parameters": tool.parameters,
+        }
+    })
 }
 
 fn build_messages(messages: Vec<ChatMessage>, system_prompt: Option<String>) -> Vec<Value> {
@@ -272,39 +277,47 @@ fn build_messages(messages: Vec<ChatMessage>, system_prompt: Option<String>) -> 
         output.push(json!({ "role": "system", "content": prompt }));
     }
 
-    output.extend(messages.into_iter().map(|message| match message.role.as_str() {
-        "assistant" => {
-            let mut value = json!({ "role": "assistant", "content": message.content });
-            if let Some(tool_calls) = message.tool_calls.filter(|calls| !calls.is_empty()) {
-                value["tool_calls"] = Value::Array(
-                    tool_calls
-                        .into_iter()
-                        .map(|call| {
-                            json!({
-                                "id": call.id.unwrap_or_else(|| format!("call_{}", uuid::Uuid::new_v4())),
-                                "type": "function",
-                                "function": {
-                                    "name": call.name,
-                                    "arguments": arguments_json(&call.arguments),
-                                }
-                            })
-                        })
-                        .collect(),
-                );
-            }
-            value
-        }
-        "tool" => {
-            let mut value = json!({ "role": "tool", "content": message.content });
-            if let Some(tool_call_id) = message.tool_call_id {
-                value["tool_call_id"] = Value::String(tool_call_id);
-            }
-            value
-        }
-        _ => user_message_value(message),
-    }));
+    output.extend(
+        messages
+            .into_iter()
+            .map(|message| match message.role.as_str() {
+                "assistant" => assistant_message_value(message),
+                "tool" => tool_message_value(message),
+                _ => user_message_value(message),
+            }),
+    );
 
     output
+}
+
+fn assistant_message_value(message: ChatMessage) -> Value {
+    let mut value = json!({ "role": "assistant", "content": message.content });
+    if let Some(tool_calls) = message.tool_calls.filter(|calls| !calls.is_empty()) {
+        value["tool_calls"] = Value::Array(
+            tool_calls
+                .into_iter()
+                .map(|call| {
+                    json!({
+                        "id": call.id.unwrap_or_else(|| format!("call_{}", uuid::Uuid::new_v4())),
+                        "type": "function",
+                        "function": {
+                            "name": call.name,
+                            "arguments": arguments_json(&call.arguments),
+                        }
+                    })
+                })
+                .collect(),
+        );
+    }
+    value
+}
+
+fn tool_message_value(message: ChatMessage) -> Value {
+    let mut value = json!({ "role": "tool", "content": message.content });
+    if let Some(tool_call_id) = message.tool_call_id {
+        value["tool_call_id"] = Value::String(tool_call_id);
+    }
+    value
 }
 
 fn user_message_value(message: ChatMessage) -> Value {

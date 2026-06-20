@@ -124,12 +124,11 @@ impl SqliteMemoryRepository {
                 };
 
                 Self::mark_deleted_tx(tx, &target.id).await?;
-                Self::enqueue_sync_tx(
+                Self::enqueue_memory_sync_tx(
                     tx,
                     sync_provider,
-                    Some(&target.id),
+                    &target.id,
                     MemorySyncOperation::Delete,
-                    json!({ "memoryId": target.id }),
                 )
                 .await?;
 
@@ -156,12 +155,11 @@ impl SqliteMemoryRepository {
                 .await?;
                 if let Some(old) = old.as_ref() {
                     Self::mark_superseded_tx(tx, &old.id).await?;
-                    Self::enqueue_sync_tx(
+                    Self::enqueue_memory_sync_tx(
                         tx,
                         sync_provider,
-                        Some(&old.id),
+                        &old.id,
                         MemorySyncOperation::Delete,
-                        json!({ "memoryId": old.id }),
                     )
                     .await?;
                 }
@@ -173,12 +171,11 @@ impl SqliteMemoryRepository {
                     old.as_ref().map(|record| record.id.as_str()),
                 )
                 .await?;
-                Self::enqueue_sync_tx(
+                Self::enqueue_memory_sync_tx(
                     tx,
                     sync_provider,
-                    Some(&new_id),
+                    &new_id,
                     MemorySyncOperation::Upsert,
-                    json!({ "memoryId": new_id }),
                 )
                 .await?;
                 Ok(MemoryOperationResult {
@@ -196,12 +193,11 @@ impl SqliteMemoryRepository {
                     };
                     Self::update_existing_tx(tx, &existing, &operation, canonical_key.as_deref())
                         .await?;
-                    Self::enqueue_sync_tx(
+                    Self::enqueue_memory_sync_tx(
                         tx,
                         sync_provider,
-                        Some(&existing.id),
+                        &existing.id,
                         MemorySyncOperation::Upsert,
-                        json!({ "memoryId": existing.id }),
                     )
                     .await?;
                     return Ok(MemoryOperationResult {
@@ -229,12 +225,11 @@ impl SqliteMemoryRepository {
                 if let Some(existing) = existing {
                     Self::update_existing_tx(tx, &existing, &operation, canonical_key.as_deref())
                         .await?;
-                    Self::enqueue_sync_tx(
+                    Self::enqueue_memory_sync_tx(
                         tx,
                         sync_provider,
-                        Some(&existing.id),
+                        &existing.id,
                         MemorySyncOperation::Upsert,
-                        json!({ "memoryId": existing.id }),
                     )
                     .await?;
                     Ok(MemoryOperationResult {
@@ -247,12 +242,11 @@ impl SqliteMemoryRepository {
                     let new_id =
                         Self::insert_record_tx(tx, owner_id, &operation, canonical_key, None)
                             .await?;
-                    Self::enqueue_sync_tx(
+                    Self::enqueue_memory_sync_tx(
                         tx,
                         sync_provider,
-                        Some(&new_id),
+                        &new_id,
                         MemorySyncOperation::Upsert,
-                        json!({ "memoryId": new_id }),
                     )
                     .await?;
                     Ok(MemoryOperationResult {
@@ -414,6 +408,19 @@ impl SqliteMemoryRepository {
         Ok(())
     }
 
+    async fn mark_deleted_at_tx(
+        tx: &mut Transaction<'_, Sqlite>,
+        memory_id: &str,
+        deleted_at: &str,
+    ) -> Result<(), MemoryError> {
+        sqlx::query("UPDATE memory_records SET is_active = 0, deleted_at = ?1, valid_until = COALESCE(valid_until, ?1), updated_at = ?1 WHERE id = ?2")
+            .bind(deleted_at)
+            .bind(memory_id)
+            .execute(&mut **tx)
+            .await?;
+        Ok(())
+    }
+
     async fn enqueue_sync_tx(
         tx: &mut Transaction<'_, Sqlite>,
         provider: Option<&str>,
@@ -446,6 +453,22 @@ impl SqliteMemoryRepository {
         .execute(&mut **tx)
         .await?;
         Ok(())
+    }
+
+    async fn enqueue_memory_sync_tx(
+        tx: &mut Transaction<'_, Sqlite>,
+        provider: Option<&str>,
+        memory_id: &str,
+        operation: MemorySyncOperation,
+    ) -> Result<(), MemoryError> {
+        Self::enqueue_sync_tx(
+            tx,
+            provider,
+            Some(memory_id),
+            operation,
+            json!({ "memoryId": memory_id }),
+        )
+        .await
     }
 
     async fn record_by_id_tx(
@@ -816,12 +839,11 @@ impl MemoryRepository for SqliteMemoryRepository {
             .await?
             .ok_or_else(|| MemoryError::NotFound(memory_id.to_string()))?;
         Self::mark_deleted_tx(&mut tx, &existing.id).await?;
-        Self::enqueue_sync_tx(
+        Self::enqueue_memory_sync_tx(
             &mut tx,
             sync_provider,
-            Some(&existing.id),
+            &existing.id,
             MemorySyncOperation::Delete,
-            json!({ "memoryId": existing.id }),
         )
         .await?;
         tx.commit().await?;
@@ -854,19 +876,9 @@ impl MemoryRepository for SqliteMemoryRepository {
         let mut tx = self.pool.begin().await?;
         for row in rows {
             let id: String = row.get("id");
-            sqlx::query("UPDATE memory_records SET is_active = 0, deleted_at = ?1, valid_until = COALESCE(valid_until, ?1), updated_at = ?1 WHERE id = ?2")
-                .bind(&now)
-                .bind(&id)
-                .execute(&mut *tx)
+            Self::mark_deleted_at_tx(&mut tx, &id, &now).await?;
+            Self::enqueue_memory_sync_tx(&mut tx, sync_provider, &id, MemorySyncOperation::Delete)
                 .await?;
-            Self::enqueue_sync_tx(
-                &mut tx,
-                sync_provider,
-                Some(&id),
-                MemorySyncOperation::Delete,
-                json!({ "memoryId": id }),
-            )
-            .await?;
         }
         tx.commit().await?;
         Ok(())
@@ -887,19 +899,9 @@ impl MemoryRepository for SqliteMemoryRepository {
         let mut tx = self.pool.begin().await?;
         for row in rows {
             let id: String = row.get("id");
-            sqlx::query("UPDATE memory_records SET is_active = 0, deleted_at = ?1, valid_until = COALESCE(valid_until, ?1), updated_at = ?1 WHERE id = ?2")
-                .bind(&now)
-                .bind(&id)
-                .execute(&mut *tx)
+            Self::mark_deleted_at_tx(&mut tx, &id, &now).await?;
+            Self::enqueue_memory_sync_tx(&mut tx, sync_provider, &id, MemorySyncOperation::Delete)
                 .await?;
-            Self::enqueue_sync_tx(
-                &mut tx,
-                sync_provider,
-                Some(&id),
-                MemorySyncOperation::Delete,
-                json!({ "memoryId": id }),
-            )
-            .await?;
         }
         tx.commit().await?;
         Ok(())
