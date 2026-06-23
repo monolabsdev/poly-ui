@@ -1,6 +1,51 @@
 import { createTheme, ThemeOptions } from "@mui/material/styles";
 
+type AppThemeTokens = {
+  radius: {
+    control: string;
+    dialog: string;
+    menu: string;
+    menuItem: string;
+    pill: string;
+  };
+  shadow: {
+    authActive: string;
+    dialog: string;
+  };
+};
+
+type AuthPalette = {
+  background: string;
+  control: string;
+  controlHover: string;
+  danger: string;
+  disabledSurface: string;
+  disabledText: string;
+  divider: string;
+  focusBorder: string;
+  focusRing: string;
+  ghostText: string;
+  inputBackground: string;
+  inputBackgroundFocus: string;
+  inputBorder: string;
+  inverseText: string;
+  selectedSurface: string;
+  tabBackground: string;
+  tabBorder: string;
+  text: string;
+  textFaint: string;
+  textMuted: string;
+  textSecondary: string;
+  textSubtle: string;
+};
+
 declare module "@mui/material/styles" {
+  interface Theme {
+    app: AppThemeTokens;
+  }
+  interface ThemeOptions {
+    app?: AppThemeTokens;
+  }
   interface TypeBackground {
     sidebar: string;
     chatPanel: string;
@@ -14,6 +59,7 @@ declare module "@mui/material/styles" {
       bubble: string;
       bubbleUser: string;
     };
+    auth: AuthPalette;
   }
   interface PaletteColor {
     soft: string;
@@ -30,10 +76,45 @@ declare module "@mui/material/styles" {
       bubble?: string;
       bubbleUser?: string;
     };
+    auth?: AuthPalette;
   }
 }
 
+const appRadius = {
+  control: "8px",
+  dialog: "12px",
+  menu: "18px",
+  menuItem: "10px",
+  pill: "9999px",
+} as const;
+
+const authPalette: AuthPalette = {
+  background: "#070707",
+  control: "#f4f4f5",
+  controlHover: "#ffffff",
+  danger: "#ff8a8a",
+  disabledSurface: "rgba(255,255,255,0.2)",
+  disabledText: "rgba(255,255,255,0.45)",
+  divider: "rgba(255,255,255,0.12)",
+  focusBorder: "rgba(255,255,255,0.52)",
+  focusRing: "0 0 0 3px rgba(255,255,255,0.09)",
+  ghostText: "rgba(255,255,255,0.72)",
+  inputBackground: "rgba(255,255,255,0.035)",
+  inputBackgroundFocus: "rgba(255,255,255,0.055)",
+  inputBorder: "rgba(255,255,255,0.09)",
+  inverseText: "#050505",
+  selectedSurface: "#f5f5f5",
+  tabBackground: "rgba(255,255,255,0.06)",
+  tabBorder: "rgba(255,255,255,0.08)",
+  text: "#f5f5f5",
+  textFaint: "rgba(255,255,255,0.32)",
+  textMuted: "rgba(255,255,255,0.62)",
+  textSecondary: "rgba(255,255,255,0.78)",
+  textSubtle: "rgba(255,255,255,0.45)",
+};
+
 const baseThemeOptions: ThemeOptions = {
+  cssVariables: true,
   typography: {
     fontFamily: '"Geist Variable", "Inter", "system-ui", "sans-serif"',
     fontSize: 14,
@@ -62,14 +143,14 @@ const baseThemeOptions: ThemeOptions = {
       },
       styleOverrides: {
         root: {
-          borderRadius: "9999px",
+          borderRadius: appRadius.pill,
         },
       },
     },
     MuiButton: {
       styleOverrides: {
         root: ({ theme }) => ({
-          borderRadius: "9999px",
+          borderRadius: theme.app.radius.pill,
           padding: "6px 16px",
           border: "none",
           "&.Mui-disabled": {
@@ -82,14 +163,14 @@ const baseThemeOptions: ThemeOptions = {
     MuiIconButton: {
       styleOverrides: {
         root: {
-          borderRadius: "9999px",
+          borderRadius: appRadius.pill,
         },
       },
     },
     MuiToggleButton: {
       styleOverrides: {
         root: {
-          borderRadius: "9999px",
+          borderRadius: appRadius.pill,
           border: "none",
         },
       },
@@ -114,7 +195,7 @@ const baseThemeOptions: ThemeOptions = {
     MuiMenuItem: {
       styleOverrides: {
         root: {
-          borderRadius: "10px",
+          borderRadius: appRadius.menuItem,
           margin: "4px 8px",
           padding: "8px 12px",
           fontSize: "14px",
@@ -125,7 +206,7 @@ const baseThemeOptions: ThemeOptions = {
     MuiMenu: {
       styleOverrides: {
         paper: {
-          borderRadius: "18px",
+          borderRadius: appRadius.menu,
         },
       },
     },
@@ -158,6 +239,13 @@ const lightSugarHighVariables = {
 
 export const darkTheme = createTheme({
   ...baseThemeOptions,
+  app: {
+    radius: appRadius,
+    shadow: {
+      authActive: "0 8px 24px rgba(0,0,0,0.24)",
+      dialog: "0 24px 72px rgba(0,0,0,0.54)",
+    },
+  },
   components: {
     ...baseThemeOptions.components,
     MuiCssBaseline: {
@@ -199,6 +287,7 @@ export const darkTheme = createTheme({
       bubble: "#262626",
       bubbleUser: "#212121",
     },
+    auth: authPalette,
     success: {
       main: "#4ade80",
       soft: "rgba(74, 222, 128, 0.1)",
@@ -220,6 +309,13 @@ export const darkTheme = createTheme({
 
 export const lightTheme = createTheme({
   ...baseThemeOptions,
+  app: {
+    radius: appRadius,
+    shadow: {
+      authActive: "0 8px 24px rgba(0,0,0,0.24)",
+      dialog: "0 24px 72px rgba(15,23,42,0.14)",
+    },
+  },
   components: {
     ...baseThemeOptions.components,
     MuiCssBaseline: {
@@ -261,6 +357,7 @@ export const lightTheme = createTheme({
       bubble: "#f3f3f3",
       bubbleUser: "#f5f5f5",
     },
+    auth: authPalette,
     success: {
       main: "#22c55e",
       soft: "rgba(34, 197, 94, 0.1)",
