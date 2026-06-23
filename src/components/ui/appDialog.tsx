@@ -42,13 +42,10 @@ export function AppDialogFrame({
           xs: "calc(100dvh - var(--titlebar-height))",
           sm: "min(680px, calc(100dvh - var(--titlebar-height) - 48px))",
         },
-        borderRadius: { xs: 0, sm: "12px" },
+        borderRadius: { xs: 0, sm: theme.app.radius.dialog },
         bgcolor: "background.paper",
         borderColor: "border.main",
-        boxShadow:
-          theme.palette.mode === "dark"
-            ? "0 24px 72px rgba(0,0,0,0.54)"
-            : "0 24px 72px rgba(15,23,42,0.14)",
+        boxShadow: theme.app.shadow.dialog,
         outline: "none",
         mx: { xs: 0, sm: "auto" },
       }}
@@ -127,16 +124,16 @@ export function AppDialogBody({ children }: { children: ReactNode }) {
   );
 }
 
-export const appPanelSx = {
+export const appPanelSx = (theme: Theme) => ({
   p: 0,
-  borderRadius: "8px",
+  borderRadius: theme.app.radius.control,
   bgcolor: "transparent",
   transition: "background 100ms ease",
-} as const;
+});
 
-export const appTextFieldSx = {
+export const appTextFieldSx = (theme: Theme) => ({
   "& .MuiOutlinedInput-root": {
-    borderRadius: "8px",
+    borderRadius: theme.app.radius.control,
     bgcolor: "transparent",
     fontSize: 13,
     "& fieldset": { border: "none" },
@@ -146,7 +143,7 @@ export const appTextFieldSx = {
   "& .MuiInputLabel-root": {
     fontSize: 13,
   },
-} as const;
+});
 
 export const appFadeInSx = {
   animation: "app-dialog-fade 140ms ease",

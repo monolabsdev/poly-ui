@@ -103,11 +103,8 @@ export function Source({ href, children }: SourceProps) {
           elevation={0}
           sx={{
             width: 320,
-            borderRadius: "12px",
-            boxShadow: (t) =>
-              t.palette.mode === "dark"
-                ? "0 24px 72px rgba(0,0,0,0.54)"
-                : "0 24px 72px rgba(15,23,42,0.14)",
+            borderRadius: (theme) => theme.app.radius.dialog,
+            boxShadow: (theme) => theme.app.shadow.dialog,
             border: "1px solid",
             borderColor: "divider",
             overflow: "hidden",

@@ -160,13 +160,15 @@ function EmptyArchivedState({ hasSearch }: { hasSearch: boolean }) {
   return (
     <Stack
       spacing={1.25}
-      sx={{
-        ...appPanelSx,
+      sx={[
+        appPanelSx,
+        {
         minHeight: 240,
         alignItems: "center",
         justifyContent: "center",
         textAlign: "center",
-      }}
+        },
+      ]}
     >
       <Box sx={emptyIconSx}>
         <ArchiveRestore size={24} />
