@@ -1,6 +1,6 @@
 import React, { Suspense, lazy, useMemo, useEffect, useState } from "react";
 import ReactDOM from "react-dom/client";
-import { ThemeProvider } from "@mui/material/styles";
+import { alpha, ThemeProvider } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 import { useMediaQuery } from "@mui/material";
 import { darkTheme, lightTheme } from "./theme";
@@ -57,6 +57,13 @@ function Root() {
   useEffect(() => {
     document.documentElement.style.setProperty("--background", theme.palette.background.sidebar);
     document.documentElement.style.setProperty("--border", theme.palette.divider);
+    document.documentElement.style.setProperty("--app-scrollbar-thumb", alpha(theme.palette.text.primary, theme.palette.mode === "dark" ? 0.14 : 0.24));
+    document.documentElement.style.setProperty("--app-scrollbar-thumb-hover", alpha(theme.palette.text.primary, theme.palette.mode === "dark" ? 0.24 : 0.34));
+    document.documentElement.style.setProperty("--app-drop-bg", alpha(theme.palette.info.main, 0.08));
+    document.documentElement.style.setProperty("--app-drop-border", alpha(theme.palette.info.main, 0.9));
+    document.documentElement.style.setProperty("--app-drop-ring", alpha(theme.palette.info.main, 0.1));
+    document.documentElement.style.setProperty("--app-drop-label-bg", alpha(theme.palette.info.main, 0.12));
+    document.documentElement.style.setProperty("--app-drop-label-border", alpha(theme.palette.info.main, 0.24));
   }, [theme]);
 
   useEffect(() => {
@@ -138,14 +145,13 @@ function Root() {
       <CssBaseline />
       <NotificationProvider>
         <ErrorBoundary>
-          <div style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden", paddingTop: "var(--titlebar-height)" }}>
+          <div className="app-root-shell">
             <WindowTitleBar />
             {startupError ? (
               <StartupErrorScreen message={startupError} />
             ) : isAppReady ? (
               <div
-                className="animate-fade-in"
-                style={{ flex: 1, minHeight: 0, overflow: "hidden" }}
+                className="app-content animate-fade-in"
               >
                 <Suspense fallback={null}>
                   <App />
@@ -192,35 +198,18 @@ function StartupErrorScreen({ message }: { message: string }) {
   }, []);
 
   return (
-    <div
-      style={{
-        flex: 1,
-        minHeight: 0,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 24,
-      }}
-    >
-      <div style={{ maxWidth: 560 }}>
-        <h1 style={{ fontSize: 20, margin: "0 0 8px" }}>Poly UI could not start</h1>
-        <p style={{ color: "rgba(255,255,255,0.68)", margin: 0 }}>{message}</p>
+    <div className="startup-error-screen">
+      <div className="startup-error-panel">
+        <h1 className="startup-error-title">Poly UI could not start</h1>
+        <p className="startup-error-message">{message}</p>
         {logPath ? (
-          <p style={{ color: "rgba(255,255,255,0.58)", margin: "12px 0 0", fontSize: 13 }}>
+          <p className="startup-error-log">
             Log: {logPath}
           </p>
         ) : null}
         <button
           onClick={() => window.location.reload()}
-          style={{
-            marginTop: 18,
-            padding: "8px 14px",
-            borderRadius: 6,
-            border: "1px solid rgba(255,255,255,0.18)",
-            background: "rgba(255,255,255,0.08)",
-            color: "inherit",
-            cursor: "pointer",
-          }}
+          className="startup-error-button"
         >
           Restart
         </button>

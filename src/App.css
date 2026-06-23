@@ -4,18 +4,128 @@
     --z-modal: 9000;
     --z-popover: 8000;
     --z-toast: 9999;
-    --background: #f3f3f3;
-    --border: rgba(0, 0, 0, 0.05);
+    --background: var(--mui-palette-background-sidebar, #f3f3f3);
+    --border: var(--mui-palette-divider, rgba(0, 0, 0, 0.05));
+    --app-scrollbar-thumb: var(--mui-palette-action-selected);
+    --app-scrollbar-thumb-hover: var(--mui-palette-action-hover);
+    --app-drop-bg: color-mix(in srgb, var(--mui-palette-info-main) 8%, transparent);
+    --app-drop-border: color-mix(in srgb, var(--mui-palette-info-main) 90%, transparent);
+    --app-drop-ring: color-mix(in srgb, var(--mui-palette-info-main) 10%, transparent);
+    --app-drop-label-bg: color-mix(in srgb, var(--mui-palette-info-main) 12%, transparent);
+    --app-drop-label-border: color-mix(in srgb, var(--mui-palette-info-main) 24%, transparent);
 }
 
 :root.dark {
-    --background: #121212;
-    --border: rgba(255, 255, 255, 0.05);
+    --background: var(--mui-palette-background-sidebar, #121212);
+    --border: var(--mui-palette-divider, rgba(255, 255, 255, 0.05));
 }
 
 body {
     user-select: none;
     -webkit-user-select: none;
+}
+
+.app-root-shell {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+    padding-top: var(--titlebar-height);
+}
+
+.app-content {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.startup-error-screen,
+.error-boundary-screen {
+    align-items: center;
+    display: flex;
+    flex: 1;
+    justify-content: center;
+    min-height: 0;
+    padding: 24px;
+}
+
+.error-boundary-screen {
+    flex-direction: column;
+    gap: 16px;
+    height: 100vh;
+    text-align: center;
+}
+
+.startup-error-panel,
+.error-boundary-message {
+    max-width: 560px;
+}
+
+.startup-error-title,
+.error-boundary-title {
+    font-size: 20px;
+    font-weight: 600;
+    margin: 0 0 8px;
+}
+
+.error-boundary-title {
+    margin: 0;
+}
+
+.startup-error-message,
+.error-boundary-message {
+    color: var(--mui-palette-text-secondary);
+    font-size: 14px;
+    margin: 0;
+}
+
+.startup-error-log {
+    color: var(--mui-palette-text-disabled);
+    font-size: 13px;
+    margin: 12px 0 0;
+}
+
+.startup-error-button,
+.error-boundary-button {
+    background: var(--mui-palette-action-hover);
+    border: 1px solid var(--mui-palette-divider);
+    color: inherit;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.startup-error-button {
+    border-radius: var(--mui-shape-borderRadius);
+    margin-top: 18px;
+    padding: 8px 14px;
+}
+
+.error-boundary-button {
+    border-radius: 9999px;
+    padding: 8px 24px;
+}
+
+.settings-sql-result-table {
+    border-collapse: collapse;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+    width: 100%;
+}
+
+.settings-sql-result-table th,
+.settings-sql-result-table td {
+    border-bottom: 1px solid var(--mui-palette-divider);
+    padding: 4px 8px;
+    text-align: left;
+}
+
+.settings-sql-result-table th {
+    border-bottom-width: 2px;
+    font-weight: 700;
+}
+
+.settings-sql-result-table td {
+    white-space: pre-wrap;
 }
 
 input,
@@ -101,12 +211,12 @@ button:focus-visible,
 }
 
 ::-webkit-scrollbar-thumb {
-    background: #27272a;
+    background: var(--app-scrollbar-thumb);
     border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: #3f3f46;
+    background: var(--app-scrollbar-thumb-hover);
 }
 
 /* Inline code fallback when MUI components aren't available */
@@ -155,10 +265,10 @@ code {
 }
 
 .chat-file-drop-target--active {
-    background-color: rgba(59, 130, 246, 0.08) !important;
+    background-color: var(--app-drop-bg) !important;
     background-image: none !important;
-    border: 1.5px dashed rgba(59, 130, 246, 0.9) !important;
-    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1) !important;
+    border: 1.5px dashed var(--app-drop-border) !important;
+    box-shadow: 0 0 0 4px var(--app-drop-ring) !important;
 }
 
 .chat-file-drop-label {
@@ -167,10 +277,10 @@ code {
     right: 14px;
     z-index: 3;
     pointer-events: none;
-    border: 1px solid rgba(59, 130, 246, 0.24);
+    border: 1px solid var(--app-drop-label-border);
     border-radius: 9999px;
-    background: rgba(59, 130, 246, 0.12);
-    color: var(--mui-palette-primary-main, #3b82f6);
+    background: var(--app-drop-label-bg);
+    color: var(--mui-palette-info-main);
     font-size: 12px;
     font-weight: 700;
     line-height: 1;

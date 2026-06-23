@@ -32,32 +32,14 @@ export class ErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.hasError) {
       return (
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            height: "100vh",
-            padding: 24,
-            textAlign: "center",
-            gap: 16,
-          }}
-        >
-          <h1 style={{ margin: 0, fontSize: 20, fontWeight: 600 }}>Something went wrong</h1>
-          <p style={{ margin: 0, color: "var(--color-text-secondary, #666)", fontSize: 14, maxWidth: 480 }}>
+        <div className="error-boundary-screen">
+          <h1 className="error-boundary-title">Something went wrong</h1>
+          <p className="error-boundary-message">
             {this.state.error?.message ?? "An unexpected error occurred."}
           </p>
           <button
             onClick={this.handleReset}
-            style={{
-              padding: "8px 24px",
-              borderRadius: "9999px",
-              border: "1px solid var(--color-border, #ddd)",
-              background: "var(--color-surface, #fff)",
-              cursor: "pointer",
-              fontSize: 14,
-            }}
+            className="error-boundary-button"
           >
             Try again
           </button>
