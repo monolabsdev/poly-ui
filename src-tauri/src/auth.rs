@@ -197,7 +197,7 @@ pub async fn update_profile(
     validate_email(&email)?;
 
     let full_name = normalize_display_name(full_name)?;
-    let avatar_url = normalize_avatar_url(avatar_url)?;
+    let avatar_url = normalize_avatar(avatar_url)?;
     let display_name = full_name.clone().unwrap_or_else(|| email.clone());
 
     let row = sqlx::query("SELECT userId FROM sessions WHERE token = ? AND expiresAt > ?")
@@ -416,7 +416,7 @@ fn normalize_display_name(value: Option<&str>) -> Result<Option<String>, AuthErr
     }
 }
 
-fn normalize_avatar_url(value: Option<&str>) -> Result<Option<String>, AuthError> {
+fn normalize_avatar(value: Option<&str>) -> Result<Option<String>, AuthError> {
     let Some(value) = value.map(str::trim).filter(|value| !value.is_empty()) else {
         return Ok(None);
     };
