@@ -17,7 +17,6 @@ import {
   Switch,
   TextField,
   Typography,
-  useTheme,
 } from "@mui/material";
 import {
   ChevronDown,
@@ -39,7 +38,7 @@ import {
 } from "lucide-react";
 import { listen } from "@tauri-apps/api/event";
 import { useShallow } from "zustand/react/shallow";
-import { SectionHeader } from "../SettingComponents";
+import { SectionHeader, SettingSurface } from "../SettingComponents";
 import { appPanelSx, appTextFieldSx } from "@/components/ui/appDialog";
 import { useNotify } from "@/hooks/useNotify";
 import { formatFileSize, loggedInvoke } from "@/lib/utils/utils";
@@ -87,7 +86,6 @@ function ProviderCard({
   }) => Promise<void>;
   onDelete?: () => void;
 }) {
-  const theme = useTheme();
   const notify = useNotify();
   const ollama = useOllama();
   const isOllama = isOllamaLocal(provider);
@@ -156,16 +154,14 @@ function ProviderCard({
     }
   };
 
-  const cardBorder = `1px solid ${theme.palette.divider}`;
-
   return (
-    <Box sx={{ py: theme.spacing(0.75) }}>
-      <Box sx={{ p: theme.spacing(1.5), borderRadius: 1, border: cardBorder }}>
+    <Box sx={{ py: 0.75 }}>
+      <SettingSurface>
         <Stack
           direction="row"
           alignItems="center"
-          spacing={theme.spacing(1)}
-          sx={{ mb: theme.spacing(0.5) }}
+          spacing={1}
+          sx={{ mb: 0.5 }}
         >
           <Typography variant="body1" sx={{ fontWeight: 700 }}>
             {preset.label}
@@ -207,7 +203,7 @@ function ProviderCard({
         )}
 
         <Collapse in={editing}>
-          <Stack spacing={theme.spacing(1)} sx={{ mt: theme.spacing(1) }}>
+          <Stack spacing={1} sx={{ mt: 1 }}>
             {isOllama ? (
               <TextField
                 value={host}
@@ -263,7 +259,7 @@ function ProviderCard({
                 }}
               />
             )}
-            <Stack direction="row" alignItems="center" spacing={theme.spacing(1)}>
+            <Stack direction="row" alignItems="center" spacing={1}>
               <Typography variant="body2" color="text.secondary">
                 Enabled
               </Typography>
@@ -287,13 +283,12 @@ function ProviderCard({
             </Stack>
           </Stack>
         </Collapse>
-      </Box>
+      </SettingSurface>
     </Box>
   );
 }
 
 export function ConnectionsTab() {
-  const theme = useTheme();
   const notify = useNotify();
   const { providers, loading, error, actions } = useProviderStore(
     useShallow((state) => ({
@@ -450,8 +445,6 @@ export function ConnectionsTab() {
     }
   };
 
-  const cardBorder = `1px solid ${theme.palette.divider}`;
-
   return (
     <Stack spacing={0}>
       <SectionHeader
@@ -471,13 +464,13 @@ export function ConnectionsTab() {
       />
 
       {loading && providers.length === 0 && (
-        <Box sx={{ py: theme.spacing(0.75) }}>
-          <Box sx={{ p: theme.spacing(1.5), borderRadius: 1, border: cardBorder }}>
+        <Box sx={{ py: 0.75 }}>
+          <SettingSurface>
             <Stack
               direction="row"
               alignItems="center"
-              spacing={theme.spacing(1)}
-              sx={{ mb: theme.spacing(0.5) }}
+              spacing={1}
+              sx={{ mb: 0.5 }}
             >
               <Skeleton variant="text" width={60} height={24} />
               <Skeleton variant="rounded" width={70} height={24} sx={{ borderRadius: "9999px" }} />
@@ -485,11 +478,11 @@ export function ConnectionsTab() {
               <Skeleton variant="circular" width={28} height={28} />
             </Stack>
             <Skeleton variant="text" width={180} height={18} />
-          </Box>
+          </SettingSurface>
         </Box>
       )}
       {error && providers.length === 0 && (
-        <Typography sx={{ fontSize: 13, color: "text.secondary", py: theme.spacing(1) }}>
+        <Typography sx={{ fontSize: 13, color: "text.secondary", py: 1 }}>
           Connection error: {String(error)}
         </Typography>
       )}
@@ -508,7 +501,7 @@ export function ConnectionsTab() {
         );
       })}
 
-      <Divider sx={{ my: theme.spacing(2) }} />
+      <Divider sx={{ my: 2 }} />
 
       <SectionHeader
         title="Web Search API Keys"
@@ -516,7 +509,7 @@ export function ConnectionsTab() {
       />
       <WebSearchSettings />
 
-      <Divider sx={{ my: theme.spacing(2) }} />
+      <Divider sx={{ my: 2 }} />
 
       <SectionHeader
         title="Ollama models"
@@ -545,8 +538,8 @@ export function ConnectionsTab() {
         Model installer
       </Button>
       <Collapse in={installerOpen}>
-        <Stack spacing={theme.spacing(1.5)} sx={{ pb: theme.spacing(2) }}>
-          <Box sx={{ display: "flex", gap: theme.spacing(1) }}>
+        <Stack spacing={1.5} sx={{ pb: 2 }}>
+          <Box sx={{ display: "flex", gap: 1 }}>
             <TextField
               value={newModelName}
               onChange={(e) => setNewModelName(e.target.value)}
@@ -568,7 +561,7 @@ export function ConnectionsTab() {
             </Button>
           </Box>
           {isPulling && ollama.pullProgress && (
-            <Box sx={{ ...appPanelSx, py: theme.spacing(1) }}>
+            <Box sx={[appPanelSx, { py: 1 }]}>
               <Stack direction="row" justifyContent="space-between">
                 <Typography sx={{ fontSize: 12 }}>
                   Pulling {ollama.pullingModel}: {ollama.pullProgress.status}
@@ -653,8 +646,8 @@ export function ConnectionsTab() {
             sx={{
               display: "grid",
               gridTemplateColumns: "1fr 1fr",
-              gap: theme.spacing(1),
-              mb: theme.spacing(2),
+              gap: 1,
+              mb: 2,
             }}
           >
             {PROVIDER_PRESETS.map((preset) => {
@@ -665,11 +658,11 @@ export function ConnectionsTab() {
                   variant="outlined"
                   onClick={() => selectPreset(preset)}
                   sx={{
-                    p: theme.spacing(1.5),
+                    p: 1.5,
                     cursor: "pointer",
                     display: "flex",
                     alignItems: "center",
-                    gap: theme.spacing(1.5),
+                    gap: 1.5,
                     borderColor: selected ? "primary.main" : undefined,
                     borderWidth: selected ? 2 : 1,
                     bgcolor: selected ? "action.selected" : "transparent",

@@ -1,5 +1,33 @@
 import { Box, Stack, Typography } from "@mui/material";
+import type { SxProps, Theme } from "@mui/material";
 import { appPanelSx } from "@/components/ui/appDialog";
+
+const settingTextSx = {
+  title: { fontSize: 13, fontWeight: 500, color: "text.primary" },
+  description: { mt: 0.25, fontSize: 12, color: "text.secondary", lineHeight: 1.5 },
+  sectionTitle: { fontSize: 14, fontWeight: 700, color: "text.primary" },
+} as const;
+
+export const settingSurfaceSx: SxProps<Theme> = (theme) => ({
+  p: 1.5,
+  borderRadius: theme.app.radius.control,
+  border: "1px solid",
+  borderColor: "divider",
+});
+
+function sxArray(sx?: SxProps<Theme>) {
+  return Array.isArray(sx) ? sx : sx ? [sx] : [];
+}
+
+export function SettingSurface({
+  children,
+  sx,
+}: {
+  children: React.ReactNode;
+  sx?: SxProps<Theme>;
+}) {
+  return <Box sx={[settingSurfaceSx, ...sxArray(sx)]}>{children}</Box>;
+}
 
 export function SettingCard({
   title,
@@ -17,11 +45,11 @@ export function SettingCard({
       <Stack spacing={children ? 1.5 : 0}>
         <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2} sx={{ minWidth: 0 }}>
           <Box sx={{ minWidth: 0, overflow: "hidden" }}>
-            <Typography sx={{ fontSize: 13, fontWeight: 500, color: "text.primary" }}>
+            <Typography sx={settingTextSx.title}>
               {title}
             </Typography>
             {description && (
-              <Typography sx={{ mt: 0.25, fontSize: 12, color: "text.secondary", lineHeight: 1.5 }}>
+              <Typography sx={settingTextSx.description}>
                 {description}
               </Typography>
             )}
@@ -46,11 +74,11 @@ export function SectionHeader({
   return (
     <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2} sx={{ mb: 0.5, mt: 2.5, minWidth: 0 }}>
       <Box sx={{ minWidth: 0, overflow: "hidden" }}>
-        <Typography sx={{ fontSize: 14, fontWeight: 700, color: "text.primary" }}>
+        <Typography sx={settingTextSx.sectionTitle}>
           {title}
         </Typography>
         {description && (
-          <Typography sx={{ mt: 0.25, fontSize: 12, color: "text.secondary", lineHeight: 1.5 }}>
+          <Typography sx={settingTextSx.description}>
             {description}
           </Typography>
         )}
@@ -81,7 +109,7 @@ export function Badge({ label, color }: { label: string; color: string }) {
 
 export function EmptyState({ children }: { children: React.ReactNode }) {
   return (
-    <Box sx={{ ...appPanelSx, py: 5, textAlign: "center" }}>
+    <Box sx={[appPanelSx, { py: 5, textAlign: "center" }]}>
       <Typography sx={{ fontSize: 13, color: "text.secondary" }}>{children}</Typography>
     </Box>
   );

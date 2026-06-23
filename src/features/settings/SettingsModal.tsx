@@ -18,6 +18,7 @@ import {
   SlidersHorizontal,
   Brain,
   CircleUserRound,
+  type LucideIcon,
 } from "lucide-react";
 import { SettingCard, SectionHeader } from "./SettingComponents";
 import { useDevStore } from "@/store/devStore";
@@ -35,13 +36,32 @@ import { MemoryTab } from "@/features/memory/MemoryTab";
 import { idleManager } from "@/lib/idle";
 import { APP_DIALOG_SIDEBAR_WIDTH } from "@/components/ui/appDialog";
 import { useSettingsStore } from "@/store/settingsStore";
+
+export type SettingsTab =
+  | "general"
+  | "profile"
+  | "connections"
+  | "personalisation"
+  | "speech"
+  | "data-controls"
+  | "about"
+  | "developer"
+  | "advanced"
+  | "memory";
+
+type SettingsNavItem = {
+  id: SettingsTab;
+  label: string;
+  icon: LucideIcon;
+};
+
 type SettingsModalProps = {
   isOpen: boolean;
   onClose: () => void;
   initialTab?: SettingsTab;
 };
 
-const SIDEBAR_ITEMS = [
+const SIDEBAR_ITEMS: SettingsNavItem[] = [
   { id: "general", label: "General", icon: Settings },
   { id: "profile", label: "Profile", icon: CircleUserRound },
   { id: "connections", label: "Connections", icon: Cpu },
@@ -49,21 +69,67 @@ const SIDEBAR_ITEMS = [
   { id: "speech", label: "Speech", icon: Volume2 },
   { id: "data-controls", label: "Data Controls", icon: Shield },
   { id: "about", label: "About", icon: Info },
-] as const;
+];
 
-const ADVANCED_ITEM = {
-  id: "advanced" as const,
+const ADVANCED_ITEM: SettingsNavItem = {
+  id: "advanced",
   label: "Advanced",
   icon: SlidersHorizontal,
 };
 
-const MEMORY_ITEM = {
-  id: "memory" as const,
+const MEMORY_ITEM: SettingsNavItem = {
+  id: "memory",
   label: "Memory",
   icon: Brain,
 };
 
-export type SettingsTab = (typeof SIDEBAR_ITEMS)[number]["id"] | "developer" | "advanced" | "memory";
+function SettingsNavButton({
+  item,
+  isActive,
+  mobile = false,
+  onClick,
+}: {
+  item: SettingsNavItem;
+  isActive: boolean;
+  mobile?: boolean;
+  onClick: () => void;
+}) {
+  const Icon = item.icon;
+
+  return (
+    <ButtonBase
+      onClick={onClick}
+      sx={(theme) => ({
+        justifyContent: "flex-start",
+        borderRadius: theme.app.radius.pill,
+        bgcolor: isActive ? "action.hover" : "transparent",
+        color: isActive ? "text.primary" : "text.secondary",
+        ...(mobile
+          ? {
+              px: { xs: 1.5, sm: 1.25 },
+              py: { xs: 1, sm: 0.75 },
+              whiteSpace: "nowrap",
+              scrollSnapAlign: "start",
+            }
+          : {
+              width: "100%",
+              gap: 1.5,
+              px: 1.5,
+              py: 0.85,
+              "&:hover": {
+                bgcolor: "action.hover",
+                color: "text.primary",
+              },
+            }),
+      })}
+    >
+      {!mobile && <Icon size={16} />}
+      <Typography sx={{ fontSize: 13, fontWeight: mobile ? 500 : isActive ? 600 : 500 }}>
+        {item.label}
+      </Typography>
+    </ButtonBase>
+  );
+}
 
 export function SettingsModal({ isOpen, onClose, initialTab = "general" }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
@@ -116,68 +182,28 @@ export function SettingsModal({ isOpen, onClose, initialTab = "general" }: Setti
         >
           <Stack component="nav" spacing={0.5}>
             {sidebarItems.map((item) => {
-              const Icon = item.icon;
               const isActive = activeTab === item.id;
 
               return (
-                <ButtonBase
+                <SettingsNavButton
                   key={item.id}
+                  item={item}
+                  isActive={isActive}
                   onClick={() => setActiveTab(item.id)}
-                    sx={{
-                      width: "100%",
-                      justifyContent: "flex-start",
-                      gap: 1.5,
-                      px: 1.5,
-                      py: 0.85,
-                      borderRadius: "9999px",
-                      color: isActive ? "text.primary" : "text.secondary",
-                      bgcolor: isActive ? "action.hover" : "transparent",
-                      "&:hover": {
-                        bgcolor: "action.hover",
-                        color: "text.primary",
-                      },
-                    }}
-                >
-                  <Icon size={16} />
-                  <Typography
-                    sx={{ fontSize: 13, fontWeight: isActive ? 600 : 500 }}
-                  >
-                    {item.label}
-                  </Typography>
-                </ButtonBase>
+                />
               );
             })}
           </Stack>
           <Box sx={{ flex: 1 }} />
           <Box sx={{ pt: 1, borderTop: "1px solid", borderColor: "divider" }}>
             {(() => {
-              const Icon = ADVANCED_ITEM.icon;
               const isActive = activeTab === ADVANCED_ITEM.id;
               return (
-                <ButtonBase
+                <SettingsNavButton
                   onClick={() => setActiveTab(ADVANCED_ITEM.id)}
-                  sx={{
-                    width: "100%",
-                    justifyContent: "flex-start",
-                    gap: 1.5,
-                    px: 1.5,
-                    py: 0.85,
-                    borderRadius: "9999px",
-                    color: isActive ? "text.primary" : "text.secondary",
-                    bgcolor: isActive ? "action.hover" : "transparent",
-                    "&:hover": {
-                      bgcolor: "action.hover",
-                      color: "text.primary",
-                    },
-                  }}
-                >
-                  <Icon size={16} />
-                  <Typography
-                    sx={{ fontSize: 13, fontWeight: isActive ? 600 : 500 }}
-                  >
-                    {ADVANCED_ITEM.label}
-                  </Typography>
-                </ButtonBase>
+                  item={ADVANCED_ITEM}
+                  isActive={isActive}
+                />
               );
             })()}
           </Box>
@@ -214,47 +240,18 @@ export function SettingsModal({ isOpen, onClose, initialTab = "general" }: Setti
               "&::-webkit-scrollbar": { display: "none" },
             }}
           >
-            {sidebarItems.map((item) => {
+            {[...sidebarItems, ADVANCED_ITEM].map((item) => {
               const isActive = activeTab === item.id;
               return (
-                <ButtonBase
+                <SettingsNavButton
                   key={item.id}
+                  item={item}
+                  isActive={isActive}
+                  mobile
                   onClick={() => setActiveTab(item.id)}
-                    sx={{
-                      px: { xs: 1.5, sm: 1.25 },
-                      py: { xs: 1, sm: 0.75 },
-                      borderRadius: "9999px",
-                      justifyContent: "flex-start",
-                      bgcolor: isActive ? "action.hover" : "transparent",
-                      color: isActive ? "text.primary" : "text.secondary",
-                      whiteSpace: "nowrap",
-                      fontSize: 13,
-                      fontWeight: 500,
-                      scrollSnapAlign: "start",
-                    }}
-                >
-                  {item.label}
-                </ButtonBase>
+                />
               );
             })}
-            <ButtonBase
-              key={ADVANCED_ITEM.id}
-              onClick={() => setActiveTab(ADVANCED_ITEM.id)}
-              sx={{
-                px: { xs: 1.5, sm: 1.25 },
-                py: { xs: 1, sm: 0.75 },
-                borderRadius: "9999px",
-                justifyContent: "flex-start",
-                bgcolor: activeTab === ADVANCED_ITEM.id ? "action.hover" : "transparent",
-                color: activeTab === ADVANCED_ITEM.id ? "text.primary" : "text.secondary",
-                whiteSpace: "nowrap",
-                fontSize: 13,
-                fontWeight: 500,
-                scrollSnapAlign: "start",
-              }}
-            >
-              {ADVANCED_ITEM.label}
-            </ButtonBase>
           </Box>
 
           <AppDialogBody>
@@ -338,13 +335,15 @@ function DeveloperTab({ onClose }: { onClose: () => void }) {
           maxRows={12}
           fullWidth
           size="small"
-          sx={{
-            ...appTextFieldSx,
+          sx={[
+            appTextFieldSx,
+            {
             "& .MuiInputBase-root": {
               fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
               fontSize: 13,
             },
-          }}
+            },
+          ]}
         />
       </SettingCard>
 
@@ -366,37 +365,22 @@ function DeveloperTab({ onClose }: { onClose: () => void }) {
       >
         {result ? (
           <Box
-            sx={{
+            sx={(theme) => ({
               p: 1.5,
-              borderRadius: "8px",
+              borderRadius: theme.app.radius.control,
               border: "1px solid",
               borderColor: "divider",
               bgcolor: "background.paper",
               overflow: "auto",
               maxHeight: 400,
-            }}
+            })}
           >
             {result.columns.length > 0 ? (
-              <table
-                style={{
-                  borderCollapse: "collapse",
-                  width: "100%",
-                  fontSize: 12,
-                  fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-                }}
-              >
+              <table className="settings-sql-result-table">
                 <thead>
                   <tr>
                     {result.columns.map((col, i) => (
-                      <th
-                        key={i}
-                        style={{
-                          textAlign: "left",
-                          padding: "4px 8px",
-                          borderBottom: "2px solid #ccc",
-                          fontWeight: 700,
-                        }}
-                      >
+                      <th key={i}>
                         {col}
                       </th>
                     ))}
@@ -406,14 +390,7 @@ function DeveloperTab({ onClose }: { onClose: () => void }) {
                   {result.rows.map((row, i) => (
                     <tr key={i}>
                       {row.map((cell, j) => (
-                        <td
-                          key={j}
-                          style={{
-                            padding: "4px 8px",
-                            borderBottom: "1px solid #eee",
-                            whiteSpace: "pre-wrap",
-                          }}
-                        >
+                        <td key={j}>
                           {cell}
                         </td>
                       ))}
