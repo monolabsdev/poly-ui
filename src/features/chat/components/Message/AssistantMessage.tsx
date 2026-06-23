@@ -263,11 +263,11 @@ export function AssistantMessage(props: MessageProps) {
                   sx={{
                     mt: 1,
                     color: "error.main",
-                    bgcolor: "rgba(248, 113, 113, 0.1)",
+                    bgcolor: "error.soft",
                     px: 2,
                     py: 0.5,
                     gap: 1,
-                    "&:hover": { bgcolor: "rgba(248, 113, 113, 0.2)" },
+                    "&:hover": { bgcolor: "action.hover" },
                   }}
                 >
                   <RotateCcw size={14} />

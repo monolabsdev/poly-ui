@@ -345,12 +345,12 @@ export function CommandPalette({
               ),
               bgcolor:
                 theme.palette.mode === "dark"
-                  ? alpha("#101010", 0.88)
-                  : alpha("#f8f8f8", 0.9),
+                  ? alpha(theme.palette.background.default, 0.88)
+                  : alpha(theme.palette.background.paper, 0.9),
               boxShadow:
                 theme.palette.mode === "dark"
-                  ? "0 8px 24px rgba(0,0,0,0.28)"
-                  : "0 8px 24px rgba(0,0,0,0.16)",
+                  ? `0 8px 24px ${alpha(theme.palette.common.black, 0.28)}`
+                  : `0 8px 24px ${alpha(theme.palette.common.black, 0.16)}`,
               "@media (min-height: 720px)": {
                 minHeight: 420,
               },
