@@ -2,6 +2,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useSettingsStore } from "@/store/settingsStore";
+import {
+  DICTATION_SAMPLE_RATE,
+  prepareDictationSamples,
+  summarizePcm,
+} from "@/lib/dictation/audioSamples";
 
 export interface WhisperModelInfo {
   id: string;
@@ -28,6 +33,42 @@ interface WhisperDownloadProgress {
 }
 
 const IDLE_TIMEOUT_MS = 5 * 60 * 1000;
+const DICTATION_AUDIO_CONSTRAINTS: MediaStreamConstraints = {
+  audio: {
+    channelCount: { ideal: 1 },
+    sampleRate: { ideal: DICTATION_SAMPLE_RATE },
+    echoCancellation: { ideal: false },
+    noiseSuppression: { ideal: false },
+    autoGainControl: { ideal: false },
+  },
+};
+
+function compact(value: unknown): string {
+  try {
+    return JSON.stringify(value).slice(0, 2_000);
+  } catch {
+    return String(value);
+  }
+}
+
+function logDictation(message: string): void {
+  void invoke("log_startup_phase", {
+    message: `dictation: ${message}`,
+  }).catch(() => {});
+}
+
+async function listAudioInputs(): Promise<string[]> {
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    return devices
+      .filter((device) => device.kind === "audioinput")
+      .map((device, index) =>
+        `${index}: ${device.label || "(unlabeled)"} deviceId=${device.deviceId || "(empty)"}`,
+      );
+  } catch (error) {
+    return [`enumerateDevices failed: ${String(error)}`];
+  }
+}
 
 export function useDictation(onTranscript: (text: string) => void) {
   const [recording, setRecording] = useState(false);
@@ -43,6 +84,8 @@ export function useDictation(onTranscript: (text: string) => void) {
   const chunksRef = useRef<Blob[]>([]);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const audioInputsRef = useRef<string[]>([]);
+  const recordingStartedAtRef = useRef<number>(0);
   const lastActivityRef = useRef<number>(Date.now());
 
   const touchActivity = useCallback(() => {
@@ -86,10 +129,22 @@ export function useDictation(onTranscript: (text: string) => void) {
   }, []);
 
   const beginRecording = useCallback(async () => {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const recorder = new MediaRecorder(stream);
+    const stream = await navigator.mediaDevices.getUserMedia(
+      DICTATION_AUDIO_CONSTRAINTS,
+    );
+    const track = stream.getAudioTracks()[0] ?? null;
+    const audioInputs = await listAudioInputs();
+    const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+      ? "audio/webm;codecs=opus"
+      : "";
+    const recorder = new MediaRecorder(
+      stream,
+      mimeType ? { mimeType } : undefined,
+    );
 
     chunksRef.current = [];
+    audioInputsRef.current = audioInputs;
+    recordingStartedAtRef.current = Date.now();
     streamRef.current = stream;
     recorderRef.current = recorder;
     recorder.ondataavailable = (event) => {
@@ -98,6 +153,9 @@ export function useDictation(onTranscript: (text: string) => void) {
       }
     };
     recorder.start();
+    logDictation(
+      `capture start constraints=${compact(DICTATION_AUDIO_CONSTRAINTS.audio)} recorder=${recorder.mimeType || "default"} track_label=${track?.label || "unknown"} track_settings=${compact(track?.getSettings?.() ?? null)} audio_inputs=${compact(audioInputs)}`,
+    );
     setRecording(true);
   }, []);
 
@@ -170,20 +228,49 @@ export function useDictation(onTranscript: (text: string) => void) {
     setProcessing(true);
 
     try {
+      const chunks = chunksRef.current;
+      const chunkSizes = chunks.map((chunk) => chunk.size);
       const blob = new Blob(chunksRef.current, {
         type: recorder.mimeType || "audio/webm",
       });
-      const audioContext = new AudioContext({ sampleRate: 16000 });
+      const track = streamRef.current?.getAudioTracks()[0] ?? null;
+      const trackSettings = track?.getSettings?.() ?? null;
+      logDictation(
+        `recording stop elapsed_ms=${Date.now() - recordingStartedAtRef.current} chunks=${chunks.length} chunk_sizes=${compact(chunkSizes)} blob_size=${blob.size} blob_type=${blob.type || "unknown"} track_label=${track?.label || "unknown"} track_settings=${compact(trackSettings)}`,
+      );
+
+      const audioContext = new AudioContext();
       const audioBuffer = await audioContext.decodeAudioData(
         await blob.arrayBuffer(),
       );
 
       try {
-        const samples = Array.from(audioBuffer.getChannelData(0));
+        const samples = prepareDictationSamples(audioBuffer);
+        const frontendStats = summarizePcm(samples);
+        logDictation(
+          `decoded source_rate=${audioBuffer.sampleRate} source_channels=${audioBuffer.numberOfChannels} decoded_len=${audioBuffer.length} decoded_duration=${audioBuffer.duration.toFixed(3)} prepared_rate=${DICTATION_SAMPLE_RATE} prepared_len=${samples.length} prepared_stats=${compact(frontendStats)}`,
+        );
         const language = useSettingsStore.getState().dictation.language;
         const transcript = await invoke<string>("transcribe_audio", {
           audioSamples: samples,
           language: language === "auto" ? null : language,
+          audioMeta: {
+            recorderMimeType: recorder.mimeType || null,
+            blobType: blob.type || null,
+            blobSize: blob.size,
+            chunkCount: chunks.length,
+            chunkSizes,
+            sourceSampleRate: audioBuffer.sampleRate,
+            sourceChannelCount: audioBuffer.numberOfChannels,
+            decodedLength: audioBuffer.length,
+            decodedDurationSeconds: audioBuffer.duration,
+            targetSampleRate: DICTATION_SAMPLE_RATE,
+            sampleFormat: "float32",
+            trackLabel: track?.label || null,
+            trackSettings,
+            audioInputs: audioInputsRef.current,
+            frontendStats,
+          },
         });
 
         if (transcript.trim()) {

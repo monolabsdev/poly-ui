@@ -1,12 +1,22 @@
+use crate::startup_log;
 use crate::whisper_state::WhisperState;
 use futures::StreamExt;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+use std::sync::{LazyLock, Mutex};
+use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter, State};
 use tokio::io::AsyncWriteExt;
 use whisper_rs::{FullParams, SamplingStrategy};
 
 const SELECTED_MODEL_FILE: &str = "whisper-selected-model.txt";
+const WHISPER_SAMPLE_RATE: f32 = 16_000.0;
+const MIN_AUDIO_SAMPLES: usize = 4_800;
+const MIN_AUDIO_RMS: f32 = 0.001;
+const MIN_AUDIO_PEAK: f32 = 0.01;
+const MIN_ACTIVE_AUDIO_RATIO: f32 = 0.005;
+const CLIPPING_THRESHOLD: f32 = 0.999;
+static LAST_AUDIO_HASH: LazyLock<Mutex<Option<String>>> = LazyLock::new(|| Mutex::new(None));
 
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -36,6 +46,26 @@ pub struct WhisperDownloadProgress {
     model_id: String,
     downloaded_bytes: u64,
     total_bytes: Option<u64>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DictationAudioMeta {
+    recorder_mime_type: Option<String>,
+    blob_type: Option<String>,
+    blob_size: Option<u64>,
+    chunk_count: Option<usize>,
+    chunk_sizes: Option<Vec<u64>>,
+    source_sample_rate: Option<u32>,
+    source_channel_count: Option<u32>,
+    decoded_length: Option<usize>,
+    decoded_duration_seconds: Option<f32>,
+    target_sample_rate: Option<u32>,
+    sample_format: Option<String>,
+    track_label: Option<String>,
+    track_settings: Option<serde_json::Value>,
+    audio_inputs: Option<Vec<String>>,
+    frontend_stats: Option<serde_json::Value>,
 }
 
 struct WhisperModelDef {
@@ -147,6 +177,248 @@ fn read_selected_model_id(state: &WhisperState) -> Result<Option<String>, String
 fn write_selected_model_id(state: &WhisperState, model_id: &str) -> Result<(), String> {
     std::fs::create_dir_all(models_dir(state)).map_err(|error| error.to_string())?;
     std::fs::write(selected_model_path(state), model_id).map_err(|error| error.to_string())
+}
+
+#[derive(Clone, Copy, Debug)]
+struct AudioStats {
+    sample_count: usize,
+    finite_count: usize,
+    nan_count: usize,
+    infinite_count: usize,
+    clipped_count: usize,
+    zero_count: usize,
+    min: f32,
+    max: f32,
+    rms: f32,
+    peak: f32,
+    active_ratio: f32,
+}
+
+fn audio_stats(samples: &[f32]) -> AudioStats {
+    if samples.is_empty() {
+        return AudioStats {
+            sample_count: 0,
+            finite_count: 0,
+            nan_count: 0,
+            infinite_count: 0,
+            clipped_count: 0,
+            zero_count: 0,
+            min: 0.0,
+            max: 0.0,
+            rms: 0.0,
+            peak: 0.0,
+            active_ratio: 0.0,
+        };
+    }
+
+    let mut sum_squares = 0.0_f32;
+    let mut peak = 0.0_f32;
+    let mut active_samples = 0_usize;
+    let mut finite_count = 0_usize;
+    let mut nan_count = 0_usize;
+    let mut infinite_count = 0_usize;
+    let mut clipped_count = 0_usize;
+    let mut zero_count = 0_usize;
+    let mut min = f32::INFINITY;
+    let mut max = f32::NEG_INFINITY;
+
+    for sample in samples {
+        if sample.is_nan() {
+            nan_count += 1;
+            continue;
+        }
+        if !sample.is_finite() {
+            infinite_count += 1;
+            continue;
+        }
+
+        let abs = sample.abs();
+        finite_count += 1;
+        min = min.min(*sample);
+        max = max.max(*sample);
+        peak = peak.max(abs);
+        sum_squares += sample * sample;
+        if *sample == 0.0 {
+            zero_count += 1;
+        }
+        if abs >= CLIPPING_THRESHOLD {
+            clipped_count += 1;
+        }
+        if abs >= MIN_AUDIO_PEAK {
+            active_samples += 1;
+        }
+    }
+
+    AudioStats {
+        sample_count: samples.len(),
+        finite_count,
+        nan_count,
+        infinite_count,
+        clipped_count,
+        zero_count,
+        min: if finite_count > 0 { min } else { 0.0 },
+        max: if finite_count > 0 { max } else { 0.0 },
+        rms: if finite_count > 0 {
+            (sum_squares / finite_count as f32).sqrt()
+        } else {
+            0.0
+        },
+        peak,
+        active_ratio: if finite_count > 0 {
+            active_samples as f32 / finite_count as f32
+        } else {
+            0.0
+        },
+    }
+}
+
+fn has_audible_audio(stats: AudioStats) -> bool {
+    stats.rms >= MIN_AUDIO_RMS
+        && stats.peak >= MIN_AUDIO_PEAK
+        && stats.active_ratio >= MIN_ACTIVE_AUDIO_RATIO
+}
+
+fn sanitize_audio_samples(samples: &mut [f32]) {
+    for sample in samples {
+        if !sample.is_finite() {
+            *sample = 0.0;
+        } else {
+            *sample = sample.clamp(-1.0, 1.0);
+        }
+    }
+}
+
+fn audio_hash(samples: &[f32]) -> String {
+    use sha2::{Digest, Sha256};
+
+    let mut hasher = Sha256::new();
+    for sample in samples {
+        hasher.update(sample.to_le_bytes());
+    }
+    format!("{:x}", hasher.finalize())
+}
+
+fn mark_reused_audio(hash: &str) -> bool {
+    let Ok(mut previous) = LAST_AUDIO_HASH.lock() else {
+        return false;
+    };
+    let reused = previous.as_deref() == Some(hash);
+    *previous = Some(hash.to_string());
+    reused
+}
+
+fn sample_window(samples: &[f32], from_start: bool) -> String {
+    let iter: Box<dyn Iterator<Item = &f32>> = if from_start {
+        Box::new(samples.iter().take(20))
+    } else {
+        Box::new(samples.iter().rev().take(20))
+    };
+    let mut values = iter
+        .map(|sample| format!("{sample:.6}"))
+        .collect::<Vec<_>>();
+    if !from_start {
+        values.reverse();
+    }
+    format!("[{}]", values.join(", "))
+}
+
+fn save_debug_wav(
+    app_data_dir: &std::path::Path,
+    samples: &[f32],
+    hash: &str,
+) -> Result<PathBuf, String> {
+    let dir = app_data_dir.join("dictation-debug");
+    std::fs::create_dir_all(&dir).map_err(|error| error.to_string())?;
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(|error| error.to_string())?
+        .as_millis();
+    let path = dir.join(format!("whisper-input-{timestamp}-{}.wav", &hash[..12]));
+    let spec = hound::WavSpec {
+        channels: 1,
+        sample_rate: WHISPER_SAMPLE_RATE as u32,
+        bits_per_sample: 32,
+        sample_format: hound::SampleFormat::Float,
+    };
+    let mut writer = hound::WavWriter::create(&path, spec).map_err(|error| error.to_string())?;
+    for sample in samples {
+        writer
+            .write_sample(*sample)
+            .map_err(|error| error.to_string())?;
+    }
+    writer.finalize().map_err(|error| error.to_string())?;
+    let _ = std::fs::copy(&path, dir.join("last-whisper-input.wav"));
+    Ok(path)
+}
+
+fn log_dictation(message: impl AsRef<str>) {
+    let message = format!("dictation: {}", message.as_ref());
+    startup_log::log_event(&message);
+    log::info!("{message}");
+}
+
+fn log_audio_meta(meta: Option<&DictationAudioMeta>) {
+    let Some(meta) = meta else {
+        log_dictation("frontend meta: missing");
+        return;
+    };
+
+    log_dictation(format!(
+        "frontend meta: recorder={} blob_type={} blob_size={:?} chunks={:?} chunk_sizes={:?} decoded_rate={:?} decoded_channels={:?} decoded_len={:?} decoded_duration={:?} target_rate={:?} sample_format={} track_label={} track_settings={} audio_inputs={:?} frontend_stats={}",
+        meta.recorder_mime_type.as_deref().unwrap_or("unknown"),
+        meta.blob_type.as_deref().unwrap_or("unknown"),
+        meta.blob_size,
+        meta.chunk_count,
+        meta.chunk_sizes,
+        meta.source_sample_rate,
+        meta.source_channel_count,
+        meta.decoded_length,
+        meta.decoded_duration_seconds,
+        meta.target_sample_rate,
+        meta.sample_format.as_deref().unwrap_or("unknown"),
+        meta.track_label.as_deref().unwrap_or("unknown"),
+        meta.track_settings.as_ref().map(|value| value.to_string()).unwrap_or_else(|| "null".to_string()),
+        meta.audio_inputs,
+        meta.frontend_stats.as_ref().map(|value| value.to_string()).unwrap_or_else(|| "null".to_string()),
+    ));
+}
+
+fn log_audio_stats(
+    stats: AudioStats,
+    hash: &str,
+    reused: bool,
+    debug_wav: &std::path::Path,
+    samples: &[f32],
+) {
+    let duration_s = stats.sample_count as f32 / WHISPER_SAMPLE_RATE;
+    log_dictation(format!(
+        "whisper input: sample_rate={} channels=1 format=f32 normalized_range=-1..1 samples={} duration={:.3}s min={:.6} max={:.6} rms={:.6} peak={:.6} active_ratio={:.4} finite={} nan={} infinite={} clipped={} zero={} all_zero={} hash={} reused={} wav={}",
+        WHISPER_SAMPLE_RATE as u32,
+        stats.sample_count,
+        duration_s,
+        stats.min,
+        stats.max,
+        stats.rms,
+        stats.peak,
+        stats.active_ratio,
+        stats.finite_count,
+        stats.nan_count,
+        stats.infinite_count,
+        stats.clipped_count,
+        stats.zero_count,
+        stats.finite_count == stats.zero_count,
+        &hash[..12],
+        reused,
+        debug_wav.display(),
+    ));
+    log_dictation(format!(
+        "whisper input first20={}",
+        sample_window(samples, true)
+    ));
+    log_dictation(format!(
+        "whisper input last20={}",
+        sample_window(samples, false)
+    ));
 }
 
 #[tauri::command]
@@ -268,19 +540,52 @@ pub async fn download_whisper_model(
 
 #[tauri::command]
 pub fn transcribe_audio(
-    audio_samples: Vec<f32>,
+    mut audio_samples: Vec<f32>,
     language: Option<String>,
+    audio_meta: Option<DictationAudioMeta>,
     state: State<'_, WhisperState>,
 ) -> Result<String, String> {
-    let duration_s = audio_samples.len() as f32 / 16000.0;
+    log_audio_meta(audio_meta.as_ref());
+    let pre_sanitize_stats = audio_stats(&audio_samples);
+    if pre_sanitize_stats.nan_count > 0
+        || pre_sanitize_stats.infinite_count > 0
+        || pre_sanitize_stats.clipped_count > 0
+    {
+        log_dictation(format!(
+            "input sanitize: nan={} infinite={} clipped={}",
+            pre_sanitize_stats.nan_count,
+            pre_sanitize_stats.infinite_count,
+            pre_sanitize_stats.clipped_count,
+        ));
+        sanitize_audio_samples(&mut audio_samples);
+    }
+
+    let hash = audio_hash(&audio_samples);
+    let reused = mark_reused_audio(&hash);
+    let debug_wav = save_debug_wav(state.app_data_dir(), &audio_samples, &hash)?;
+    let stats = audio_stats(&audio_samples);
+    log_audio_stats(stats, &hash, reused, &debug_wav, &audio_samples);
+
+    let duration_s = audio_samples.len() as f32 / WHISPER_SAMPLE_RATE;
 
     // Reject audio shorter than ~0.3s — insufficient for reliable transcription
-    if audio_samples.len() < 4800 {
-        log::info!(
+    if audio_samples.len() < MIN_AUDIO_SAMPLES {
+        log_dictation(format!(
             "transcribe_audio: audio too short ({} samples, {:.2}s), returning empty",
             audio_samples.len(),
             duration_s
-        );
+        ));
+        return Ok(String::new());
+    }
+
+    let stats = audio_stats(&audio_samples);
+    if !has_audible_audio(stats) {
+        log_dictation(format!(
+            "transcribe_audio: audio too quiet (rms={:.5}, peak={:.5}, active={:.4}), returning empty",
+            stats.rms,
+            stats.peak,
+            stats.active_ratio,
+        ));
         return Ok(String::new());
     }
 
@@ -305,6 +610,7 @@ pub fn transcribe_audio(
         params.set_print_progress(false);
         params.set_print_realtime(false);
         params.set_print_timestamps(false);
+        params.set_no_context(true);
         params.set_no_timestamps(true);
         params.set_suppress_nst(true);
 
@@ -315,13 +621,13 @@ pub fn transcribe_audio(
         // Diagnostic: detected language
         let lang_id = whisper_state.full_lang_id_from_state();
         let lang_name = whisper_rs::get_lang_str(lang_id).unwrap_or("unknown");
-        log::info!(
+        log_dictation(format!(
             "transcribe_audio: {} samples ({:.2}s), lang={}, segments={}",
             audio_samples.len(),
             duration_s,
             lang_name,
             whisper_state.full_n_segments(),
-        );
+        ));
 
         let mut transcript_parts: Vec<String> = Vec::new();
         let n_segments = whisper_state.full_n_segments();
@@ -350,30 +656,24 @@ pub fn transcribe_audio(
                 -10.0
             };
 
-            log::info!(
+            log_dictation(format!(
                 "  seg[{}]: \"{}\" tokens={} no_speech={:.4} avg_logprob={:.4}",
-                seg_idx,
-                text,
-                n_tokens,
-                no_speech_prob,
-                avg_logprob
-            );
+                seg_idx, text, n_tokens, no_speech_prob, avg_logprob
+            ));
 
             if no_speech_prob > 0.5 {
-                log::warn!(
+                log_dictation(format!(
                     "  seg[{}] rejected: no_speech_prob={:.4} > 0.5",
-                    seg_idx,
-                    no_speech_prob
-                );
+                    seg_idx, no_speech_prob
+                ));
                 continue;
             }
 
             if avg_logprob < -2.0 {
-                log::warn!(
+                log_dictation(format!(
                     "  seg[{}] rejected: avg_logprob={:.4} < -2.0",
-                    seg_idx,
-                    avg_logprob
-                );
+                    seg_idx, avg_logprob
+                ));
                 continue;
             }
 
@@ -381,8 +681,39 @@ pub fn transcribe_audio(
         }
 
         let transcript = transcript_parts.join("").trim().to_string();
-        log::info!("  final: \"{}\"", transcript);
+        log_dictation(format!("  final: \"{}\"", transcript));
 
         Ok(transcript)
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn quiet_audio_is_not_transcribed() {
+        let samples = vec![0.0002; MIN_AUDIO_SAMPLES];
+        assert!(!has_audible_audio(audio_stats(&samples)));
+    }
+
+    #[test]
+    fn audible_audio_is_transcribed() {
+        let samples = vec![0.02; MIN_AUDIO_SAMPLES];
+        assert!(has_audible_audio(audio_stats(&samples)));
+    }
+
+    #[test]
+    fn isolated_click_is_not_transcribed() {
+        let mut samples = vec![0.0; MIN_AUDIO_SAMPLES];
+        samples[0] = 1.0;
+        assert!(!has_audible_audio(audio_stats(&samples)));
+    }
+
+    #[test]
+    fn sanitize_audio_removes_invalid_samples() {
+        let mut samples = vec![f32::NAN, f32::INFINITY, 2.0, -2.0, 0.5];
+        sanitize_audio_samples(&mut samples);
+        assert_eq!(samples, vec![0.0, 0.0, 1.0, -1.0, 0.5]);
+    }
 }

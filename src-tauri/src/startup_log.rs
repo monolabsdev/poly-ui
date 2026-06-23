@@ -38,6 +38,10 @@ pub fn log_error(message: impl AsRef<str>) {
     ));
 }
 
+pub fn log_event(message: impl AsRef<str>) {
+    write_line(message.as_ref());
+}
+
 pub fn log_startup_environment() {
     log_phase("startup environment");
     write_line(&format!("app_version: {}", env!("CARGO_PKG_VERSION")));
