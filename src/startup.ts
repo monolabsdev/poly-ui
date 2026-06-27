@@ -3,6 +3,8 @@ import { useAuthStore } from "@/store/authStore";
 import { useModelStore } from "@/store/modelStore";
 import { useOllamaStore } from "@/features/ollama/monitor";
 import { initStoreCoordinator } from "@/store/coordinator";
+import { initRepository } from "@/lib/repositories";
+import { startUpdateChecker } from "@/store/updateStore";
 import { isPermissionGranted, requestPermission } from "@tauri-apps/plugin-notification";
 import { backupCorruptStorageItem, startupError, startupPhase } from "@/lib/utils/startupDiagnostics";
 
@@ -101,8 +103,7 @@ async function initializeStores() {
   startSystemPromptPersistence();
 
   startupPhase("repository init start");
-  const repo = await import("@/lib/repositories");
-  await repo.initRepository();
+  await initRepository();
   startupPhase("repository init complete");
   startupPhase("store coordinator init start");
   initStoreCoordinator();
@@ -132,7 +133,6 @@ async function initializeDeferredStartupWork() {
   useOllamaStore.getState().actions.start();
 
   startupPhase("update checker init start");
-  const { startUpdateChecker } = await import("@/store/updateStore");
   startUpdateChecker();
   startupPhase("update checker init complete");
 

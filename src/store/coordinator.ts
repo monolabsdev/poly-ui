@@ -8,6 +8,7 @@ import { setUpdateInstallSimulation } from "./updateStore";
 import { getRepository } from "@/lib/repositories";
 import { deleteAgentChatSandbox } from "@/features/agent/agentClient";
 import { useAgentStore } from "@/features/agent/agentStore";
+import { useProviderStore } from "@/features/providers";
 
 // Cross-store effects live here. Stores own local state only.
 let initialized = false;
@@ -22,7 +23,6 @@ function accountIdFromAuth(state: AuthSnapshot) {
 }
 
 async function refreshProviders() {
-  const { useProviderStore } = await import("@/features/providers");
   await useProviderStore.getState().actions.refresh().catch((err) => {
     console.warn("[coordinator] Provider refresh failed:", err);
   });

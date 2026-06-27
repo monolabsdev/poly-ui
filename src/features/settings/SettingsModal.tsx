@@ -36,6 +36,7 @@ import { MemoryTab } from "@/features/memory/MemoryTab";
 import { idleManager } from "@/lib/idle";
 import { APP_DIALOG_SIDEBAR_WIDTH } from "@/components/ui/appDialog";
 import { useSettingsStore } from "@/store/settingsStore";
+import { clearUpdateState, simulateUpdateProgress } from "@/store/updateStore";
 
 export type SettingsTab =
   | "general"
@@ -424,13 +425,13 @@ function DeveloperTab({ onClose }: { onClose: () => void }) {
 
       <SectionHeader title="Update Tester" description="Simulate the update flow to test the UI." />
       <SettingCard title="Simulate Update Download" action={
-        <Button size="small" variant="outlined" onClick={() => import("@/store/updateStore").then(m => m.simulateUpdateProgress())}
+        <Button size="small" variant="outlined" onClick={simulateUpdateProgress}
           sx={{ textTransform: "none", fontWeight: 700 }}>
           Download
         </Button>
       } />
       <SettingCard title="Clear Update State" action={
-        <Button size="small" variant="outlined" onClick={() => import("@/store/updateStore").then(m => m.clearUpdateState())}
+        <Button size="small" variant="outlined" onClick={clearUpdateState}
           sx={{ textTransform: "none", fontWeight: 700 }}>
           Clear
         </Button>

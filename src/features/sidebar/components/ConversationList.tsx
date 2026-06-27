@@ -16,6 +16,7 @@ import { useChatStore } from "@/store/chatStore";
 import { useNotify } from "@/hooks/useNotify";
 import { ConversationGroup } from "@/features/sidebar/hooks/useConversationGroups";
 import type { Conversation } from "@/types/chat";
+import { getRepository } from "@/lib/repositories";
 
 export interface ConversationListProps {
   groupedConversations: ConversationGroup[];
@@ -35,7 +36,6 @@ export function ConversationList({
 
   const handleExport = async (c: Conversation) => {
     try {
-      const { getRepository } = await import("@/lib/repositories");
       const repo = getRepository();
       const messages = await repo.getMessages(c.id, 99999, 0);
       const payload = { conversation: c, messages };

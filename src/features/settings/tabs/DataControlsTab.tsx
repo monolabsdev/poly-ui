@@ -14,6 +14,7 @@ import { Trash2, Archive, Download, AlertTriangle } from "lucide-react";
 import { SettingCard, SectionHeader } from "../SettingComponents";
 import { useChatStore } from "@/store/chatStore";
 import { useNotify } from "@/hooks/useNotify";
+import { getRepository } from "@/lib/repositories";
 
 export function DataControlsTab() {
   const notify = useNotify();
@@ -56,8 +57,7 @@ export function DataControlsTab() {
   const handleExport = async () => {
     setExporting(true);
     try {
-      const repoModule = await import("@/lib/repositories");
-      const repo = repoModule.getRepository();
+      const repo = getRepository();
       const conversations = await repo.getConversations();
       const messages = await repo.getAllMessages();
       const messagesByConversation = new Map<string, typeof messages>();
