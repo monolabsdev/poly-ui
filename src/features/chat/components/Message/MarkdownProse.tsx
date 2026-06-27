@@ -4,7 +4,6 @@ import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import remarkBreaks from "remark-breaks";
 import rehypeKatex from "rehype-katex";
-import { marked } from "marked";
 import {
   Box,
   Link,
@@ -14,6 +13,7 @@ import "katex/dist/katex.min.css";
 import { CodeBlock } from "./CodeBlock";
 import { parseProgressive } from "@/lib/chat/streamMarkdown";
 import { isInlineMarkdownCode } from "@/lib/utils/markdownCode";
+import { getMarkdownRenderBlocks } from "@/lib/chat/markdownRenderBlocks";
 
 const ALERT_CONFIG = {
   note: { border: "info.main", bg: "info.soft" },
@@ -118,11 +118,6 @@ const PROSE_SX = {
   "& li > p": { m: 0 },
 } as const;
 
-function parseMarkdownIntoBlocks(markdown: string): string[] {
-  const tokens = marked.lexer(markdown);
-  return tokens.map((token) => token.raw);
-}
-
 const MemoizedMarkdownBlock = memo(
   function MarkdownBlock({
     content,
@@ -159,7 +154,10 @@ export function MarkdownProse({ content, streaming = false }: { content: string;
     () => streaming ? parseProgressive(normalized) : { safe: normalized, pending: false },
     [normalized, streaming],
   );
-  const blocks = useMemo(() => parseMarkdownIntoBlocks(progressive.safe), [progressive.safe]);
+  const blocks = useMemo(
+    () => getMarkdownRenderBlocks(progressive.safe, streaming),
+    [progressive.safe, streaming],
+  );
   const components = useMemo<Partial<Components>>(
     () => ({
       pre: ({ children }) => <>{children}</>,
@@ -169,10 +167,10 @@ export function MarkdownProse({ content, streaming = false }: { content: string;
         const codeValue = String(children).replace(/\n$/, "");
         const inline = isInlineMarkdownCode(className, children);
         if (!inline && match) {
-          return <CodeBlock language={match[1]} code={codeValue} />;
+          return <CodeBlock language={match[1]} code={codeValue} pending={streaming} />;
         }
         if (!inline) {
-          return <CodeBlock language={null} code={codeValue} />;
+          return <CodeBlock language={null} code={codeValue} pending={streaming} />;
         }
 
         return (
