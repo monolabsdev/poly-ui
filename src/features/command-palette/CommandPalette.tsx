@@ -2,17 +2,8 @@ import * as React from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Box, ButtonBase, Typography, alpha, useTheme } from "@mui/material";
 import { AnimatePresence, motion } from "motion/react";
-import {
-  Check,
-  CornerDownLeft,
-  AlertTriangle,
-  MessageSquare,
-  Search,
-  Settings,
-  Sparkles,
-  X,
-  Zap,
-} from "lucide-react";
+import { Check, CornerDownLeft, AlertTriangle, MessageSquare, Search, Settings, Sparkles, X, Zap } from "lucide-react";
+import { useReducedMotion } from "@/features/sidebar/hooks/useReducedMotion";
 import type { CommandPaletteCategory, CommandPaletteItem } from "./types";
 import {
   getIntentSummary,
@@ -136,6 +127,7 @@ export function CommandPalette({
   items,
 }: CommandPaletteProps) {
   const theme = useTheme();
+  const shouldReduce = useReducedMotion();
   const inputRef = React.useRef<HTMLInputElement>(null);
   const parentRef = React.useRef<HTMLDivElement>(null);
   const [query, setQuery] = React.useState("");
@@ -299,7 +291,7 @@ export function CommandPalette({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.12 }}
+          transition={{ duration: shouldReduce ? 0 : 0.12 }}
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) onOpenChange(false);
           }}
@@ -327,7 +319,7 @@ export function CommandPalette({
             initial={{ opacity: 0, scale: 0.97, y: -8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.98, y: -4 }}
-            transition={{ duration: 0.16, ease: [0.2, 0.8, 0.2, 1] }}
+            transition={{ duration: shouldReduce ? 0 : 0.16, ease: [0.2, 0.8, 0.2, 1] }}
             onKeyDown={handleKeyDown}
             sx={{
               width: "750px",

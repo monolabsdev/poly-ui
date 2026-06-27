@@ -1,6 +1,5 @@
 import * as React from "react";
-import { Box, useTheme } from "@mui/material";
-import { MOTION_TOKENS } from "@/lib/utils/motion";
+import { Box } from "@mui/material";
 import { useFolderStore } from "@/store/folderStore";
 import { useChatStore } from "@/store/chatStore";
 import { DeleteConversationDialog } from "@/features/chat/components/DeleteConversationDialog";
@@ -8,7 +7,10 @@ import { ProfileMenu } from "@/features/profile/ProfileMenu";
 import { useAuthStore } from "@/store/authStore";
 import { useSidebar } from "@/features/sidebar/hooks/useSidebar";
 import { useReducedMotion } from "@/features/sidebar/hooks/useReducedMotion";
-import { useSidebarActions, SidebarActionsProvider } from "@/features/sidebar/hooks/useSidebarActions";
+import {
+  useSidebarActions,
+  SidebarActionsProvider,
+} from "@/features/sidebar/hooks/useSidebarActions";
 import { useConversationGroups } from "@/features/sidebar/hooks/useConversationGroups";
 import type { SettingsTab } from "@/features/settings/SettingsModal";
 import { SidebarBrand } from "@/features/sidebar/components/SidebarBrand";
@@ -22,7 +24,6 @@ import {
   SidebarHeader,
   SidebarContent,
   SidebarFooter,
-  SidebarSectionLabel,
 } from "@/features/sidebar/components/SidebarPrimitives";
 import { Conversation } from "@/types/chat";
 
@@ -38,15 +39,20 @@ interface SidebarProps {
   collapsible?: "icon" | "none";
 }
 
+const EXPANDED_WIDTH = 272;
+const COLLAPSED_WIDTH = 64;
+
 function SidebarBody({
   onOpenSettings,
   onOpenCommandPalette,
   onNewChat,
   conversations,
   collapsible,
-}: Omit<SidebarProps, "onDeleteConversation" | "onRenameConversation" | "activeConversationId">) {
+}: Omit<
+  SidebarProps,
+  "onDeleteConversation" | "onRenameConversation" | "activeConversationId"
+>) {
   const { isCollapsed } = useSidebar();
-  const theme = useTheme();
   const reducedMotion = useReducedMotion();
   const isGuest = useAuthStore((s) => s.isGuest);
   const conversationsLoading = useChatStore(
@@ -78,15 +84,15 @@ function SidebarBody({
       </SidebarHeader>
 
       <SidebarContent>
-        <Box sx={{ px: isCollapsed ? 1 : 1.5, pb: 1.5 }}>
+        <Box sx={{ px: isCollapsed ? 0 : 1.5, pb: 0.5 }}>
           <NewChatButton onClick={onNewChat} />
         </Box>
-        <Box sx={{ px: isCollapsed ? 1 : 1.5, pb: isCollapsed ? 1 : 2 }}>
+        <Box sx={{ px: isCollapsed ? 0 : 1.5, pb: 1.5 }}>
           <SearchButton onClick={onOpenCommandPalette} />
         </Box>
 
         {!isCollapsed && (
-          <Box sx={{ pb: 0 }}>
+          <Box sx={{ pb: 0.5 }}>
             <FoldersSection
               folderConversations={folderConversations}
               streamingConversationId={streamingConversationId}
@@ -94,22 +100,21 @@ function SidebarBody({
           </Box>
         )}
 
-        {!isCollapsed && (
-          <Box sx={{ px: 1.5, pt: 2.5, pb: 1 }}>
-            <SidebarSectionLabel>Chats</SidebarSectionLabel>
-          </Box>
-        )}
-
         <Box
-          sx={{
+          sx={(theme) => ({
             display: "flex",
             flexDirection: "column",
             flex: 1,
             minHeight: 0,
             opacity: isCollapsed ? 0 : 1,
             visibility: isCollapsed ? "hidden" : "visible",
-            transition: reducedMotion ? "none" : "opacity 0.18s ease",
-          }}
+            transition: reducedMotion
+              ? "none"
+              : theme.transitions.create("opacity", {
+                  duration: theme.transitions.duration.shorter,
+                  easing: theme.transitions.easing.easeOut,
+                }),
+          })}
         >
           <ConversationList
             groupedConversations={groupedConversations}
@@ -117,7 +122,6 @@ function SidebarBody({
             streamingConversationId={streamingConversationId}
           />
         </Box>
-
       </SidebarContent>
 
       <SidebarFooter>
@@ -139,28 +143,33 @@ function SidebarBody({
     </>
   );
 
-  const width = isCollapsed && collapsible === "icon" ? 60 : 260;
+  const width =
+    isCollapsed && collapsible === "icon" ? COLLAPSED_WIDTH : EXPANDED_WIDTH;
 
   return (
     <Box
-      sx={{
+      sx={(theme) => ({
         flexShrink: 0,
         height: "100%",
         display: "flex",
         flexDirection: "column",
         backgroundColor: theme.palette.background.sidebar,
-        borderTopLeftRadius: 12,
+        borderTopLeftRadius: theme.shape.borderRadius,
         overflowX: "hidden",
         position: "relative",
         width,
         transition: reducedMotion
           ? "none"
-          : `width ${MOTION_TOKENS.duration.base}s cubic-bezier(${MOTION_TOKENS.ease.out.join(",")})`,
-      }}
+          : theme.transitions.create("width", {
+              duration: theme.transitions.duration.shorter,
+              easing: theme.transitions.easing.easeOut,
+            }),
+      })}
     >
       <Box
         sx={{
           width: "100%",
+          maxWidth: EXPANDED_WIDTH,
           height: "100%",
           display: "flex",
           flexDirection: "column",

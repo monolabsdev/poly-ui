@@ -186,6 +186,7 @@ export const ChatArea = memo(function ChatArea({
     pending: boolean;
   } | null>(null);
   const stickToBottomRef = useRef(true);
+  const showScrollButtonRef = useRef(false);
   const handleHeightChange = useCallback((index: number, height: number) => {
     turnHeightsRef.current.set(index, height);
   }, []);
@@ -278,7 +279,11 @@ export const ChatArea = memo(function ChatArea({
       scrollFrameRef.current = null;
       const distFromBottom =
         element.scrollHeight - element.scrollTop - element.clientHeight;
-      setShowScrollButton(distFromBottom > 300);
+      const shouldShowScrollButton = distFromBottom > 300;
+      if (showScrollButtonRef.current !== shouldShowScrollButton) {
+        showScrollButtonRef.current = shouldShowScrollButton;
+        setShowScrollButton(shouldShowScrollButton);
+      }
       const next = {
         top: element.scrollTop,
         height: element.clientHeight,

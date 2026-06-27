@@ -36,32 +36,35 @@ export function SidebarBrand() {
         alignItems: "center",
         justifyContent: isCollapsed ? "center" : "space-between",
         width: "100%",
-        px: isCollapsed ? 0 : 2,
       }}
     >
       <Box
-        sx={{
+        sx={(theme) => ({
           display: "flex",
           alignItems: "center",
+          gap: 1,
           opacity: isCollapsed ? 0 : 1,
           width: isCollapsed ? 0 : "auto",
           overflow: "hidden",
-          transition: reducedMotion ? "none" : "opacity 0.18s ease",
+          transition: reducedMotion
+            ? "none"
+            : theme.transitions.create("opacity", {
+                duration: theme.transitions.duration.shorter,
+                easing: theme.transitions.easing.easeOut,
+              }),
           pointerEvents: isCollapsed ? "none" : "auto",
-        }}
+        })}
       >
         <Typography
-          variant="subtitle2"
           onClick={handleDevTap}
-          sx={{
-            fontWeight: 600,
-            color: "primary.main",
-            letterSpacing: "-0.02em",
-            fontSize: "14px",
+          sx={(theme) => ({
+            ...theme.typography.subtitle2,
+            fontWeight: theme.typography.fontWeightMedium,
+            color: "text.primary",
             whiteSpace: "nowrap",
             cursor: "pointer",
             userSelect: "none",
-          }}
+          })}
         >
           PolyUI
         </Typography>

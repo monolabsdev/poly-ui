@@ -19,7 +19,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ConversationItem } from "@/features/chat/components/ConversationItem";
-import { SidebarMenuButton } from "@/features/sidebar/components/SidebarPrimitives";
+import {
+  SidebarMenuButton,
+  ITEM_HEIGHT,
+  sidebarIconButtonSx,
+} from "@/features/sidebar/components/SidebarPrimitives";
 import { useSidebar } from "@/features/sidebar/hooks/useSidebar";
 import { useSidebarActions } from "@/features/sidebar/hooks/useSidebarActions";
 import { useReducedMotion } from "@/features/sidebar/hooks/useReducedMotion";
@@ -82,13 +86,13 @@ export function FolderTree({
           setActiveConversationId(null);
           if (isMobile) setOpenMobile(false);
         }}
-        sx={{
-          height: 38,
-          pl: 1 + depth * 2,
+        sx={(theme) => ({
+          height: theme.spacing(ITEM_HEIGHT),
+          pl: 2 + depth * 2,
           pr: 1,
           "&:hover .folder-actions": { opacity: 1 },
-          gap: 1.5,
-        }}
+          gap: 1,
+        })}
       >
         <ChevronRight
           size={13}
@@ -98,7 +102,7 @@ export function FolderTree({
             transform: isOpen ? "rotate(90deg)" : undefined,
           }}
         />
-        <FolderIcon size={14} style={{ flexShrink: 0, opacity: 0.7 }} />
+        <FolderIcon size={15} style={{ flexShrink: 0, opacity: 0.7 }} />
         {isEditing ? (
           <Box
             sx={{ display: "flex", alignItems: "center", flex: 1, gap: 0.5 }}
@@ -124,7 +128,7 @@ export function FolderTree({
                 border: "none",
                 color: "inherit",
                 outline: "none",
-                fontSize: "13px",
+                fontSize: "inherit",
                 padding: 0,
                 width: "100%",
               }}
@@ -136,9 +140,9 @@ export function FolderTree({
                 e.stopPropagation();
                 folderActions.onConfirmRename();
               }}
-              sx={{ p: 0.25, color: "text.secondary" }}
+              sx={(theme) => sidebarIconButtonSx(theme, reducedMotion)}
             >
-              <Check size={13} />
+              <Check />
             </IconButton>
             <IconButton
               size="small"
@@ -147,21 +151,22 @@ export function FolderTree({
                 e.stopPropagation();
                 folderActions.onCancelRename();
               }}
-              sx={{ p: 0.25, color: "text.secondary" }}
+              sx={(theme) => sidebarIconButtonSx(theme, reducedMotion)}
             >
-              <X size={13} />
+              <X />
             </IconButton>
           </Box>
         ) : (
           <Box
             component="span"
-            sx={{
-              fontSize: "13px",
-              fontWeight: 450,
+            sx={(theme) => ({
+              ...theme.typography.body2,
+              flex: 1,
+              fontWeight: theme.typography.fontWeightMedium,
               whiteSpace: "nowrap",
               overflow: "hidden",
               textOverflow: "ellipsis",
-            }}
+            })}
           >
             {folder.name}
           </Box>
@@ -172,7 +177,12 @@ export function FolderTree({
             display: "flex",
             ml: "auto",
             opacity: 0,
-            transition: reducedMotion ? "none" : "opacity 0.12s",
+            transition: reducedMotion
+              ? "none"
+              : (theme) =>
+                  theme.transitions.create("opacity", {
+                    duration: theme.transitions.duration.shortest,
+                  }),
           }}
         >
           <DropdownMenu>
@@ -181,9 +191,9 @@ export function FolderTree({
                 size="small"
                 aria-label={`Actions for ${folder.name}`}
                 onClick={(e) => e.stopPropagation()}
-                sx={{ p: 0.25 }}
+                sx={(theme) => sidebarIconButtonSx(theme, reducedMotion)}
               >
-                <MoreHorizontal size={13} />
+                <MoreHorizontal />
               </IconButton>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" sx={{ minWidth: 170 }}>
@@ -238,7 +248,11 @@ export function FolderTree({
                 setActiveConversationId(chat.id);
                 if (isMobile) setOpenMobile(false);
               }}
-              sx={{ height: 38, pl: 2 + depth * 2, pr: 1, fontSize: "13px" }}
+              sx={(theme) => ({
+                height: theme.spacing(ITEM_HEIGHT),
+                pl: 2 + depth * 2,
+                pr: 1,
+              })}
             >
               <ConversationItem
                 conv={chat}

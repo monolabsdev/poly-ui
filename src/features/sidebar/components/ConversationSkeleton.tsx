@@ -11,7 +11,7 @@ export function ConversationSkeleton() {
           key={i}
           sx={{
             height: 36,
-            borderRadius: "8px",
+            borderRadius: (theme) => theme.shape.borderRadius,
             mb: 0.5,
             bgcolor: "action.hover",
             animation: "pulse 1.5s ease-in-out infinite",

@@ -11,16 +11,21 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Box, Typography, Button as MuiButton, Tooltip } from "@mui/material";
-import { Settings, Archive, LogOut, LogIn } from "lucide-react";
+import { Settings, Archive, LogOut, LogIn, Cpu } from "lucide-react";
 
 import { useSidebar } from "@/features/sidebar";
 import { ArchivedChatsDialog } from "@/features/chat/components/ArchivedChatsDialog";
 import type { SettingsTab } from "@/features/settings/SettingsModal";
-
-
+import { useViewStore } from "@/lib/view-registry";
 
 interface ProfileMenuProps {
   onOpenSettings?: (tab?: SettingsTab) => void;
+}
+
+const menuItemSx = { gap: 2 } as const;
+
+function openModelBrowser() {
+  useViewStore.getState().setActiveView("model-browser");
 }
 
 export const ProfileMenu: React.FC<ProfileMenuProps> = ({
@@ -52,10 +57,32 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
             textTransform: "none",
           }}
         >
-          <Box sx={{ width: 36, height: 36, borderRadius: "50%", bgcolor: "action.selected" }} />
+          <Box
+            sx={(theme) => ({
+              width: theme.spacing(4.5),
+              height: theme.spacing(4.5),
+              borderRadius: theme.app.radius.pill,
+              bgcolor: "action.selected",
+            })}
+          />
           {!isCollapsed && (
-            <Box sx={{ width: 80, height: 14, bgcolor: "action.selected", mb: 0.5, borderRadius: 1 }}>
-              <Box sx={{ width: 40, height: 10, bgcolor: "action.selected", borderRadius: 1 }} />
+            <Box
+              sx={(theme) => ({
+                width: theme.spacing(10),
+                height: theme.spacing(1.75),
+                bgcolor: "action.selected",
+                mb: 0.5,
+                borderRadius: theme.shape.borderRadius,
+              })}
+            >
+              <Box
+                sx={(theme) => ({
+                  width: theme.spacing(5),
+                  height: theme.spacing(1.25),
+                  bgcolor: "action.selected",
+                  borderRadius: theme.shape.borderRadius,
+                })}
+              />
             </Box>
           )}
         </MuiButton>
@@ -67,7 +94,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
     const guestButton = (
       <MuiButton
         fullWidth
-        sx={{
+        sx={(theme) => ({
           display: "flex",
           alignItems: "center",
           justifyContent: isCollapsed ? "center" : "flex-start",
@@ -78,17 +105,34 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
           color: "text.secondary",
           textAlign: "left",
           minWidth: 0,
-          "&:hover": { bgcolor: "action.hover" },
-        }}
+          ...(isCollapsed
+            ? {
+                bgcolor: "action.selected",
+                borderRadius: theme.app.radius.pill,
+                width: 40,
+                height: 40,
+                mx: "auto",
+                flexShrink: 0,
+                "&:hover": { bgcolor: "action.selected", opacity: 0.8 },
+              }
+            : {
+                "&:hover": { bgcolor: "action.hover" },
+              }),
+        })}
       >
         <Box sx={{ display: "flex", flexShrink: 0 }}>
-          <Avatar sx={{ width: isCollapsed ? 28 : 32, height: isCollapsed ? 28 : 32 }}>
+          <Avatar
+            sx={(theme) => ({
+              width: theme.spacing(isCollapsed ? 3.5 : 4),
+              height: theme.spacing(isCollapsed ? 3.5 : 4),
+            })}
+          >
             <AvatarFallback
-              sx={{
+              sx={(theme) => ({
+                ...theme.typography.caption,
                 bgcolor: "action.selected",
                 color: "text.secondary",
-                fontSize: isCollapsed ? "0.65rem" : "0.7rem",
-              }}
+              })}
             >
               ?
             </AvatarFallback>
@@ -100,15 +144,27 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
               sx={{ flex: 1, overflow: "hidden" }}
             >
               <Typography
-                variant="body2"
-                sx={{ fontWeight: 500, fontSize: "13px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "text.primary" }}
+                sx={(theme) => ({
+                  ...theme.typography.body2,
+                  fontWeight: theme.typography.fontWeightMedium,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                  color: "text.primary",
+                })}
               >
                 Guest mode
               </Typography>
               <Typography
-                variant="caption"
-                color="text.secondary"
-                sx={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", opacity: 0.6 }}
+                sx={(theme) => ({
+                  ...theme.typography.caption,
+                  display: "block",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                  color: "text.secondary",
+                  opacity: 0.6,
+                })}
               >
                 Not signed in
               </Typography>
@@ -132,25 +188,41 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
           <DropdownMenuContent align="end" sx={{ width: 256 }}>
             <DropdownMenuLabel>
               <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
-                <Typography variant="body2" sx={{ fontWeight: 500, lineHeight: 1.2 }}>
+                <Typography
+                  sx={(theme) => ({
+                    ...theme.typography.body2,
+                    fontWeight: theme.typography.fontWeightMedium,
+                    lineHeight: 1.2,
+                  })}
+                >
                   Guest
                 </Typography>
-                <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.2 }}>
+                <Typography
+                  sx={(theme) => ({
+                    ...theme.typography.caption,
+                    color: "text.secondary",
+                    lineHeight: 1.2,
+                  })}
+                >
                   Signed out
                 </Typography>
               </Box>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => onOpenSettings?.("profile")} sx={{ gap: 2 }}>
+            <DropdownMenuItem onClick={() => onOpenSettings?.("profile")} sx={menuItemSx}>
               <Settings size={16} />
               <span>Settings</span>
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setIsArchivedOpen(true)} sx={{ gap: 2 }}>
+            <DropdownMenuItem onClick={openModelBrowser} sx={menuItemSx}>
+              <Cpu size={16} />
+              <span>Models</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setIsArchivedOpen(true)} sx={menuItemSx}>
               <Archive size={16} />
               <span>Archived Chats</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => actions.openAuth()} sx={{ gap: 2 }}>
+            <DropdownMenuItem onClick={() => actions.openAuth()} sx={menuItemSx}>
               <LogIn size={16} />
               <span>Log In</span>
             </DropdownMenuItem>
@@ -178,33 +250,48 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
   const button = (
     <MuiButton
       fullWidth
-      sx={{
+      sx={(theme) => ({
         display: "flex",
         alignItems: "center",
         justifyContent: isCollapsed ? "center" : "flex-start",
-        gap: isCollapsed ? 0 : 1.5,
+        gap: isCollapsed ? 0 : 1.25,
         p: 0.75,
         px: isCollapsed ? 0 : 0.75,
         textTransform: "none",
         color: "text.primary",
         textAlign: "left",
         minWidth: 0,
-        "&:hover": {
-          bgcolor: "action.hover",
-        },
-      }}
+        ...(isCollapsed
+          ? {
+              bgcolor: "action.selected",
+              borderRadius: theme.app.radius.pill,
+              width: 40,
+              height: 40,
+              mx: "auto",
+              flexShrink: 0,
+              "&:hover": { bgcolor: "action.selected", opacity: 0.8 },
+            }
+          : {
+              "&:hover": { bgcolor: "action.hover" },
+            }),
+      })}
     >
       <Box sx={{ display: "flex", flexShrink: 0, position: "relative" }}>
-        <Avatar sx={{ width: isCollapsed ? 28 : 32, height: isCollapsed ? 28 : 32 }}>
+        <Avatar
+          sx={(theme) => ({
+            width: theme.spacing(isCollapsed ? 3.5 : 4),
+            height: theme.spacing(isCollapsed ? 3.5 : 4),
+          })}
+        >
           {user.avatarUrl ? (
             <AvatarImage src={user.avatarUrl} alt={user.fullName || user.email} />
           ) : (
             <AvatarFallback
-              sx={{
+              sx={(theme) => ({
+                ...theme.typography.caption,
                 bgcolor: "action.selected",
                 color: "text.primary",
-                fontSize: isCollapsed ? "0.65rem" : "0.7rem",
-              }}
+              })}
             >
               {initials}
             </AvatarFallback>
@@ -221,7 +308,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
               bgcolor: "success.main",
               border: "2px solid",
               borderColor: "background.sidebar",
-              borderRadius: "50%",
+              borderRadius: (theme) => theme.app.radius.pill,
             }}
           />
         )}
@@ -232,15 +319,26 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
             sx={{ flex: 1, overflow: "hidden" }}
           >
             <Typography
-              variant="body2"
-              sx={{ fontWeight: 500, fontSize: "13px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+              sx={(theme) => ({
+                ...theme.typography.body2,
+                fontWeight: theme.typography.fontWeightMedium,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              })}
             >
               {user.fullName || "User"}
             </Typography>
             <Typography
-              variant="caption"
-              color="text.secondary"
-              sx={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", opacity: 0.6 }}
+              sx={(theme) => ({
+                ...theme.typography.caption,
+                display: "block",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                color: "text.secondary",
+                opacity: 0.6,
+              })}
             >
               Active
             </Typography>
@@ -264,16 +362,16 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
         <DropdownMenuContent align="end" sx={{ width: 256 }}>
           <DropdownMenuLabel>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, minWidth: 0 }}>
-              <Avatar sx={{ width: 34, height: 34, flexShrink: 0 }}>
+              <Avatar sx={(theme) => ({ width: theme.spacing(4.25), height: theme.spacing(4.25), flexShrink: 0 })}>
                 {user.avatarUrl ? (
                   <AvatarImage src={user.avatarUrl} alt={user.fullName || user.email} />
                 ) : (
                   <AvatarFallback
-                    sx={{
+                    sx={(theme) => ({
+                      ...theme.typography.caption,
                       bgcolor: "action.selected",
                       color: "text.primary",
-                      fontSize: "0.72rem",
-                    }}
+                    })}
                   >
                     {initials}
                   </AvatarFallback>
@@ -281,15 +379,26 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
               </Avatar>
               <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5, minWidth: 0 }}>
                 <Typography
-                  variant="body2"
-                  sx={{ fontWeight: 500, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                  sx={(theme) => ({
+                    ...theme.typography.body2,
+                    fontWeight: theme.typography.fontWeightMedium,
+                    lineHeight: 1.2,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  })}
                 >
                   {user.fullName || "User"}
                 </Typography>
                 <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  sx={{ lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                  sx={(theme) => ({
+                    ...theme.typography.caption,
+                    color: "text.secondary",
+                    lineHeight: 1.2,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  })}
                 >
                   {user.email}
                 </Typography>
@@ -298,11 +407,15 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
           </DropdownMenuLabel>
 
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => onOpenSettings?.("profile")} sx={{ gap: 2 }}>
+          <DropdownMenuItem onClick={() => onOpenSettings?.("profile")} sx={menuItemSx}>
             <Settings size={16} />
             <span>Settings</span>
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setIsArchivedOpen(true)} sx={{ gap: 2 }}>
+          <DropdownMenuItem onClick={openModelBrowser} sx={menuItemSx}>
+            <Cpu size={16} />
+            <span>Models</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setIsArchivedOpen(true)} sx={menuItemSx}>
             <Archive size={16} />
             <span>Archived Chats</span>
           </DropdownMenuItem>

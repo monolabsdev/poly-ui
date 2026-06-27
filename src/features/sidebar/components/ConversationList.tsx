@@ -7,6 +7,7 @@ import {
   SidebarGroupContent,
   SidebarMenu,
   SidebarMenuButton,
+  SidebarSectionHeader,
 } from "@/features/sidebar/components/SidebarPrimitives";
 import { ConversationSkeleton } from "@/features/sidebar/components/ConversationSkeleton";
 import { useSidebar } from "@/features/sidebar/hooks/useSidebar";
@@ -88,12 +89,12 @@ export function ConversationList({
       >
         <MessageSquare size={16} style={{ opacity: 0.5 }} />
         <Typography
-          sx={{
-            fontSize: "12px",
+          sx={(theme) => ({
+            ...theme.typography.caption,
             lineHeight: 1.4,
             color: "text.secondary",
             opacity: 0.75,
-          }}
+          })}
         >
           No chats yet
         </Typography>
@@ -102,12 +103,15 @@ export function ConversationList({
   }
 
   return (
-    <>
+    <Box>
+      <Box sx={{ px: 1.5, mb: 0.5 }}>
+        <SidebarSectionHeader label="Chats" />
+      </Box>
       {groupedConversations.map((group) => (
-        <Box key={group.id} sx={{ mb: 1 }}>
+        <Box key={group.id} sx={{ mb: 0.5 }}>
           <SidebarGroup sx={{ mb: 0 }}>
             <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
-            <SidebarGroupContent sx={{ mt: 0.5 }}>
+            <SidebarGroupContent>
               <SidebarMenu>
                 {group.items.map((c) => (
                   <SidebarMenuButton
@@ -121,8 +125,6 @@ export function ConversationList({
                     }}
                     sx={{
                       "&:hover .conversation-actions": { opacity: 1 },
-                      contentVisibility: "auto",
-                      containIntrinsicSize: "1px 36px",
                     }}
                   >
                     <ConversationItem
@@ -147,6 +149,6 @@ export function ConversationList({
           </SidebarGroup>
         </Box>
       ))}
-    </>
+    </Box>
   );
 }

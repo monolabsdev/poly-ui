@@ -185,6 +185,10 @@ export const ChatInput = memo(function ChatInput({
       ["border-color", "box-shadow", "background-color", "background-image"],
       { duration: theme.transitions.duration.short },
     ),
+    "&:hover": {
+      borderColor: "border.main",
+      boxShadow: theme.palette.mode === "dark" ? (agentEnabled ? theme.shadows[3] : theme.shadows[2]) : "none",
+    },
     "&:focus-within": {
       borderColor: "border.main",
       boxShadow: theme.palette.mode === "dark" ? (agentEnabled ? theme.shadows[3] : theme.shadows[2]) : "none",

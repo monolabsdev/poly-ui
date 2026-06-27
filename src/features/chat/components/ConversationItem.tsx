@@ -1,5 +1,6 @@
 import * as React from "react";
-import { Box, ButtonBase, IconButton, Typography } from "@mui/material";
+import { Box, ButtonBase, IconButton, Typography, type SxProps } from "@mui/material";
+import type { Theme } from "@mui/material/styles";
 import {
   Check,
   Circle,
@@ -18,6 +19,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useReducedMotion } from "@/features/sidebar/hooks/useReducedMotion";
+import { sidebarIconButtonSx } from "@/features/sidebar/components/SidebarPrimitives";
 import { TextShimmer } from "@/components/ui/text-shimmer";
 import type { Conversation } from "@/store/chatStore";
 
@@ -63,30 +66,33 @@ export const ConversationItem = React.memo(function ConversationItem({
   const isFolder = variant === "folder";
   const isFolderTree = variant === "folderTree";
   const isActive = activeConversationId === conv.id;
+  const reducedMotion = useReducedMotion();
 
-  const rootSx = React.useMemo(() => isFolder ? {
-    display: "flex",
-    alignItems: "center",
-    width: "100%",
-    minWidth: 0,
-    p: 1.25,
-    gap: 1,
-    borderRadius: "10px",
-    bgcolor: isActive ? "action.selected" : "transparent" as const,
-    color: "inherit",
-    cursor: "pointer",
-    textAlign: "left" as const,
-    fontFamily: "inherit",
-    fontSize: "inherit",
-    "&:hover": { bgcolor: "action.hover" },
-    "&:hover .checkbox-icon": { opacity: "1 !important" },
-  } : {
-    display: "flex",
-    alignItems: "center",
-    width: "100%",
-    minWidth: 0,
-    height: "100%",
-  }, [isFolder, isActive]);
+  const rootSx: SxProps<Theme> = isFolder
+    ? (theme) => ({
+        ...theme.typography.body2,
+        display: "flex",
+        alignItems: "center",
+        width: "100%",
+        minWidth: 0,
+        p: 1,
+        gap: 1,
+        borderRadius: theme.shape.borderRadius,
+        bgcolor: isActive ? "action.selected" : "transparent",
+        color: "inherit",
+        cursor: "pointer",
+        textAlign: "left" as const,
+        fontFamily: "inherit",
+        "&:hover": { bgcolor: "action.hover" },
+        "&:hover .checkbox-icon": { opacity: "1 !important" },
+      })
+    : {
+        display: "flex",
+        alignItems: "center",
+        width: "100%",
+        minWidth: 0,
+        height: "100%",
+      };
 
   const content = editingId === conv.id ? (
     <Box sx={{ display: "flex", alignItems: "center", width: "100%", gap: 0.5 }}>
@@ -105,7 +111,7 @@ export const ConversationItem = React.memo(function ConversationItem({
           border: "none",
           color: "inherit",
           outline: "none",
-          fontSize: isFolder ? "13px" : "inherit",
+          fontSize: "inherit",
           padding: 0,
           width: "100%",
         }}
@@ -114,17 +120,17 @@ export const ConversationItem = React.memo(function ConversationItem({
         size="small"
         aria-label="Confirm rename"
         onClick={(e) => handleConfirmRename?.(e, conv.id)}
-        sx={{ p: 0.5, color: "text.secondary" }}
+        sx={(theme) => sidebarIconButtonSx(theme, reducedMotion)}
       >
-        <Check size={14} />
+        <Check />
       </IconButton>
       <IconButton
         size="small"
         aria-label="Cancel rename"
         onClick={handleCancelRename}
-        sx={{ p: 0.5, color: "text.secondary" }}
+        sx={(theme) => sidebarIconButtonSx(theme, reducedMotion)}
       >
-        <X size={14} />
+        <X />
       </IconButton>
     </Box>
   ) : (
@@ -143,7 +149,7 @@ export const ConversationItem = React.memo(function ConversationItem({
               onToggleSelect(e as unknown as React.MouseEvent, conv.id);
             }
           }}
-          sx={{
+          sx={(theme) => ({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -151,11 +157,13 @@ export const ConversationItem = React.memo(function ConversationItem({
             height: 20,
             flexShrink: 0,
             opacity: selected ? 1 : 0,
-            transition: "opacity 0.1s",
+            transition: theme.transitions.create("opacity", {
+              duration: theme.transitions.duration.shortest,
+            }),
             "&:hover": { opacity: "1 !important" },
             cursor: "pointer",
             color: selected ? "primary.main" : "text.disabled",
-          }}
+          })}
         >
           {selected ? <Check size={14} strokeWidth={3} /> : <Circle size={14} />}
         </Box>
@@ -164,14 +172,17 @@ export const ConversationItem = React.memo(function ConversationItem({
         variant="body2"
         noWrap
         component="div"
-        sx={{
+        sx={(theme) => ({
+          ...theme.typography.body2,
           flex: 1,
           minWidth: 0,
-          color: activeConversationId === conv.id ? "text.primary" : "text.secondary",
-          fontSize: "13px",
-          fontWeight: activeConversationId === conv.id ? 500 : 400,
+          color: isActive ? "text.primary" : "text.secondary",
+          fontWeight: isActive
+            ? theme.typography.fontWeightMedium
+            : theme.typography.fontWeightRegular,
           pr: 1,
-        }}
+          lineHeight: 1.25,
+        })}
       >
         {isGenerating ? (
           <TextShimmer duration={1.8} spread={18}>
@@ -222,13 +233,9 @@ export const ConversationItem = React.memo(function ConversationItem({
                 size="small"
                 aria-label={`Actions for ${conv.title || "Untitled"}`}
                 onClick={(e) => e.stopPropagation()}
-                sx={{
-                  p: 0.5,
-                  color: "text.secondary",
-                  "&:hover": { color: "text.primary", bgcolor: "action.selected" },
-                }}
+                sx={(theme) => sidebarIconButtonSx(theme, reducedMotion)}
               >
-                <MoreHorizontal size={14} />
+                <MoreHorizontal />
               </IconButton>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">

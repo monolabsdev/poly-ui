@@ -11,4 +11,6 @@ export {
   SidebarMenuButton,
   SidebarTrigger,
   SidebarInset,
+  SidebarActionButton,
+  SidebarSectionHeader,
 } from "@/features/sidebar/components/SidebarPrimitives";

@@ -2,6 +2,7 @@ import { memo } from "react";
 import { X } from "lucide-react";
 import { Box } from "@mui/material";
 import { motion } from "motion/react";
+import { useTiming } from "@/lib/utils/motion";
 import type { FeatureDef } from "@/lib/featureRegistry";
 
 interface ActiveFeaturesListProps {
@@ -13,6 +14,7 @@ export const ActiveFeaturesList = memo(function ActiveFeaturesList({
   activeFeatures,
   hasAttachments,
 }: ActiveFeaturesListProps) {
+  const timing = useTiming();
   return (
     <Box
       sx={{
@@ -34,6 +36,7 @@ export const ActiveFeaturesList = memo(function ActiveFeaturesList({
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.8 }}
+            transition={{ duration: timing.duration("fast"), ease: timing.ease }}
             sx={{
               display: "flex",
               alignItems: "center",
