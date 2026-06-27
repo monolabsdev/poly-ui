@@ -28,16 +28,17 @@ type ModelStore = {
   defaultModel: string;
   systemPrompts: SystemPrompt[];
   activeSystemPromptId: string | null;
-  setSelectedModel: (provider: ModelProvider, model: string) => void;
+  setSelectedModel: (provider: ModelProvider, model: string, providerConfigId?: number) => void;
   setSelectedModels: (
-    models: { provider: ModelProvider; model: string }[],
+    models: { provider: ModelProvider; model: string; providerConfigId?: number }[],
   ) => void;
-  addSelectedModel: (provider: ModelProvider, model: string) => void;
+  addSelectedModel: (provider: ModelProvider, model: string, providerConfigId?: number) => void;
   removeSelectedModel: (index: number) => void;
   updateSelectedModel: (
     index: number,
     provider: ModelProvider,
     model: string,
+    providerConfigId?: number,
   ) => void;
   setAvailableModels: (models: Partial<AvailableModels>) => void;
   actions: {
@@ -87,13 +88,13 @@ export const useModelStore = create<ModelStore>((set) => ({
   systemPrompts: [defaultSystemPrompt],
   activeSystemPromptId: defaultSystemPrompt.id,
   defaultModel: localStorage.getItem("default_model") || "",
-  setSelectedModel: (provider: ModelProvider, model: string) =>
+  setSelectedModel: (provider: ModelProvider, model: string, providerConfigId?: number) =>
     set({
       selectedProvider: provider,
       selectedModel: model,
       selectedProviders: [provider],
       selectedModels: [model],
-      selectedModelChoices: [{ provider, model }],
+      selectedModelChoices: [{ provider, model, providerConfigId }],
     }),
   setSelectedModels: (models) =>
     set({
@@ -103,16 +104,18 @@ export const useModelStore = create<ModelStore>((set) => ({
       selectedProvider: models[0]?.provider || "OllamaLocal",
       selectedModel: models[0]?.model || "",
     }),
-  addSelectedModel: (provider: ModelProvider, model: string) =>
+  addSelectedModel: (provider: ModelProvider, model: string, providerConfigId?: number) =>
     set((state) => {
       if (!model && state.selectedModels.includes("")) return state;
       if (model && state.selectedModels.some((item, index) =>
-        item === model && state.selectedProviders[index] === provider
+        item === model &&
+        state.selectedProviders[index] === provider &&
+        state.selectedModelChoices[index]?.providerConfigId === providerConfigId,
       )) return state;
       return {
         selectedProviders: [...state.selectedProviders, provider],
         selectedModels: [...state.selectedModels, model],
-        selectedModelChoices: [...state.selectedModelChoices, { provider, model }],
+        selectedModelChoices: [...state.selectedModelChoices, { provider, model, providerConfigId }],
       };
     }),
   removeSelectedModel: (index: number) =>
@@ -121,21 +124,22 @@ export const useModelStore = create<ModelStore>((set) => ({
         (_, i) => i !== index,
       );
       const nextModels = state.selectedModels.filter((_, i) => i !== index);
+      const nextChoices = state.selectedModelChoices.filter((_, i) => i !== index);
       return {
         selectedProviders: nextProviders,
         selectedModels: nextModels,
-        selectedModelChoices: nextModels.map((model, i) => ({
-          provider: nextProviders[i],
-          model,
-        })),
+        selectedModelChoices: nextChoices,
         selectedProvider: nextProviders[0] || "OllamaLocal",
         selectedModel: nextModels[0] || "",
       };
     }),
-  updateSelectedModel: (index, provider, model) =>
+  updateSelectedModel: (index, provider, model, providerConfigId) =>
     set((state) => {
       if (state.selectedModels.some((item, itemIndex) =>
-        itemIndex !== index && item === model && state.selectedProviders[itemIndex] === provider
+        itemIndex !== index &&
+        item === model &&
+        state.selectedProviders[itemIndex] === provider &&
+        state.selectedModelChoices[itemIndex]?.providerConfigId === providerConfigId,
       )) return state;
       const nextProviders = [...state.selectedProviders];
       const nextModels = [...state.selectedModels];
@@ -147,6 +151,8 @@ export const useModelStore = create<ModelStore>((set) => ({
         selectedModelChoices: nextModels.map((model, i) => ({
           provider: nextProviders[i],
           model,
+          providerConfigId:
+            i === index ? providerConfigId : state.selectedModelChoices[i]?.providerConfigId,
         })),
         selectedProvider: nextProviders[0] || "OllamaLocal",
         selectedModel: nextModels[0] || "",

@@ -8,6 +8,7 @@ export type OllamaModel = {
   size: number;
   supports_vision?: boolean;
   provider_type: ProviderType;
+  provider_config_id?: number;
 };
 
 export type PullProgress = {

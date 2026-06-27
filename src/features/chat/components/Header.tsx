@@ -23,19 +23,22 @@ import {
 import { PROMPT_PRESETS } from "@/lib/constants/promptPresets";
 import { useSettingsStore } from "@/store/settingsStore";
 import { ModelSelector } from "@/features/chat/components/ModelSelector";
+import type { ModelChoice } from "@/lib/models/model-choice";
 
 
 interface HeaderProps {
   selectedModels: string[];
   selectedProviders: ModelProvider[];
+  selectedModelChoices: ModelChoice[];
   onModelChange: (
     index: number,
     provider: ModelProvider,
     model: string,
+    providerConfigId?: number,
   ) => void;
   onAddModel: () => void;
   onRemoveModel: (index: number) => void;
-  onSetDefault: (model: string) => void;
+  onSetDefault: (choice: ModelChoice) => void;
   isTemporary?: boolean;
   onToggleTemporaryChat: () => void;
   transparent?: boolean;
@@ -44,6 +47,7 @@ interface HeaderProps {
 export const Header = memo(function Header({
   selectedModels,
   selectedProviders,
+  selectedModelChoices,
   onModelChange,
   onAddModel,
   onRemoveModel,
@@ -137,8 +141,8 @@ export const Header = memo(function Header({
                   <ModelSelector
                     model=""
                     provider="OllamaLocal"
-                    onChange={(provider, model) =>
-                      onModelChange(0, provider, model)
+                    onChange={(option) =>
+                      onModelChange(0, option.provider_type, option.name, option.provider_config_id)
                     }
                   />
                 ) : null}
@@ -150,8 +154,9 @@ export const Header = memo(function Header({
                     <ModelSelector
                       model={selectedModel}
                       provider={selectedProviders[index] ?? "OllamaLocal"}
-                      onChange={(provider, model) =>
-                        onModelChange(index, provider, model)
+                      providerConfigId={selectedModelChoices[index]?.providerConfigId}
+                      onChange={(option) =>
+                        onModelChange(index, option.provider_type, option.name, option.provider_config_id)
                       }
                     />
                     {selectedModels.length > 1 && (
@@ -189,7 +194,14 @@ export const Header = memo(function Header({
                 component="button"
                 variant="caption"
                 underline="none"
-                onClick={() => onSetDefault(selectedModels[0])}
+                onClick={() =>
+                  onSetDefault(
+                    selectedModelChoices[0] ?? {
+                      provider: selectedProviders[0] ?? "OllamaLocal",
+                      model: selectedModels[0],
+                    },
+                  )
+                }
                 sx={{
                   color: "text.secondary",
                   fontSize: "11px",
@@ -351,4 +363,3 @@ export const Header = memo(function Header({
     </Box>
   );
 });
-

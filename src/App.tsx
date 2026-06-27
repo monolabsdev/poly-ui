@@ -7,7 +7,6 @@ import {
   useState,
   useEffect,
 } from "react";
-import { Header } from "@/features/chat/components/Header";
 import { useModelStore } from "@/store/modelStore";
 import { useSettingsStore } from "@/store/settingsStore";
 import { getPresetContent } from "@/lib/constants/promptPresets";
@@ -19,45 +18,22 @@ import { useChatStore } from "@/store/chatStore";
 import { useAuthStore } from "@/store/authStore";
 import { useNotify } from "@/hooks/useNotify";
 import { useShallow } from "zustand/react/shallow";
-import { retryTitleForConversation, type TitleStore } from "@/lib/chat/title-generation";
+import { retryTitleForConversation, titleStore } from "@/lib/chat/title-generation";
 import { useFeatures } from "@/lib/featureRegistry";
-import { IS_MAC } from "@/lib/utils/platform";
 import { disableMemoryForOwner } from "@/features/memory/memoryClient";
 import { getCurrentProviderAccountId } from "@/features/providers";
-
-const titleStore: TitleStore = {
-  findConversation: (id) => useChatStore.getState().conversations.find((c) => c.id === id),
-  getConversationMessages: (cid) => useChatStore.getState().messages.filter((m) => m.conversationId === cid),
-  setTitleGenerationStatus: (id, status) => useChatStore.getState().actions.setTitleGenerationStatus?.(id, status),
-  renameConversation: (id, title, source) => useChatStore.getState().actions.renameConversation(id, title, source),
-};
-import {
-  findDefaultModelChoice,
-  modelChoiceId,
-} from "@/lib/models/model-choice";
-import { shouldLoadExternalDefault } from "@/lib/models/model-selector";
 import { useFolderStore } from "@/store/folderStore";
-import { useThemeStore, type ThemeMode } from "@/store/themeStore";
 import { SettingsModal } from "./features/settings/SettingsModal";
 import type { SettingsTab } from "./features/settings/SettingsModal";
 import { ArchivedChatsDialog } from "@/features/chat/components/ArchivedChatsDialog";
 import { CommandPalette } from "@/features/command-palette/CommandPalette";
 import { useRegisteredCommandPaletteActions } from "@/features/command-palette/actionRegistry";
 import { useSettingsCommands } from "@/features/command-palette/settingsRegistry";
-import {
-  exportConversation,
-  importConversations,
-} from "@/features/command-palette/chatDataActions";
-import type { CommandPaletteItem } from "@/features/command-palette/types";
-import {
-  Archive,
-  Download,
-  FileInput,
-  MessageSquare,
-  Settings,
-  SquarePen,
-  Trash2,
-} from "lucide-react";
+import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import { useAutoSelectModel } from "@/hooks/useAutoSelectModel";
+import { useChatActionHandlers } from "@/hooks/useChatActionHandlers";
+import { useCommandPaletteItems } from "@/hooks/useCommandPaletteItems";
+import "@/features/models";
 
 const AuthModal = lazy(() =>
   import("@/features/auth/AuthModal").then((module) => ({
@@ -69,7 +45,9 @@ const ReleaseNotesModal = lazy(() =>
     default: module.ReleaseNotesModal,
   })),
 );
-const ChatWorkspace = lazy(() => import("@/features/chat/components/ChatWorkspace"));
+const ChatWorkspace = lazy(
+  () => import("@/features/chat/components/ChatWorkspace"),
+);
 
 function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -83,10 +61,6 @@ function App() {
     selectedModels,
     selectedProviders,
     selectedModelChoices,
-    updateSelectedModel,
-    addSelectedModel,
-    removeSelectedModel,
-    setDefaultModel,
     setSelectedModel,
     defaultModel,
   } = useModelStore(
@@ -94,10 +68,6 @@ function App() {
       selectedModels: state.selectedModels,
       selectedProviders: state.selectedProviders,
       selectedModelChoices: state.selectedModelChoices,
-      updateSelectedModel: state.updateSelectedModel,
-      addSelectedModel: state.addSelectedModel,
-      removeSelectedModel: state.removeSelectedModel,
-      setDefaultModel: state.actions.setDefaultModel,
       setSelectedModel: state.setSelectedModel,
       defaultModel: state.defaultModel,
     })),
@@ -134,65 +104,26 @@ function App() {
     [],
   );
 
-  useEffect(() => {
-    const handler = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key === ",") {
-        event.preventDefault();
-        handleOpenSettings("general");
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [handleOpenSettings]);
-
-  useEffect(() => {
-    const handler = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
-        event.preventDefault();
-        if (isAuthGateOpen) {
-          setIsCommandPaletteOpen(false);
-          return;
-        }
-        setIsCommandPaletteOpen((open) => !open);
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [isAuthGateOpen]);
+  useKeyboardShortcuts({
+    onOpenSettings: handleOpenSettings,
+    isAuthGateOpen,
+    setIsCommandPaletteOpen,
+  });
 
   useEffect(() => {
     if (isAuthGateOpen) setIsCommandPaletteOpen(false);
   }, [isAuthGateOpen]);
 
-  useEffect(() => {
-    if (!ollama.online || selectedModels.length > 0) return;
-
-    if (
-      shouldLoadExternalDefault(
-        defaultModel,
-        ollama.externalModelsLoaded,
-        ollama.externalModelsLoading,
-      )
-    ) {
-      void ollama.actions.loadExternalModels();
-      return;
-    }
-
-    const preferredModel =
-      findDefaultModelChoice(ollama.models, defaultModel) ?? ollama.models[0];
-    if (preferredModel) {
-      setSelectedModel(preferredModel.provider_type, preferredModel.name);
-    }
-  }, [
+  useAutoSelectModel({
+    online: ollama.online,
+    models: ollama.models,
+    externalModelsLoaded: ollama.externalModelsLoaded,
+    externalModelsLoading: ollama.externalModelsLoading,
+    loadExternalModels: ollama.actions.loadExternalModels,
+    selectedModelsLength: selectedModels.length,
     defaultModel,
-    ollama.actions,
-    ollama.externalModelsLoaded,
-    ollama.externalModelsLoading,
-    ollama.models,
-    ollama.online,
-    selectedModels.length,
     setSelectedModel,
-  ]);
+  });
 
   const { selectedPromptPreset, general } = useSettingsStore(
     useShallow((s) => ({
@@ -208,8 +139,11 @@ function App() {
 
   useEffect(() => {
     if (general.experimentalFeatures) return;
-    void disableMemoryForOwner(getCurrentProviderAccountId()).catch(() => undefined);
+    void disableMemoryForOwner(getCurrentProviderAccountId()).catch(
+      () => undefined,
+    );
   }, [general.experimentalFeatures]);
+
   const { conversations, activeConversationId } = useChatStore(
     useShallow((state) => ({
       conversations: state.conversations,
@@ -217,7 +151,6 @@ function App() {
     })),
   );
   const {
-    createConversation,
     setActiveConversationId,
     deleteConversation,
     deleteAllConversations,
@@ -236,7 +169,6 @@ function App() {
       if (currentId && currentId !== id) {
         retryTitleForConversation(titleStore, currentId);
       }
-
       setActiveConversationId(id);
     },
     [setActiveConversationId],
@@ -257,45 +189,6 @@ function App() {
     [renameConversation],
   );
 
-  const handleDeleteAllConversations = useCallback(async (options?: { confirmed?: boolean }) => {
-    if (
-      !options?.confirmed &&
-      !window.confirm("Delete all chats? This cannot be undone.")
-    ) {
-      return;
-    }
-    stopStreamingRef.current?.();
-    await deleteAllConversations();
-    notify.success("All chats deleted");
-  }, [deleteAllConversations, notify]);
-
-  const handleRenameCurrentChat = useCallback(
-    async ({ title }: { title: string }) => {
-      if (!activeConversationId || !title.trim()) return;
-      await renameConversation(activeConversationId, title.trim(), "manual");
-      notify.success("Conversation renamed");
-    },
-    [activeConversationId, notify, renameConversation],
-  );
-
-  const handleSetTheme = useCallback(
-    ({ theme }: { theme: ThemeMode }) => {
-      useThemeStore.getState().setMode(theme);
-      notify.success(`Theme: ${theme.charAt(0).toUpperCase() + theme.slice(1)}`);
-    },
-    [notify],
-  );
-
-  const handleSetDefaultModel = useCallback(
-    (model: string) => {
-      const provider = selectedProviders[0];
-      if (!provider) return;
-      setDefaultModel(modelChoiceId(provider, model));
-      notify.success(`${model} set as default`);
-    },
-    [selectedProviders, setDefaultModel, notify],
-  );
-
   const isTemporary = Boolean(
     conversations.find((c) => c.id === activeConversationId)?.isTemporary,
   );
@@ -304,198 +197,42 @@ function App() {
       state.folders.find((folder) => folder.id === state.activeFolderId)
         ?.backgroundImage,
   );
-  const handleToggleTemporaryChat = useCallback(async () => {
-    if (isTemporary) {
-      setActiveConversationId(null);
-      return;
-    }
 
-    await createConversation("Temporary Chat", true);
-  }, [createConversation, isTemporary, setActiveConversationId]);
-
-  const handleAddModel = useCallback(() => {
-    addSelectedModel("OllamaLocal", "");
-  }, [addSelectedModel]);
+  const {
+    handleDeleteAllConversations,
+    handleRenameCurrentChat,
+    handleSetTheme,
+  } = useChatActionHandlers({
+    stopStreamingRef,
+    notify,
+    renameConversation,
+    deleteAllConversations,
+    activeConversationId,
+  });
 
   const features = useFeatures();
   const registeredActions = useRegisteredCommandPaletteActions();
-  const settingsCommands = useSettingsCommands({ openSettings: handleOpenSettings });
+  const settingsCommands = useSettingsCommands({
+    openSettings: handleOpenSettings,
+  });
 
-  const commandPaletteItems = useMemo<CommandPaletteItem[]>(() => {
-    const activeConversation = conversations.find(
-      (conversation) => conversation.id === activeConversationId,
-    );
-    const sortedConversations = [...conversations].sort(
-      (a, b) =>
-        new Date(b.updatedAt || b.createdAt).getTime() -
-        new Date(a.updatedAt || a.createdAt).getTime(),
-    );
+  const handleOpenArchived = useCallback(() => setIsArchivedOpen(true), []);
 
-    const conversationItems: CommandPaletteItem[] = sortedConversations.map(
-      (conversation, index) => ({
-        id: `conversation:${conversation.id}`,
-        title: conversation.title || "Untitled",
-        description: conversation.isArchived
-          ? "Archived conversation"
-          : index < 10
-            ? "Recent conversation"
-            : "Conversation",
-        category: "conversation",
-        keywords: [
-          "chat",
-          "conversation",
-          conversation.isArchived ? "archived" : "recent",
-        ],
-        icon: <MessageSquare size={16} />,
-        execute: () => handleSelectConversation(conversation.id),
-      }),
-    );
-
-    const coreActions: CommandPaletteItem[] = [
-      {
-        id: "action:new-conversation",
-        title: "New Conversation",
-        description: "Start a blank chat",
-        category: "action",
-        keywords: ["new", "chat", "compose"],
-        icon: <SquarePen size={16} />,
-        shortcut: IS_MAC ? "Cmd N" : "Ctrl N",
-        execute: handleNewChat,
-        smartCommand: { command: "new-chat" },
-      },
-      {
-        id: "action:open-settings",
-        title: "Open Settings",
-        description: "Open Poly UI settings",
-        category: "action",
-        keywords: ["settings", "preferences", "sett"],
-        icon: <Settings size={16} />,
-        shortcut: IS_MAC ? "Cmd ," : "Ctrl ,",
-        execute: () => handleOpenSettings("general"),
-        smartCommand: { command: "open-settings" },
-      },
-      {
-        id: "action:delete-all-chats",
-        title: "Delete All Chats",
-        description: "Permanently remove every chat",
-        category: "action",
-        keywords: ["delete", "remove", "clear", "all", "chats", "conversations"],
-        icon: <Trash2 size={16} />,
-        execute: () => void handleDeleteAllConversations(),
-        smartCommand: {
-          command: "delete-all-chats",
-          execute: () => handleDeleteAllConversations({ confirmed: true }),
-        },
-      },
-      {
-        id: "action:archived-conversations",
-        title: "Archived Conversations",
-        description: "View archived chats",
-        category: "action",
-        keywords: ["archive", "archived", "old chats"],
-        icon: <Archive size={16} />,
-        execute: () => setIsArchivedOpen(true),
-      },
-      {
-        id: "action:import-chat",
-        title: "Import Chat",
-        description: "Import a Poly UI chat JSON file",
-        category: "action",
-        keywords: ["import", "restore", "json"],
-        icon: <FileInput size={16} />,
-        execute: () => void importConversations(notify),
-      },
-      {
-        id: "action:export-current-chat",
-        title: "Export Current Chat",
-        description: activeConversation
-          ? `Export ${activeConversation.title || "Untitled"}`
-          : "No active chat selected",
-        category: "action",
-        keywords: ["export", "download", "backup", "json"],
-        icon: <Download size={16} />,
-        execute: () => {
-          if (activeConversation) void exportConversation(activeConversation, notify);
-        },
-      },
-      {
-        id: "action:rename-current-chat",
-        title: "Rename Current Chat",
-        description: activeConversation
-          ? `Rename ${activeConversation.title || "Untitled"}`
-          : "No active chat selected",
-        category: "action",
-        keywords: ["rename", "name", "title", "chat", "conversation"],
-        icon: <MessageSquare size={16} />,
-        execute: () => undefined,
-        smartCommand: {
-          command: "rename-chat",
-          execute: (args) => handleRenameCurrentChat(args as { title: string }),
-        },
-      },
-      {
-        id: "action:set-theme",
-        title: "Set Theme",
-        description: "Set appearance to light, dark, or system",
-        category: "action",
-        keywords: ["theme", "appearance", "light", "dark", "system"],
-        icon: <Settings size={16} />,
-        execute: () => undefined,
-        smartCommand: {
-          command: "set-theme",
-          execute: (args) => handleSetTheme(args as { theme: ThemeMode }),
-        },
-      },
-    ];
-
-    const featureItems: CommandPaletteItem[] = features.map((feature) => {
-      const Icon = feature.icon;
-      const active = feature.active;
-      const title =
-        feature.id === "poly-agent"
-          ? "Experimental Agent Mode"
-          : feature.name;
-      return {
-        id: `feature:${feature.id}`,
-        title: `${active ? "\u2713" : "\u2715"} ${title}`,
-        description: feature.warning
-          ? `${feature.description ?? "Feature toggle"} - ${feature.warning}`
-          : feature.description,
-        category: "feature",
-        keywords: [
-          feature.id,
-          feature.name,
-          title,
-          feature.experimental ? "experimental" : "",
-          "toggle",
-          active ? "enabled" : "disabled",
-        ],
-        icon: <Icon size={16} />,
-        execute: feature.toggle,
-      };
-    });
-
-    return [
-      ...conversationItems,
-      ...coreActions,
-      ...registeredActions,
-      ...featureItems,
-      ...settingsCommands,
-    ];
-  }, [
-    activeConversationId,
+  const commandPaletteItems = useCommandPaletteItems({
     conversations,
+    activeConversationId,
     features,
-    handleNewChat,
-    handleDeleteAllConversations,
-    handleOpenSettings,
-    handleRenameCurrentChat,
-    handleSetTheme,
-    handleSelectConversation,
+    onNewChat: handleNewChat,
+    onDeleteAllConversations: handleDeleteAllConversations,
+    onOpenSettings: handleOpenSettings as (tab?: string) => void,
+    onRenameCurrentChat: handleRenameCurrentChat,
+    onSetTheme: handleSetTheme,
+    onSelectConversation: handleSelectConversation,
+    onOpenArchived: handleOpenArchived,
     notify,
     registeredActions,
     settingsCommands,
-  ]);
+  });
 
   return (
     <SidebarProvider>
@@ -513,18 +250,6 @@ function App() {
 
       <SidebarInset>
         <ChatPanel backgroundImage={activeFolderBackground}>
-          <Header
-            selectedModels={selectedModels}
-            selectedProviders={selectedProviders}
-            onModelChange={updateSelectedModel}
-            onAddModel={handleAddModel}
-            onRemoveModel={removeSelectedModel}
-            onSetDefault={handleSetDefaultModel}
-            isTemporary={isTemporary}
-            onToggleTemporaryChat={handleToggleTemporaryChat}
-            transparent
-          />
-
           <Box
             component="main"
             sx={{

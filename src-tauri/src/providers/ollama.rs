@@ -342,6 +342,7 @@ impl ModelCatalog for OllamaProvider {
                         families: Vec::new(),
                         size: m.size,
                         provider_type: ProviderType::OllamaLocal,
+                        provider_config_id: None,
                     })
                     .collect()
             })

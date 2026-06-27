@@ -24,7 +24,10 @@ fn normalize_account_arg(account_id: Option<String>) -> Option<String> {
 }
 
 fn should_preload_models(provider_type: ProviderType) -> bool {
-    provider_type == ProviderType::OllamaLocal
+    matches!(
+        provider_type,
+        ProviderType::OllamaLocal | ProviderType::OpenAICompatible
+    )
 }
 
 async fn try_preload_models(
@@ -37,7 +40,16 @@ async fn try_preload_models(
     )
     .await
     {
-        Ok(Ok(models)) => (models, ProviderStatus::Online),
+        Ok(Ok(models)) => (
+            models
+                .into_iter()
+                .map(|mut model| {
+                    model.provider_config_id = Some(config.id);
+                    model
+                })
+                .collect(),
+            ProviderStatus::Online,
+        ),
         Ok(Err(error)) => {
             eprintln!(
                 "[Providers] Failed to list {:?} models: {error}",
@@ -127,17 +139,22 @@ pub async fn get_provider_models(
     account_id: Option<String>,
 ) -> Result<Vec<ModelDetails>, String> {
     let account_id = normalize_account_arg(account_id);
-    let provider = state
+    let configs = state
         .provider_selector
-        .get_model_catalog(provider_type, account_id.as_deref())
+        .get_provider_configs(account_id.as_deref())
         .await?;
+    let mut models = Vec::new();
 
-    tokio::time::timeout(
-        std::time::Duration::from_secs(10),
-        provider.get_available_models(),
-    )
-    .await
-    .map_err(|_| format!("Timed out listing {provider_type:?} models."))?
+    for config in configs
+        .into_iter()
+        .filter(|config| config.provider_type == provider_type && config.enabled)
+    {
+        if let Some((provider_models, _)) = try_preload_models(&config).await {
+            models.extend(provider_models);
+        }
+    }
+
+    Ok(models)
 }
 
 #[derive(serde::Deserialize)]
@@ -251,8 +268,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn preloads_only_local_models() {
+    fn preloads_models_for_all_providers() {
         assert!(should_preload_models(ProviderType::OllamaLocal));
-        assert!(!should_preload_models(ProviderType::OpenAICompatible));
+        assert!(should_preload_models(ProviderType::OpenAICompatible));
     }
 }

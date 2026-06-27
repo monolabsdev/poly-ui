@@ -24,18 +24,27 @@ pub async fn chat_stream(
     web_search_config: Option<WebSearchConfig>,
     reasoning_enabled: bool,
     provider_type: Option<ProviderType>,
+    provider_config_id: Option<i64>,
     account_id: Option<String>,
 ) -> Result<(), String> {
     let my_generation_id = state.current_generation_id.load(Ordering::SeqCst);
 
-    let provider = state
-        .provider_selector
-        .get_provider(
-            provider_type.unwrap_or(ProviderType::OllamaLocal),
-            account_id.as_deref(),
-        )
-        .await
-        .map_err(|e| e.to_string())?;
+    let provider_type = provider_type.unwrap_or(ProviderType::OllamaLocal);
+    let provider = match provider_config_id {
+        Some(config_id) => {
+            state
+                .provider_selector
+                .get_provider_by_config_id(provider_type, config_id, account_id.as_deref())
+                .await
+        }
+        None => {
+            state
+                .provider_selector
+                .get_provider(provider_type, account_id.as_deref())
+                .await
+        }
+    }
+    .map_err(|e| e.to_string())?;
 
     let memory_context = match account_id.as_deref() {
         Some(owner_id) if !owner_id.trim().is_empty() => {

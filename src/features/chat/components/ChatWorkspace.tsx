@@ -4,10 +4,13 @@ import { useShallow } from "zustand/react/shallow";
 import { ChatArea } from "@/features/chat/components/ChatArea";
 import { ChatInput } from "@/features/chat/components/ChatInput";
 import { EmptyState } from "@/features/chat/components/EmptyState";
+import { Header } from "@/features/chat/components/Header";
 import { useChatStream } from "@/features/chat/hooks/useChatStream";
 import { useChatStore } from "@/store/chatStore";
+import { useModelStore } from "@/store/modelStore";
 import type { ModelProvider } from "@/store/modelStore";
 import type { ModelChoice } from "@/lib/models/model-choice";
+import { modelChoiceId } from "@/lib/models/model-choice";
 import { materializeAttachments, releaseImageAttachment } from "@/lib/image-upload/attachments";
 import { useFolderStore } from "@/store/folderStore";
 import { FolderHome } from "@/features/folders/FolderHome";
@@ -16,6 +19,8 @@ import { useAgentRun } from "@/features/agent/useAgentRun";
 import { DRAFT_WORKSPACE_SELECTION_CHAT_ID, defaultWorkspaceSelection, useAgentStore } from "@/features/agent/agentStore";
 import { useSettingsStore } from "@/store/settingsStore";
 import { buildAgentResolvedContext } from "@/features/agent/context";
+import { useViewStore, getViewComponent } from "@/lib/view-registry";
+import { useNotify } from "@/hooks/useNotify";
 
 type ChatWorkspaceProps = {
   selectedModels: string[];
@@ -39,6 +44,7 @@ export default function ChatWorkspace({
   onOpenConnections,
 }: ChatWorkspaceProps) {
   const ollama = useOllama();
+  const notify = useNotify();
   const activeFolder = useFolderStore((state) => state.folders.find((folder) => folder.id === state.activeFolderId));
   const effectiveSystemPrompt = activeFolder?.systemPrompt
     ? `${systemPromptContent}\n${activeFolder.systemPrompt}`
@@ -67,10 +73,35 @@ export default function ChatWorkspace({
   );
   const {
     createConversation,
+    setActiveConversationId,
     deleteMessagesAfter,
     clearCurrentAttachments,
     addMessage,
   } = useChatStore((state) => state.actions);
+
+  const modelUpdateSelectedModel = useModelStore((s) => s.updateSelectedModel);
+  const modelAddSelectedModel = useModelStore((s) => s.addSelectedModel);
+  const modelRemoveSelectedModel = useModelStore((s) => s.removeSelectedModel);
+  const modelActions = useModelStore((s) => s.actions);
+
+  const handleSetDefault = useCallback(
+    (choice: ModelChoice) => {
+      if (!choice.model) return;
+      modelActions.setDefaultModel(
+        modelChoiceId(choice.provider, choice.model, choice.providerConfigId),
+      );
+      notify.success(`${choice.model} set as default`);
+    },
+    [modelActions, notify],
+  );
+
+  const handleToggleTemporary = useCallback(() => {
+    if (isTemporary) {
+      setActiveConversationId(null);
+    } else {
+      createConversation("Temporary Chat", true);
+    }
+  }, [isTemporary, createConversation, setActiveConversationId]);
 
   useEffect(() => {
     onStopStreamingReady(agentEnabled ? cancelAgentRun : stopStreaming);
@@ -195,6 +226,9 @@ export default function ChatWorkspace({
     ],
   );
 
+  const activeView = useViewStore((s) => s.activeView);
+  const ViewComponent = activeView ? getViewComponent(activeView) : undefined;
+
   return (
     <Box
       sx={{
@@ -206,51 +240,70 @@ export default function ChatWorkspace({
         width: "100%",
       }}
     >
-      {activeFolder && !activeConversationId ? (
-        <FolderHome
-          folder={activeFolder}
-          onSubmit={handleSend}
-          onStop={agentEnabled ? cancelAgentRun : stopStreaming}
-          isStreaming={effectiveStreaming}
-          providerOnline={ollama.online}
-          onOpenConnections={onOpenConnections}
-        />
-      ) : hasMessages ? (
-        <ChatArea
-          key={activeConversationId ?? "no-conv"}
-          messages={messages}
-          streamingMessagesList={streamingMessagesList}
-          bottomRef={bottomRef}
-          onRegenerate={handleRegenerate}
-          isTemporary={isTemporary}
-        />
+      {ViewComponent ? (
+        <ViewComponent />
       ) : (
-        <EmptyState
-          selectedModels={selectedModels}
-          userName={userName}
-          isTemporary={isTemporary}
-          providerOnline={ollama.online}
-          onOpenConnections={onOpenConnections}
-        >
-          <ChatInput
-            onSubmit={handleSend}
-            onStop={agentEnabled ? cancelAgentRun : stopStreaming}
-            isStreaming={effectiveStreaming}
+        <>
+          <Header
+            selectedModels={selectedModels}
+            selectedProviders={selectedProviders}
+            selectedModelChoices={selectedModelChoices}
+            onModelChange={modelUpdateSelectedModel}
+            onAddModel={() => modelAddSelectedModel("OllamaLocal", "")}
+            onRemoveModel={modelRemoveSelectedModel}
+            onSetDefault={handleSetDefault}
             isTemporary={isTemporary}
-            conversationId={activeConversationId}
+            onToggleTemporaryChat={handleToggleTemporary}
+            transparent
           />
-        </EmptyState>
-      )}
 
-      {hasMessages ? (
-        <ChatInput
-          onSubmit={handleSend}
-          onStop={agentEnabled ? cancelAgentRun : stopStreaming}
-          isStreaming={effectiveStreaming}
-          isTemporary={isTemporary}
-          conversationId={activeConversationId}
-        />
-      ) : null}
+          {activeFolder && !activeConversationId ? (
+            <FolderHome
+              folder={activeFolder}
+              onSubmit={handleSend}
+              onStop={agentEnabled ? cancelAgentRun : stopStreaming}
+              isStreaming={effectiveStreaming}
+              providerOnline={ollama.online}
+              onOpenConnections={onOpenConnections}
+            />
+          ) : hasMessages ? (
+            <ChatArea
+              key={activeConversationId ?? "no-conv"}
+              messages={messages}
+              streamingMessagesList={streamingMessagesList}
+              bottomRef={bottomRef}
+              onRegenerate={handleRegenerate}
+              isTemporary={isTemporary}
+            />
+          ) : (
+            <EmptyState
+              selectedModels={selectedModels}
+              userName={userName}
+              isTemporary={isTemporary}
+              providerOnline={ollama.online}
+              onOpenConnections={onOpenConnections}
+            >
+              <ChatInput
+                onSubmit={handleSend}
+                onStop={agentEnabled ? cancelAgentRun : stopStreaming}
+                isStreaming={effectiveStreaming}
+                isTemporary={isTemporary}
+                conversationId={activeConversationId}
+              />
+            </EmptyState>
+          )}
+
+          {hasMessages ? (
+            <ChatInput
+              onSubmit={handleSend}
+              onStop={agentEnabled ? cancelAgentRun : stopStreaming}
+              isStreaming={effectiveStreaming}
+              isTemporary={isTemporary}
+              conversationId={activeConversationId}
+            />
+          ) : null}
+        </>
+      )}
     </Box>
   );
 }

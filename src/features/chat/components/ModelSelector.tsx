@@ -33,12 +33,14 @@ const FILTERS: { id: ModelFilter; label: string }[] = [
 interface ModelSelectorProps {
   model: string;
   provider: ModelProvider;
-  onChange: (provider: ModelProvider, model: string) => void;
+  providerConfigId?: number;
+  onChange: (option: OllamaModel) => void;
 }
 
 export function ModelSelector({
   model,
   provider,
+  providerConfigId,
   onChange,
 }: ModelSelectorProps) {
   const ollama = useOllama();
@@ -57,7 +59,7 @@ export function ModelSelector({
     () => filterModelOptions(ollama.models, filter, query),
     [filter, ollama.models, query],
   );
-  const selectedId = modelChoiceId(provider, model);
+  const selectedId = modelChoiceId(provider, model, providerConfigId);
   const rowVirtualizer = useVirtualizer({
     count: visibleModels.length,
     getScrollElement: () => listRef.current,
@@ -108,7 +110,7 @@ export function ModelSelector({
   };
 
   const select = (option: OllamaModel) => {
-    onChange(option.provider_type, option.name);
+    onChange(option);
     close();
   };
 
@@ -240,9 +242,9 @@ export function ModelSelector({
                 const option = visibleModels[virtualRow.index];
                 return (
                   <ModelSelectorOption
-                    key={modelChoiceId(option.provider_type, option.name)}
+                    key={modelChoiceId(option.provider_type, option.name, option.provider_config_id)}
                     option={option}
-                    selected={modelChoiceId(option.provider_type, option.name) === selectedId}
+                    selected={modelChoiceId(option.provider_type, option.name, option.provider_config_id) === selectedId}
                     highlighted={virtualRow.index === highlightedIndex}
                     externalApiUrl={externalApiUrl}
                     onHover={() => setHighlightedIndex(virtualRow.index)}
@@ -261,4 +263,3 @@ export function ModelSelector({
     </>
   );
 }
-

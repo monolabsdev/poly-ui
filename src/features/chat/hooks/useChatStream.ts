@@ -255,7 +255,7 @@ export function useChatStream(modelChoices: ModelChoice[], systemPrompt = "") {
       const activeWebSearchConfig = webSearchAI ? webSearchConfig : undefined;
       const system = buildSystemPrompt(systemPrompt, Boolean(activeWebSearchConfig), webSearchAI);
 
-      for (const { model, provider } of models) {
+      for (const { model, provider, providerConfigId } of models) {
         const rid = crypto.randomUUID();
         const mid = crypto.randomUUID();
         sessionRef.current.register({ requestId: rid, messageId: mid, conversationId });
@@ -283,6 +283,7 @@ export function useChatStream(modelChoices: ModelChoice[], systemPrompt = "") {
               webSearchConfig: activeWebSearchConfig ?? null,
               reasoningEnabled: reasoningAI,
               providerType: provider,
+              providerConfigId: providerConfigId ?? null,
               accountId: getCurrentProviderAccountId(),
             });
           } catch (err) {

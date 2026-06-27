@@ -2,7 +2,7 @@ import type { Conversation, Message } from "@/types/chat";
 import { getRepository } from "@/lib/repositories";
 import { useChatStore } from "@/store/chatStore";
 
-type NotifyApi = {
+export type NotifyApi = {
   success: (message: string) => void;
   error: (title: string, description?: string) => void;
 };

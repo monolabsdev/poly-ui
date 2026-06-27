@@ -24,6 +24,14 @@ fn health_cache_ttl(status: ProviderStatus) -> Duration {
     }
 }
 
+fn matches_provider_config(
+    config: &ProviderConfig,
+    config_id: i64,
+    provider_type: ProviderType,
+) -> bool {
+    config.id == config_id && config.provider_type == provider_type && config.enabled
+}
+
 pub struct ProviderSelector {
     pool: SqlitePool,
     health_cache: Arc<TokioMutex<HashMap<i64, HealthCache>>>,
@@ -152,11 +160,28 @@ impl ProviderSelector {
             .get_provider_configs(account_id)
             .await?
             .into_iter()
-            .find(|config| config.provider_type == provider_type)
+            .find(|config| config.provider_type == provider_type && config.enabled)
             .ok_or_else(|| format!("{provider_type:?} provider is not configured."))?;
 
         ProviderFactory::create_chat_provider(config)
             .ok_or_else(|| format!("{provider_type:?} provider is disabled."))
+    }
+
+    pub async fn get_provider_by_config_id(
+        &self,
+        provider_type: ProviderType,
+        config_id: i64,
+        account_id: Option<&str>,
+    ) -> Result<Box<dyn ChatProvider>, String> {
+        let config = self
+            .get_provider_configs(account_id)
+            .await?
+            .into_iter()
+            .find(|config| matches_provider_config(config, config_id, provider_type))
+            .ok_or_else(|| format!("Provider configuration {config_id} is unavailable."))?;
+
+        ProviderFactory::create_chat_provider(config)
+            .ok_or_else(|| format!("Provider configuration {config_id} is unavailable."))
     }
 
     pub async fn get_model_catalog(
@@ -168,7 +193,7 @@ impl ProviderSelector {
             .get_provider_configs(account_id)
             .await?
             .into_iter()
-            .find(|config| config.provider_type == provider_type)
+            .find(|config| config.provider_type == provider_type && config.enabled)
             .ok_or_else(|| format!("{provider_type:?} provider is not configured."))?;
 
         ProviderFactory::create_model_catalog(config)
@@ -332,6 +357,36 @@ impl ProviderSelector {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn matches_only_enabled_provider_configuration_with_same_type() {
+        let config = ProviderConfig {
+            id: 22,
+            account_id: "account-a".into(),
+            provider_type: ProviderType::OpenAICompatible,
+            enabled: true,
+            ollama_host: None,
+            ollama_api_key: None,
+            ollama_api_base_url: None,
+            api_key: Some("key".into()),
+            api_base_url: Some("https://openrouter.ai/api/v1".into()),
+            priority: 2,
+            preset: Some("openrouter".into()),
+            headers: None,
+            model_suggestions: None,
+        };
+
+        assert!(matches_provider_config(
+            &config,
+            22,
+            ProviderType::OpenAICompatible
+        ));
+        assert!(!matches_provider_config(
+            &config,
+            11,
+            ProviderType::OpenAICompatible
+        ));
+    }
 
     #[test]
     fn offline_provider_cache_expires_quickly() {

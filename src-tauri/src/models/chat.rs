@@ -45,6 +45,8 @@ pub struct ModelDetails {
     pub families: Vec<String>,
     pub size: u64,
     pub provider_type: crate::providers::base::ProviderType,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub provider_config_id: Option<i64>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

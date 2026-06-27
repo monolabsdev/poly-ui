@@ -2,6 +2,7 @@ import { loggedInvoke } from "@/lib/utils/utils";
 import type { ChatMessage } from "@/types/chat";
 import type { ModelProvider } from "@/store/modelStore";
 import { getCurrentProviderAccountId } from "@/features/providers";
+import { useChatStore } from "@/store/chatStore";
 
 export interface TitleStore {
   findConversation(id: string): { title: string; titleSource?: string; isTemporary?: boolean } | undefined;
@@ -24,6 +25,17 @@ type GenerateTitleArgs = {
   model: string;
   userName?: string;
   providerType?: ModelProvider;
+};
+
+export const titleStore: TitleStore = {
+  findConversation: (id) =>
+    useChatStore.getState().conversations.find((c) => c.id === id),
+  getConversationMessages: (cid) =>
+    useChatStore.getState().messages.filter((m) => m.conversationId === cid),
+  setTitleGenerationStatus: (id, status) =>
+    useChatStore.getState().actions.setTitleGenerationStatus?.(id, status),
+  renameConversation: (id, title, source) =>
+    useChatStore.getState().actions.renameConversation(id, title, source),
 };
 
 const pendingTitleGenerations = new Set<string>();
