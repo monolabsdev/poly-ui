@@ -5,7 +5,7 @@ import { X, ExternalLink, Sparkles } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { MarkdownProse } from "@/features/chat/components/Message/MarkdownProse";
-import { MOTION_TOKENS } from "@/lib/utils/motion";
+import { MOTION_TOKENS, useTiming } from "@/lib/utils/motion";
 import { useReleaseNotes } from "./useReleaseNotes";
 import type { ReleaseNotesResult } from "./releaseNotesApi";
 import { fireConfettiBothSides } from "./confetti";
@@ -25,6 +25,7 @@ const VARIANTS = {
 
 export function ReleaseNotesModal() {
   const { show, loading, data, version, dismiss } = useReleaseNotes();
+  const timing = useTiming();
 
   useEffect(() => {
     if (!show) {
@@ -51,7 +52,7 @@ export function ReleaseNotesModal() {
             initial="initial"
             animate="animate"
             exit="exit"
-            transition={{ duration: MOTION_TOKENS.duration.base, ease: MOTION_TOKENS.ease.out }}
+            transition={{ duration: timing.duration("base"), ease: MOTION_TOKENS.ease.out }}
             style={{ display: "contents" }}
           >
             <motion.div
@@ -59,7 +60,7 @@ export function ReleaseNotesModal() {
               initial="initial"
               animate="animate"
               exit="exit"
-              transition={{ duration: MOTION_TOKENS.duration.slow, ease: MOTION_TOKENS.ease.out, delay: 0.04 }}
+              transition={{ duration: timing.duration("slow"), ease: MOTION_TOKENS.ease.out, delay: timing.shouldReduce ? 0 : 0.04 }}
             >
               <Box sx={{ position: "relative", display: "flex", flexDirection: "column", maxHeight: "calc(100vh - var(--titlebar-height) - 32px)" }}>
                 <IconButton

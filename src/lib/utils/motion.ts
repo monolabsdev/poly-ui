@@ -1,4 +1,4 @@
-import { useReducedMotion } from "motion/react";
+import { useReducedMotion } from "@/features/sidebar/hooks/useReducedMotion";
 
 /**
  * Premium motion tokens inspired by Linear, Raycast, and Arc.

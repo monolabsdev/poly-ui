@@ -6,7 +6,7 @@ use tauri::{AppHandle, Manager, Runtime};
 /// Opens local SQLite file, builds shared pool, runs bundled migrations.
 pub async fn init_db<R: Runtime>(app: &AppHandle<R>) -> Result<SqlitePool, String> {
     startup_log::log_phase("database app data lookup");
-    let app_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let app_dir = app.path().app_config_dir().map_err(|e| e.to_string())?;
     startup_log::log_phase(format!("database app data dir: {}", app_dir.display()));
     std::fs::create_dir_all(&app_dir).map_err(|e| {
         format!(

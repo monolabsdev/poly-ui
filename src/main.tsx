@@ -25,13 +25,11 @@ import "./App.css";
 installFrontendDiagnostics();
 startupPhase("main module loaded");
 
-if (IS_LINUX) {
-  document.documentElement.dataset.chrome = "native";
-} else if (USE_CUSTOM_WINDOW_CONTROLS) {
+if (IS_LINUX || USE_CUSTOM_WINDOW_CONTROLS) {
   document.documentElement.dataset.chrome = "borderless";
 }
 
-const TITLE_BAR_HEIGHT = IS_LINUX ? 0 : 36;
+const TITLE_BAR_HEIGHT = 36;
 document.documentElement.style.setProperty("--titlebar-height", `${TITLE_BAR_HEIGHT}px`);
 
 const App = lazy(loadAppModule);

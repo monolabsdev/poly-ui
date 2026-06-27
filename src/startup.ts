@@ -76,9 +76,16 @@ async function preloadVisibleAppChunks() {
   await Promise.all([
     loadAppModule(),
     import("@/features/chat/components/ChatWorkspace"),
-    import("@/features/auth/AuthModal"),
   ]);
   startupPhase("preload visible chunks complete");
+}
+
+function runAfterStartup(callback: () => void) {
+  if ("requestIdleCallback" in window) {
+    window.requestIdleCallback(callback, { timeout: 2500 });
+    return;
+  }
+  globalThis.setTimeout(callback, 500);
 }
 
 /*
@@ -92,9 +99,6 @@ async function initializeStores() {
   startupPhase("initialize stores start");
   restoreSystemPrompts();
   startSystemPromptPersistence();
-
-  startupPhase("notification permission start");
-  requestNotificationPermission();
 
   startupPhase("repository init start");
   const repo = await import("@/lib/repositories");
@@ -111,6 +115,19 @@ async function initializeStores() {
   });
   startupPhase("auth restore complete");
 
+  const { isLoading } = useAuthStore.getState();
+  if (isLoading) {
+    useAuthStore.setState({ isLoading: false });
+  }
+  startupPhase("initialize stores complete");
+}
+
+async function initializeDeferredStartupWork() {
+  startupPhase("deferred startup work start");
+
+  startupPhase("notification permission start");
+  void requestNotificationPermission();
+
   startupPhase("ollama monitor start");
   useOllamaStore.getState().actions.start();
 
@@ -125,11 +142,7 @@ async function initializeStores() {
   registerDefaultIdleHandlers();
   startupPhase("idle manager init complete");
 
-  const { isLoading } = useAuthStore.getState();
-  if (isLoading) {
-    useAuthStore.setState({ isLoading: false });
-  }
-  startupPhase("initialize stores complete");
+  startupPhase("deferred startup work complete");
 }
 
 async function requestNotificationPermission() {
@@ -147,7 +160,13 @@ export async function prepareAppStartup() {
   startupPromise ??= Promise.all([
     preloadVisibleAppChunks(),
     initializeStores(),
-  ]).then(() => undefined);
+  ]).then(() => {
+    runAfterStartup(() => {
+      void initializeDeferredStartupWork().catch((err) => {
+        startupError("Deferred startup work failed", err);
+      });
+    });
+  });
 
   await startupPromise;
 }

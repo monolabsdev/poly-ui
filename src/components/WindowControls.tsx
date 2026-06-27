@@ -22,7 +22,7 @@ export function WindowControls({ closeOnly = false }: { closeOnly?: boolean }) {
 
   const w = getCurrentWindow();
   return (
-    <Box sx={{ display: "flex", height: "100%", flexShrink: 0, alignItems: "center", gap: 0.25, pr: 0.5 }}>
+    <Box sx={{ display: "flex", height: "100%", flexShrink: 0, alignItems: "center", gap: 0.25, pr: 0 }}>
       {!closeOnly && (
         <>
           <WinButton onClick={() => void w.minimize()} title="Minimize">
@@ -62,7 +62,7 @@ function WinButton({ children, onClick, title, close = false }: {
         justifyContent: "center",
         color: "text.secondary",
         cursor: "pointer",
-        borderRadius: "8px",
+        borderRadius: 0,
         "&:hover": close
           ? { bgcolor: "#c42b1c", color: "#ffffff" }
           : { bgcolor: "action.hover", color: "text.primary" },

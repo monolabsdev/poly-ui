@@ -50,9 +50,6 @@ interface OllamaStore {
 const healthMonitor = getHealthMonitor();
 
 export const useOllamaStore = create<OllamaStore>((set, get) => {
-  // Auto-start the health monitor
-  healthMonitor.start();
-
   healthMonitor.onStateChange((state, models, error) => {
     const prevState = get().state;
     

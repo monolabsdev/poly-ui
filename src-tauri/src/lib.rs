@@ -144,6 +144,8 @@ pub fn run() {
                 }
                 #[cfg(target_os = "windows")]
                 apply_native_rounded_corners(&_window);
+                #[cfg(target_os = "linux")]
+                let _ = _window.set_decorations(false);
             } else {
                 startup_log::log_error("main window missing during setup");
             }

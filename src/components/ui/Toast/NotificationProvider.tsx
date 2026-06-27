@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { Box, Typography, IconButton, useTheme, alpha } from "@mui/material";
 import { CheckCircle2, AlertCircle, Info, AlertTriangle, X, Loader2 } from "lucide-react";
 import { useNotificationStore, type Toast as ToastType } from "@/store/notificationStore";
+import { useReducedMotion } from "@/features/sidebar/hooks/useReducedMotion";
 
 const typeIcon = {
   success: CheckCircle2,
@@ -15,6 +16,7 @@ const typeIcon = {
 const ToastItem = ({ toast }: { toast: ToastType }) => {
   const remove = useNotificationStore((s) => s.actions.remove);
   const theme = useTheme();
+  const shouldReduce = useReducedMotion();
 
   const getColor = () => {
     switch (toast.type) {
@@ -36,10 +38,10 @@ const ToastItem = ({ toast }: { toast: ToastType }) => {
   return (
     <Box
       component={motion.div}
-      layout
+      layout={!shouldReduce}
       initial={{ opacity: 0, y: 20, scale: 0.98 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.98, transition: { duration: 0.1 } }}
+      exit={{ opacity: 0, scale: 0.98, transition: { duration: shouldReduce ? 0 : 0.1 } }}
       sx={{
         width: { xs: "calc(100vw - 32px)", sm: 380 },
         maxWidth: 380,

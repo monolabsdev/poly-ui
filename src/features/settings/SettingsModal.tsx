@@ -135,14 +135,6 @@ export function SettingsModal({ isOpen, onClose, initialTab = "general" }: Setti
   const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
   const devMode = useDevStore((s) => s.devMode);
   const experimentalEnabled = useSettingsStore((state) => state.general.experimentalFeatures);
-  useEffect(() => {
-    if (isOpen) setActiveTab(initialTab);
-  }, [initialTab, isOpen]);
-
-  useEffect(() => {
-    if (!experimentalEnabled && activeTab === "memory") setActiveTab("advanced");
-  }, [activeTab, experimentalEnabled]);
-
   const sidebarItems = devMode
     ? [
         ...SIDEBAR_ITEMS,
@@ -152,6 +144,20 @@ export function SettingsModal({ isOpen, onClose, initialTab = "general" }: Setti
     : [...SIDEBAR_ITEMS, ...(experimentalEnabled ? [MEMORY_ITEM] : [])];
 
   const activeItem = [...sidebarItems, ADVANCED_ITEM].find((item) => item.id === activeTab);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const validIds = new Set([...sidebarItems, ADVANCED_ITEM].map((i) => i.id));
+    if (validIds.has(initialTab)) {
+      setActiveTab(initialTab);
+    } else {
+      setActiveTab(sidebarItems[0]?.id ?? "general");
+    }
+  }, [initialTab, isOpen]);
+
+  useEffect(() => {
+    if (!experimentalEnabled && activeTab === "memory") setActiveTab("advanced");
+  }, [activeTab, experimentalEnabled]);
 
   return (
     <AppDialogFrame open={isOpen} onOpenChange={(open) => !open && onClose()}>
