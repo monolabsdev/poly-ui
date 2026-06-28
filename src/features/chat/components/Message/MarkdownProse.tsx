@@ -14,6 +14,7 @@ import { CodeBlock } from "./CodeBlock";
 import { parseProgressive } from "@/lib/chat/streamMarkdown";
 import { isInlineMarkdownCode } from "@/lib/utils/markdownCode";
 import { getMarkdownRenderBlocks } from "@/lib/chat/markdownRenderBlocks";
+import { PRETEXT_FONTS, PRETEXT_LINE_HEIGHTS, measureTextHeight } from "@/lib/utils/pretext";
 
 const ALERT_CONFIG = {
   note: { border: "info.main", bg: "info.soft" },
@@ -158,6 +159,16 @@ export function MarkdownProse({ content, streaming = false }: { content: string;
     () => getMarkdownRenderBlocks(progressive.safe, streaming),
     [progressive.safe, streaming],
   );
+  const intrinsicHeight = useMemo(() => {
+    const measured = measureTextHeight(
+      progressive.safe,
+      PRETEXT_FONTS.message,
+      680,
+      PRETEXT_LINE_HEIGHTS.message,
+      { fallbackLineHeightPx: 24 },
+    );
+    return Math.ceil(Math.min(5000, Math.max(120, measured + 48)));
+  }, [progressive.safe]);
   const components = useMemo<Partial<Components>>(
     () => ({
       pre: ({ children }) => <>{children}</>,
@@ -399,11 +410,17 @@ export function MarkdownProse({ content, streaming = false }: { content: string;
         />
       ),
     }),
-    [],
+    [streaming],
   );
 
   return (
-    <Box sx={PROSE_SX}>
+    <Box
+      sx={{
+        ...PROSE_SX,
+        contentVisibility: "auto",
+        containIntrinsicSize: `1px ${intrinsicHeight}px`,
+      }}
+    >
       {blocks.map((block, index) => (
         <MemoizedMarkdownBlock
           key={`${id}-block-${index}`}

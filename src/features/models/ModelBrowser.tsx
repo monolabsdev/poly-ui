@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Box,
   Button,
@@ -11,6 +11,7 @@ import {
 } from "@mui/material";
 import { ArrowLeft, Download, Search, Trash2, XCircle } from "lucide-react";
 import { listen } from "@tauri-apps/api/event";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { useOllama } from "@/features/ollama/useOllama";
 import { useProviderStore } from "@/features/providers";
 import { useViewStore } from "@/lib/view-registry";
@@ -19,6 +20,12 @@ import { getCurrentProviderAccountId } from "@/features/providers";
 import type { PullProgress } from "@/features/ollama/types";
 
 type FilterMode = "all" | "local" | "external";
+type BrowserModel = ReturnType<typeof useOllama>["models"][number];
+type ModelRow =
+  | { id: string; type: "header"; label: string }
+  | { id: string; type: "local"; model: BrowserModel }
+  | { id: string; type: "external"; model: BrowserModel }
+  | { id: string; type: "empty"; message: string };
 
 export default function ModelBrowser() {
   const ollama = useOllama();
@@ -27,6 +34,7 @@ export default function ModelBrowser() {
   const [filterMode, setFilterMode] = useState<FilterMode>("all");
   const [newModelName, setNewModelName] = useState("");
   const [isPulling, setIsPulling] = useState(false);
+  const listRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const unlisten = listen<PullProgress>("pull-progress", (event) => {
@@ -59,6 +67,63 @@ export default function ModelBrowser() {
     }
     return list;
   }, [ollama.models, searchQuery]);
+
+  const rows = useMemo<ModelRow[]>(() => {
+    const next: ModelRow[] = [];
+    if (showLocal && localModels.length > 0) {
+      next.push({ id: "header-local", type: "header", label: "Installed" });
+      next.push(
+        ...localModels.map((model) => ({
+          id: `local-${model.name}`,
+          type: "local" as const,
+          model,
+        })),
+      );
+    }
+    if (showExternal && externalModels.length > 0) {
+      next.push({ id: "header-external", type: "header", label: "Provider" });
+      next.push(
+        ...externalModels.map((model) => ({
+          id: `external-${model.name}`,
+          type: "external" as const,
+          model,
+        })),
+      );
+    }
+    if (ollama.state === "loading" && localModels.length === 0) {
+      next.push({ id: "empty-loading", type: "empty", message: "Loading models..." });
+    } else if (next.length === 0) {
+      next.push({
+        id: "empty-models",
+        type: "empty",
+        message: searchQuery
+          ? "No models match your search."
+          : showExternal && !showLocal
+            ? "No models available from providers."
+            : "No models found. Pull a model below.",
+      });
+    }
+    return next;
+  }, [
+    externalModels,
+    localModels,
+    ollama.state,
+    searchQuery,
+    showExternal,
+    showLocal,
+  ]);
+
+  const rowVirtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => listRef.current,
+    estimateSize: (index) => {
+      const row = rows[index];
+      if (row?.type === "header") return 32;
+      if (row?.type === "empty") return 112;
+      return row?.type === "local" ? 50 : 42;
+    },
+    overscan: 10,
+  });
 
   const refreshModels = async () => {
     await ollama.refresh();
@@ -225,24 +290,50 @@ export default function ModelBrowser() {
         ))}
       </Box>
 
-      <Box sx={{ flex: 1, overflow: "auto", px: 2.5, pb: 1 }}>
-        {showLocal && localModels.length > 0 && (
-          <Typography
-            sx={{
-              fontSize: 11,
-              fontWeight: 700,
-              color: "text.secondary",
-              textTransform: "uppercase",
-              letterSpacing: 0.5,
-              mb: 0.75,
-            }}
-          >
-            Installed
-          </Typography>
-        )}
-        {showLocal && localModels.map((model) => (
+      <Box ref={listRef} sx={{ flex: 1, overflow: "auto", px: 2.5, pb: 1 }}>
+        <Box sx={{ height: rowVirtualizer.getTotalSize(), position: "relative" }}>
+          {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+            const row = rows[virtualRow.index];
+            if (!row) return null;
+            return (
+              <Box
+                key={row.id}
+                data-index={virtualRow.index}
+                ref={rowVirtualizer.measureElement}
+                sx={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: "100%",
+                  transform: `translateY(${virtualRow.start}px)`,
+                }}
+              >
+                {row.type === "header" ? (
+                  <Typography
+                    sx={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: "text.secondary",
+                      textTransform: "uppercase",
+                      letterSpacing: 0.5,
+                      mb: 0.75,
+                    }}
+                  >
+                    {row.label}
+                  </Typography>
+                ) : row.type === "empty" ? (
+                  <Typography
+                    sx={{
+                      fontSize: 13,
+                      color: "text.secondary",
+                      py: 4,
+                      textAlign: "center",
+                    }}
+                  >
+                    {row.message}
+                  </Typography>
+                ) : row.type === "local" ? (
           <Box
-            key={model.name}
             sx={{
               display: "flex",
               alignItems: "center",
@@ -255,45 +346,25 @@ export default function ModelBrowser() {
           >
             <Box sx={{ flex: 1, minWidth: 0 }}>
               <Typography sx={{ fontSize: 13, fontWeight: 600 }}>
-                {model.name}
+                {row.model.name}
               </Typography>
               <Typography
                 sx={{ fontSize: 11, color: "text.secondary", lineHeight: 1.3 }}
               >
-                {model.size > 0 ? formatFileSize(model.size) : ""}
+                {row.model.size > 0 ? formatFileSize(row.model.size) : ""}
               </Typography>
             </Box>
             <IconButton
               size="small"
-              aria-label={`Delete ${model.name}`}
-              onClick={() => void deleteModel(model.name)}
+              aria-label={`Delete ${row.model.name}`}
+              onClick={() => void deleteModel(row.model.name)}
               sx={{ color: "text.disabled", "&:hover": { color: "error.main" } }}
             >
               <Trash2 size={14} />
             </IconButton>
           </Box>
-        ))}
-
-
-
-        {showExternal && externalModels.length > 0 && (
-          <>
-            <Typography
-              sx={{
-                fontSize: 11,
-                fontWeight: 700,
-                color: "text.secondary",
-                textTransform: "uppercase",
-                letterSpacing: 0.5,
-                mt: localModels.length > 0 ? 2 : 0,
-                mb: 0.75,
-              }}
-            >
-              Provider
-            </Typography>
-            {externalModels.map((model) => (
+                ) : (
               <Box
-                key={model.name}
                 sx={{
                   display: "flex",
                   alignItems: "center",
@@ -306,33 +377,15 @@ export default function ModelBrowser() {
               >
                 <Box sx={{ flex: 1, minWidth: 0 }}>
                   <Typography sx={{ fontSize: 13, fontWeight: 600 }}>
-                    {model.name}
+                    {row.model.name}
                   </Typography>
                 </Box>
               </Box>
-            ))}
-          </>
-        )}
-
-        {ollama.state === "loading" && localModels.length === 0 && (
-          <Typography sx={{ fontSize: 13, color: "text.secondary", py: 4, textAlign: "center" }}>
-            Loading models...
-          </Typography>
-        )}
-        {ollama.state !== "loading" && showLocal && localModels.length === 0 && !showExternal && (
-          <Typography sx={{ fontSize: 13, color: "text.secondary", py: 4, textAlign: "center" }}>
-            {searchQuery
-              ? "No models match your search."
-              : "No models found. Pull a model below."}
-          </Typography>
-        )}
-        {showExternal && externalModels.length === 0 && !showLocal && (
-          <Typography sx={{ fontSize: 13, color: "text.secondary", py: 4, textAlign: "center" }}>
-            {searchQuery
-              ? "No models match your search."
-              : "No models available from providers."}
-          </Typography>
-        )}
+                )}
+              </Box>
+            );
+          })}
+        </Box>
       </Box>
 
       <Box sx={{ borderTop: 1, borderColor: "divider", px: 2.5, py: 1.5 }}>

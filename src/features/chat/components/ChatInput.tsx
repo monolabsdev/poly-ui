@@ -78,6 +78,7 @@ export const ChatInput = memo(function ChatInput({
   } | null>(null);
   const theme = useTheme();
   const timing = useTiming();
+  const enableLayoutAnimation = timing.motionPolicy.enableLayoutAnimation;
   const experimentalFeatures = useSettingsStore(
     (state) => state.general.experimentalFeatures,
   );
@@ -216,16 +217,18 @@ export const ChatInput = memo(function ChatInput({
       p: 0,
       maxHeight: `${MAX_HEIGHT}px`,
       overflowY: "auto",
-      transition: theme.transitions.create("height", {
-        duration: theme.transitions.duration.short,
-        easing: theme.transitions.easing.easeOut,
-      }),
+      transition: enableLayoutAnimation
+        ? theme.transitions.create("height", {
+            duration: theme.transitions.duration.short,
+            easing: theme.transitions.easing.easeOut,
+          })
+        : "none",
       "&::placeholder": {
         color: "text.secondary",
         opacity: 1,
       },
     },
-  }), [theme]);
+  }), [enableLayoutAnimation, theme]);
 
   const agentBarSx = useMemo(() => {
     const isDark = theme.palette.mode === "dark";
@@ -479,9 +482,21 @@ export const ChatInput = memo(function ChatInput({
               {activeFeatures.length > 0 && (
                 <motion.div
                   key="feature-badges-container"
-                  initial={{ opacity: 0, height: 0, overflow: "hidden" }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
+                  initial={
+                    enableLayoutAnimation
+                      ? { opacity: 0, height: 0, overflow: "hidden" }
+                      : { opacity: 0 }
+                  }
+                  animate={
+                    enableLayoutAnimation
+                      ? { opacity: 1, height: "auto" }
+                      : { opacity: 1 }
+                  }
+                  exit={
+                    enableLayoutAnimation
+                      ? { opacity: 0, height: 0 }
+                      : { opacity: 0 }
+                  }
                   transition={{
                     duration: timing.duration("base"),
                     ease: timing.ease,
@@ -527,9 +542,21 @@ export const ChatInput = memo(function ChatInput({
               {pastedPreview && (
                 <Box
                   component={motion.div}
-                  initial={{ opacity: 0, height: 0, marginBottom: 0 }}
-                  animate={{ opacity: 1, height: "auto", marginBottom: 0 }}
-                  exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+                  initial={
+                    enableLayoutAnimation
+                      ? { opacity: 0, height: 0, marginBottom: 0 }
+                      : { opacity: 0 }
+                  }
+                  animate={
+                    enableLayoutAnimation
+                      ? { opacity: 1, height: "auto", marginBottom: 0 }
+                      : { opacity: 1 }
+                  }
+                  exit={
+                    enableLayoutAnimation
+                      ? { opacity: 0, height: 0, marginBottom: 0 }
+                      : { opacity: 0 }
+                  }
                   transition={{
                     duration: timing.duration("base"),
                     ease: timing.ease,

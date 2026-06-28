@@ -13,6 +13,9 @@ import { Message } from "./Message";
 import { Box, CircularProgress, Typography, IconButton, Fade } from "@mui/material";
 import { useChatStore } from "@/store/chatStore";
 import { ChevronDown } from "lucide-react";
+import { useVirtualizer } from "@tanstack/react-virtual";
+import { PRETEXT_FONTS, PRETEXT_LINE_HEIGHTS, measureTextHeight } from "@/lib/utils/pretext";
+import { getMotionPolicy } from "@/lib/performance/policy";
 
 interface ChatAreaProps {
   messages: ChatMessage[];
@@ -28,40 +31,48 @@ interface MessageTurn {
   startIndex: number;
 }
 
-const VIRTUALIZE_AFTER_TURNS = 80;
 const ESTIMATED_TURN_HEIGHT = 220;
-const OVERSCAN_TURNS = 8;
+
+function estimateMessageHeight(message: ChatMessage, width: number) {
+  const content = `${message.content || ""}\n${message.thinking || ""}`;
+  if (!content.trim()) return 72;
+  const measured = measureTextHeight(
+    content,
+    message.role === "user" ? PRETEXT_FONTS.userMessage : PRETEXT_FONTS.message,
+    width,
+    message.role === "user"
+      ? PRETEXT_LINE_HEIGHTS.userMessage
+      : PRETEXT_LINE_HEIGHTS.message,
+    { fallbackLineHeightPx: 24 },
+  );
+  const chrome = message.role === "user" ? 48 : 72;
+  return Math.min(5000, Math.max(96, Math.ceil(measured + chrome)));
+}
+
+function estimateTurnHeight(turn: MessageTurn, width: number) {
+  const userHeight = turn.userMessage
+    ? estimateMessageHeight(turn.userMessage, width)
+    : 0;
+  const assistantHeight = Math.max(
+    0,
+    ...turn.assistantMessages.map((message) => estimateMessageHeight(message, width)),
+  );
+  return Math.max(ESTIMATED_TURN_HEIGHT, userHeight + assistantHeight + 32);
+}
 
 const TurnItem = memo(function TurnItem({
   turn,
   turnIndex,
   isNewest,
   onRegenerate,
-  onHeightChange,
   streamingForTurn,
 }: {
   turn: MessageTurn;
   turnIndex: number;
   isNewest: boolean;
   onRegenerate?: (index: number) => void;
-  onHeightChange: (index: number, height: number) => void;
   streamingForTurn?: ChatMessage[];
 }) {
-  const turnRef = useRef<HTMLDivElement>(null);
-  const onHeightRef = useRef(onHeightChange);
-  onHeightRef.current = onHeightChange;
-
-  useEffect(() => {
-    const el = turnRef.current;
-    if (!el) return;
-    const observer = new ResizeObserver((entries) => {
-      const h = entries[0]?.contentRect.height;
-      if (h && h > 0) onHeightRef.current(turnIndex, h);
-    });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [turnIndex]);
-
   const allAssistantMessages = useMemo(() => {
     if (!streamingForTurn?.length) return turn.assistantMessages;
     const existingIds = new Set(turn.assistantMessages.map((m) => m.id));
@@ -73,7 +84,6 @@ const TurnItem = memo(function TurnItem({
 
   return (
     <Box
-      ref={turnRef}
       key={
         turn.userMessage?.id ||
         turn.assistantMessages[0]?.id ||
@@ -177,9 +187,7 @@ export const ChatArea = memo(function ChatArea({
   const scrollRef = useRef<HTMLDivElement>(null);
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const scrollFrameRef = useRef<number | null>(null);
-  const viewportRef = useRef({ top: 0, height: 0 });
-  const turnHeightsRef = useRef<Map<number, number>>(new Map());
-  const [viewport, setViewport] = useState({ top: 0, height: 0 });
+  const [viewportWidth, setViewportWidth] = useState(768);
   const scrollAnchorRef = useRef<{
     scrollHeight: number;
     scrollTop: number;
@@ -187,9 +195,6 @@ export const ChatArea = memo(function ChatArea({
   } | null>(null);
   const stickToBottomRef = useRef(true);
   const showScrollButtonRef = useRef(false);
-  const handleHeightChange = useCallback((index: number, height: number) => {
-    turnHeightsRef.current.set(index, height);
-  }, []);
   const onRegenCb = useCallback(
     (i: number) => onRegenerate?.(i),
     [onRegenerate],
@@ -275,7 +280,7 @@ export const ChatArea = memo(function ChatArea({
     const element = scrollRef.current;
     if (!element) return;
 
-    const updateViewport = () => {
+    const updateScrollState = () => {
       scrollFrameRef.current = null;
       const distFromBottom =
         element.scrollHeight - element.scrollTop - element.clientHeight;
@@ -284,27 +289,14 @@ export const ChatArea = memo(function ChatArea({
         showScrollButtonRef.current = shouldShowScrollButton;
         setShowScrollButton(shouldShowScrollButton);
       }
-      const next = {
-        top: element.scrollTop,
-        height: element.clientHeight,
-      };
-      const current = viewportRef.current;
-      if (
-        Math.abs(next.top - current.top) < 1 &&
-        Math.abs(next.height - current.height) < 1
-      ) {
-        return;
-      }
-      viewportRef.current = next;
-      setViewport({
-        top: next.top,
-        height: next.height,
-      });
+      setViewportWidth((current) =>
+        Math.abs(current - element.clientWidth) < 1 ? current : element.clientWidth,
+      );
     };
 
-    const scheduleViewportUpdate = () => {
+    const scheduleScrollStateUpdate = () => {
       if (scrollFrameRef.current !== null) return;
-      scrollFrameRef.current = requestAnimationFrame(updateViewport);
+      scrollFrameRef.current = requestAnimationFrame(updateScrollState);
     };
 
     const updateStickToBottom = () => {
@@ -313,17 +305,17 @@ export const ChatArea = memo(function ChatArea({
       stickToBottomRef.current = distFromBottom <= 150;
     };
 
-    updateViewport();
-    const resizeObserver = new ResizeObserver(scheduleViewportUpdate);
+    updateScrollState();
+    const resizeObserver = new ResizeObserver(scheduleScrollStateUpdate);
     resizeObserver.observe(element);
-    element.addEventListener("scroll", scheduleViewportUpdate, {
+    element.addEventListener("scroll", scheduleScrollStateUpdate, {
       passive: true,
     });
     element.addEventListener("scroll", updateStickToBottom, { passive: true });
 
     return () => {
       resizeObserver.disconnect();
-      element.removeEventListener("scroll", scheduleViewportUpdate);
+      element.removeEventListener("scroll", scheduleScrollStateUpdate);
       element.removeEventListener("scroll", updateStickToBottom);
       if (scrollFrameRef.current !== null) {
         cancelAnimationFrame(scrollFrameRef.current);
@@ -365,43 +357,19 @@ export const ChatArea = memo(function ChatArea({
     return result;
   }, [messages]);
 
-  const effectiveHeight = useMemo(() => {
-    const heights = Array.from(turnHeightsRef.current.values());
-    if (heights.length === 0) return ESTIMATED_TURN_HEIGHT;
-    const avg = heights.reduce((a, b) => a + b, 0) / heights.length;
-    return Math.max(ESTIMATED_TURN_HEIGHT, Math.ceil(avg));
-  }, [turns.length, viewport.top]);
-
-  const virtualWindow = useMemo(() => {
-    if (turns.length <= VIRTUALIZE_AFTER_TURNS || viewport.height === 0) {
-      return {
-        start: 0,
-        end: turns.length,
-        topSpacer: 0,
-        bottomSpacer: 0,
-      };
-    }
-
-    const start = Math.max(
-      0,
-      Math.floor(viewport.top / effectiveHeight) - OVERSCAN_TURNS,
-    );
-    const visibleCount =
-      Math.ceil(viewport.height / effectiveHeight) + OVERSCAN_TURNS * 2;
-    const end = Math.min(turns.length, start + visibleCount);
-
-    return {
-      start,
-      end,
-      topSpacer: start * effectiveHeight,
-      bottomSpacer: Math.max(0, (turns.length - end) * effectiveHeight),
-    };
-  }, [turns.length, viewport.height, viewport.top, effectiveHeight]);
-
-  const visibleTurns = useMemo(
-    () => turns.slice(virtualWindow.start, virtualWindow.end),
-    [turns, virtualWindow.start, virtualWindow.end],
+  const motionPolicy = useMemo(() => getMotionPolicy(), []);
+  const estimateWidth = Math.min(768, Math.max(320, viewportWidth - 48));
+  const estimatedTurnHeights = useMemo(
+    () => turns.map((turn) => estimateTurnHeight(turn, estimateWidth)),
+    [estimateWidth, turns],
   );
+  const rowVirtualizer = useVirtualizer({
+    count: turns.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: (index) => estimatedTurnHeights[index] ?? ESTIMATED_TURN_HEIGHT,
+    overscan: motionPolicy.virtualOverscan,
+  });
+  const virtualRows = rowVirtualizer.getVirtualItems();
 
   return (
       <Box
@@ -477,43 +445,52 @@ export const ChatArea = memo(function ChatArea({
           {hasMoreMessages && <CircularProgress size={20} color="inherit" />}
         </Box>
 
-        {virtualWindow.topSpacer > 0 && (
-          <Box
-            aria-hidden
-            sx={{ height: virtualWindow.topSpacer, flexShrink: 0 }}
-          />
-        )}
-
-        {visibleTurns.map((turn, visibleTurnIndex) => {
-          const turnIndex = virtualWindow.start + visibleTurnIndex;
-          const isNewest = visibleTurnIndex === visibleTurns.length - 1;
+        <Box
+          sx={{
+            height: rowVirtualizer.getTotalSize(),
+            minHeight: turns.length === 0 ? 0 : ESTIMATED_TURN_HEIGHT,
+            position: "relative",
+            width: "100%",
+          }}
+        >
+        {virtualRows.map((virtualRow) => {
+          const turnIndex = virtualRow.index;
+          const turn = turns[turnIndex];
+          if (!turn) return null;
+          const isNewest = turnIndex === turns.length - 1;
           return (
-            <TurnItem
+            <Box
               key={
                 turn.userMessage?.id ||
                 turn.assistantMessages[0]?.id ||
                 `turn-${turnIndex}`
               }
-              turn={turn}
-              turnIndex={turnIndex}
-              isNewest={isNewest}
-              onRegenerate={onRegenCb}
-              onHeightChange={handleHeightChange}
-              streamingForTurn={
-                isNewest && streamingMessagesList.length > 0
-                  ? streamingMessagesList
-                  : undefined
-              }
-            />
+              data-index={virtualRow.index}
+              ref={rowVirtualizer.measureElement}
+              sx={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                pb: 3,
+                transform: `translateY(${virtualRow.start}px)`,
+              }}
+            >
+              <TurnItem
+                turn={turn}
+                turnIndex={turnIndex}
+                isNewest={isNewest}
+                onRegenerate={onRegenCb}
+                streamingForTurn={
+                  isNewest && streamingMessagesList.length > 0
+                    ? streamingMessagesList
+                    : undefined
+                }
+              />
+            </Box>
           );
         })}
-
-        {virtualWindow.bottomSpacer > 0 && (
-          <Box
-            aria-hidden
-            sx={{ height: virtualWindow.bottomSpacer, flexShrink: 0 }}
-          />
-        )}
+        </Box>
 
         <Box ref={bottomRef} sx={{ height: 80 }} />
       </Box>

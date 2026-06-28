@@ -1,4 +1,5 @@
 import { useRef, useEffect } from "react";
+import { estimateTextareaHeight } from "@/lib/utils/pretext";
 
 const FONT_SIZE = 17;
 const LINE_HEIGHT = 1.5;
@@ -15,7 +16,13 @@ export function useAutoResizeTextarea(draft: string) {
     if (!el) return;
 
     const frameId = requestAnimationFrame(() => {
-      el.style.height = "auto";
+      const estimatedHeight = estimateTextareaHeight({
+        text: draft,
+        width: el.clientWidth,
+        minHeight: MIN_HEIGHT,
+        maxHeight: MAX_HEIGHT,
+      });
+      el.style.height = `${estimatedHeight}px`;
       const scrollHeight = el.scrollHeight;
       const newHeight = Math.max(
         MIN_HEIGHT,

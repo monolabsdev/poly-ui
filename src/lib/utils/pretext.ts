@@ -21,15 +21,42 @@ export const PRETEXT_LINE_HEIGHTS = {
 };
 
 const cache = new Map<string, number>();
-const MAX_CACHE = 100;
+const MAX_CACHE = 500;
+let didWarnMeasurementFailure = false;
+
+interface MeasureOptions {
+  fallbackLineHeightPx?: number;
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function fallbackTextHeight(text: string, width: number, lineHeightPx: number) {
+  const hardLines = Math.max(1, text.split("\n").length);
+  if (width <= 0) return hardLines * lineHeightPx;
+  const averageCharWidth = 7.5;
+  const charsPerLine = Math.max(1, Math.floor(width / averageCharWidth));
+  const wrappedLines = text
+    .split("\n")
+    .reduce(
+      (total, line) => total + Math.max(1, Math.ceil(line.length / charsPerLine)),
+      0,
+    );
+  return Math.max(hardLines, wrappedLines) * lineHeightPx;
+}
 
 export const measureTextHeight = (
   text: string,
   font: string,
   width: number,
-  lineHeight: number
+  lineHeight: number,
+  options: MeasureOptions = {},
 ) => {
-  if (!text || width <= 0) return 0;
+  const fallbackLineHeightPx =
+    options.fallbackLineHeightPx ?? Math.ceil(lineHeight * 16);
+  if (!text) return 0;
+  if (width <= 0) return fallbackTextHeight(text, width, fallbackLineHeightPx);
   const key = `${text}|${font}|${width}|${lineHeight}`;
   const cached = cache.get(key);
   if (cached !== undefined) return cached;
@@ -43,7 +70,55 @@ export const measureTextHeight = (
     cache.set(key, result.height);
     return result.height;
   } catch (e) {
-    console.warn("Pretext measurement failed:", e);
-    return 0;
+    if (!didWarnMeasurementFailure && typeof window !== "undefined") {
+      didWarnMeasurementFailure = true;
+      console.warn("Pretext measurement failed:", e);
+    }
+    return fallbackTextHeight(text, width, fallbackLineHeightPx);
   }
 };
+
+export function estimateTextareaHeight({
+  text,
+  width,
+  minHeight,
+  maxHeight,
+  verticalPadding = 16,
+}: {
+  text: string;
+  width: number;
+  minHeight: number;
+  maxHeight: number;
+  verticalPadding?: number;
+}) {
+  if (!text.trim()) return minHeight;
+  const measured = measureTextHeight(
+    text,
+    PRETEXT_FONTS.composer,
+    Math.max(1, width),
+    PRETEXT_LINE_HEIGHTS.composer,
+    { fallbackLineHeightPx: 26 },
+  );
+  return Math.ceil(clamp(measured + verticalPadding, minHeight, maxHeight));
+}
+
+export function estimateLineClampHeight({
+  text,
+  font,
+  width,
+  lineHeightPx,
+  minHeight,
+  maxLines,
+}: {
+  text: string;
+  font: string;
+  width: number;
+  lineHeightPx: number;
+  minHeight: number;
+  maxLines: number;
+}) {
+  const measured = measureTextHeight(text, font, width, lineHeightPx / 16, {
+    fallbackLineHeightPx: lineHeightPx,
+  });
+  return Math.ceil(clamp(measured, minHeight, lineHeightPx * maxLines));
+}

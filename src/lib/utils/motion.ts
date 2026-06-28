@@ -1,4 +1,5 @@
 import { useReducedMotion } from "@/features/sidebar/hooks/useReducedMotion";
+import { getMotionPolicy, getPerformanceProfile } from "@/lib/performance/policy";
 
 /**
  * Premium motion tokens inspired by Linear, Raycast, and Arc.
@@ -50,12 +51,16 @@ export const ANIMATION_VARIANTS = {
  */
 export const useTiming = () => {
   const shouldReduce = useReducedMotion();
+  const motionPolicy = getMotionPolicy(
+    getPerformanceProfile({ reducedMotion: shouldReduce }),
+  );
   
   return {
     duration: (key: keyof typeof MOTION_TOKENS.duration) => 
-      shouldReduce ? 0 : MOTION_TOKENS.duration[key],
+      motionPolicy.transitionDurationMs === 0 ? 0 : MOTION_TOKENS.duration[key],
     ease: MOTION_TOKENS.ease.out,
     spring: MOTION_TOKENS.ease.spring,
     shouldReduce,
+    motionPolicy,
   };
 };
