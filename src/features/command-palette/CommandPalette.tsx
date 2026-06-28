@@ -2,7 +2,7 @@ import * as React from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Box, ButtonBase, Typography, alpha, useTheme } from "@mui/material";
 import { AnimatePresence, motion } from "motion/react";
-import { Check, CornerDownLeft, AlertTriangle, MessageSquare, Search, Settings, Sparkles, X, Zap } from "lucide-react";
+import { Check, AlertTriangle, MessageSquare, Search, Settings, Sparkles, X, Zap } from "lucide-react";
 import { useReducedMotion } from "@/features/sidebar/hooks/useReducedMotion";
 import type { CommandPaletteCategory, CommandPaletteItem } from "./types";
 import {
@@ -21,10 +21,10 @@ type PaletteRow =
   | { type: "header"; id: string; label: string }
   | { type: "item"; id: string; item: CommandPaletteItem };
 
-const HEADER_ROW_HEIGHT = 30;
-const ITEM_ROW_HEIGHT = 56;
-const ITEM_ROW_WITH_DESCRIPTION_HEIGHT = 68;
-const ROW_VERTICAL_GAP = 4;
+const HEADER_ROW_HEIGHT = 24;
+const ITEM_ROW_HEIGHT = 38;
+const ITEM_ROW_WITH_DESCRIPTION_HEIGHT = 38;
+const ROW_VERTICAL_GAP = 2;
 const HIGH_CONFIDENCE = 0.86;
 const MEDIUM_CONFIDENCE = 0.62;
 
@@ -322,33 +322,28 @@ export function CommandPalette({
             transition={{ duration: shouldReduce ? 0 : 0.16, ease: [0.2, 0.8, 0.2, 1] }}
             onKeyDown={handleKeyDown}
             sx={{
-              width: "750px",
+              width: "520px",
               maxWidth: { xs: "calc(100vw - 24px)", sm: "90vw" },
-              height:
-                "min(65dvh, calc(100dvh - var(--titlebar-height) - clamp(32px, 12vh, 112px)))",
+              maxHeight: "min(55dvh, calc(100dvh - var(--titlebar-height) - clamp(32px, 12vh, 112px)))",
               display: "flex",
               flexDirection: "column",
               overflow: "hidden",
-              borderRadius: { xs: "14px", sm: "18px" },
+              borderRadius: theme.app.radius.commandPalette,
               border: "1px solid",
               borderColor: alpha(
                 theme.palette.common.white,
-                theme.palette.mode === "dark" ? 0.12 : 0.24,
+                theme.palette.mode === "dark" ? 0.1 : 0.2,
               ),
               bgcolor:
                 theme.palette.mode === "dark"
-                  ? alpha(theme.palette.background.default, 0.88)
-                  : alpha(theme.palette.background.paper, 0.9),
+                  ? alpha(theme.palette.background.default, 0.92)
+                  : alpha(theme.palette.background.paper, 0.95),
               boxShadow:
                 theme.palette.mode === "dark"
-                  ? `0 8px 24px ${alpha(theme.palette.common.black, 0.28)}`
-                  : `0 8px 24px ${alpha(theme.palette.common.black, 0.16)}`,
-              "@media (min-height: 720px)": {
-                minHeight: 420,
-              },
+                  ? `0 16px 48px ${alpha(theme.palette.common.black, 0.48)}`
+                  : `0 16px 48px ${alpha(theme.palette.common.black, 0.18)}`,
               "@media (max-height: 560px)": {
-                height: "calc(100dvh - var(--titlebar-height) - 24px)",
-                minHeight: 0,
+                maxHeight: "calc(100dvh - var(--titlebar-height) - 24px)",
               },
               "@media (max-width: 520px)": {
                 width: "calc(100vw - 24px)",
@@ -357,50 +352,57 @@ export function CommandPalette({
           >
             <Box
               sx={{
-                display: "flex",
-                alignItems: "center",
-                gap: 1.25,
-                height: { xs: 54, sm: 62 },
-                px: { xs: 1.5, sm: 2 },
+                px: 1.25,
+                pt: 1.25,
+                pb: 1,
                 borderBottom: "1px solid",
                 borderColor: "divider",
-                color: "text.secondary",
                 flexShrink: 0,
               }}
             >
-              <Search size={18} />
               <Box
-                ref={inputRef}
-                component="input"
-                value={query}
-                onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-                  setQuery(event.target.value)
-                }
-                placeholder="Search conversations, actions, settings..."
-                aria-label="Search commands"
-                aria-activedescendant={
-                  selectedItem ? `command-${selectedItem.id}` : undefined
-                }
-                sx={{
-                  flex: 1,
-                  minWidth: 0,
-                  border: 0,
-                  outline: 0,
-                  bgcolor: "transparent",
-                  color: "text.primary",
-                  fontSize: { xs: 14, sm: 15 },
-                  fontWeight: 500,
-                  "&::placeholder": {
-                    color: "text.secondary",
-                    opacity: 0.8,
-                  },
-                }}
-              />
-              <KeyHint>
-                {navigator.platform.toLowerCase().includes("mac")
-                  ? "Cmd K"
-                  : "Ctrl K"}
-              </KeyHint>
+                sx={(theme) => ({
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1,
+                  height: 40,
+                  px: 1.5,
+                  borderRadius: theme.app.radius.pill,
+                  bgcolor: "action.hover",
+                  border: "1px solid",
+                  borderColor: "divider",
+                  color: "text.secondary",
+                })}
+              >
+                <Search size={16} />
+                <Box
+                  ref={inputRef}
+                  component="input"
+                  value={query}
+                  onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+                    setQuery(event.target.value)
+                  }
+                  placeholder="Search commands and conversations"
+                  aria-label="Search commands"
+                  aria-activedescendant={
+                    selectedItem ? `command-${selectedItem.id}` : undefined
+                  }
+                  sx={{
+                    flex: 1,
+                    minWidth: 0,
+                    border: 0,
+                    outline: 0,
+                    bgcolor: "transparent",
+                    color: "text.primary",
+                    fontSize: 13.5,
+                    fontWeight: 450,
+                    "&::placeholder": {
+                      color: "text.secondary",
+                      opacity: 0.7,
+                    },
+                  }}
+                />
+              </Box>
             </Box>
 
             {showIntent && parsedIntent ? (
@@ -419,8 +421,9 @@ export function CommandPalette({
                 flex: 1,
                 minHeight: 0,
                 overflowY: "auto",
-                px: 1,
-                py: 1,
+                px: 0.75,
+                pt: 0.5,
+                pb: 1,
                 scrollbarWidth: "thin",
                 scrollbarColor: `${alpha(theme.palette.text.secondary, 0.32)} transparent`,
                 "&::-webkit-scrollbar": {
@@ -480,18 +483,17 @@ export function CommandPalette({
                             sx={{
                               height: HEADER_ROW_HEIGHT,
                               display: "flex",
-                              alignItems: "center",
-                              px: 1.25,
-                              pt: 0.5,
+                              alignItems: "flex-end",
+                              px: 1.5,
+                              pb: 0.25,
                             }}
                           >
                             <Typography
                               sx={{
                                 fontSize: 11,
-                                fontWeight: 800,
-                                letterSpacing: 0,
+                                fontWeight: 500,
                                 color: "text.secondary",
-                                textTransform: "uppercase",
+                                opacity: 0.7,
                               }}
                             >
                               {row.label}
@@ -512,30 +514,6 @@ export function CommandPalette({
               )}
             </Box>
 
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                gap: 1,
-                px: 2,
-                py: 1,
-                borderTop: "1px solid",
-                borderColor: "divider",
-                color: "text.secondary",
-                flexShrink: 0,
-                flexWrap: "wrap",
-                "@media (max-height: 440px)": {
-                  display: "none",
-                },
-              }}
-            >
-              <FooterHint
-                icon={<CornerDownLeft size={13} />}
-                label={intentNeedsConfirmation ? "Confirm" : "Open"}
-              />
-              <FooterHint label="↑↓ Navigate" />
-              <FooterHint label="Esc Close" />
-            </Box>
           </Box>
         </Box>
       ) : null}
@@ -649,7 +627,6 @@ function CommandRow({
   const displayTitle = isFeature
     ? item.title.replace(/^[\u2713\u2715]\s*/, "")
     : item.title;
-  const hasDescription = Boolean(item.description);
 
   return (
     <ButtonBase
@@ -658,112 +635,51 @@ function CommandRow({
       aria-selected={active}
       onMouseEnter={onMouseEnter}
       onClick={onClick}
-      sx={(theme) => ({
+      sx={{
         display: "flex",
         alignItems: "center",
         boxSizing: "border-box",
         width: "100%",
-        height: hasDescription
-          ? ITEM_ROW_WITH_DESCRIPTION_HEIGHT - ROW_VERTICAL_GAP
-          : ITEM_ROW_HEIGHT - ROW_VERTICAL_GAP,
-        minHeight: ITEM_ROW_HEIGHT - ROW_VERTICAL_GAP,
+        height: ITEM_ROW_HEIGHT - ROW_VERTICAL_GAP,
         my: `${ROW_VERTICAL_GAP / 2}px`,
         justifyContent: "flex-start",
-        gap: 1.5,
-        px: 1.5,
-        py: 1,
+        gap: 1.25,
+        px: 1.25,
         borderRadius: "10px",
-        color: "text.primary",
-        bgcolor: active
-          ? alpha(theme.palette.primary.main, 0.12)
-          : "transparent",
-        outline: active
-          ? `1px solid ${alpha(theme.palette.primary.main, 0.14)}`
-          : "1px solid transparent",
-        "&:hover": {
-          bgcolor: active
-            ? alpha(theme.palette.primary.main, 0.14)
-            : "action.hover",
-        },
-      })}
+        color: active ? "text.primary" : "text.secondary",
+        bgcolor: active ? "action.selected" : "transparent",
+        "&:hover": { bgcolor: active ? "action.selected" : "action.hover" },
+        transition: "background-color 80ms",
+      }}
     >
-      {!isFeature ? (
-        <Box
-          sx={{
-            width: 32,
-            height: 32,
-            borderRadius: "8px",
-            display: "grid",
-            placeItems: "center",
-            color: "text.secondary",
-            bgcolor: "action.hover",
-            flexShrink: 0,
-          }}
-        >
-          {item.icon ?? categoryIcon(item.category)}
-        </Box>
-      ) : null}
-      <Box
+      <Box sx={{ display: "flex", alignItems: "center", flexShrink: 0, color: "inherit" }}>
+        {item.icon ?? categoryIcon(item.category)}
+      </Box>
+      <Typography
+        noWrap
         sx={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 0.25,
-          minWidth: 0,
           flex: "1 1 auto",
-          textAlign: "left",
-          overflow: "hidden",
+          minWidth: 0,
+          fontSize: 13.5,
+          fontWeight: active ? 600 : 500,
+          color: active ? "text.primary" : "text.primary",
+          lineHeight: 1,
         }}
       >
-        <Typography
-          noWrap
-          sx={{
-            display: "block",
-            maxWidth: "100%",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-            fontSize: 14,
-            fontWeight: 750,
-            color: "text.primary",
-            lineHeight: 1.25,
-          }}
-        >
-          {displayTitle}
-        </Typography>
-        {item.description ? (
-          <Typography
-            noWrap
-            sx={{
-              display: "block",
-              maxWidth: "100%",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-              fontSize: 12,
-              color: "text.secondary",
-              lineHeight: 1.3,
-            }}
-          >
-            {item.description}
-          </Typography>
-        ) : null}
-      </Box>
+        {displayTitle}
+      </Typography>
       {item.shortcut ? <KeyHint>{item.shortcut}</KeyHint> : null}
       {isFeature ? (
         <Box
           sx={(theme) => ({
-            width: 24,
-            height: 24,
-            display: "grid",
-            placeItems: "center",
+            display: "flex",
+            alignItems: "center",
             flexShrink: 0,
-            color: isFeatureEnabled
-              ? theme.palette.success.main
-              : theme.palette.text.secondary,
+            color: isFeatureEnabled ? theme.palette.success.main : theme.palette.text.disabled,
           })}
           aria-hidden="true"
         >
-          {isFeatureEnabled ? <Check size={15} /> : <X size={15} />}
+          {isFeatureEnabled ? <Check size={14} /> : <X size={14} />}
         </Box>
       ) : null}
     </ButtonBase>
@@ -790,23 +706,6 @@ function KeyHint({ children }: { children: React.ReactNode }) {
       }}
     >
       {children}
-    </Box>
-  );
-}
-
-function FooterHint({
-  icon,
-  label,
-}: {
-  icon?: React.ReactNode;
-  label: string;
-}) {
-  return (
-    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, fontSize: 11 }}>
-      {icon}
-      <Typography sx={{ fontSize: 11, color: "text.secondary" }}>
-        {label}
-      </Typography>
     </Box>
   );
 }

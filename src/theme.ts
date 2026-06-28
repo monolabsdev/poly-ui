@@ -2,6 +2,7 @@ import { createTheme, ThemeOptions } from "@mui/material/styles";
 
 type AppThemeTokens = {
   radius: {
+    commandPalette: string;
     control: string;
     dialog: string;
     menu: string;
@@ -81,6 +82,7 @@ declare module "@mui/material/styles" {
 }
 
 const appRadius = {
+  commandPalette: "20px",
   control: "8px",
   dialog: "12px",
   menu: "18px",
