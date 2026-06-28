@@ -1,8 +1,8 @@
-import React, { Suspense, lazy, useMemo, useEffect, useState } from "react";
+import React, { useMemo, useEffect, useState } from "react";
 import ReactDOM from "react-dom/client";
 import { alpha, ThemeProvider } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
-import { useMediaQuery } from "@mui/material";
+import useMediaQuery from "@mui/material/useMediaQuery";
 import { darkTheme, lightTheme } from "./theme";
 import { useThemeStore } from "./store/themeStore";
 import { useSettingsStore } from "./store/settingsStore";
@@ -10,29 +10,21 @@ import { NotificationProvider } from "./components/ui/Toast/NotificationProvider
 import StartupLoadingScreen from "./components/StartupLoadingScreen";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { WindowTitleBar } from "./components/Layout/WindowTitleBar";
-import { loadAppModule, prepareAppStartup } from "./startup";
+import { prepareAppStartup } from "./startup";
 import {
-  installFrontendDiagnostics,
   startupError as reportStartupError,
   startupPhase,
 } from "./lib/utils/startupDiagnostics";
-import { IS_LINUX, USE_CUSTOM_WINDOW_CONTROLS } from "./lib/utils/platform";
+import { USE_CUSTOM_WINDOW_CONTROLS } from "./lib/utils/platform";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { invoke } from "@tauri-apps/api/core";
 import "@fontsource-variable/geist";
 import "./App.css";
-
-installFrontendDiagnostics();
-startupPhase("main module loaded");
-
-if (IS_LINUX || USE_CUSTOM_WINDOW_CONTROLS) {
-  document.documentElement.dataset.chrome = "borderless";
-}
+import App from "./App";
 
 const TITLE_BAR_HEIGHT = 36;
 document.documentElement.style.setProperty("--titlebar-height", `${TITLE_BAR_HEIGHT}px`);
 
-const App = lazy(loadAppModule);
 
 function getTheme(mode: string, prefersDark: boolean) {
   if (mode === "system") {
@@ -151,9 +143,7 @@ function Root() {
               <div
                 className="app-content animate-fade-in"
               >
-                <Suspense fallback={null}>
                   <App />
-                </Suspense>
               </div>
             ) : null}
           </div>

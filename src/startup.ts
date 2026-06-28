@@ -15,13 +15,7 @@ type StoredPrompts = {
   activeSystemPromptId: string | null;
 };
 
-let appImportPromise: Promise<typeof import("./App")> | null = null;
 let startupPromise: Promise<void> | null = null;
-
-export function loadAppModule() {
-  appImportPromise ??= import("./App");
-  return appImportPromise;
-}
 
 function restoreSystemPrompts() {
   try {
@@ -76,8 +70,8 @@ function startSystemPromptPersistence() {
 async function preloadVisibleAppChunks() {
   startupPhase("preload visible chunks start");
   await Promise.all([
-    loadAppModule(),
-    import("@/features/chat/components/ChatWorkspace"),
+    import("@/features/auth/AuthModal"),
+    import("@/features/release-notes/ReleaseNotesModal"),
   ]);
   startupPhase("preload visible chunks complete");
 }
