@@ -6,7 +6,12 @@ import {
   DialogTitle, 
   DialogDescription 
 } from "@/components/ui/dialog";
-import { Box, IconButton, Typography, Stack, SxProps, Theme } from "@mui/material";
+import Box from "@mui/material/Box";
+import IconButton from "@mui/material/IconButton";
+import Typography from "@mui/material/Typography";
+import Stack from "@mui/material/Stack";
+import { SxProps } from "@mui/material/styles";
+import { Theme } from "@mui/material/styles";
 import { X } from "lucide-react";
 
 interface ModalProps {

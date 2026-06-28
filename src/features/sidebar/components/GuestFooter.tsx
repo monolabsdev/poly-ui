@@ -1,5 +1,9 @@
 import * as React from "react";
-import { Box, IconButton, Tooltip, Typography, Button as MuiButton } from "@mui/material";
+import Box from "@mui/material/Box";
+import IconButton from "@mui/material/IconButton";
+import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
+import MuiButton from "@mui/material/Button";
 import { Info, MoreHorizontal, LogIn, Settings, Archive, Cpu } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {

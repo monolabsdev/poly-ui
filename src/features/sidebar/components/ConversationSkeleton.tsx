@@ -1,4 +1,4 @@
-import { Box } from "@mui/material";
+import Box from "@mui/material/Box";
 import { useSidebar } from "@/features/sidebar/hooks/useSidebar";
 
 export function ConversationSkeleton() {

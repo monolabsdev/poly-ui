@@ -1,5 +1,6 @@
 import * as React from "react";
-import { Box, Typography } from "@mui/material";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
 import { useNotify } from "@/hooks/useNotify";
 import { useDevStore } from "@/store/devStore";
 import { useSidebar } from "@/features/sidebar/hooks/useSidebar";

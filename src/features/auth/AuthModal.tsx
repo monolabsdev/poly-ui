@@ -1,13 +1,11 @@
 import React, { useCallback, useState } from "react";
-import {
-  Box,
-  Button as MuiButton,
-  IconButton,
-  Modal as MuiModal,
-  Stack,
-  Typography,
-} from "@mui/material";
-import type { Theme } from "@mui/material";
+import Box from "@mui/material/Box";
+import MuiButton from "@mui/material/Button";
+import IconButton from "@mui/material/IconButton";
+import MuiModal from "@mui/material/Modal";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
+import type { Theme } from "@mui/material/styles";
 import { ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import { Input } from "@/components/ui/input";

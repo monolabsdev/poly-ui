@@ -4,11 +4,9 @@ import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import remarkBreaks from "remark-breaks";
 import rehypeKatex from "rehype-katex";
-import {
-  Box,
-  Link,
-  Typography,
-} from "@mui/material";
+import Box from "@mui/material/Box";
+import Link from "@mui/material/Link";
+import Typography from "@mui/material/Typography";
 import "katex/dist/katex.min.css";
 import { CodeBlock } from "./CodeBlock";
 import { parseProgressive } from "@/lib/chat/streamMarkdown";

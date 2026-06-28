@@ -1,11 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  Box,
-  ButtonBase,
-  InputBase,
-  Popover,
-  Typography,
-} from "@mui/material";
+import Box from "@mui/material/Box";
+import ButtonBase from "@mui/material/ButtonBase";
+import InputBase from "@mui/material/InputBase";
+import Popover from "@mui/material/Popover";
+import Typography from "@mui/material/Typography";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { ChevronDown, Search } from "lucide-react";
 import { useOllama, type OllamaModel } from "@/features/ollama";

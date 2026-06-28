@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
-import { Box, Button, Collapse } from "@mui/material";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Collapse from "@mui/material/Collapse";
 import { alpha } from "@mui/material/styles";
 import { Bug, ChevronDown, ChevronRight } from "lucide-react";
 import type { AgentMessageState } from "../types";

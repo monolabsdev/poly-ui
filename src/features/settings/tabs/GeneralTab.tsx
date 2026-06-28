@@ -1,10 +1,8 @@
-import {
-  FormControl,
-  MenuItem,
-  Select,
-  Stack,
-  Switch,
-} from "@mui/material";
+import FormControl from "@mui/material/FormControl";
+import MenuItem from "@mui/material/MenuItem";
+import Select from "@mui/material/Select";
+import Stack from "@mui/material/Stack";
+import Switch from "@mui/material/Switch";
 import { useShallow } from "zustand/react/shallow";
 import { SettingCard, SectionHeader, selectSx } from "../SettingComponents";
 import { useSettingsStore } from "@/store/settingsStore";

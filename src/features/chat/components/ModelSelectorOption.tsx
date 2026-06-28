@@ -1,5 +1,10 @@
 import type { CSSProperties, ReactNode } from "react";
-import { Box, ButtonBase, Skeleton, Stack, Tooltip, Typography } from "@mui/material";
+import Box from "@mui/material/Box";
+import ButtonBase from "@mui/material/ButtonBase";
+import Skeleton from "@mui/material/Skeleton";
+import Stack from "@mui/material/Stack";
+import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
 import { Check, Cpu, Eye, Link2 } from "lucide-react";
 import type { OllamaModel } from "@/features/ollama";
 

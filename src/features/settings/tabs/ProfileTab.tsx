@@ -1,5 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { Avatar, Box, Button, ButtonBase, Stack, TextField, Typography } from "@mui/material";
+import Avatar from "@mui/material/Avatar";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import ButtonBase from "@mui/material/ButtonBase";
+import Stack from "@mui/material/Stack";
+import TextField from "@mui/material/TextField";
+import Typography from "@mui/material/Typography";
 import { Camera, Lock, Save } from "lucide-react";
 import { EmptyState, SectionHeader, SettingCard } from "../SettingComponents";
 import { appTextFieldSx } from "@/components/ui/appDialog";

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { Box, Typography } from "@mui/material";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
 import { Brain } from "lucide-react";
 import { TextShimmer } from "@/components/ui/text-shimmer";
 import {

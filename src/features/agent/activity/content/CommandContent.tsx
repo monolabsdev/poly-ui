@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { Box, Collapse, Typography } from "@mui/material";
+import Box from "@mui/material/Box";
+import Collapse from "@mui/material/Collapse";
+import Typography from "@mui/material/Typography";
 import { alpha } from "@mui/material/styles";
 import { ChevronDown, ChevronRight, Terminal } from "lucide-react";
 import type { AgentToolCall } from "../../types";

@@ -1,9 +1,13 @@
 import * as React from "react";
-import { Alert, Box, Typography, TextField, Input } from "@mui/material";
+import Alert from "@mui/material/Alert";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
+import TextField from "@mui/material/TextField";
+import Input from "@mui/material/Input";
 import { Upload, X } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
-import { IconButton } from "@mui/material";
+import IconButton from "@mui/material/IconButton";
 import { Attachment } from "@/types/chat";
 
 const MAX_CONTEXT_FILES = 5;

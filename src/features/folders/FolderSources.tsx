@@ -1,5 +1,8 @@
 import * as React from "react";
-import { Box, CircularProgress, Link, Typography } from "@mui/material";
+import Box from "@mui/material/Box";
+import CircularProgress from "@mui/material/CircularProgress";
+import Link from "@mui/material/Link";
+import Typography from "@mui/material/Typography";
 import { ExternalLink, FileText, Globe } from "lucide-react";
 import { getRepository } from "@/lib/repositories";
 import { useChatStore } from "@/store/chatStore";

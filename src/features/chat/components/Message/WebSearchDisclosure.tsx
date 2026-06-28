@@ -1,5 +1,7 @@
 import React, { useMemo } from "react";
-import { Box, Typography, Link } from "@mui/material";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
+import Link from "@mui/material/Link";
 import { Globe, ExternalLink } from "lucide-react";
 import { TextShimmer } from "@/components/ui/text-shimmer";
 import {

@@ -10,7 +10,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Box, Typography, Button as MuiButton, Tooltip } from "@mui/material";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
+import MuiButton from "@mui/material/Button";
+import Tooltip from "@mui/material/Tooltip";
 import { Settings, Archive, LogOut, LogIn, Cpu } from "lucide-react";
 
 import { useSidebar } from "@/features/sidebar";

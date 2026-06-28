@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Box } from "@mui/material";
+import Box from "@mui/material/Box";
 import { useFolderStore } from "@/store/folderStore";
 import { useChatStore } from "@/store/chatStore";
 import { DeleteConversationDialog } from "@/features/chat/components/DeleteConversationDialog";

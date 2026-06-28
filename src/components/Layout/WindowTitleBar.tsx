@@ -1,4 +1,4 @@
-import { Box } from "@mui/material";
+import Box from "@mui/material/Box";
 import { IS_MAC, USE_CUSTOM_WINDOW_CONTROLS } from "@/lib/utils/platform";
 import { WindowControls } from "@/components/WindowControls";
 import { UpdateChip } from "@/components/UpdateChip";

@@ -1,5 +1,6 @@
 import * as React from "react";
-import { Avatar as MuiAvatar, Box } from "@mui/material";
+import MuiAvatar from "@mui/material/Avatar";
+import Box from "@mui/material/Box";
 import type { SxProps, Theme } from "@mui/material/styles";
 
 export const AVATAR_COLOR_PALETTE = [

@@ -9,8 +9,12 @@ import {
   useState,
   type ReactNode,
 } from "react"
-import { Box, Link, Paper, Popper, Typography } from "@mui/material"
-import type { SxProps, Theme } from "@mui/material"
+import Box from "@mui/material/Box"
+import Link from "@mui/material/Link"
+import Paper from "@mui/material/Paper"
+import Popper from "@mui/material/Popper"
+import Typography from "@mui/material/Typography"
+import type { SxProps, Theme } from "@mui/material/styles"
 
 // ─── Context ────────────────────────────────────────────
 

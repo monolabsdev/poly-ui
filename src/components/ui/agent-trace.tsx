@@ -10,7 +10,8 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { Box, Collapse } from "@mui/material";
+import Box from "@mui/material/Box";
+import Collapse from "@mui/material/Collapse";
 import { alpha } from "@mui/material/styles";
 import { ChevronDown, Check, Circle, AlertTriangle, LoaderCircle, ShieldAlert } from "lucide-react";
 

@@ -1,5 +1,8 @@
 import * as React from "react";
-import { Box, Collapse, IconButton, Typography } from "@mui/material";
+import Box from "@mui/material/Box";
+import Collapse from "@mui/material/Collapse";
+import IconButton from "@mui/material/IconButton";
+import Typography from "@mui/material/Typography";
 import { Plus } from "lucide-react";
 import { useFolderStore } from "@/store/folderStore";
 import { Conversation } from "@/types/chat";

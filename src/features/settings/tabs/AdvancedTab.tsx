@@ -1,8 +1,6 @@
-import {
-  Stack,
-  Switch,
-  Typography,
-} from "@mui/material";
+import Stack from "@mui/material/Stack";
+import Switch from "@mui/material/Switch";
+import Typography from "@mui/material/Typography";
 import { useShallow } from "zustand/react/shallow";
 import { SettingCard, SectionHeader } from "../SettingComponents";
 import { useSettingsStore } from "@/store/settingsStore";

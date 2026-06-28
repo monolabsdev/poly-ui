@@ -1,5 +1,9 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
-import { Box, IconButton, Tooltip, Typography, useTheme } from "@mui/material";
+import Box from "@mui/material/Box";
+import IconButton from "@mui/material/IconButton";
+import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
+import { useTheme } from "@mui/material/styles";
 import { Copy, Check } from "lucide-react";
 import { highlight } from "sugar-high";
 import * as presets from "sugar-high/presets";

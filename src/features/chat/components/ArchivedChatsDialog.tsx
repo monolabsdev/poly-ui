@@ -6,7 +6,12 @@ import {
   appPanelSx,
 } from "@/components/ui/appDialog";
 import { useChatStore } from "@/store/chatStore";
-import { Box, IconButton, InputBase, Stack, Tooltip, Typography } from "@mui/material";
+import Box from "@mui/material/Box";
+import IconButton from "@mui/material/IconButton";
+import InputBase from "@mui/material/InputBase";
+import Stack from "@mui/material/Stack";
+import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
 import { ArchiveRestore, MessageSquare, Search, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { DeleteConversationDialog } from "@/features/chat/components/DeleteConversationDialog";

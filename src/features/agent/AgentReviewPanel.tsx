@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { Box, Button, CircularProgress, Drawer, IconButton, Typography, useTheme } from "@mui/material";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import CircularProgress from "@mui/material/CircularProgress";
+import Drawer from "@mui/material/Drawer";
+import IconButton from "@mui/material/IconButton";
+import Typography from "@mui/material/Typography";
+import { useTheme } from "@mui/material/styles";
 import { alpha } from "@mui/material/styles";
 import { ChevronRight, FileDiff, Maximize2, X } from "lucide-react";
 import { getAgentChangedFiles, getAgentFileDiff } from "./agentClient";

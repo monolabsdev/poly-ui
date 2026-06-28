@@ -1,5 +1,9 @@
 import * as React from "react";
-import { Box, ButtonBase, IconButton, Typography, type SxProps } from "@mui/material";
+import Box from "@mui/material/Box";
+import ButtonBase from "@mui/material/ButtonBase";
+import IconButton from "@mui/material/IconButton";
+import Typography from "@mui/material/Typography";
+import type { SxProps } from "@mui/material/styles";
 import type { Theme } from "@mui/material/styles";
 import {
   Check,

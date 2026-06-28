@@ -1,5 +1,9 @@
 import { useState, useEffect } from "react";
-import { Box, Typography, IconButton, Tooltip, useTheme } from "@mui/material";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
+import IconButton from "@mui/material/IconButton";
+import Tooltip from "@mui/material/Tooltip";
+import { useTheme } from "@mui/material/styles";
 import { Paperclip, Copy, Check, MoreHorizontal, Brain, Trash2, Search } from "lucide-react";
 import { isImageAttachment, createDataUrl, formatFileSize } from "@/lib/utils/utils";
 import { useNotify } from "@/hooks/useNotify";

@@ -1,5 +1,7 @@
 import * as React from "react";
-import { InputBase, SxProps, Theme } from "@mui/material";
+import InputBase from "@mui/material/InputBase";
+import { SxProps } from "@mui/material/styles";
+import { Theme } from "@mui/material/styles";
 
 export interface InputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'color' | 'size'> {
   sx?: SxProps<Theme>;

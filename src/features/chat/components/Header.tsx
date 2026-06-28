@@ -2,18 +2,16 @@ import { memo } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { ModelProvider } from "@/store/modelStore";
 import { useOllama } from "@/features/ollama";
-import {
-  Box,
-  Select,
-  MenuItem,
-  Typography,
-  FormControl,
-  Link,
-  Tooltip,
-  IconButton,
-  CircularProgress,
-  LinearProgress,
-} from "@mui/material";
+import Box from "@mui/material/Box";
+import Select from "@mui/material/Select";
+import MenuItem from "@mui/material/MenuItem";
+import Typography from "@mui/material/Typography";
+import FormControl from "@mui/material/FormControl";
+import Link from "@mui/material/Link";
+import Tooltip from "@mui/material/Tooltip";
+import IconButton from "@mui/material/IconButton";
+import CircularProgress from "@mui/material/CircularProgress";
+import LinearProgress from "@mui/material/LinearProgress";
 import {
   X,
   Plus,

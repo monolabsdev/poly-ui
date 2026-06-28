@@ -10,7 +10,11 @@ import {
 } from "react";
 import type { ChatMessage } from "@/types/chat";
 import { Message } from "./Message";
-import { Box, CircularProgress, Typography, IconButton, Fade } from "@mui/material";
+import Box from "@mui/material/Box";
+import CircularProgress from "@mui/material/CircularProgress";
+import Typography from "@mui/material/Typography";
+import IconButton from "@mui/material/IconButton";
+import Fade from "@mui/material/Fade";
 import { useChatStore } from "@/store/chatStore";
 import { ChevronDown } from "lucide-react";
 import { useVirtualizer } from "@tanstack/react-virtual";

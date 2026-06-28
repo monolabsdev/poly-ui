@@ -1,5 +1,5 @@
 import { useCallback, useEffect } from "react";
-import { Box } from "@mui/material";
+import Box from "@mui/material/Box";
 import { useShallow } from "zustand/react/shallow";
 import { ChatArea } from "@/features/chat/components/ChatArea";
 import { ChatInput } from "@/features/chat/components/ChatInput";

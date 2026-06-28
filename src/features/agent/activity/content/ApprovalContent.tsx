@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
-import { Box, Button, Typography } from "@mui/material";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Typography from "@mui/material/Typography";
 import { alpha } from "@mui/material/styles";
 import type { AgentApproval, AgentMessageState } from "../../types";
 import { agentBtn, agentPrimaryBtn } from "../styles";

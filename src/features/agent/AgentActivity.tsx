@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Box, Typography } from "@mui/material";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
 import { useDevStore } from "@/store/devStore";
 import type { AgentApproval, AgentMessageState } from "./types";
 import { AgentReviewPanel } from "./AgentReviewPanel";

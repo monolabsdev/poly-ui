@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
-import { Link, Stack, Typography } from "@mui/material";
+import Link from "@mui/material/Link";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
 import { SettingCard, SectionHeader } from "../SettingComponents";
 import { getBundledAppVersion, getInstalledAppVersion } from "@/lib/utils/appVersion";
 

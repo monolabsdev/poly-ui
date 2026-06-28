@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
-import { Box, Button, Typography } from "@mui/material";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Typography from "@mui/material/Typography";
 import { ChevronDown, FileDiff } from "lucide-react";
 import { AgentTraceBadge } from "@/components/ui/agent-trace";
 import type { AgentEditedFile } from "../../types";

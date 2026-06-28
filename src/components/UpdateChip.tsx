@@ -1,4 +1,5 @@
-import { Box, Typography } from "@mui/material";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
 import { Ring2 } from "ldrs/react";
 import "ldrs/react/Ring2.css";
 import { useUpdateStore } from "@/store/updateStore";

@@ -1,5 +1,9 @@
 import * as React from "react";
-import { Box, Button, ButtonBase, Typography, IconButton } from "@mui/material";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import ButtonBase from "@mui/material/ButtonBase";
+import Typography from "@mui/material/Typography";
+import IconButton from "@mui/material/IconButton";
 import { Folder, MessageSquare, Trash2, X } from "lucide-react";
 import { ChatInput } from "@/features/chat/components/ChatInput";
 import { ConversationItem } from "@/features/chat/components/ConversationItem";

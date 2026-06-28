@@ -1,5 +1,7 @@
 import { memo, useEffect } from "react";
-import { Box, Typography, useTheme } from "@mui/material";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
+import { useTheme } from "@mui/material/styles";
 import { Ring2 } from "ldrs/react";
 import "ldrs/react/Ring2.css";
 import { TITLE_BAR_HEIGHT } from "@/components/Layout/WindowTitleBar";

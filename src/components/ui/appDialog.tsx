@@ -1,7 +1,11 @@
 // Design: Quiet instrument panel — fixed-width shell, soft contrast, precise spacing.
 import { Modal } from "@/components/ui/modal";
-import { Box, IconButton, Typography, useTheme } from "@mui/material";
-import type { SxProps, Theme } from "@mui/material";
+import Box from "@mui/material/Box";
+import IconButton from "@mui/material/IconButton";
+import Typography from "@mui/material/Typography";
+import { useTheme } from "@mui/material/styles";
+import type { SxProps } from "@mui/material/styles";
+import type { Theme } from "@mui/material/styles";
 import { X } from "lucide-react";
 import type { ReactNode } from "react";
 

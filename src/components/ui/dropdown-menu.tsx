@@ -1,12 +1,10 @@
 import * as React from "react";
-import {
-  Menu,
-  MenuItem,
-  Divider,
-  ListSubheader,
-  SxProps,
-  Theme,
-} from "@mui/material";
+import Menu from "@mui/material/Menu";
+import MenuItem from "@mui/material/MenuItem";
+import Divider from "@mui/material/Divider";
+import ListSubheader from "@mui/material/ListSubheader";
+import { SxProps } from "@mui/material/styles";
+import { Theme } from "@mui/material/styles";
 
 function DropdownMenu({
   children,

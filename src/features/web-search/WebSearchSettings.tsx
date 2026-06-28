@@ -1,4 +1,10 @@
-import { FormControl, Link, MenuItem, Select, Stack, TextField, Typography } from "@mui/material";
+import FormControl from "@mui/material/FormControl";
+import Link from "@mui/material/Link";
+import MenuItem from "@mui/material/MenuItem";
+import Select from "@mui/material/Select";
+import Stack from "@mui/material/Stack";
+import TextField from "@mui/material/TextField";
+import Typography from "@mui/material/Typography";
 import { appTextFieldSx } from "@/components/ui/appDialog";
 import { SettingCard, selectSx } from "@/features/settings/SettingComponents";
 import { useSettingsStore } from "@/store/settingsStore";

@@ -1,5 +1,7 @@
 import { AlertTriangle, Search } from "lucide-react";
-import { Box, Typography, Tooltip } from "@mui/material";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
+import Tooltip from "@mui/material/Tooltip";
 import type { FeatureDef } from "@/lib/featureRegistry";
 
 interface SlashCommandMenuProps {

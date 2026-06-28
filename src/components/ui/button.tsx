@@ -1,4 +1,5 @@
-import { Button as MuiButton, ButtonProps as MuiButtonProps } from "@mui/material";
+import MuiButton from "@mui/material/Button";
+import type { ButtonProps as MuiButtonProps } from "@mui/material/Button";
 
 interface ButtonProps extends Omit<MuiButtonProps, "variant" | "size"> {
   variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";

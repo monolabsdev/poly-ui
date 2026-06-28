@@ -1,5 +1,8 @@
-import { Box, Stack, Typography } from "@mui/material";
-import type { SxProps, Theme } from "@mui/material";
+import Box from "@mui/material/Box";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
+import type { SxProps } from "@mui/material/styles";
+import type { Theme } from "@mui/material/styles";
 import { appPanelSx } from "@/components/ui/appDialog";
 
 const settingTextSx = {

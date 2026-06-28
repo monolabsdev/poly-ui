@@ -1,4 +1,4 @@
-import { Box } from "@mui/material";
+import Box from "@mui/material/Box";
 
 type ChatPanelProps = {
   children: React.ReactNode;

@@ -1,5 +1,7 @@
 import * as React from "react";
-import { FormLabel, SxProps, Theme } from "@mui/material";
+import FormLabel from "@mui/material/FormLabel";
+import { SxProps } from "@mui/material/styles";
+import { Theme } from "@mui/material/styles";
 
 const Label = React.forwardRef<
   HTMLLabelElement,
