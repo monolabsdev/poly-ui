@@ -1,20 +1,13 @@
 import { useState } from "react";
-import {
-  Box,
-  Button,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Typography,
-  CircularProgress,
-  Stack,
-} from "@mui/material";
-import { Trash2, Archive, Download, AlertTriangle } from "lucide-react";
+import Button from "@mui/material/Button";
+import CircularProgress from "@mui/material/CircularProgress";
+import Stack from "@mui/material/Stack";
+import { Trash2, Archive, Download } from "lucide-react";
 import { SettingCard, SectionHeader } from "../SettingComponents";
 import { useChatStore } from "@/store/chatStore";
 import { useNotify } from "@/hooks/useNotify";
 import { getRepository } from "@/lib/repositories";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 export function DataControlsTab() {
   const notify = useNotify();
@@ -179,74 +172,24 @@ export function DataControlsTab() {
         }
       />
 
-      <Dialog
+      <ConfirmDialog
         open={deleteOpen}
-        onClose={() => !deleting && setDeleteOpen(false)}
-      >
-        <DialogTitle>Delete all chats?</DialogTitle>
-        <DialogContent>
-          <Box sx={{ display: "flex", gap: 1.5, alignItems: "flex-start" }}>
-            <AlertTriangle size={20} style={{ flexShrink: 0, marginTop: 2 }} />
-            <Typography sx={{ fontSize: 14, color: "text.secondary" }}>
-              This will permanently delete all conversations and messages. This
-              action cannot be undone.
-            </Typography>
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button
-            size="small"
-            variant="text"
-            onClick={() => setDeleteOpen(false)}
-            disabled={deleting}
-          >
-            Cancel
-          </Button>
-          <Button
-            size="small"
-            variant="contained"
-            color="error"
-            disableElevation
-            onClick={handleDeleteAll}
-            disabled={deleting}
-          >
-            {deleting ? "Deleting..." : "Delete All"}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        onOpenChange={(open) => { if (!deleting) setDeleteOpen(open); }}
+        title="Delete all chats?"
+        description="This will permanently delete all conversations and messages. This action cannot be undone."
+        confirmLabel={deleting ? "Deleting..." : "Delete All"}
+        onConfirm={handleDeleteAll}
+        destructive
+      />
 
-      <Dialog
+      <ConfirmDialog
         open={archiveOpen}
-        onClose={() => !archiving && setArchiveOpen(false)}
-      >
-        <DialogTitle>Archive all chats?</DialogTitle>
-        <DialogContent>
-          <Typography sx={{ fontSize: 14, color: "text.secondary" }}>
-            All conversations will be archived. You can view archived chats from
-            the profile menu.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button
-            size="small"
-            variant="text"
-            onClick={() => setArchiveOpen(false)}
-            disabled={archiving}
-          >
-            Cancel
-          </Button>
-          <Button
-            size="small"
-            variant="contained"
-            color="warning"
-            disableElevation
-            onClick={handleArchiveAll}
-            disabled={archiving}
-          >
-            {archiving ? "Archiving..." : "Archive All"}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        onOpenChange={(open) => { if (!archiving) setArchiveOpen(open); }}
+        title="Archive all chats?"
+        description="All conversations will be archived. You can view archived chats from the profile menu."
+        confirmLabel={archiving ? "Archiving..." : "Archive All"}
+        onConfirm={handleArchiveAll}
+      />
     </Stack>
   );
 }

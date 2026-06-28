@@ -1,6 +1,5 @@
-import { Box, Typography } from "@mui/material";
-import { Modal } from "@/components/ui/modal";
-import { Button } from "@/components/ui/button";
+import Box from "@mui/material/Box";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 interface DeleteConversationDialogProps {
   open: boolean;
@@ -17,57 +16,21 @@ export function DeleteConversationDialog({
   title,
   count,
 }: DeleteConversationDialogProps) {
+  const description = count ? (
+    <>This will delete <Box component="span" sx={{ fontWeight: 700, color: "text.primary" }}>{count} chats</Box>. This action cannot be undone.</>
+  ) : (
+    <>This will delete <Box component="span" sx={{ fontWeight: 700, color: "text.primary" }}>{title}</Box>. This action cannot be undone.</>
+  );
+
   return (
-    <Modal 
-      open={open} 
-      onOpenChange={onOpenChange} 
+    <ConfirmDialog
+      open={open}
+      onOpenChange={onOpenChange}
       title={count ? "Delete chats?" : "Delete chat?"}
-      maxWidth={400}
-      contentSx={{ p: 3 }}
-      footer={
-        <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1.5 }}>
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            sx={{
-              bgcolor: "transparent",
-              borderColor: "divider",
-              color: "text.secondary",
-              "&:hover": {
-                bgcolor: "action.hover",
-                borderColor: "border.main",
-                color: "text.primary",
-              },
-            }}
-          >
-            Cancel
-          </Button>
-          <Button
-            variant="destructive"
-            onClick={() => {
-              onConfirm();
-              onOpenChange(false);
-            }}
-            sx={{
-              bgcolor: "error.main",
-              color: "error.contrastText",
-              "&:hover": {
-                bgcolor: "error.dark",
-              },
-            }}
-          >
-            Delete
-          </Button>
-        </Box>
-      }
-    >
-      <Typography variant="body2" sx={{ color: "text.secondary", lineHeight: 1.6 }}>
-        {count ? (
-          <>This will delete <Box component="span" sx={{ fontWeight: 600, color: "text.primary" }}>{count} chats</Box>. This action cannot be undone.</>
-        ) : (
-          <>This will delete <Box component="span" sx={{ fontWeight: 600, color: "text.primary" }}>{title}</Box>. This action cannot be undone.</>
-        )}
-      </Typography>
-    </Modal>
+      description={description}
+      confirmLabel="Delete"
+      onConfirm={onConfirm}
+      destructive
+    />
   );
 }

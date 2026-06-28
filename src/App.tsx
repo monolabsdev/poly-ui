@@ -1,6 +1,6 @@
 import {
-  Suspense,
   lazy,
+  Suspense,
   useRef,
   useCallback,
   useMemo,
@@ -18,7 +18,10 @@ import { useChatStore } from "@/store/chatStore";
 import { useAuthStore } from "@/store/authStore";
 import { useNotify } from "@/hooks/useNotify";
 import { useShallow } from "zustand/react/shallow";
-import { retryTitleForConversation, titleStore } from "@/lib/chat/title-generation";
+import {
+  retryTitleForConversation,
+  titleStore,
+} from "@/lib/chat/title-generation";
 import { useFeatures } from "@/lib/featureRegistry";
 import { disableMemoryForOwner } from "@/features/memory/memoryClient";
 import { getCurrentProviderAccountId } from "@/features/providers";
@@ -33,22 +36,20 @@ import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { useAutoSelectModel } from "@/hooks/useAutoSelectModel";
 import { useChatActionHandlers } from "@/hooks/useChatActionHandlers";
 import { useCommandPaletteItems } from "@/hooks/useCommandPaletteItems";
+import ChatWorkspace from "@/features/chat/components/ChatWorkspace";
 import "@/features/models";
+import { GlobalConfirmDialog } from "./components/ui/GlobalConfirmDialog";
 
-const AuthModal = lazy(() =>
+const AuthModalLazy = lazy(() =>
   import("@/features/auth/AuthModal").then((module) => ({
     default: module.AuthModal,
   })),
 );
-const ReleaseNotesModal = lazy(() =>
+const ReleaseNotesModalLazy = lazy(() =>
   import("@/features/release-notes/ReleaseNotesModal").then((module) => ({
     default: module.ReleaseNotesModal,
   })),
 );
-const ChatWorkspace = lazy(
-  () => import("@/features/chat/components/ChatWorkspace"),
-);
-
 function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [settingsInitialTab, setSettingsInitialTab] =
@@ -260,18 +261,16 @@ function App() {
               position: "relative",
             }}
           >
-            <Suspense fallback={<Box sx={{ flex: 1 }} />}>
-              <ChatWorkspace
-                selectedModels={selectedModels}
-                selectedProviders={selectedProviders}
-                selectedModelChoices={selectedModelChoices}
-                systemPromptContent={systemPromptContent}
-                userName={user?.fullName || user?.email}
-                isTemporary={isTemporary}
-                onStopStreamingReady={handleStopStreamingReady}
-                onOpenConnections={handleOpenConnections}
-              />
-            </Suspense>
+            <ChatWorkspace
+              selectedModels={selectedModels}
+              selectedProviders={selectedProviders}
+              selectedModelChoices={selectedModelChoices}
+              systemPromptContent={systemPromptContent}
+              userName={user?.fullName || user?.email}
+              isTemporary={isTemporary}
+              onStopStreamingReady={handleStopStreamingReady}
+              onOpenConnections={handleOpenConnections}
+            />
           </Box>
         </ChatPanel>
       </SidebarInset>
@@ -292,11 +291,12 @@ function App() {
         onOpenChange={setIsCommandPaletteOpen}
         items={commandPaletteItems}
       />
+      <GlobalConfirmDialog />
       <Suspense fallback={null}>
-        <AuthModal />
+        <AuthModalLazy />
       </Suspense>
       <Suspense fallback={null}>
-        <ReleaseNotesModal />
+        <ReleaseNotesModalLazy />
       </Suspense>
     </SidebarProvider>
   );
