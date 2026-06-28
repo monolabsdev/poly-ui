@@ -84,7 +84,7 @@ declare module "@mui/material/styles" {
 const appRadius = {
   commandPalette: "20px",
   control: "8px",
-  dialog: "12px",
+  dialog: "28px",
   menu: "18px",
   menuItem: "10px",
   pill: "9999px",
