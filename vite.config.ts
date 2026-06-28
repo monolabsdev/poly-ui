@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
 import path from "path";
 import { fileURLToPath } from "url";
 import { readFileSync } from "node:fs";
@@ -13,7 +14,14 @@ const serverHost = host || "127.0.0.1";
 
 // https://vite.dev/config/
 export default defineConfig(async () => ({
-  plugins: [react()],
+  plugins: [
+    react({
+      babel: {
+        plugins: ["babel-plugin-react-compiler"],
+      },
+    }),
+    tailwindcss(),
+  ],
   base: "./",
   define: {
     DEV: process.env.NODE_ENV !== "production",
@@ -29,9 +37,7 @@ export default defineConfig(async () => ({
     rollupOptions: {
       output: {
         manualChunks: {
-          "vendor-mui": ["@mui/material", "@mui/icons-material", "@emotion/react", "@emotion/styled"],
           "vendor-markdown": ["react-markdown", "remark-gfm", "remark-math", "rehype-katex", "katex"],
-          "vendor-motion": ["motion"],
           "vendor-date": ["date-fns"],
         },
       },

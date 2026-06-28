@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import Box from "@mui/material/Box";
-import Typography from "@mui/material/Typography";
+import { Box } from "@/components/ui/Box";
+import { Typography } from "@/components/ui/Typography";
 import { Brain } from "lucide-react";
 import { TextShimmer } from "@/components/ui/text-shimmer";
 import {
@@ -71,46 +71,30 @@ export const ThinkingDisclosure = React.memo(
     if (!hasThinking && !isThinking) return null;
 
     return (
-      <Box sx={{ mb: 1.5 }}>
+      <Box>
         <Reasoning
           open={expanded}
           onOpenChange={setExpanded}
           isStreaming={isThinking}
         >
           <ReasoningTrigger>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+            <Box>
               <Box
-                component="span"
-                sx={{
-                  display: "flex",
-                  color: "text.secondary",
-                  flexShrink: 0,
-                }}
+                as="span"
               >
                 <Brain size={13} />
               </Box>
               {isThinking ? (
                 <TextShimmer as="span" duration={2} spread={15}>
                   <Typography
-                    component="span"
-                    sx={{
-                      fontSize: "13px",
-                      fontWeight: 500,
-                      lineHeight: 1,
-                    }}
+                    as="span"
                   >
                     {displayIndicator}
                   </Typography>
                 </TextShimmer>
               ) : (
                 <Typography
-                  component="span"
-                  sx={{
-                    fontSize: "13px",
-                    fontWeight: 500,
-                    lineHeight: 1,
-                    color: "text.secondary",
-                  }}
+                  as="span"
                 >
                   {displayIndicator}
                 </Typography>
@@ -119,36 +103,9 @@ export const ThinkingDisclosure = React.memo(
           </ReasoningTrigger>
           {hasThinking && (
             <ReasoningContent
-              contentSx={{
-                mt: 0.5,
-                ml: "2px",
-                pl: 1.5,
-                borderLeft: "1.5px solid",
-                borderColor: "divider",
-                maxHeight: 320,
-                overflowY: "auto",
-                scrollbarWidth: "thin",
-                "&::-webkit-scrollbar": { width: 4 },
-                "&::-webkit-scrollbar-thumb": {
-                  bgcolor: "divider",
-                  borderRadius: 2,
-                },
-                maskImage:
-                  "linear-gradient(to bottom, transparent 0px, black 12px, black calc(100% - 12px), transparent 100%)",
-                WebkitMaskImage:
-                  "linear-gradient(to bottom, transparent 0px, black 12px, black calc(100% - 12px), transparent 100%)",
-              }}
             >
               <Typography
-                component="div"
-                sx={{
-                  color: "text.secondary",
-                  fontSize: "13.5px",
-                  lineHeight: 1.65,
-                  py: 0.5,
-                  whiteSpace: "pre-wrap",
-                  wordBreak: "break-word",
-                }}
+                as="div"
               >
                 {processedThinking}
               </Typography>

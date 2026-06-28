@@ -1,9 +1,7 @@
-import { useMemo } from "react";
-import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
-import Typography from "@mui/material/Typography";
+import { Box } from "@/components/ui/Box";
+import { Button } from "@/components/ui/button";
+import { Typography } from "@/components/ui/Typography";
 import { RotateCcw } from "lucide-react";
-import { agentBtn } from "../styles";
 
 export function ErrorContent({
   error,
@@ -12,10 +10,9 @@ export function ErrorContent({
   error: string;
   onRetry?: () => void;
 }) {
-  const retryBtnSx = useMemo(() => ({ ...agentBtn, mt: 0.35, color: "error.main" }), []);
   return (
     <Box>
-      <Typography sx={{ fontSize: 12, lineHeight: 1.4, color: "error.main" }}>
+      <Typography>
         {error}
       </Typography>
       {onRetry && (
@@ -24,7 +21,6 @@ export function ErrorContent({
           color="inherit"
           startIcon={<RotateCcw size={11} />}
           onClick={onRetry}
-          sx={retryBtnSx}
         >
           Retry
         </Button>

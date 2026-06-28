@@ -1,13 +1,13 @@
-import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
-import Chip from "@mui/material/Chip";
-import Dialog from "@mui/material/Dialog";
-import DialogActions from "@mui/material/DialogActions";
-import DialogContent from "@mui/material/DialogContent";
-import DialogTitle from "@mui/material/DialogTitle";
-import LinearProgress from "@mui/material/LinearProgress";
-import Stack from "@mui/material/Stack";
-import Typography from "@mui/material/Typography";
+import { Box } from "@/components/ui/Box";
+import { Button } from "@/components/ui/button";
+import { Chip } from "@/components/ui/chip";
+import { Dialog } from "@/components/ui/dialog-panel";
+import { DialogActions } from "@/components/ui/dialog-panel";
+import { DialogContent } from "@/components/ui/dialog-panel";
+import { DialogTitle } from "@/components/ui/dialog-panel";
+import { LinearProgress } from "@/components/ui/linear-progress";
+import { Stack } from "@/components/ui/Stack";
+import { Typography } from "@/components/ui/Typography";
 import type { WhisperModelInfo } from "@/hooks/useDictation";
 
 interface DictationModelDialogProps {
@@ -37,19 +37,10 @@ export function DictationModelDialog({
       onClose={onClose}
       fullWidth
       maxWidth="sm"
-      slotProps={{
-        paper: {
-          sx: {
-            bgcolor: "background.paper",
-            border: "1px solid",
-            borderColor: "divider",
-          },
-        },
-      }}
     >
-      <DialogTitle sx={{ pb: 1 }}>Install dictation model</DialogTitle>
-      <DialogContent sx={{ pt: 1 }}>
-        <Typography variant="body2" sx={{ color: "text.secondary", mb: 2 }}>
+      <DialogTitle>Install dictation model</DialogTitle>
+      <DialogContent>
+        <Typography variant="body2">
           Dictation runs locally. Choose a Whisper model to download before recording.
         </Typography>
 
@@ -62,31 +53,12 @@ export function DictationModelDialog({
             return (
               <Box
                 key={model.id}
-                sx={{
-                  border: "1px solid",
-                  borderColor: selected ? "primary.main" : "divider",
-                  borderRadius: 1,
-                  p: 1.5,
-                  bgcolor: selected ? "action.selected" : "background.paper",
-                }}
+                className={selected ? "border-primary" : undefined}
               >
                 <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "flex-start",
-                    justifyContent: "space-between",
-                    gap: 2,
-                  }}
                 >
-                  <Box sx={{ minWidth: 0 }}>
+                  <Box>
                     <Box
-                      sx={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 1,
-                        mb: 0.5,
-                        flexWrap: "wrap",
-                      }}
                     >
                       <Typography variant="subtitle2">
                         {model.name}
@@ -105,17 +77,11 @@ export function DictationModelDialog({
                     </Box>
                     <Typography
                       variant="body2"
-                      sx={{ color: "text.secondary" }}
                     >
                       {model.description}
                     </Typography>
                     <Typography
                       variant="caption"
-                      sx={{
-                        color: "text.secondary",
-                        display: "block",
-                        mt: 1,
-                      }}
                     >
                       {model.sizeLabel} / {model.speedLabel} /{" "}
                       {model.qualityLabel}
@@ -137,7 +103,7 @@ export function DictationModelDialog({
                 </Box>
 
                 {installing && (
-                  <Box sx={{ mt: 1.5 }}>
+                  <Box>
                     <LinearProgress
                       variant={
                         downloadPercent === null
@@ -148,11 +114,6 @@ export function DictationModelDialog({
                     />
                     <Typography
                       variant="caption"
-                      sx={{
-                        color: "text.secondary",
-                        display: "block",
-                        mt: 0.75,
-                      }}
                     >
                       {downloadPercent === null
                         ? "Starting download..."

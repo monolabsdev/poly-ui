@@ -1,6 +1,4 @@
 import * as React from "react";
-import Box from "@mui/material/Box";
-import IconButton from "@mui/material/IconButton";
 import {
   ChevronRight,
   Folder,
@@ -13,6 +11,7 @@ import {
   Check,
   X,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,14 +19,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ConversationItem } from "@/features/chat/components/ConversationItem";
-import {
-  SidebarMenuButton,
-  ITEM_HEIGHT,
-  sidebarIconButtonSx,
-} from "@/features/sidebar/components/SidebarPrimitives";
-import { useSidebar } from "@/features/sidebar/hooks/useSidebar";
+import { SidebarMenuButton } from "@/components/ui/sidebar";
+import { sidebarIconButtonClassName } from "@/features/sidebar/components/sidebar-utils";
+import { useSidebar } from "@/components/ui/sidebar";
 import { useSidebarActions } from "@/features/sidebar/hooks/useSidebarActions";
-import { useReducedMotion } from "@/features/sidebar/hooks/useReducedMotion";
 import { useFolderStore } from "@/store/folderStore";
 import { useChatStore } from "@/store/chatStore";
 import { Conversation, Folder as FolderType } from "@/types/chat";
@@ -74,7 +69,6 @@ export function FolderTree({
     chats.some((conversation) => conversation.id === activeConversationId);
   const FolderIcon = isOpen ? FolderOpen : Folder;
   const isEditing = folderActions.folderEditingId === folder.id;
-  const reducedMotion = useReducedMotion();
 
   return (
     <React.Fragment key={folder.id}>
@@ -87,13 +81,8 @@ export function FolderTree({
           setActiveConversationId(null);
           if (isMobile) setOpenMobile(false);
         }}
-        sx={(theme) => ({
-          height: theme.spacing(ITEM_HEIGHT),
-          pl: 1 + depth * 1.5,
-          pr: 0.5,
-          "&:hover .folder-actions, &:focus-within .folder-actions": { opacity: 1 },
-          gap: 0.75,
-        })}
+        className="gap-1.5 pr-1 hover:[&_.folder-actions]:opacity-100 focus-within:[&_.folder-actions]:opacity-100"
+        style={{ paddingLeft: 8 + depth * 12 }}
       >
         <ChevronRight
           size={14}
@@ -105,9 +94,7 @@ export function FolderTree({
         />
         <FolderIcon size={16} style={{ flexShrink: 0, opacity: 0.7 }} />
         {isEditing ? (
-          <Box
-            sx={{ display: "flex", alignItems: "center", flex: 1, gap: 0.5 }}
-          >
+          <div className="flex flex-1 items-center gap-1">
             <input
               autoFocus
               value={folderActions.folderEditValue}
@@ -134,70 +121,53 @@ export function FolderTree({
                 width: "100%",
               }}
             />
-            <IconButton
-              size="small"
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
               aria-label="Confirm rename"
               onClick={(e) => {
                 e.stopPropagation();
                 folderActions.onConfirmRename();
               }}
-              sx={(theme) => sidebarIconButtonSx(theme, reducedMotion)}
+              className={sidebarIconButtonClassName}
             >
               <Check />
-            </IconButton>
-            <IconButton
-              size="small"
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
               aria-label="Cancel rename"
               onClick={(e) => {
                 e.stopPropagation();
                 folderActions.onCancelRename();
               }}
-              sx={(theme) => sidebarIconButtonSx(theme, reducedMotion)}
+              className={sidebarIconButtonClassName}
             >
               <X />
-            </IconButton>
-          </Box>
+            </Button>
+          </div>
         ) : (
-          <Box
-            component="span"
-            sx={(theme) => ({
-              ...theme.typography.body2,
-              flex: 1,
-              fontWeight: theme.typography.fontWeightMedium,
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-            })}
-          >
+          <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-sm font-medium">
             {folder.name}
-          </Box>
+          </span>
         )}
-        <Box
-          className="folder-actions"
-          sx={{
-            display: "flex",
-            ml: "auto",
-            opacity: 0,
-            transition: reducedMotion
-              ? "none"
-              : (theme) =>
-                  theme.transitions.create("opacity", {
-                    duration: theme.transitions.duration.shortest,
-                  }),
-          }}
-        >
+        <div className="folder-actions ml-auto flex opacity-0 transition-opacity duration-[var(--dur-fast)] ease-[var(--ease-soft)]">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <IconButton
-                size="small"
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
                 aria-label={`Actions for ${folder.name}`}
                 onClick={(e) => e.stopPropagation()}
-                sx={(theme) => sidebarIconButtonSx(theme, reducedMotion)}
+                className={sidebarIconButtonClassName}
               >
                 <MoreHorizontal />
-              </IconButton>
+              </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" sx={{ minWidth: 170 }}>
+            <DropdownMenuContent align="end" className="min-w-[170px]">
               <DropdownMenuItem onClick={() => folderActions.onStartRename(folder)}>
                 <Edit2 size={14} /> Rename
               </DropdownMenuItem>
@@ -220,17 +190,10 @@ export function FolderTree({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-        </Box>
+        </div>
       </SidebarMenuButton>
       {isOpen && (
-        <Box
-          sx={(theme) => ({
-            ml: 2,
-            pl: 0.5,
-            borderLeft: "1px solid",
-            borderColor: theme.palette.divider,
-          })}
-        >
+        <div className="ml-4 border-l border-border/60 pl-1">
           {children.map((child) => (
             <FolderTree
               key={child.id}
@@ -250,11 +213,8 @@ export function FolderTree({
                 setActiveConversationId(chat.id);
                 if (isMobile) setOpenMobile(false);
               }}
-              sx={(theme) => ({
-                height: theme.spacing(ITEM_HEIGHT),
-                pl: 1 + depth * 1.5,
-                pr: 0.5,
-              })}
+              className="pr-1"
+              style={{ paddingLeft: 8 + depth * 12 }}
             >
               <ConversationItem
                 conv={chat}
@@ -272,7 +232,7 @@ export function FolderTree({
               />
             </SidebarMenuButton>
           ))}
-        </Box>
+        </div>
       )}
     </React.Fragment>
   );

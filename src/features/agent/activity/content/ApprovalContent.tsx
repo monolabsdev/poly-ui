@@ -1,10 +1,8 @@
-import { useMemo, useState } from "react";
-import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
-import Typography from "@mui/material/Typography";
-import { alpha } from "@mui/material/styles";
+import { useState } from "react";
+import { Box } from "@/components/ui/Box";
+import { Button } from "@/components/ui/button";
+import { Typography } from "@/components/ui/Typography";
 import type { AgentApproval, AgentMessageState } from "../../types";
-import { agentBtn, agentPrimaryBtn } from "../styles";
 
 type ResolveApproval = (kind: "approve" | "reject", approval: AgentApproval) => Promise<void> | void;
 
@@ -41,79 +39,40 @@ export function ApprovalContent({
     }
   };
 
-  const approveBtnSx = useMemo(() => ({ ...agentBtn, ...agentPrimaryBtn }), []);
-
   return (
     <Box
-      sx={{
-        border: "1px solid",
-        borderColor: "border.light",
-        borderRadius: "7px",
-        p: 0.75,
-        bgcolor: "warning.soft",
-      }}
     >
       {approval.reason && (
         <Typography
-          sx={{ fontSize: 11.5, color: "text.disabled", mb: 0.35 }}
         >
           {approval.reason}
         </Typography>
       )}
       {approval.commandPreview && (
         <Typography
-          sx={{
-            fontSize: 11.5,
-            fontFamily: "monospace",
-            color: "text.secondary",
-            mb: 0.25,
-            wordBreak: "break-all",
-          }}
         >
           {approval.commandPreview}
         </Typography>
       )}
       {approval.path && (
         <Typography
-          sx={{
-            fontSize: 11.5,
-            fontFamily: "monospace",
-            color: "text.secondary",
-            mb: 0.35,
-          }}
         >
           {approval.path}
         </Typography>
       )}
       {approval.diffPreview && (
         <Box
-          component="pre"
-          sx={{
-            m: 0,
-            p: 0.6,
-            mb: 0.35,
-            bgcolor: (theme) => alpha(theme.palette.common.black, theme.palette.mode === "dark" ? 0.28 : 0.04),
-            border: "1px solid",
-            borderColor: "border.light",
-            borderRadius: "6px",
-            color: "text.secondary",
-            fontSize: 11,
-            maxHeight: 140,
-            overflow: "auto",
-            whiteSpace: "pre-wrap",
-            wordBreak: "break-word",
-          }}
+          as="pre"
         >
           {approval.diffPreview}
         </Box>
       )}
       {!autoApproved && agent.status === "waiting_for_approval" && (
-        <Box sx={{ display: "flex", gap: 0.5, mt: 0.45, flexWrap: "wrap" }}>
+        <Box>
           <Button
             size="small"
             color="inherit"
             onClick={() => onReview(approval.path)}
-            sx={agentBtn}
           >
             Review
           </Button>
@@ -122,7 +81,6 @@ export function ApprovalContent({
             color="inherit"
             disabled={!canResolve || Boolean(busy)}
             onClick={() => resolve("reject")}
-            sx={agentBtn}
           >
             {busy === "reject" ? "..." : "Reject"}
           </Button>
@@ -131,7 +89,6 @@ export function ApprovalContent({
             variant="contained"
             disabled={!canResolve || Boolean(busy)}
             onClick={() => resolve("approve")}
-            sx={approveBtnSx}
           >
             {busy === "approve" ? "..." : "Approve"}
           </Button>

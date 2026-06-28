@@ -79,19 +79,18 @@ export function isFeatureAIActive(featureId: string): boolean {
 
 export function useFeatures() {
   const webSearchEnabled = useSettingsStore((state) => state.general.webSearchEnabled);
-  const webSearch = useSettingsStore((state) => state.general.webSearch);
   const reasoningEnabled = useSettingsStore((state) => state.general.reasoningEnabled);
   const agentEnabled = useAgentStore((state) => state.enabled);
   const experimentalEnabled = useSettingsStore((state) => state.general.experimentalFeatures);
-  return React.useMemo(
-    () =>
-      featureRegistry
-        .filter((feature) => !feature.experimental || experimentalEnabled)
-        .map((feature) => ({
-          ...feature,
-          active: feature.getIsActive(),
-          warning: feature.getWarning?.(),
-        })),
-    [agentEnabled, experimentalEnabled, reasoningEnabled, webSearch, webSearchEnabled],
-  );
+
+  return featureRegistry
+    .filter((feature) => !feature.experimental || experimentalEnabled)
+    .map((feature) => {
+      let active: boolean;
+      if (feature.id === "web_search") active = webSearchEnabled;
+      else if (feature.id === "reasoning") active = reasoningEnabled;
+      else if (feature.id === "poly-agent") active = experimentalEnabled && agentEnabled;
+      else active = feature.getIsActive();
+      return { ...feature, active, warning: feature.getWarning?.() };
+    });
 }

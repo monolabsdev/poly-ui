@@ -34,6 +34,7 @@ export type DictationSettings = {
 export type PerformanceSettings = {
   reduceMotion: boolean;
   reduceTransparency: boolean;
+  appZoom: number;
 };
 
 type SettingsState = {
@@ -59,7 +60,7 @@ const defaultTts: TtsSettings = {
   },
 };
 
-const SETTINGS_VERSION = 12;
+const SETTINGS_VERSION = 13;
 
 export const defaultDictation: DictationSettings = {
   enabled: true,
@@ -70,6 +71,7 @@ export const defaultDictation: DictationSettings = {
 export const defaultPerformance: PerformanceSettings = {
   reduceMotion: false,
   reduceTransparency: false,
+  appZoom: 1,
 };
 
 function createDefaultWebSearchSettings(): WebSearchSettings {
@@ -170,6 +172,9 @@ export const useSettingsStore = create<SettingsState>()(
         }
         if (version < 12) {
           state.dictation = { ...defaultDictation, ...state.dictation };
+        }
+        if (version < 13) {
+          state.performance = { ...defaultPerformance, ...state.performance };
         }
         startupPhase("settings migration complete");
         return state as SettingsState;

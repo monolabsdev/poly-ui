@@ -1,4 +1,3 @@
-import Box from "@mui/material/Box";
 import { IS_MAC, USE_CUSTOM_WINDOW_CONTROLS } from "@/lib/utils/platform";
 import { WindowControls } from "@/components/WindowControls";
 import { UpdateChip } from "@/components/UpdateChip";
@@ -9,42 +8,19 @@ function WindowTitleBar() {
   if (!IS_MAC && !USE_CUSTOM_WINDOW_CONTROLS) return null;
 
   return (
-    <Box
+    <header
       data-tauri-drag-region
-      component="header"
-      sx={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        zIndex: 10000,
-        height: TITLE_BAR_HEIGHT,
-        minHeight: TITLE_BAR_HEIGHT,
-        display: "flex",
-        alignItems: "center",
-        flexShrink: 0,
-        bgcolor: "background.sidebar",
-        borderTopLeftRadius: "12px",
-        borderTopRightRadius: "12px",
-        userSelect: "none",
-        pl: IS_MAC ? "80px" : 1,
-        pr: IS_MAC ? 1 : 0,
-      }}
+      className="fixed inset-x-0 top-0 z-[var(--z-titlebar)] flex h-9 min-h-9 shrink-0 select-none items-center rounded-t-xl bg-sidebar"
+      style={{ paddingLeft: IS_MAC ? 80 : 8, paddingRight: IS_MAC ? 8 : 0 }}
     >
-      <Box
+      <div
         data-tauri-drag-region
-        sx={{
-          display: "flex",
-          minWidth: 0,
-          flex: 1,
-          alignItems: "center",
-          gap: 1,
-        }}
+        className="flex min-w-0 flex-1 items-center gap-2"
       >
         <UpdateChip />
-      </Box>
+      </div>
       {USE_CUSTOM_WINDOW_CONTROLS && <WindowControls />}
-    </Box>
+    </header>
   );
 }
 

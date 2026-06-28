@@ -1,9 +1,9 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
-import Box from "@mui/material/Box";
-import IconButton from "@mui/material/IconButton";
-import Tooltip from "@mui/material/Tooltip";
-import Typography from "@mui/material/Typography";
-import { useTheme } from "@mui/material/styles";
+import { Box } from "@/components/ui/Box";
+import { IconButton } from "@/components/ui/icon-button";
+import { TooltipLabel as Tooltip } from "@/components/ui/tooltip-label";
+import { Typography } from "@/components/ui/Typography";
+
 import { Copy, Check } from "lucide-react";
 import { highlight } from "sugar-high";
 import * as presets from "sugar-high/presets";
@@ -51,16 +51,6 @@ export const CodeBlock = memo(function CodeBlock({
   const [copied, setCopied] = useState(false);
   const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const notify = useNotify();
-  const theme = useTheme();
-  const themeKey = theme.palette.mode;
-  const overlayBackground =
-    themeKey === "dark" ? "rgba(30, 30, 30, 0.45)" : "rgba(255, 255, 255, 0.75)";
-  const overlayHoverBackground =
-    themeKey === "dark" ? "rgba(30, 30, 30, 0.75)" : "rgba(255, 255, 255, 0.95)";
-  const overlayColor =
-    themeKey === "dark" ? "rgba(255, 255, 255, 0.6)" : "rgba(17, 24, 39, 0.68)";
-  const overlayHoverColor =
-    themeKey === "dark" ? "rgba(255, 255, 255, 0.95)" : "rgba(17, 24, 39, 0.95)";
   const highlightedHtml = useMemo(
     () => pending ? null : getHighlightedHtml(code, language),
     [code, language, pending],
@@ -92,78 +82,26 @@ export const CodeBlock = memo(function CodeBlock({
 
   return (
     <Box
-      sx={{
-        position: "relative",
-        userSelect: "text",
-        WebkitUserSelect: "text",
-        my: 2,
-        borderRadius: "8px",
-        overflow: "hidden",
-        "&:hover .copy-button": { opacity: 1 },
-        "& pre": {
-          m: 0,
-          p: { xs: 1.5, sm: 2.5 },
-          fontSize: { xs: "12px", sm: "13px" },
-          lineHeight: 1.5,
-          fontFamily: "'JetBrains Mono', 'Fira Code', 'Consolas', monospace",
-          overflow: "auto",
-          maxWidth: "100%",
-        },
-        "& code": {
-          fontFamily: "inherit",
-          fontSize: "inherit",
-          bgcolor: "transparent",
-          px: 0,
-          py: 0,
-        },
-      }}
+      className="my-3 overflow-hidden rounded-2xl border border-border/50 bg-muted/40"
     >
       <Box
-        sx={{
-          height: 34,
-          px: 1.5,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          bgcolor: theme.palette.mode === "dark" ? "grey.800" : "grey.200",
-          color: "text.secondary",
-          borderBottom: "1px solid",
-          borderColor: "divider",
-        }}
+        className="flex items-center justify-between gap-2 border-b border-border/50 px-3 py-2"
       >
         <Typography
-          sx={{
-            fontSize: 12,
-            fontWeight: 600,
-            fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-          }}
+          variant="caption"
+          color="text.secondary"
         >
           {label}
         </Typography>
         <Tooltip title={copied ? "Copied!" : "Copy code"}>
           <IconButton
-            className="copy-button"
             aria-label={copied ? "Code copied" : "Copy code"}
             size="small"
             onClick={handleCopy}
-            sx={{
-              width: 26,
-              height: 26,
-              color: overlayColor,
-              bgcolor: overlayBackground,
-              opacity: 1,
-              "&:hover": {
-                color: overlayHoverColor,
-                bgcolor: overlayHoverBackground,
-              },
-            }}
+            className="copy-button size-7 rounded-full"
           >
             <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
+              className="flex size-4 items-center justify-center"
             >
               {copied ? <Check size={14} /> : <Copy size={14} />}
             </Box>
@@ -173,39 +111,22 @@ export const CodeBlock = memo(function CodeBlock({
 
       {highlightedHtml ? (
         <Box
-          component="pre"
-          sx={{
-            bgcolor: theme.palette.mode === "dark" ? "grey.900" : "grey.100",
-            color: "text.primary",
-            "& code": {
-              bgcolor: "transparent !important",
-            },
-          }}
+          as="pre"
+          className="overflow-x-auto p-3 text-sm leading-6"
         >
           <code dangerouslySetInnerHTML={{ __html: highlightedHtml }} />
         </Box>
       ) : (
         <Box
-          component="pre"
-          sx={{
-            bgcolor: theme.palette.mode === "dark" ? "grey.900" : "grey.100",
-            color: "text.primary",
-          }}
+          as="pre"
+          className="overflow-x-auto p-3 text-sm leading-6"
         >
           <code>{code}</code>
         </Box>
       )}
       {pending && (
         <Box
-          sx={{
-            position: "absolute",
-            right: 10,
-            bottom: 6,
-            color: "text.secondary",
-            fontFamily: "'JetBrains Mono', 'Fira Code', 'Consolas', monospace",
-            fontSize: "11px",
-            opacity: 0.7,
-          }}
+          className="px-3 pb-3 text-xs text-muted-foreground"
         >
           rendering...
         </Box>

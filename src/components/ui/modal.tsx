@@ -1,17 +1,13 @@
 import * as React from "react";
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogDescription 
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
-import Box from "@mui/material/Box";
-import IconButton from "@mui/material/IconButton";
-import Typography from "@mui/material/Typography";
-import Stack from "@mui/material/Stack";
-import { SxProps } from "@mui/material/styles";
-import { Theme } from "@mui/material/styles";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { X } from "lucide-react";
 
 interface ModalProps {
@@ -25,8 +21,8 @@ interface ModalProps {
   showCloseButton?: boolean;
   headerAction?: React.ReactNode;
   footer?: React.ReactNode;
-  sx?: SxProps<Theme>;
-  contentSx?: SxProps<Theme>;
+  className?: string;
+  contentClassName?: string;
 }
 
 export function Modal({
@@ -40,92 +36,65 @@ export function Modal({
   showCloseButton = true,
   headerAction,
   footer,
-  sx,
-  contentSx,
+  className,
+  contentClassName,
 }: ModalProps) {
+  const width =
+    typeof maxWidth === "number"
+      ? `min(${maxWidth}px, calc(100vw - 32px))`
+      : `min(${maxWidth}, calc(100vw - 32px))`;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        sx={{
-          width: typeof maxWidth === "number"
-            ? `min(${maxWidth}px, calc(100vw - 32px))`
-            : `min(${maxWidth}, calc(100vw - 32px))`,
-          maxWidth: maxWidth,
-          height: height,
-          display: "flex",
-          flexDirection: "column",
-          maxHeight: "calc(100vh - var(--titlebar-height) - 32px)",
-          ...sx as any,
-        }}
+        showCloseButton={false}
+        className={cn(
+          "flex max-w-none grid-cols-none flex-col gap-0 overflow-hidden rounded-[min(var(--radius-4xl),24px)] border-border/60 bg-card/95 p-0 shadow-2xl backdrop-blur-xl",
+          className,
+        )}
+        style={{ width, maxWidth, height, maxHeight: "calc(100vh - var(--titlebar-height) - 32px)" }}
       >
         {(title || description || showCloseButton || headerAction) && (
-          <DialogHeader
-            sx={{
-              p: 2,
-              borderBottom: 1,
-              borderColor: "divider",
-              display: "flex",
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-              flexShrink: 0,
-            }}
-          >
-            <Stack spacing={0.5} sx={{ flex: 1, minWidth: 0 }}>
+          <DialogHeader className="flex shrink-0 flex-row items-center justify-between border-b border-border/60 p-4">
+            <div className="flex min-w-0 flex-1 flex-col gap-1">
               {title && (
-                <DialogTitle>
-                  <Typography variant="h6" sx={{ fontWeight: 600, color: "text.primary" }}>
-                    {title}
-                  </Typography>
+                <DialogTitle className="text-base font-semibold text-foreground">
+                  {title}
                 </DialogTitle>
               )}
               {description && (
-                <DialogDescription sx={{ p: 0 }}>
-                  <Typography variant="body2" sx={{ color: "text.secondary" }}>
-                    {description}
-                  </Typography>
+                <DialogDescription className="p-0 text-sm text-muted-foreground">
+                  {description}
                 </DialogDescription>
               )}
-            </Stack>
-            
-            <Stack direction="row" spacing={1} alignItems="center">
+            </div>
+
+            <div className="flex items-center gap-2">
               {headerAction}
               {showCloseButton && (
-                <IconButton
-                  size="small"
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
                   onClick={() => onOpenChange(false)}
                   aria-label="Close modal"
-                  sx={{ color: "text.secondary", "&:hover": { color: "text.primary" } }}
+                  className="text-muted-foreground hover:text-foreground"
                 >
                   <X size={18} />
-                </IconButton>
+                </Button>
               )}
-            </Stack>
+            </div>
           </DialogHeader>
         )}
 
-        <Box
-          sx={{
-            flex: 1,
-            overflowY: "auto",
-            minHeight: 0,
-            ...contentSx as any,
-          }}
-        >
+        <div className={cn("min-h-0 flex-1 overflow-y-auto", contentClassName)}>
           {children}
-        </Box>
+        </div>
 
         {footer && (
-          <Box
-            sx={{
-              p: 2,
-              borderTop: 1,
-              borderColor: "divider",
-              flexShrink: 0,
-            }}
-          >
+          <div className="shrink-0 border-t border-border/60 p-4">
             {footer}
-          </Box>
+          </div>
         )}
       </DialogContent>
     </Dialog>

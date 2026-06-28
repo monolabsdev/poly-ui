@@ -1,14 +1,12 @@
 import * as React from "react";
-import Box from "@mui/material/Box";
-import Typography from "@mui/material/Typography";
 import { useNotify } from "@/hooks/useNotify";
 import { useDevStore } from "@/store/devStore";
-import { useSidebar } from "@/features/sidebar/hooks/useSidebar";
+import { useSidebar, SidebarTrigger } from "@/components/ui/sidebar";
 import { useReducedMotion } from "@/features/sidebar/hooks/useReducedMotion";
-import { SidebarTrigger } from "@/features/sidebar/components/SidebarPrimitives";
 
 export function SidebarBrand() {
-  const { isCollapsed } = useSidebar();
+  const { state } = useSidebar();
+  const isCollapsed = state === "collapsed";
   const reducedMotion = useReducedMotion();
   const notify = useNotify();
   const setDevMode = useDevStore((s) => s.actions.setDevMode);
@@ -31,46 +29,23 @@ export function SidebarBrand() {
   };
 
   return (
-    <Box
-      sx={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: isCollapsed ? "center" : "space-between",
-        width: "100%",
-      }}
+    <div
+      className={`flex w-full items-center ${isCollapsed ? "justify-center" : "justify-between"}`}
     >
-      <Box
-        sx={(theme) => ({
-          display: "flex",
-          alignItems: "center",
-          gap: 1,
-          opacity: isCollapsed ? 0 : 1,
-          width: isCollapsed ? 0 : "auto",
-          overflow: "hidden",
-          transition: reducedMotion
-            ? "none"
-            : theme.transitions.create("opacity", {
-                duration: theme.transitions.duration.shorter,
-                easing: theme.transitions.easing.easeOut,
-              }),
-          pointerEvents: isCollapsed ? "none" : "auto",
-        })}
+      <div
+        className={`flex items-center gap-2 overflow-hidden ${
+          isCollapsed ? "pointer-events-none w-0 opacity-0" : "w-auto opacity-100"
+        } ${reducedMotion ? "" : "transition-opacity duration-[var(--dur-base)] ease-[var(--ease-premium)]"}`}
       >
-        <Typography
+        <button
+          type="button"
           onClick={handleDevTap}
-          sx={(theme) => ({
-            ...theme.typography.subtitle1,
-            fontWeight: theme.typography.fontWeightBold,
-            color: "text.primary",
-            whiteSpace: "nowrap",
-            cursor: "pointer",
-            userSelect: "none",
-          })}
+          className="cursor-pointer select-none whitespace-nowrap bg-transparent text-base font-bold text-foreground"
         >
           PolyUI
-        </Typography>
-      </Box>
+        </button>
+      </div>
       <SidebarTrigger />
-    </Box>
+    </div>
   );
 }

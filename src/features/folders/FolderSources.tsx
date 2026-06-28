@@ -1,8 +1,8 @@
 import * as React from "react";
-import Box from "@mui/material/Box";
-import CircularProgress from "@mui/material/CircularProgress";
-import Link from "@mui/material/Link";
-import Typography from "@mui/material/Typography";
+import { Box } from "@/components/ui/Box";
+import { CircularProgress } from "@/components/ui/spinner";
+import { Link } from "@/components/ui/link";
+import { Typography } from "@/components/ui/Typography";
 import { ExternalLink, FileText, Globe } from "lucide-react";
 import { getRepository } from "@/lib/repositories";
 import { useChatStore } from "@/store/chatStore";
@@ -28,8 +28,7 @@ type WebSource = SearchResultItem & {
 function FolderChip({ name }: { name: string }) {
   return (
     <Box
-      component="span"
-      sx={{ px: 0.75, py: 0.25, borderRadius: "10px", bgcolor: "action.selected", color: "text.secondary", fontSize: "11px" }}
+      as="span"
     >
       {name}
     </Box>
@@ -111,53 +110,53 @@ export function FolderSources({ folder }: FolderSourcesProps) {
   }, [conversations, scopedFolders]);
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", gap: 4 }}>
+    <Box>
       <Box>
-        <Typography sx={{ mb: 1.25, fontSize: "13px", fontWeight: 600 }}>Folder context</Typography>
+        <Typography>Folder context</Typography>
         {scopedFolders.filter((candidate) => candidate.systemPrompt?.trim()).map((candidate) => (
-          <Box key={`${candidate.id}-prompt`} sx={{ mb: 1.5, px: 1.25, py: 1, borderRadius: "8px", bgcolor: "action.hover" }}>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 0.5 }}>
-              <Typography sx={{ flex: 1, fontSize: "12px", fontWeight: 600 }}>System prompt</Typography>
+          <Box key={`${candidate.id}-prompt`}>
+            <Box>
+              <Typography>System prompt</Typography>
               <FolderChip name={candidate.name} />
             </Box>
-            <Typography sx={{ fontSize: "12px", lineHeight: 1.5, color: "text.secondary", whiteSpace: "pre-wrap" }}>{candidate.systemPrompt}</Typography>
+            <Typography>{candidate.systemPrompt}</Typography>
           </Box>
         ))}
         {contextSources.length === 0 ? (
           scopedFolders.some((candidate) => candidate.systemPrompt?.trim()) ? null : (
-            <Typography sx={{ fontSize: "12px", color: "text.secondary" }}>No folder context added.</Typography>
+            <Typography>No folder context added.</Typography>
           )
         ) : contextSources.map((source) => (
-          <Box key={source.id} sx={{ display: "flex", alignItems: "center", gap: 1, py: 1, borderBottom: "1px solid", borderColor: "divider" }}>
+          <Box key={source.id}>
             <FileText size={15} />
-            <Typography sx={{ flex: 1, minWidth: 0, fontSize: "13px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{source.name}</Typography>
+            <Typography>{source.name}</Typography>
             <FolderChip name={source.folderName} />
-            <Typography sx={{ fontSize: "11px", color: "text.secondary" }}>{Math.ceil(source.size / 1024)} KB</Typography>
+            <Typography>{Math.ceil(source.size / 1024)} KB</Typography>
           </Box>
         ))}
       </Box>
 
       <Box>
-        <Typography sx={{ mb: 1.25, fontSize: "13px", fontWeight: 600 }}>Web sources</Typography>
+        <Typography>Web sources</Typography>
         {isLoading ? (
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, color: "text.secondary" }}>
-            <CircularProgress size={14} /><Typography sx={{ fontSize: "12px" }}>Loading sources...</Typography>
+          <Box>
+            <CircularProgress size={14} /><Typography>Loading sources...</Typography>
           </Box>
         ) : error ? (
-          <Typography role="alert" sx={{ fontSize: "12px", color: "error.main" }}>Failed to load sources: {error}</Typography>
+          <Typography role="alert">Failed to load sources: {error}</Typography>
         ) : webSources.length === 0 ? (
-          <Typography sx={{ fontSize: "12px", color: "text.secondary" }}>No web sources used yet.</Typography>
+          <Typography>No web sources used yet.</Typography>
         ) : webSources.map((source) => (
-          <Box key={source.url} sx={{ py: 1.25, borderBottom: "1px solid", borderColor: "divider" }}>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+          <Box key={source.url}>
+            <Box>
               <Globe size={14} />
-              <Link href={source.url} target="_blank" rel="noopener noreferrer" underline="hover" sx={{ flex: 1, minWidth: 0, fontSize: "13px", fontWeight: 600 }}>
+              <Link href={source.url} target="_blank" rel="noopener noreferrer" underline="hover">
                 {source.title || source.url} <ExternalLink size={11} />
               </Link>
-              {source.count > 1 ? <Typography sx={{ fontSize: "11px", color: "text.secondary" }}>{source.count} uses</Typography> : null}
+              {source.count > 1 ? <Typography>{source.count} uses</Typography> : null}
             </Box>
-            {source.highlights?.[0] ? <Typography sx={{ mt: 0.5, fontSize: "12px", lineHeight: 1.5, color: "text.secondary" }}>{source.highlights[0]}</Typography> : null}
-            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mt: 0.75 }}>
+            {source.highlights?.[0] ? <Typography>{source.highlights[0]}</Typography> : null}
+            <Box>
               {[...source.folderNames].map((name) => <FolderChip key={name} name={name} />)}
             </Box>
           </Box>

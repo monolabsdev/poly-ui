@@ -1,6 +1,5 @@
 import { memo } from "react";
 import { X } from "lucide-react";
-import Box from "@mui/material/Box";
 import type { FeatureDef } from "@/lib/featureRegistry";
 
 interface ActiveFeaturesListProps {
@@ -10,49 +9,25 @@ interface ActiveFeaturesListProps {
 
 export const ActiveFeaturesList = memo(function ActiveFeaturesList({
   activeFeatures,
-  hasAttachments,
+  hasAttachments: _hasAttachments,
 }: ActiveFeaturesListProps) {
   return (
-    <Box
-      sx={{
-        display: "flex",
-        flexWrap: "wrap",
-        gap: 1,
-        px: 1.5,
-        pt: 1,
-        pb: hasAttachments ? 0 : 1,
-      }}
-    >
+    <div className="flex flex-wrap gap-1.5 mb-1">
       {activeFeatures.map((feature) => {
         const Icon = feature.icon;
         return (
-          <Box
+          <button
             key={feature.id}
-            className="animate-popover"
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 0.5,
-              px: 1.25,
-              py: 0.5,
-              borderRadius: "16px",
-              bgcolor: "primary.main",
-              color: "primary.contrastText",
-              fontSize: "13px",
-              fontWeight: 500,
-              cursor: "pointer",
-              "&:hover": {
-                bgcolor: "primary.dark",
-              },
-            }}
+            type="button"
             onClick={() => feature.toggle()}
+            className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors text-xs font-medium cursor-pointer select-none"
           >
-            <Icon size={14} />
-            {feature.name}
-            <X size={14} style={{ marginLeft: 4 }} />
-          </Box>
+            <Icon size={12} />
+            <span>{feature.name}</span>
+            <X size={12} className="opacity-60" />
+          </button>
         );
       })}
-    </Box>
+    </div>
   );
 });

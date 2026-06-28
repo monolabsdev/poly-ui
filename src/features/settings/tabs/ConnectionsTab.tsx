@@ -1,47 +1,39 @@
 import { useCallback, useEffect, useState } from "react";
-import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
-import Chip from "@mui/material/Chip";
-import Collapse from "@mui/material/Collapse";
-import Dialog from "@mui/material/Dialog";
-import DialogActions from "@mui/material/DialogActions";
-import DialogContent from "@mui/material/DialogContent";
-import DialogTitle from "@mui/material/DialogTitle";
-import Divider from "@mui/material/Divider";
-import IconButton from "@mui/material/IconButton";
-import LinearProgress from "@mui/material/LinearProgress";
-import Paper from "@mui/material/Paper";
-import Skeleton from "@mui/material/Skeleton";
-import Stack from "@mui/material/Stack";
-import Switch from "@mui/material/Switch";
-import TextField from "@mui/material/TextField";
-import Typography from "@mui/material/Typography";
+import { Box } from "@/components/ui/Box";
+import { Button } from "@/components/ui/button";
+import { Chip } from "@/components/ui/chip";
+import { Collapse } from "@/components/ui/visibility";
+import { Dialog } from "@/components/ui/dialog-panel";
+import { DialogActions } from "@/components/ui/dialog-panel";
+import { DialogContent } from "@/components/ui/dialog-panel";
+import { DialogTitle } from "@/components/ui/dialog-panel";
+import { Divider } from "@/components/ui/divider";
+import { IconButton } from "@/components/ui/icon-button";
+import { Paper } from "@/components/ui/Paper";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Stack } from "@/components/ui/Stack";
+import { Switch } from "@/components/ui/switch";
+import { TextField } from "@/components/ui/text-field";
+import { Typography } from "@/components/ui/Typography";
 import {
-  ChevronDown,
   Cpu,
-  Download,
   Eye,
   EyeOff,
   Globe,
   Plus,
-  RefreshCw,
   Route,
   Search,
   Settings,
   Sparkles,
   Trash2,
   X,
-  XCircle,
   Zap,
 } from "lucide-react";
-import { listen } from "@tauri-apps/api/event";
 import { useShallow } from "zustand/react/shallow";
 import { SectionHeader, SettingSurface } from "../SettingComponents";
-import { appPanelSx, appTextFieldSx } from "@/components/ui/appDialog";
 import { useNotify } from "@/hooks/useNotify";
-import { formatFileSize, loggedInvoke } from "@/lib/utils/utils";
-import { useOllama, type PullProgress } from "@/features/ollama";
-import { getCurrentProviderAccountId, useProviderStore, type ProviderStatus, type ProviderStatusResponse } from "@/features/providers";
+import { useOllama } from "@/features/ollama";
+import { useProviderStore, type ProviderStatus, type ProviderStatusResponse } from "@/features/providers";
 import { PROVIDER_PRESETS, lookupPreset, type ProviderPreset } from "@/features/providers/presets";
 import { WebSearchSettings } from "@/features/web-search/WebSearchSettings";
 
@@ -153,15 +145,14 @@ function ProviderCard({
   };
 
   return (
-    <Box sx={{ py: 0.75 }}>
+    <Box>
       <SettingSurface>
         <Stack
           direction="row"
           alignItems="center"
           spacing={1}
-          sx={{ mb: 0.5 }}
         >
-          <Typography variant="body1" sx={{ fontWeight: 700 }}>
+          <Typography variant="body1">
             {preset.label}
           </Typography>
           <Chip
@@ -169,7 +160,7 @@ function ProviderCard({
             color={statusChipColor[provider.status]}
             size="small"
           />
-          <Box sx={{ flexGrow: 1 }} />
+          <Box />
           {editing ? (
             <IconButton size="small" aria-label="Close edit" onClick={closeEdit}>
               <X size={15} />
@@ -201,7 +192,7 @@ function ProviderCard({
         )}
 
         <Collapse in={editing}>
-          <Stack spacing={1} sx={{ mt: 1 }}>
+          <Stack spacing={1}>
             {isOllama ? (
               <TextField
                 value={host}
@@ -212,7 +203,6 @@ function ProviderCard({
                 placeholder="http://127.0.0.1:11434"
                 fullWidth
                 size="small"
-                sx={appTextFieldSx}
               />
             ) : (
               <TextField
@@ -225,7 +215,6 @@ function ProviderCard({
                 placeholder="https://api.openai.com/v1"
                 fullWidth
                 size="small"
-                sx={appTextFieldSx}
               />
             )}
             {!isOllama && (
@@ -241,7 +230,6 @@ function ProviderCard({
                 autoComplete="off"
                 fullWidth
                 size="small"
-                sx={appTextFieldSx}
                 slotProps={{
                   input: {
                     endAdornment: (
@@ -268,13 +256,12 @@ function ProviderCard({
                   setDirty(true);
                 }}
               />
-              <Box sx={{ flexGrow: 1 }} />
+              <Box />
               <Button
                 size="small"
                 variant="outlined"
                 disabled={!dirty || saving || !host.trim()}
                 onClick={save}
-                sx={{ textTransform: "none", fontWeight: 700 }}
               >
                 {saving ? "Saving..." : "Save"}
               </Button>
@@ -305,18 +292,7 @@ export function ConnectionsTab() {
   const [showAddKey, setShowAddKey] = useState(false);
   const [addingProvider, setAddingProvider] = useState(false);
 
-  const [installerOpen, setInstallerOpen] = useState(false);
-  const [newModelName, setNewModelName] = useState("");
-  const [isPulling, setIsPulling] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-
   useEffect(() => void actions.refresh(), [actions]);
-  useEffect(() => {
-    const unlisten = listen<PullProgress>("pull-progress", (event) => {
-      ollama.actions.setPullProgress(event.payload);
-    });
-    return () => void unlisten.then((stop) => stop());
-  }, [ollama.actions]);
 
   const selectPreset = (preset: ProviderPreset) => {
     setSelectedPreset(preset);
@@ -396,53 +372,6 @@ export function ConnectionsTab() {
     [actions, notify],
   );
 
-  const refreshModels = async () => {
-    setIsRefreshing(true);
-    try {
-      await ollama.refresh();
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
-
-  const pullModel = async () => {
-    const model = newModelName.trim();
-    if (!model) return;
-    setIsPulling(true);
-    ollama.actions.setPullingModel(model);
-    ollama.actions.setPullProgress({ status: "Starting..." });
-    try {
-      await loggedInvoke("pull_model", {
-        model,
-        accountId: getCurrentProviderAccountId(),
-      });
-      setNewModelName("");
-      await refreshModels();
-    } catch (err) {
-      if (err !== "Pull cancelled by user")
-        notify.error("Failed to pull model", String(err));
-    } finally {
-      setIsPulling(false);
-      ollama.actions.setPullingModel(null);
-      ollama.actions.setPullProgress(null);
-    }
-  };
-
-  const deleteModel = async (model: string) => {
-    if (
-      !confirm(
-        `Delete installed model "${model}"? You will need to download it again to use it.`,
-      )
-    )
-      return;
-    try {
-      await ollama.deleteModel(model);
-      await refreshModels();
-    } catch (err) {
-      notify.error("Failed to delete model", String(err));
-    }
-  };
-
   return (
     <Stack spacing={0}>
       <SectionHeader
@@ -454,7 +383,6 @@ export function ConnectionsTab() {
             variant="contained"
             startIcon={<Plus size={15} />}
             onClick={() => setAddOpen(true)}
-            sx={{ textTransform: "none", fontWeight: 700 }}
           >
             Add LLM
           </Button>
@@ -462,17 +390,16 @@ export function ConnectionsTab() {
       />
 
       {loading && providers.length === 0 && (
-        <Box sx={{ py: 0.75 }}>
+        <Box>
           <SettingSurface>
             <Stack
               direction="row"
               alignItems="center"
               spacing={1}
-              sx={{ mb: 0.5 }}
             >
               <Skeleton variant="text" width={60} height={24} />
-              <Skeleton variant="rounded" width={70} height={24} sx={{ borderRadius: "9999px" }} />
-              <Box sx={{ flexGrow: 1 }} />
+              <Skeleton variant="rounded" width={70} height={24} />
+              <Box />
               <Skeleton variant="circular" width={28} height={28} />
             </Stack>
             <Skeleton variant="text" width={180} height={18} />
@@ -480,7 +407,7 @@ export function ConnectionsTab() {
         </Box>
       )}
       {error && providers.length === 0 && (
-        <Typography sx={{ fontSize: 13, color: "text.secondary", py: 1 }}>
+        <Typography>
           Connection error: {String(error)}
         </Typography>
       )}
@@ -499,7 +426,7 @@ export function ConnectionsTab() {
         );
       })}
 
-      <Divider sx={{ my: 2 }} />
+      <Divider />
 
       <SectionHeader
         title="Web Search API Keys"
@@ -507,128 +434,8 @@ export function ConnectionsTab() {
       />
       <WebSearchSettings />
 
-      <Divider sx={{ my: 2 }} />
-
-      <SectionHeader
-        title="Ollama models"
-        description="Install and remove models from local Ollama."
-      />
-      <Button
-        onClick={() => setInstallerOpen((open) => !open)}
-        endIcon={
-          <ChevronDown
-            size={16}
-            style={{
-              transform: installerOpen ? "rotate(180deg)" : undefined,
-              transition: "transform 150ms ease",
-            }}
-          />
-        }
-        sx={{
-          justifyContent: "space-between",
-          textTransform: "none",
-          color: "text.primary",
-          fontWeight: 700,
-          px: 0,
-          py: 1,
-        }}
-      >
-        Model installer
-      </Button>
-      <Collapse in={installerOpen}>
-        <Stack spacing={1.5} sx={{ pb: 2 }}>
-          <Box sx={{ display: "flex", gap: 1 }}>
-            <TextField
-              value={newModelName}
-              onChange={(e) => setNewModelName(e.target.value)}
-              placeholder="e.g. llama3, deepseek-r1:7b"
-              fullWidth
-              size="small"
-              disabled={isPulling}
-              sx={appTextFieldSx}
-            />
-            <Button
-              variant="contained"
-              disableElevation
-              onClick={pullModel}
-              disabled={isPulling || !newModelName.trim()}
-              startIcon={<Download size={15} />}
-              sx={{ textTransform: "none", fontWeight: 700 }}
-            >
-              Pull
-            </Button>
-          </Box>
-          {isPulling && ollama.pullProgress && (
-            <Box sx={[appPanelSx, { py: 1 }]}>
-              <Stack direction="row" justifyContent="space-between">
-                <Typography sx={{ fontSize: 12 }}>
-                  Pulling {ollama.pullingModel}: {ollama.pullProgress.status}
-                </Typography>
-                <IconButton
-                  size="small"
-                  aria-label="Cancel model download"
-                  onClick={() => void ollama.cancelPull()}
-                >
-                  <XCircle size={15} />
-                </IconButton>
-              </Stack>
-              <LinearProgress />
-            </Box>
-          )}
-          <Stack direction="row" justifyContent="space-between" alignItems="center">
-            <Typography sx={{ fontSize: 13, fontWeight: 700 }}>
-              Installed models
-            </Typography>
-            <IconButton
-              size="small"
-              aria-label="Refresh installed models"
-              onClick={refreshModels}
-              disabled={isRefreshing}
-            >
-              <RefreshCw size={15} />
-            </IconButton>
-          </Stack>
-          {ollama.localModels.length === 0 && (
-            <Typography sx={{ fontSize: 12, color: "text.secondary" }}>
-              No local models found.
-            </Typography>
-          )}
-          {ollama.localModels.map((model) => (
-            <Stack
-              key={model.name}
-              direction="row"
-              justifyContent="space-between"
-              alignItems="center"
-            >
-              <Box>
-                <Typography sx={{ fontSize: 13, fontWeight: 600 }}>
-                  {model.name}
-                </Typography>
-                <Typography sx={{ fontSize: 12, color: "text.secondary" }}>
-                  {formatFileSize(model.size)}
-                </Typography>
-              </Box>
-              <IconButton
-                size="small"
-                aria-label={`Delete ${model.name}`}
-                onClick={() => void deleteModel(model.name)}
-              >
-                <Trash2 size={15} />
-              </IconButton>
-            </Stack>
-          ))}
-        </Stack>
-      </Collapse>
-
       <Dialog open={addOpen} onClose={handleCloseAdd} maxWidth="sm" fullWidth>
         <DialogTitle
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            fontSize: 18,
-            fontWeight: 700,
-          }}
         >
           Add LLM Connection
           <IconButton size="small" aria-label="Close" onClick={handleCloseAdd}>
@@ -636,17 +443,11 @@ export function ConnectionsTab() {
           </IconButton>
         </DialogTitle>
         <DialogContent>
-          <Typography sx={{ mb: 2, fontSize: 13, color: "text.secondary" }}>
+          <Typography>
             Pick a provider preset or configure a custom connection.
           </Typography>
 
           <Box
-            sx={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: 1,
-              mb: 2,
-            }}
           >
             {PROVIDER_PRESETS.map((preset) => {
               const selected = selectedPreset?.id === preset.id;
@@ -654,40 +455,15 @@ export function ConnectionsTab() {
                 <Paper
                   key={preset.id}
                   variant="outlined"
+                  className={selected ? "border-primary" : undefined}
                   onClick={() => selectPreset(preset)}
-                  sx={{
-                    p: 1.5,
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 1.5,
-                    borderColor: selected ? "primary.main" : undefined,
-                    borderWidth: selected ? 2 : 1,
-                    bgcolor: selected ? "action.selected" : "transparent",
-                    transition: "all 120ms ease",
-                    "&:hover": {
-                      borderColor: "primary.light",
-                      bgcolor: "action.hover",
-                    },
-                  }}
                 >
                   <Box
-                    sx={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      color: selected ? "primary.main" : "text.secondary",
-                      flexShrink: 0,
-                    }}
                   >
                     {presetIcons[preset.id] ?? <Settings size={22} />}
                   </Box>
                   <Typography
                     variant="body2"
-                    sx={{
-                      fontWeight: selected ? 700 : 500,
-                      color: selected ? "primary.main" : "text.primary",
-                    }}
                   >
                     {preset.label}
                   </Typography>
@@ -699,7 +475,7 @@ export function ConnectionsTab() {
           {selectedPreset && (
             <Stack spacing={2}>
               <Divider />
-              <Typography sx={{ fontSize: 14, fontWeight: 700 }}>
+              <Typography>
                 {selectedPreset.label}
               </Typography>
 
@@ -750,7 +526,7 @@ export function ConnectionsTab() {
                   )}
                   {selectedPreset.modelSuggestions &&
                     selectedPreset.modelSuggestions.length > 0 && (
-                      <Typography sx={{ fontSize: 12, color: "text.secondary" }}>
+                      <Typography>
                         Suggested models: {selectedPreset.modelSuggestions.join(", ")}
                       </Typography>
                     )}
@@ -759,8 +535,8 @@ export function ConnectionsTab() {
             </Stack>
           )}
         </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={handleCloseAdd} sx={{ textTransform: "none" }}>
+        <DialogActions>
+          <Button onClick={handleCloseAdd}>
             Cancel
           </Button>
           <Button
@@ -768,7 +544,6 @@ export function ConnectionsTab() {
             disableElevation
             disabled={!selectedPreset || !addApiBaseUrl.trim() || addingProvider}
             onClick={saveAdd}
-            sx={{ textTransform: "none", fontWeight: 700 }}
           >
             {addingProvider ? "Saving..." : "Save"}
           </Button>

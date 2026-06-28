@@ -2,23 +2,26 @@ import { memo } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { ModelProvider } from "@/store/modelStore";
 import { useOllama } from "@/features/ollama";
-import Box from "@mui/material/Box";
-import Select from "@mui/material/Select";
-import MenuItem from "@mui/material/MenuItem";
-import Typography from "@mui/material/Typography";
-import FormControl from "@mui/material/FormControl";
-import Link from "@mui/material/Link";
-import Tooltip from "@mui/material/Tooltip";
-import IconButton from "@mui/material/IconButton";
-import CircularProgress from "@mui/material/CircularProgress";
-import LinearProgress from "@mui/material/LinearProgress";
+import { Box } from "@/components/ui/Box";
+import { Typography } from "@/components/ui/Typography";
+import { TooltipLabel as Tooltip } from "@/components/ui/tooltip-label";
+import { IconButton } from "@/components/ui/icon-button";
+import { Button } from "@/components/ui/button";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { CircularProgress } from "@/components/ui/spinner";
+import { LinearProgress } from "@/components/ui/linear-progress";
 import {
   X,
   Plus,
   AlertCircle,
   ScrollText,
+  Check,
 } from "lucide-react";
-import { PROMPT_PRESETS } from "@/lib/constants/promptPresets";
+import { PROMPT_PRESETS, type PromptPresetId } from "@/lib/constants/promptPresets";
 import { useSettingsStore } from "@/store/settingsStore";
 import { ModelSelector } from "@/features/chat/components/ModelSelector";
 import type { ModelChoice } from "@/lib/models/model-choice";
@@ -52,7 +55,7 @@ export const Header = memo(function Header({
   onSetDefault,
   isTemporary,
   onToggleTemporaryChat,
-  transparent = false,
+  transparent: _transparent = false,
 }: HeaderProps) {
   const { selectedPromptPreset, actions } = useSettingsStore(
     useShallow((state) => ({
@@ -74,45 +77,24 @@ export const Header = memo(function Header({
 
   return (
     <Box
-      component="header"
-      sx={{
-        display: "flex",
-        minHeight: 56,
-        flexShrink: 0,
-        alignItems: "flex-start",
-        justifyContent: "space-between",
-        bgcolor: transparent ? "transparent" : "background.default",
-        px: { xs: 2, md: 3 },
-        py: { xs: 1.5, sm: 1 },
-        ...(transparent && { borderRadius: "14px 0 0 0" }),
-      }}
+      as="header"
+      className="relative z-20 flex h-16 shrink-0 items-start justify-between px-5 pt-3"
     >
-      <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 1, sm: 2 }, minWidth: 0, flex: 1 }}>
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5, minWidth: 0, flex: 1 }}>
+      <Box className="min-w-0">
+        <Box className="flex flex-col items-start">
           {ollama.pullingModel ? (
             <Box
-              sx={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 1,
-                minWidth: { xs: 120, sm: 200 },
-                px: 0.5,
-              }}
+              className="w-56"
             >
               <Box
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                }}
+                className="mb-1 flex items-center justify-between gap-2"
               >
                 <Typography
                   variant="caption"
-                  sx={{ fontWeight: 600, color: "text.primary" }}
                 >
                   Pulling {ollama.pullingModel}...
                 </Typography>
-                <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                <Typography variant="caption">
                   {hasPullProgress
                     ? `${pullProgressPercent}%`
                     : (ollama.pullProgress?.status ?? "Starting...")}
@@ -121,19 +103,12 @@ export const Header = memo(function Header({
               <LinearProgress
                 variant={hasPullProgress ? "determinate" : "indeterminate"}
                 value={pullProgressPercent}
-                sx={{ height: 4, borderRadius: 2, bgcolor: "action.hover" }}
               />
             </Box>
           ) : (
             <>
               <Box
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: { xs: 0.5, sm: 1 },
-                  flexWrap: "wrap",
-                  minWidth: 0,
-                }}
+                className="flex min-w-0 items-center gap-2"
               >
                 {selectedModels.length === 0 ? (
                   <ModelSelector
@@ -147,7 +122,7 @@ export const Header = memo(function Header({
                 {selectedModels.map((selectedModel, index) => (
                   <Box
                     key={`${selectedModel}-${index}`}
-                    sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
+                    className="flex min-w-0 items-center gap-1"
                   >
                     <ModelSelector
                       model={selectedModel}
@@ -162,7 +137,6 @@ export const Header = memo(function Header({
                         aria-label={`Remove ${selectedModel || "empty"} model selector`}
                         size="small"
                         onClick={() => onRemoveModel(index)}
-                        sx={{ p: 0.5, color: "text.secondary" }}
                       >
                         <X size={14} />
                       </IconButton>
@@ -173,26 +147,64 @@ export const Header = memo(function Header({
                   aria-label="Add model selector"
                   onClick={onAddModel}
                   size="small"
-                  sx={{
-                    color: "text.secondary",
-                    display: "flex",
-                    alignItems: "center",
-                    cursor: "pointer",
-                    ml: 0.5,
-                    "&:hover": { color: "text.primary" },
-                  }}
+                  className="size-7 rounded-full"
                 >
                   <Plus size={16} />
-                  <Typography component="span" sx={{ ml: 0.5, fontSize: 12, fontWeight: 600 }}>
-                    Add model
-                  </Typography>
                 </IconButton>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Switch prompt preset"
+                      title="Switch Prompt Preset"
+                      className="size-7 rounded-full text-muted-foreground hover:text-foreground"
+                    >
+                      <ScrollText size={16} />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    align="start"
+                    sideOffset={6}
+                    className="w-80 gap-1 p-1"
+                  >
+                    {PROMPT_PRESETS.map((preset) => {
+                      const selected = selectedPromptPreset === preset.id;
+                      return (
+                        <button
+                          key={preset.id}
+                          type="button"
+                          className="flex w-full items-start gap-3 rounded-2xl px-3 py-2 text-left text-sm transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:outline-none"
+                          onClick={() => actions.setPromptPreset(preset.id as PromptPresetId)}
+                        >
+                          <Box className="mt-0.5 flex size-4 shrink-0 items-center justify-center text-foreground">
+                            {selected ? <Check size={14} /> : null}
+                          </Box>
+                          <Box className="min-w-0">
+                            <Typography variant="body2" weight="medium">
+                              {preset.name}
+                            </Typography>
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                              className="line-clamp-2"
+                            >
+                              {preset.content}
+                            </Typography>
+                          </Box>
+                        </button>
+                      );
+                    })}
+                  </PopoverContent>
+                </Popover>
               </Box>
-                {selectedModels[0] ? <Link
-                component="button"
-                variant="caption"
-                underline="none"
+              <button
+                type="button"
+                disabled={!selectedModels[0]}
+                className="mt-0.5 text-xs text-muted-foreground transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-70"
                 onClick={() =>
+                  selectedModels[0] &&
                   onSetDefault(
                     selectedModelChoices[0] ?? {
                       provider: selectedProviders[0] ?? "OllamaLocal",
@@ -200,36 +212,26 @@ export const Header = memo(function Header({
                     },
                   )
                 }
-                sx={{
-                  color: "text.secondary",
-                  fontSize: "11px",
-                  textAlign: "left",
-                  borderRadius: "9999px",
-                  ml: 0.2,
-                  px: 0.5,
-                  "&:hover": { color: "text.primary" },
-                }}
               >
                 Set as default
-              </Link>
-              : null}
+              </button>
             </>
           )}
         </Box>
       </Box>
 
-      <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 0.5, sm: 1.5 }, flexShrink: 0 }}>
+      <Box className="flex items-center gap-2">
         {ollama.state !== "online" && (
           <Tooltip title={ollama.state === "reconnecting" ? "Reconnecting to providers..." : "Providers offline"}>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mr: 1 }}>
+            <Box>
               {ollama.state === "reconnecting" ? (
-                <CircularProgress size={12} color="inherit" sx={{ opacity: 0.5 }} />
+                <CircularProgress size={12} color="inherit" />
               ) : (
-                <Box component="span" sx={{ color: "error.main", display: "flex" }}>
+                <Box as="span">
                   <AlertCircle size={14} />
                 </Box>
               )}
-              <Typography variant="caption" sx={{ color: ollama.state === "reconnecting" ? "text.secondary" : "error.main", fontSize: "11px", fontWeight: 500 }}>
+              <Typography variant="caption">
                 {ollama.state === "reconnecting" ? "Reconnecting" : "Offline"}
               </Typography>
             </Box>
@@ -244,16 +246,6 @@ export const Header = memo(function Header({
             aria-label={isTemporary ? "Disable temporary chat" : "Enable temporary chat"}
             onClick={onToggleTemporaryChat}
             size="small"
-            sx={{
-              p: 0.75,
-              cursor: "pointer",
-              color: isTemporary ? "primary.main" : "text.secondary",
-              bgcolor: isTemporary ? "action.selected" : "transparent",
-              "&:hover": {
-                bgcolor: "action.hover",
-                color: "text.primary",
-              },
-            }}
           >
             <svg
               aria-hidden="true"
@@ -281,82 +273,6 @@ export const Header = memo(function Header({
           </IconButton>
         </Tooltip>
 
-        <Tooltip title="Switch Prompt Preset">
-          <FormControl size="small" sx={{ m: 0 }}>
-            <Select
-              value={selectedPromptPreset}
-              onChange={(e) =>
-                actions.setPromptPreset(e.target.value as "default" | "technical" | "creative" | "concise")
-              }
-              IconComponent={() => null}
-              sx={{
-                bgcolor: "transparent",
-                "& .MuiOutlinedInput-notchedOutline": { border: "none" },
-                "& .MuiSelect-select": {
-                  p: 0.75,
-                  paddingRight: "6px !important",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  borderRadius: "9999px",
-                  cursor: "pointer",
-                  color:
-                    selectedPromptPreset !== "default"
-                      ? "primary.main"
-                      : "text.secondary",
-                  bgcolor:
-                    selectedPromptPreset !== "default"
-                      ? "action.selected"
-                      : "transparent",
-                  "&:hover": {
-                    bgcolor: "action.hover",
-                    color: "text.primary",
-                  },
-                  minHeight: "unset !important",
-                  height: "30px !important",
-                  boxSizing: "border-box",
-                  lineHeight: 1,
-                },
-              }}
-              renderValue={() => (
-                <Box sx={{ display: "flex", alignItems: "center" }}>
-                  <ScrollText size={18} />
-                </Box>
-              )}
-              MenuProps={{
-                PaperProps: {
-                  sx: {
-                    bgcolor: "background.paper",
-                    mt: 1,
-                    border: "1px solid",
-                    borderColor: "divider",
-                    minWidth: 200,
-                  },
-                },
-              }}
-            >
-              {PROMPT_PRESETS.map((preset) => (
-                <MenuItem key={preset.id} value={preset.id}>
-                  <Box
-                    sx={{ display: "flex", flexDirection: "column", gap: 0.25 }}
-                  >
-                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                      {preset.name}
-                    </Typography>
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                      noWrap
-                      sx={{ maxWidth: 250 }}
-                    >
-                      {preset.content}
-                    </Typography>
-                  </Box>
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </Tooltip>
       </Box>
     </Box>
   );

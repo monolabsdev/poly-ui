@@ -7,15 +7,16 @@ import {
   AlertTriangle,
   Mic,
   X,
+  LayoutGrid,
 } from "lucide-react";
 import { useState, memo, useEffect, useCallback, useMemo } from "react";
-import Box from "@mui/material/Box";
-import InputBase from "@mui/material/InputBase";
-import IconButton from "@mui/material/IconButton";
-import Typography from "@mui/material/Typography";
-import Tooltip from "@mui/material/Tooltip";
-import { useTheme } from "@mui/material/styles";
-import StopIcon from "@mui/icons-material/Stop";
+import { Box } from "@/components/ui/Box";
+import { InputBase } from "@/components/ui/input-base";
+import { IconButton } from "@/components/ui/icon-button";
+import { Typography } from "@/components/ui/Typography";
+import { TooltipLabel as Tooltip } from "@/components/ui/tooltip-label";
+
+import { Square as StopIcon } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -29,7 +30,6 @@ import { useChatAttachments } from "@/features/chat/hooks/useChatAttachments";
 import { useFileDragDetection } from "@/features/chat/hooks/useFileDragDetection";
 import {
   useAutoResizeTextarea,
-  MAX_HEIGHT,
 } from "@/features/chat/hooks/useAutoResizeTextarea";
 import { useSlashCommand } from "@/features/chat/hooks/useSlashCommand";
 import { Ring2 } from "ldrs/react";
@@ -39,6 +39,7 @@ import { DictationModelDialog } from "@/features/dictation/DictationModelDialog"
 import { ActiveFeaturesList } from "@/features/chat/components/ChatInput/ActiveFeaturesList";
 import { SlashCommandMenu } from "@/features/chat/components/ChatInput/SlashCommandMenu";
 import { ChatAttachmentsList } from "@/features/chat/components/ChatInput/ChatAttachmentsList";
+import { cn } from "@/lib/utils";
 
 import {
   DRAFT_WORKSPACE_SELECTION_CHAT_ID,
@@ -72,7 +73,6 @@ export const ChatInput = memo(function ChatInput({
     lines: number;
     chars: number;
   } | null>(null);
-  const theme = useTheme();
   const experimentalFeatures = useSettingsStore(
     (state) => state.general.experimentalFeatures,
   );
@@ -164,101 +164,6 @@ export const ChatInput = memo(function ChatInput({
     [features],
   );
 
-  const inputBoxSx = useMemo(() => ({
-    position: "relative",
-    zIndex: 2,
-    width: "100%",
-    mb: agentEnabled ? "-8px" : 0,
-    borderRadius: "24px",
-    overflow: "hidden",
-    pointerEvents: "auto",
-    bgcolor: "background.paper",
-    border: isTemporary ? "1px dashed" : "1px solid",
-    borderColor: isTemporary ? "border.main" : "divider",
-    boxShadow: theme.palette.mode === "dark" ? (agentEnabled ? 2 : 1) : "none",
-    transition: theme.transitions.create(
-      ["border-color", "box-shadow", "background-color", "background-image"],
-      { duration: theme.transitions.duration.short },
-    ),
-    "&:hover": {
-      borderColor: "border.main",
-      boxShadow: theme.palette.mode === "dark" ? (agentEnabled ? theme.shadows[3] : theme.shadows[2]) : "none",
-    },
-    "&:focus-within": {
-      borderColor: "border.main",
-      boxShadow: theme.palette.mode === "dark" ? (agentEnabled ? theme.shadows[3] : theme.shadows[2]) : "none",
-    },
-  }), [isTemporary, agentEnabled, theme]);
-
-  const dropAreaSx = useMemo(() => ({
-    display: "flex",
-    flexDirection: "column",
-    minHeight: currentAttachments.length > 0 ? 160 : 120,
-    width: "100%",
-    borderRadius: "inherit",
-    bgcolor: "transparent",
-    pointerEvents: "auto",
-    p: 1.5,
-  }), [currentAttachments.length]);
-
-  const inputBaseSx = useMemo(() => ({
-    flex: 1,
-    color: "text.primary",
-    fontSize: "17px",
-    px: 1.5,
-    pt: 1,
-    "& .MuiInputBase-input": {
-      p: 0,
-      maxHeight: `${MAX_HEIGHT}px`,
-      overflowY: "auto",
-      "&::placeholder": {
-        color: "text.secondary",
-        opacity: 1,
-      },
-    },
-  }), [theme]);
-
-  const agentBarSx = useMemo(() => {
-    const isDark = theme.palette.mode === "dark";
-    return {
-      position: "absolute",
-      left: 0,
-      right: 0,
-      bottom: 0,
-      zIndex: 1,
-      width: "100%",
-      minHeight: { xs: 56, sm: 58 },
-      display: "flex",
-      alignItems: "flex-end",
-      justifyContent: "flex-start",
-      px: { xs: 2.5, sm: 3 },
-      pt: { xs: 3.4, sm: 3.6 },
-      pb: { xs: 1.15, sm: 1.25 },
-      borderRadius: "0 0 24px 24px",
-      overflow: "hidden",
-      pointerEvents: "auto",
-      bgcolor: isDark ? "rgba(255,255,255,0.026)" : "rgba(15,23,42,0.03)",
-      border: "1px solid",
-      borderTopColor: "transparent",
-      borderColor: isDark ? "rgba(255,255,255,0.055)" : "rgba(15,23,42,0.065)",
-      boxShadow: isDark
-        ? "inset 0 -1px 0 rgba(255,255,255,0.025)"
-        : "inset 0 -1px 0 rgba(255,255,255,0.45)",
-      "&::before": {
-        content: '""',
-        position: "absolute",
-        left: 0,
-        right: 0,
-        top: 0,
-        height: 28,
-        pointerEvents: "none",
-        background: isDark
-          ? "linear-gradient(to bottom, rgba(0,0,0,0.42), rgba(0,0,0,0))"
-          : "linear-gradient(to bottom, rgba(15,23,42,0.08), rgba(15,23,42,0))",
-      },
-    };
-  }, [theme.palette.mode]);
-
   const hasContent =
     draft.trim() || currentAttachments.length > 0 || !!pastedPreview;
   const appendTranscript = useCallback((text: string) => {
@@ -332,10 +237,19 @@ export const ChatInput = memo(function ChatInput({
       feature.toggle();
       setDraft((prev) => prev.replace(/(?:^|\s)\/\w*$/, ""));
       closeSlashMenu();
-      textareaRef.current?.focus();
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => textareaRef.current?.focus());
+      });
     },
     [closeSlashMenu, textareaRef],
   );
+
+  const openFeaturePicker = useCallback(() => {
+    setDraft((previous) => (previous.trim() ? previous : "/"));
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => textareaRef.current?.focus());
+    });
+  }, [textareaRef]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -392,17 +306,7 @@ export const ChatInput = memo(function ChatInput({
   );
 
   return (
-    <Box
-      sx={{
-        shrink: 0,
-        bgcolor: "transparent",
-        px: 2,
-        pb: { xs: 2, sm: 3 },
-        pt: { xs: 1.5, sm: 2 },
-        position: "relative",
-        zIndex: 10,
-      }}
-    >
+    <Box className="relative w-full">
       <input
         type="file"
         multiple
@@ -412,16 +316,7 @@ export const ChatInput = memo(function ChatInput({
         onChange={handleFileChange}
       />
 
-      <Box
-        sx={{
-          mx: "auto",
-          width: "100%",
-          maxWidth: 840,
-          minWidth: 0,
-          position: "relative",
-          pb: agentEnabled ? { xs: "52px", sm: "54px" } : 0,
-        }}
-      >
+      <Box className="relative w-full">
         {showSlashMenu && (
             <SlashCommandMenu
               features={filteredFeatures}
@@ -432,29 +327,21 @@ export const ChatInput = memo(function ChatInput({
           )}
 
         <Box
-          className={`chat-file-drop-target${isDraggingFiles ? " chat-file-drop-target--active" : ""}`}
-          sx={inputBoxSx}
+          className={cn(
+            "chat-file-drop-target w-full rounded-3xl border bg-popover/95 px-4 py-3 shadow-sm backdrop-blur-md transition-colors duration-[var(--dur-fast)] ease-[var(--ease-soft)]",
+            isTemporary
+              ? "border-dashed border-border/60"
+              : "border-transparent hover:border-border/60 focus-within:border-border/60",
+            isDraggingFiles && "chat-file-drop-target--active",
+          )}
           aria-label="Chat message composer. Drop files here to attach them."
           aria-describedby={isDraggingFiles ? "chat-file-drop-status" : undefined}
           data-file-drag-active={isDraggingFiles ? "true" : "false"}
         >
-          <Box
-            sx={dropAreaSx}
-          >
+          <Box className="relative flex min-h-16 flex-col">
             <Box
               id="chat-file-drop-status"
               aria-live="polite"
-              sx={{
-                position: "absolute",
-                width: 1,
-                height: 1,
-                p: 0,
-                m: -1,
-                overflow: "hidden",
-                clip: "rect(0 0 0 0)",
-                whiteSpace: "nowrap",
-                border: 0,
-              }}
             >
               {isDraggingFiles ? "Drop files to attach them to this message." : ""}
             </Box>
@@ -465,12 +352,10 @@ export const ChatInput = memo(function ChatInput({
               Drop files to attach
             </Box>
             {activeFeatures.length > 0 && (
-                <Box className="animate-fade-in">
-                  <ActiveFeaturesList
-                    activeFeatures={activeFeatures}
-                    hasAttachments={currentAttachments.length > 0}
-                  />
-                </Box>
+                <ActiveFeaturesList
+                  activeFeatures={activeFeatures}
+                  hasAttachments={currentAttachments.length > 0}
+                />
               )}
 
             {currentAttachments.length > 0 && (
@@ -483,6 +368,7 @@ export const ChatInput = memo(function ChatInput({
             <InputBase
               multiline
               inputRef={textareaRef}
+              minRows={1}
               placeholder={
                 agentEnabled
                   ? hasWorkspace
@@ -491,55 +377,28 @@ export const ChatInput = memo(function ChatInput({
                   : "How can I help you today?"
               }
               value={draft}
+              className="min-h-8 resize-none text-sm leading-6 placeholder:text-muted-foreground"
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={handleKeyDown}
               onPaste={handlePasteCombined}
               onFocus={() => onFocusChange?.(true)}
               onBlur={() => onFocusChange?.(false)}
-              sx={inputBaseSx}
             />
 
             {pastedPreview && (
                 <Box
                   className="animate-fade-in"
-                  sx={{
-                    mx: 1.5,
-                    mt: 1,
-                    display: "flex",
-                    alignItems: "flex-start",
-                    gap: 1.5,
-                    p: 1.5,
-                    borderRadius: "12px",
-                    bgcolor: "action.selected",
-                    border: "1px solid",
-                    borderColor: "divider",
-                    overflow: "hidden",
-                  }}
                 >
-                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Box>
                     <Box
-                      sx={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 1,
-                        mb: 0.25,
-                      }}
                     >
                       <Typography
                         variant="caption"
-                        sx={{
-                          fontWeight: 700,
-                          color: "primary.main",
-                          fontSize: "11px",
-                          letterSpacing: "0.08em",
-                          textTransform: "uppercase",
-                        }}
                       >
                         PASTED
                       </Typography>
                       <Typography
                         variant="caption"
-                        sx={{ color: "text.disabled" }}
                       >
                         {pastedPreview.lines} lines · {pastedPreview.chars}{" "}
                         chars
@@ -547,15 +406,6 @@ export const ChatInput = memo(function ChatInput({
                     </Box>
                     <Typography
                       variant="body2"
-                      sx={{
-                        color: "text.secondary",
-                        whiteSpace: "pre-wrap",
-                        overflow: "hidden",
-                        display: "-webkit-box",
-                        WebkitLineClamp: 3,
-                        WebkitBoxOrient: "vertical",
-                        lineHeight: 1.5,
-                      }}
                     >
                       {pastedPreview.preview}
                     </Typography>
@@ -564,78 +414,43 @@ export const ChatInput = memo(function ChatInput({
                     size="small"
                     onClick={dismissPastedPreview}
                     aria-label="Remove pasted content"
-                    sx={{
-                      mt: 0.25,
-                      flexShrink: 0,
-                      color: "text.secondary",
-                      p: 0.5,
-                      "&:hover": { bgcolor: "action.hover" },
-                    }}
                   >
                     <X size={14} />
                   </IconButton>
                 </Box>
               )}
 
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                mt: 1,
-                px: { xs: 0, sm: 0.5 },
-                gap: 1,
-              }}
-            >
-              <Box
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: { xs: 0, sm: 0.5 },
-                  flexShrink: 0,
-                  minWidth: 0,
-                }}
-              >
+            <Box className="mt-2 flex items-center justify-between gap-3">
+              <Box className="flex items-center gap-1">
                 <DropdownMenu>
-                  <DropdownMenuTrigger>
+                  <DropdownMenuTrigger asChild>
                     <IconButton
                       size="small"
                       aria-label="Add attachment"
-                      sx={{
-                        color: "text.secondary",
-                        p: 1,
-                      }}
                       disabled={isStreaming}
+                      className="size-8 rounded-full"
                     >
                       <Plus size={20} />
                     </IconButton>
                   </DropdownMenuTrigger>
 
-                  <DropdownMenuContent align="start">
+                  <DropdownMenuContent align="start" className="min-w-48">
                     {canUploadImages ? (
                       <DropdownMenuItem
+                        className="gap-2 px-3 py-2 whitespace-nowrap"
                         onClick={() => openFilePicker("image/*")}
-                        sx={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 2,
-                        }}
                       >
-                        <ImageIcon size={16} />
-                        <Typography variant="body2">Upload images</Typography>
+                        <ImageIcon />
+                        <span>Upload images</span>
                       </DropdownMenuItem>
                     ) : null}
 
                     <DropdownMenuItem
+                      className="gap-2 px-3 py-2 whitespace-nowrap"
                       onClick={() => openFilePicker("*")}
-                      sx={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 2,
-                      }}
                     >
-                      <Paperclip size={16} />
-                      <Typography variant="body2">Upload files</Typography>
+                      <Paperclip />
+                      <span>Upload files</span>
                     </DropdownMenuItem>
 
                     <DropdownMenuSeparator />
@@ -646,52 +461,22 @@ export const ChatInput = memo(function ChatInput({
                       return (
                         <DropdownMenuItem
                           key={feature.id}
+                          className="gap-2 px-3 py-2 whitespace-nowrap"
                           onClick={() => feature.toggle()}
-                          sx={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 2,
-                            justifyContent: "space-between",
-                            minWidth: { xs: 140, sm: 160 },
-                          }}
                         >
-                          <Box
-                            sx={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 2,
-                            }}
-                          >
-                            <Icon size={16} />
-                            <Typography variant="body2">
-                              {feature.name}
-                            </Typography>
-
-                            {feature.warning && (
-                              <Tooltip title={feature.warning} arrow>
-                                <Box
-                                  sx={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                  }}
-                                >
-                                  <AlertTriangle
-                                    size={14}
-                                    color={theme.palette.warning.main}
-                                  />
-                                </Box>
-                              </Tooltip>
-                            )}
-                          </Box>
+                          <Icon />
+                          <span>{feature.name}</span>
+                          {feature.warning && (
+                            <Tooltip title={feature.warning} arrow>
+                              <AlertTriangle
+                                className="text-[var(--warning)]"
+                              />
+                            </Tooltip>
+                          )}
 
                           {feature.active && (
                             <Box
-                              sx={{
-                                width: 6,
-                                height: 6,
-                                borderRadius: "50%",
-                                bgcolor: "primary.main",
-                              }}
+                              className="ml-auto size-2 rounded-full bg-primary"
                             />
                           )}
                         </DropdownMenuItem>
@@ -699,6 +484,16 @@ export const ChatInput = memo(function ChatInput({
                     })}
                   </DropdownMenuContent>
                 </DropdownMenu>
+
+                <IconButton
+                  size="small"
+                  aria-label="Open feature picker"
+                  disabled={isStreaming}
+                  onClick={openFeaturePicker}
+                  className="size-8 rounded-full"
+                >
+                  <LayoutGrid size={16} />
+                </IconButton>
 
                 {agentEnabled && (
                   <AgentComposerControls
@@ -709,43 +504,16 @@ export const ChatInput = memo(function ChatInput({
                 )}
               </Box>
 
-              <Box
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: { xs: 0.5, sm: 1 },
-                  flexShrink: 0,
-                }}
-              >
+              <Box className="flex items-center gap-1">
                 {dictationEnabled && (
                   <IconButton
                     onClick={recording ? stop : start}
                     disabled={isStreaming}
                     aria-label={recording ? "Stop dictation" : "Start dictation"}
-                    sx={{
-                      width: 32,
-                      height: 32,
-                      p: 0,
-                      color: recording
-                        ? theme.palette.error.main
-                        : theme.palette.text.secondary,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      mb: 0.5,
-                      "&.Mui-disabled": {
-                        color: theme.palette.text.disabled,
-                      },
-                    }}
+                    className="size-8 rounded-full"
                   >
                     {processing ? (
                       <Box
-                        sx={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          lineHeight: 0,
-                        }}
                       >
                         <Ring2
                           size={16}
@@ -753,11 +521,11 @@ export const ChatInput = memo(function ChatInput({
                           strokeLength="0.28"
                           bgOpacity="0.2"
                           speed="0.8"
-                          color={theme.palette.text.secondary}
+                          color="var(--muted-foreground)"
                         />
                       </Box>
                     ) : recording ? (
-                      <StopIcon sx={{ fontSize: 20 }} />
+                      <StopIcon />
                     ) : (
                       <Mic size={18} />
                     )}
@@ -771,33 +539,9 @@ export const ChatInput = memo(function ChatInput({
                       : !hasContent || (agentEnabled && !hasWorkspace)
                   }
                   aria-label={isStreaming ? "Stop generation" : "Send message"}
-                  sx={{
-                    width: 32,
-                    height: 32,
-                    p: 0,
-                    bgcolor: "primary.main",
-                    color: "primary.contrastText",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    mb: 0.5,
-                    mr: 0.5,
-                    "&:hover": {
-                      bgcolor: "primary.dark",
-                    },
-                    "&.Mui-disabled": {
-                      bgcolor: "action.disabledBackground",
-                      color: "text.disabled",
-                      opacity: 1,
-                    },
-                  }}
+                  className="size-8 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
                 >
                   <Box
-                    sx={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
                   >
                     {isStreaming ? (
                       <Square size={14} fill="currentColor" />
@@ -813,22 +557,8 @@ export const ChatInput = memo(function ChatInput({
 
         {agentEnabled && (
           <Box
-            sx={agentBarSx}
           >
             <Box
-              sx={{
-                position: "relative",
-                zIndex: 1,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "flex-start",
-                minWidth: 0,
-                maxWidth: "100%",
-                opacity: 0.78,
-                "& button": {
-                  minHeight: 28,
-                },
-              }}
             >
               <AgentComposerControls
                 disabled={isStreaming}

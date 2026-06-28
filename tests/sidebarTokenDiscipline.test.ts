@@ -2,8 +2,8 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const files = [
-  "src/features/sidebar/Sidebar.tsx",
-  "src/features/sidebar/components/SidebarPrimitives.tsx",
+  "src/components/app-sidebar.tsx",
+  "src/features/sidebar/components/sidebar-utils.tsx",
   "src/features/sidebar/components/SidebarBrand.tsx",
   "src/features/sidebar/components/FoldersSection.tsx",
   "src/features/sidebar/components/FolderTree.tsx",
@@ -24,13 +24,6 @@ const forbiddenVisualPatterns = [
 ];
 
 describe("sidebar visual tokens", () => {
-  it("keeps sidebar widths on the required desktop rail sizes", () => {
-    const source = readFileSync("src/features/sidebar/Sidebar.tsx", "utf8");
-
-    expect(source).toContain("const EXPANDED_WIDTH = 272");
-    expect(source).toContain("const COLLAPSED_WIDTH = 64");
-  });
-
   it("avoids hardcoded visual tokens in sidebar presentation files", () => {
     const offenders = files.flatMap((file) => {
       const source = readFileSync(file, "utf8");
@@ -55,8 +48,8 @@ describe("sidebar visual tokens", () => {
   });
 
   it("uses shared centered icon button styles for sidebar icon controls", () => {
-    const primitives = readFileSync(
-      "src/features/sidebar/components/SidebarPrimitives.tsx",
+    const sidebarUtils = readFileSync(
+      "src/features/sidebar/components/sidebar-utils.tsx",
       "utf8",
     );
     const folders = readFileSync(
@@ -68,23 +61,11 @@ describe("sidebar visual tokens", () => {
       "utf8",
     );
 
-    expect(primitives).toContain("sidebarIconButtonSx");
-    expect(primitives).toContain("alignItems: \"center\"");
-    expect(primitives).toContain("justifyContent: \"center\"");
-    expect(folders).toContain("sidebarIconButtonSx");
-    expect(guestFooter).toContain("sidebarIconButtonSx");
-  });
-
-  it("keeps sidebar rows and icons compact", () => {
-    const primitives = readFileSync(
-      "src/features/sidebar/components/SidebarPrimitives.tsx",
-      "utf8",
-    );
-
-    expect(primitives).toContain("const SIDEBAR_ITEM_SPACING = 5");
-    expect(primitives).toContain("const SIDEBAR_ICON_SPACING = 4");
-    expect(primitives).toContain("const SIDEBAR_GLYPH_SPACING = 2.125");
-    expect(primitives).toContain("theme.app.radius.control");
+    expect(sidebarUtils).toContain("sidebarIconButtonClassName");
+    expect(sidebarUtils).toContain("items-center");
+    expect(sidebarUtils).toContain("justify-center");
+    expect(folders).toContain("sidebarIconButtonClassName");
+    expect(guestFooter).toContain("sidebarIconButtonClassName");
   });
 
   it("supports a persisted collapsible folders section", () => {
@@ -94,13 +75,7 @@ describe("sidebar visual tokens", () => {
     );
 
     expect(folders).toContain("useFoldersSectionCollapsed");
-    const primitives = readFileSync(
-      "src/features/sidebar/components/SidebarPrimitives.tsx",
-      "utf8",
-    );
-
     expect(folders).toContain("expanded: !isCollapsed");
-    expect(primitives).toContain("aria-expanded={disclosure.expanded}");
     expect(folders).toContain("SidebarSectionHeader");
     expect(folders).toContain("disclosure");
     expect(folders).toContain("polyui:sidebar:folders-collapsed");

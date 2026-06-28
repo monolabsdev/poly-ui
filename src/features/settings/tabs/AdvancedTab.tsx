@@ -1,6 +1,7 @@
-import Stack from "@mui/material/Stack";
-import Switch from "@mui/material/Switch";
-import Typography from "@mui/material/Typography";
+import { Stack } from "@/components/ui/Stack";
+import { Switch } from "@/components/ui/switch";
+import { Slider } from "@/components/ui/slider";
+import { Typography } from "@/components/ui/Typography";
 import { useShallow } from "zustand/react/shallow";
 import { SettingCard, SectionHeader } from "../SettingComponents";
 import { useSettingsStore } from "@/store/settingsStore";
@@ -48,7 +49,7 @@ export function AdvancedTab() {
         title="Memory"
         description="Persistent memory UI and background processing stay inactive unless experimental features are enabled."
       >
-        <Typography sx={{ fontSize: 12, color: "text.secondary" }}>
+        <Typography>
           Open the Memory tab after enabling experimental features. Turning this switch off disables memory processing for current profile.
         </Typography>
       </SettingCard>
@@ -64,7 +65,7 @@ export function AdvancedTab() {
           />
         }
       >
-        <Typography sx={{ fontSize: 12, color: "text.secondary" }}>
+        <Typography>
           Off by default. Requires explicit tool approvals unless you choose a broader approval preset in chat.
         </Typography>
       </SettingCard>
@@ -95,6 +96,28 @@ export function AdvancedTab() {
           />
         }
       />
+
+      <SettingCard
+        title="App scale"
+        description="Adjust interface scale without changing layout geometry."
+        action={
+          <Typography className="text-xs text-muted-foreground">
+            {Math.round(performance.appZoom * 100)}%
+          </Typography>
+        }
+      >
+        <Slider
+          value={performance.appZoom}
+          min={0.5}
+          max={2}
+          step={0.1}
+          onChange={(_, value) =>
+            actions.updatePerformance({
+              appZoom: Array.isArray(value) ? value[0] : value,
+            })
+          }
+        />
+      </SettingCard>
 
     </Stack>
   );

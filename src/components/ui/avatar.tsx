@@ -1,137 +1,129 @@
-import * as React from "react";
-import MuiAvatar from "@mui/material/Avatar";
-import Box from "@mui/material/Box";
-import type { SxProps, Theme } from "@mui/material/styles";
+import * as React from "react"
+import { Avatar as AvatarPrimitive } from "radix-ui"
 
-export const AVATAR_COLOR_PALETTE = [
-  "#c2410c",
-  "#2563eb",
-  "#4b5563",
-  "#15803d",
-  "#9333ea",
-  "#be123c",
-] as const;
-
-type AvatarColor = (typeof AVATAR_COLOR_PALETTE)[number];
-
-function sxArray(sx?: SxProps<Theme>) {
-  if (!sx) return [];
-  return Array.isArray(sx) ? sx : [sx];
-}
-
-export function getAvatarColor(seed: string): AvatarColor {
-  const normalizedSeed = seed.trim() || "?";
-  let hash = 0;
-
-  for (const char of normalizedSeed) {
-    hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
-  }
-
-  return AVATAR_COLOR_PALETTE[hash % AVATAR_COLOR_PALETTE.length];
-}
-
-export function getAvatarColorSeed(children: React.ReactNode): string {
-  let seed = "";
-
-  React.Children.forEach(children, (child) => {
-    if (seed) return;
-
-    if (typeof child === "string" || typeof child === "number") {
-      seed = String(child);
-      return;
-    }
-
-    if (React.isValidElement<{ children?: React.ReactNode }>(child)) {
-      seed = getAvatarColorSeed(child.props.children);
-    }
-  });
-
-  return seed;
-}
+import { cn } from "@/lib/utils"
 
 function Avatar({
   className,
-  children,
-  sx,
+  size = "default",
   ...props
-}: {
-  className?: string;
-  children?: React.ReactNode;
-} & React.ComponentProps<typeof Box>) {
-  const avatarColor = getAvatarColor(getAvatarColorSeed(children));
-
+}: React.ComponentProps<typeof AvatarPrimitive.Root> & {
+  size?: "default" | "sm" | "lg"
+}) {
   return (
-    <MuiAvatar
-      component={Box}
-      className={className}
-      sx={[
-        {
-          width: 32,
-          height: 32,
-          fontSize: "0.875rem",
-          bgcolor: avatarColor,
-          color: "common.white",
-          border: "1px solid",
-          borderColor: "divider",
-        },
-        ...sxArray(sx),
-      ]}
+    <AvatarPrimitive.Root
+      data-slot="avatar"
+      data-size={size}
+      className={cn(
+        "group/avatar relative flex size-8 shrink-0 rounded-full select-none after:absolute after:inset-0 after:rounded-full after:border after:border-border after:mix-blend-darken data-[size=lg]:size-10 data-[size=sm]:size-6 dark:after:mix-blend-lighten",
+        className
+      )}
       {...props}
-    >
-      {children}
-    </MuiAvatar>
-  );
+    />
+  )
 }
 
-function AvatarImage({ src, alt, className }: { src?: string; alt?: string; className?: string }) {
+function AvatarImage({
+  className,
+  ...props
+}: React.ComponentProps<typeof AvatarPrimitive.Image>) {
   return (
-    <Box
-      component="img"
-      src={src}
-      alt={alt}
-      className={className}
-      sx={{ aspectRatio: "1", width: "100%", height: "100%", borderRadius: "9999px", objectFit: "cover" }}
+    <AvatarPrimitive.Image
+      data-slot="avatar-image"
+      className={cn(
+        "aspect-square size-full rounded-full object-cover",
+        className
+      )}
+      {...props}
     />
-  );
+  )
+}
+
+function hashHue(seed: string) {
+  let h = 0
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) | 0
+  return Math.abs(h) % 360
 }
 
 function AvatarFallback({
   className,
+  seed,
+  style,
   children,
-  sx,
   ...props
-}: {
-  className?: string;
-  children: React.ReactNode;
-} & React.ComponentProps<typeof Box>) {
+}: React.ComponentProps<typeof AvatarPrimitive.Fallback> & { seed?: string }) {
+  const key = seed ?? (typeof children === "string" ? children : "")
+  const hue = key ? hashHue(key) : null
   return (
-    <Box
-      className={className}
-      sx={[
-        {
-          display: "flex",
-          width: "100%",
-          height: "100%",
-          alignItems: "center",
-          justifyContent: "center",
-          borderRadius: "9999px",
-          fontSize: "0.875rem",
-        },
-        ...sxArray(sx),
-        {
-          bgcolor: "inherit",
-          color: "inherit",
-        },
-      ]}
+    <AvatarPrimitive.Fallback
+      data-slot="avatar-fallback"
+      className={cn(
+        "flex size-full items-center justify-center rounded-full text-sm font-medium group-data-[size=sm]/avatar:text-xs",
+        hue === null && "bg-muted text-muted-foreground",
+        className
+      )}
+      style={
+        hue === null
+          ? style
+          : { backgroundColor: `hsl(${hue} 55% 45%)`, color: "#fff", ...style }
+      }
       {...props}
     >
       {children}
-    </Box>
-  );
+    </AvatarPrimitive.Fallback>
+  )
+}
+
+function AvatarBadge({ className, ...props }: React.ComponentProps<"span">) {
+  return (
+    <span
+      data-slot="avatar-badge"
+      className={cn(
+        "absolute right-0 bottom-0 z-10 inline-flex items-center justify-center rounded-full bg-primary text-primary-foreground bg-blend-color ring-2 ring-background select-none",
+        "group-data-[size=sm]/avatar:size-2 group-data-[size=sm]/avatar:[&>svg]:hidden",
+        "group-data-[size=default]/avatar:size-2.5 group-data-[size=default]/avatar:[&>svg]:size-2",
+        "group-data-[size=lg]/avatar:size-3 group-data-[size=lg]/avatar:[&>svg]:size-2",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function AvatarGroup({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="avatar-group"
+      className={cn(
+        "group/avatar-group flex -space-x-2 *:data-[slot=avatar]:ring-2 *:data-[slot=avatar]:ring-background",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function AvatarGroupCount({
+  className,
+  ...props
+}: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="avatar-group-count"
+      className={cn(
+        "relative flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-sm text-muted-foreground ring-2 ring-background group-has-data-[size=lg]/avatar-group:size-10 group-has-data-[size=sm]/avatar-group:size-6 [&>svg]:size-4 group-has-data-[size=lg]/avatar-group:[&>svg]:size-5 group-has-data-[size=sm]/avatar-group:[&>svg]:size-3",
+        className
+      )}
+      {...props}
+    />
+  )
 }
 
 export {
   Avatar,
   AvatarImage,
   AvatarFallback,
-};
+  AvatarGroup,
+  AvatarGroupCount,
+  AvatarBadge,
+}

@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
-import CircularProgress from "@mui/material/CircularProgress";
-import Drawer from "@mui/material/Drawer";
-import IconButton from "@mui/material/IconButton";
-import Typography from "@mui/material/Typography";
-import { useTheme } from "@mui/material/styles";
-import { alpha } from "@mui/material/styles";
+import { Box } from "@/components/ui/Box";
+import { Button } from "@/components/ui/button";
+import { CircularProgress } from "@/components/ui/spinner";
+import { Drawer } from "@/components/ui/drawer";
+import { IconButton } from "@/components/ui/icon-button";
+import { Typography } from "@/components/ui/Typography";
+
 import { ChevronRight, FileDiff, Maximize2, X } from "lucide-react";
 import { getAgentChangedFiles, getAgentFileDiff } from "./agentClient";
 import type { AgentChangedFile, AgentEditedFile, AgentToolCall } from "./types";
@@ -138,61 +137,39 @@ export function AgentReviewPanel({
       anchor="right"
       open={open}
       onClose={onClose}
-      slotProps={{
-        backdrop: {
-          sx: { top: "var(--titlebar-height)" },
-        },
-      }}
       PaperProps={{
-        sx: {
-          top: "var(--titlebar-height)",
-          height: "calc(100dvh - var(--titlebar-height))",
-          width: { xs: "100vw", sm: 620 },
-          bgcolor: "background.default",
-          color: "text.primary",
-          borderLeft: "1px solid",
-          borderColor: "border.main",
-        },
+        className: "top-[var(--titlebar-height)] h-[calc(100dvh-var(--titlebar-height))] w-screen border-l border-border bg-background text-foreground sm:w-[620px]",
       }}
     >
-      <Box sx={{ height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-        <Box sx={{ height: 48, display: "flex", alignItems: "center", gap: 1, px: 1.25 }}>
+      <Box>
+        <Box>
           <Button
             size="small"
             color="inherit"
             variant="contained"
             startIcon={<FileDiff size={14} />}
-            sx={{
-              height: 30,
-              borderRadius: "8px",
-              bgcolor: "action.hover",
-              boxShadow: "none",
-              fontSize: 12,
-              fontWeight: 800,
-              "&:hover": { bgcolor: "action.selected", boxShadow: "none" },
-            }}
           >
             Review
           </Button>
-          <Typography sx={{ color: "text.secondary", fontSize: 20, lineHeight: 1 }}>+</Typography>
-          <Box sx={{ flex: 1 }} />
-          <IconButton size="small" sx={{ color: "text.secondary" }} aria-label="Expand review">
+          <Typography>+</Typography>
+          <Box />
+          <IconButton size="small" aria-label="Expand review">
             <Maximize2 size={15} />
           </IconButton>
-          <IconButton size="small" onClick={onClose} sx={{ color: "text.secondary" }} aria-label="Close review">
+          <IconButton size="small" onClick={onClose} aria-label="Close review">
             <X size={16} />
           </IconButton>
         </Box>
 
-        <Box sx={{ height: 38, display: "flex", alignItems: "center", gap: 1, px: 1.5, borderBottom: "1px solid", borderColor: "border.main" }}>
-          <Typography sx={{ fontSize: 12, fontWeight: 800 }}>
+        <Box>
+          <Typography>
             {files.length ? `${files.length} changed ${files.length === 1 ? "file" : "files"}` : "Last turn"}
           </Typography>
-          <Typography sx={{ color: "success.main", fontSize: 12, fontWeight: 800 }}>+{totals.additions}</Typography>
-          <Typography sx={{ color: "error.main", fontSize: 12, fontWeight: 800 }}>-{totals.deletions}</Typography>
+          <Typography>+{totals.additions}</Typography>
+          <Typography>-{totals.deletions}</Typography>
         </Box>
 
-        <Box sx={{ flex: 1, overflow: "auto", minHeight: 0 }}>
+        <Box>
           {loadingFiles && files.length === 0 ? (
             <PanelState icon={<CircularProgress size={16} />} label="Loading changed files..." />
           ) : error ? (
@@ -200,19 +177,19 @@ export function AgentReviewPanel({
           ) : files.length === 0 ? (
             <PanelState label="No diff data available for this run." />
           ) : (
-            <Box sx={{ display: "flex", flexDirection: "column" }}>
+            <Box>
               {orderedFiles.map((file) => {
                 const renderedLines = collapseContext(parseUnifiedDiff(diffs[file.path] ?? ""));
                 return (
-                  <Box key={file.path} sx={{ borderBottom: "1px solid", borderColor: "border.light" }}>
-                    <Box sx={{ position: "sticky", top: 0, zIndex: 2, bgcolor: "background.default", display: "flex", alignItems: "center", gap: 1, px: 1.5, py: 1 }}>
+                  <Box key={file.path}>
+                    <Box>
                       <ChevronRight size={14} />
-                      <Typography sx={{ fontSize: 12.5, fontWeight: 800, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      <Typography>
                         {file.path}
                       </Typography>
-                      <Box sx={{ flex: 1 }} />
-                      <Typography sx={{ color: "success.main", fontSize: 12, fontWeight: 800 }}>+{file.additions}</Typography>
-                      <Typography sx={{ color: "error.main", fontSize: 12, fontWeight: 800 }}>-{file.deletions}</Typography>
+                      <Box />
+                      <Typography>+{file.additions}</Typography>
+                      <Typography>-{file.deletions}</Typography>
                     </Box>
                     {loadingDiff && !diffs[file.path] ? (
                       <PanelState icon={<CircularProgress size={18} />} label="Loading diff..." />
@@ -221,7 +198,7 @@ export function AgentReviewPanel({
                     ) : renderedLines.length === 0 ? (
                       <PanelState label="No file diff available." />
                     ) : (
-                      <Box component="pre" sx={{ m: 0, minWidth: "max-content", py: 1 }}>
+                      <Box as="pre">
                         {renderedLines.map((line) => (
                           <DiffRow key={`${file.path}-${line.id}`} line={line} />
                         ))}
@@ -239,74 +216,33 @@ export function AgentReviewPanel({
 }
 
 function DiffRow({ line }: { line: DiffLine }) {
-  const theme = useTheme();
-
   if (line.kind === "fold") {
     return (
       <Box
-        component="code"
-        sx={{
-          display: "block",
-          mx: 1,
-          my: 0.75,
-          px: 1,
-          py: 0.55,
-          borderRadius: "5px",
-          bgcolor: "action.hover",
-          color: "text.secondary",
-          fontSize: 12,
-          fontFamily: "ui-monospace, SFMono-Regular, Consolas, monospace",
-        }}
+        as="code"
       >
         {line.text}
       </Box>
     );
   }
 
-  const tone = {
-    add: { bg: alpha(theme.palette.success.main, 0.18), bar: theme.palette.success.main, fg: alpha(theme.palette.success.main, 0.85) },
-    remove: { bg: alpha(theme.palette.error.main, 0.18), bar: theme.palette.error.main, fg: alpha(theme.palette.error.main, 0.85) },
-    hunk: { bg: "transparent", bar: "transparent", fg: "text.disabled" },
-    meta: { bg: "transparent", bar: "transparent", fg: "text.disabled" },
-    context: { bg: "transparent", bar: "transparent", fg: "text.secondary" },
-  }[line.kind];
-
   return (
     <Box
-      component="code"
-      sx={{
-        display: "grid",
-        gridTemplateColumns: "44px minmax(520px, 1fr)",
-        position: "relative",
-        bgcolor: tone.bg,
-        color: tone.fg,
-        fontFamily: "ui-monospace, SFMono-Regular, Consolas, monospace",
-        fontSize: 12,
-        lineHeight: 1.75,
-        "&::before": {
-          content: '""',
-          position: "absolute",
-          left: 0,
-          top: 0,
-          bottom: 0,
-          width: line.kind === "add" || line.kind === "remove" ? 4 : 0,
-          bgcolor: tone.bar,
-        },
-      }}
+      as="code"
     >
-      <Box sx={{ pr: 1.25, textAlign: "right", color: line.kind === "add" ? "success.main" : "text.secondary", userSelect: "none" }}>
+      <Box>
         {line.newNumber ?? line.oldNumber ?? ""}
       </Box>
-      <Box sx={{ px: 1.25, whiteSpace: "pre" }}>{line.text || " "}</Box>
+      <Box>{line.text || " "}</Box>
     </Box>
   );
 }
 
 function PanelState({ label, icon }: { label: string; icon?: React.ReactNode }) {
   return (
-    <Box sx={{ display: "flex", alignItems: "center", gap: 1, p: 2, color: "text.secondary" }}>
+    <Box>
       {icon}
-      <Typography sx={{ fontSize: 13 }}>{label}</Typography>
+      <Typography>{label}</Typography>
     </Box>
   );
 }

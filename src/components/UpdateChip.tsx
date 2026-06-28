@@ -1,5 +1,3 @@
-import Box from "@mui/material/Box";
-import Typography from "@mui/material/Typography";
 import { Ring2 } from "ldrs/react";
 import "ldrs/react/Ring2.css";
 import { useUpdateStore } from "@/store/updateStore";
@@ -14,28 +12,14 @@ export function UpdateChip() {
   const isBusy = status === "downloading" || status === "installing";
 
   return (
-    <Box
+    <button
+      type="button"
       onClick={isBusy ? undefined : install}
       onMouseDown={(e: React.MouseEvent) => e.stopPropagation()}
       onDoubleClick={(e: React.MouseEvent) => e.stopPropagation()}
-      sx={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 1,
-        px: 1.5,
-        py: 0.25,
-        borderRadius: "999px",
-        bgcolor: status === "error" ? "error.main" : "primary.main",
-        color: status === "error" ? "error.contrastText" : "primary.contrastText",
-        fontSize: 12,
-        fontWeight: 600,
-        cursor: isBusy ? "default" : "pointer",
-        userSelect: "none",
-        whiteSpace: "nowrap",
-        "&:hover": isBusy
-          ? {}
-          : { opacity: 0.85 },
-      }}
+      className={`inline-flex select-none items-center gap-2 whitespace-nowrap rounded-full px-3 py-0.5 text-xs font-semibold text-primary-foreground ${
+        status === "error" ? "bg-destructive" : "bg-primary"
+      } ${isBusy ? "cursor-default" : "cursor-pointer hover:opacity-85"}`}
     >
       {isBusy ? (
         <>
@@ -47,19 +31,19 @@ export function UpdateChip() {
             speed="0.8"
             color="currentColor"
           />
-          <Typography variant="caption" sx={{ color: "inherit", fontSize: 11, fontWeight: 600 }}>
+          <span className="text-[11px] font-semibold text-inherit">
             {status === "installing" ? "Installing..." : `${progress}%`}
-          </Typography>
+          </span>
         </>
       ) : status === "downloaded" ? (
-        <Typography variant="caption" sx={{ color: "inherit", fontSize: 11, fontWeight: 600 }}>
+        <span className="text-[11px] font-semibold text-inherit">
           Install Update
-        </Typography>
+        </span>
       ) : (
-        <Typography variant="caption" sx={{ color: "inherit", fontSize: 11, fontWeight: 600 }}>
+        <span className="text-[11px] font-semibold text-inherit">
           Update failed
-        </Typography>
+        </span>
       )}
-    </Box>
+    </button>
   );
 }

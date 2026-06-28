@@ -11,9 +11,9 @@ import { useModelStore } from "@/store/modelStore";
 import { useSettingsStore } from "@/store/settingsStore";
 import { getPresetContent } from "@/lib/constants/promptPresets";
 import { useOllama } from "@/features/ollama";
-import { Sidebar, SidebarInset, SidebarProvider } from "@/features/sidebar";
+import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/app-sidebar";
 import { ChatPanel } from "@/components/Layout/ChatPanel";
-import { Box } from "@mui/material";
 import { useChatStore } from "@/store/chatStore";
 import { useAuthStore } from "@/store/authStore";
 import { useNotify } from "@/hooks/useNotify";
@@ -26,10 +26,9 @@ import { useFeatures } from "@/lib/featureRegistry";
 import { disableMemoryForOwner } from "@/features/memory/memoryClient";
 import { getCurrentProviderAccountId } from "@/features/providers";
 import { useFolderStore } from "@/store/folderStore";
-import { SettingsModal } from "./features/settings/SettingsModal";
 import type { SettingsTab } from "./features/settings/SettingsModal";
 import { ArchivedChatsDialog } from "@/features/chat/components/ArchivedChatsDialog";
-import { CommandPalette } from "@/features/command-palette/CommandPalette";
+import type { CommandPaletteItem } from "@/features/command-palette/types";
 import { useRegisteredCommandPaletteActions } from "@/features/command-palette/actionRegistry";
 import { useSettingsCommands } from "@/features/command-palette/settingsRegistry";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
@@ -37,7 +36,6 @@ import { useAutoSelectModel } from "@/hooks/useAutoSelectModel";
 import { useChatActionHandlers } from "@/hooks/useChatActionHandlers";
 import { useCommandPaletteItems } from "@/hooks/useCommandPaletteItems";
 import ChatWorkspace from "@/features/chat/components/ChatWorkspace";
-import "@/features/models";
 import { GlobalConfirmDialog } from "./components/ui/GlobalConfirmDialog";
 
 const AuthModalLazy = lazy(() =>
@@ -48,6 +46,16 @@ const AuthModalLazy = lazy(() =>
 const ReleaseNotesModalLazy = lazy(() =>
   import("@/features/release-notes/ReleaseNotesModal").then((module) => ({
     default: module.ReleaseNotesModal,
+  })),
+);
+const SettingsModalLazy = lazy(() =>
+  import("@/features/settings/SettingsModal").then((module) => ({
+    default: module.SettingsModal,
+  })),
+);
+const CommandPaletteLazy = lazy(() =>
+  import("@/features/command-palette/CommandPalette").then((module) => ({
+    default: module.CommandPalette,
   })),
 );
 function App() {
@@ -236,8 +244,8 @@ function App() {
   });
 
   return (
-    <SidebarProvider>
-      <Sidebar
+    <SidebarProvider className="h-full min-h-0">
+      <AppSidebar
         onOpenSettings={handleOpenSettings}
         onOpenCommandPalette={handleOpenCommandPalette}
         onNewChat={handleNewChat}
@@ -249,18 +257,9 @@ function App() {
         collapsible="icon"
       />
 
-      <SidebarInset>
+      <SidebarInset className="bg-sidebar">
         <ChatPanel backgroundImage={activeFolderBackground}>
-          <Box
-            component="main"
-            sx={{
-              flex: 1,
-              display: "flex",
-              flexDirection: "row",
-              overflow: "hidden",
-              position: "relative",
-            }}
-          >
+          <main className="relative flex min-w-0 flex-1 flex-row overflow-hidden">
             <ChatWorkspace
               selectedModels={selectedModels}
               selectedProviders={selectedProviders}
@@ -271,26 +270,30 @@ function App() {
               onStopStreamingReady={handleStopStreamingReady}
               onOpenConnections={handleOpenConnections}
             />
-          </Box>
+          </main>
         </ChatPanel>
       </SidebarInset>
 
-      {isSettingsOpen ? (
-        <SettingsModal
-          isOpen={isSettingsOpen}
-          onClose={handleCloseSettings}
-          initialTab={settingsInitialTab}
-        />
-      ) : null}
+      <Suspense fallback={null}>
+        {isSettingsOpen ? (
+          <SettingsModalLazy
+            isOpen={isSettingsOpen}
+            onClose={handleCloseSettings}
+            initialTab={settingsInitialTab}
+          />
+        ) : null}
+      </Suspense>
       <ArchivedChatsDialog
         open={isArchivedOpen}
         onOpenChange={setIsArchivedOpen}
       />
-      <CommandPalette
-        open={!isAuthGateOpen && isCommandPaletteOpen}
-        onOpenChange={setIsCommandPaletteOpen}
-        items={commandPaletteItems}
-      />
+      <Suspense fallback={null}>
+        <CommandPaletteLazy
+          open={!isAuthGateOpen && isCommandPaletteOpen}
+          onOpenChange={setIsCommandPaletteOpen}
+          items={commandPaletteItems as CommandPaletteItem[]}
+        />
+      </Suspense>
       <GlobalConfirmDialog />
       <Suspense fallback={null}>
         <AuthModalLazy />

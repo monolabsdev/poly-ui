@@ -1,12 +1,11 @@
-import { type ElementType, type HTMLAttributes } from "react";
-import Box from "@mui/material/Box";
-import { useTheme } from "@mui/material/styles";
+import { type CSSProperties, type ElementType, type HTMLAttributes, type ReactNode } from "react";
+import { cn } from "@/lib/utils";
 
 export type TextShimmerProps = {
   as?: ElementType;
   duration?: number;
   spread?: number;
-  children: React.ReactNode;
+  children: ReactNode;
 } & HTMLAttributes<HTMLElement>;
 
 export function TextShimmer({
@@ -14,33 +13,31 @@ export function TextShimmer({
   duration = 4,
   spread = 20,
   children,
+  className,
+  style,
   ...props
 }: TextShimmerProps) {
   const dynamicSpread = Math.min(Math.max(spread, 5), 45);
-  const theme = useTheme();
+  const Component = as;
 
   return (
-    <Box
-      component={as}
-      className="text-shimmer"
-      sx={{
-        backgroundClip: "text",
-        WebkitBackgroundClip: "text",
-        WebkitBoxDecorationBreak: "clone",
-        WebkitTextFillColor: "transparent",
-        color: "transparent",
-        backgroundSize: "200% auto",
-        fontWeight: 500,
-        backgroundImage: `linear-gradient(to right, ${theme.palette.text.secondary} ${50 - dynamicSpread}%, ${theme.palette.text.primary} 50%, ${theme.palette.text.secondary} ${50 + dynamicSpread}%)`,
-        animation: `shimmer-sweep ${duration}s infinite linear`,
-        display: as === "span" ? "inline" : undefined,
+    <Component
+      className={cn(
+        "terax-shimmer font-medium text-transparent [background-clip:text] [-webkit-background-clip:text] [-webkit-box-decoration-break:clone] [-webkit-text-fill-color:transparent]",
+        as === "span" && "inline",
+        className,
+      )}
+      style={{
+        "--shimmer-duration": `${duration}s`,
+        "--shimmer-spread": `${dynamicSpread}%`,
         whiteSpace: "inherit",
         overflow: "inherit",
         textOverflow: "inherit",
-      }}
+        ...style,
+      } as CSSProperties}
       {...props}
     >
       {children}
-    </Box>
+    </Component>
   );
 }

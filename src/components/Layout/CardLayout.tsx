@@ -1,5 +1,3 @@
-import Box from "@mui/material/Box";
-
 type CardLayoutProps = {
   backgroundImage?: string | null;
   header: React.ReactNode;
@@ -8,40 +6,17 @@ type CardLayoutProps = {
 
 export function CardLayout({ backgroundImage, header, children }: CardLayoutProps) {
   return (
-    <Box
-      sx={{
-        flex: 1,
-        display: "flex",
-        flexDirection: "column",
-        overflow: "hidden",
-        bgcolor: backgroundImage ? undefined : "background.sidebar",
-      }}
+    <div
+      className={`flex flex-1 flex-col overflow-hidden ${backgroundImage ? "" : "bg-sidebar"}`}
     >
-      <Box
-        sx={{
-          flex: 1,
-          display: "flex",
-          flexDirection: "column",
-          overflow: "hidden",
-          bgcolor: "background.paper",
-          borderRadius: 1.5,
-          mr: { xs: 0.5, sm: 1.5 },
-          mt: { xs: 0.5, sm: 1.5 },
-          mb: { xs: 0.5, sm: 1.5 },
-          ml: 0,
-        }}
+      <div
+        className="mr-1 mt-1 mb-1 ml-0 flex flex-1 flex-col overflow-hidden rounded-xl bg-card sm:mr-3 sm:mt-3 sm:mb-3"
       >
-        <Box
-          sx={{
-            bgcolor: "background.paper",
-            borderTopLeftRadius: 18,
-            borderTopRightRadius: 18,
-          }}
-        >
+        <div className="rounded-t-[18px] bg-card">
           {header}
-        </Box>
+        </div>
         {children}
-      </Box>
-    </Box>
+      </div>
+    </div>
   );
 }

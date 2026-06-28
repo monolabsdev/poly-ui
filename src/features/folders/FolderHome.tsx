@@ -1,9 +1,9 @@
 import * as React from "react";
-import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
-import ButtonBase from "@mui/material/ButtonBase";
-import Typography from "@mui/material/Typography";
-import IconButton from "@mui/material/IconButton";
+import { Box } from "@/components/ui/Box";
+import { Button } from "@/components/ui/button";
+import { Typography } from "@/components/ui/Typography";
+import { IconButton } from "@/components/ui/icon-button";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Folder, MessageSquare, Trash2, X } from "lucide-react";
 import { ChatInput } from "@/features/chat/components/ChatInput";
 import { ConversationItem } from "@/features/chat/components/ConversationItem";
@@ -43,7 +43,6 @@ export function FolderHome({ folder, onSubmit, onStop, isStreaming, providerOnli
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
   const [isBatchDeleteDialogOpen, setIsBatchDeleteDialogOpen] = React.useState(false);
-  const [activeTab, setActiveTab] = React.useState<"chats" | "sources">("chats");
 
   const handleStartRename = (e: React.MouseEvent, conv: Conversation) => {
     e.stopPropagation();
@@ -170,153 +169,115 @@ export function FolderHome({ folder, onSubmit, onStop, isStreaming, providerOnli
   };
 
   return (
-    <Box sx={{ flex: 1, minHeight: 0, width: "100%", overflowY: "auto", px: 2 }}>
-      <Box sx={{ width: "100%", maxWidth: 720, mx: "auto", pt: { xs: 4, sm: 6 }, pb: 5 }}>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+    <Box className="mx-auto flex w-full max-w-3xl flex-1 flex-col items-center gap-6 px-6 pt-12">
+      <Box flex alignItems="center" gap={2} className="self-start">
         <Folder size={20} />
-        <Typography variant="h6" sx={{ fontSize: "18px", fontWeight: 500 }}>{folder.name}</Typography>
+        <Typography variant="h6">{folder.name}</Typography>
       </Box>
+
       <ChatInput
         onSubmit={onSubmit}
         onStop={onStop}
         isStreaming={isStreaming}
       />
+
       {!providerOnline && (
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, p: 2, border: "1px solid", borderColor: "divider", borderRadius: "12px" }}>
+        <Box className="w-full">
           <Box>
-            <Typography sx={{ fontSize: 14, fontWeight: 700 }}>No provider connected</Typography>
-            <Typography sx={{ mt: 0.25, fontSize: 12, color: "text.secondary" }}>Start Ollama, then connect it to chat in this folder.</Typography>
+            <Typography>No provider connected</Typography>
+            <Typography>Start Ollama, then connect it to chat in this folder.</Typography>
           </Box>
-          <Button variant="outlined" onClick={onOpenConnections} sx={{ flexShrink: 0, textTransform: "none", fontWeight: 700 }}>
+          <Button variant="outlined" onClick={onOpenConnections}>
             Open Connections
           </Button>
         </Box>
       )}
-      <Box role="tablist" aria-label="Folder content" sx={{ display: "flex", gap: 1, mt: 1.5, mb: 2.5 }}>
-        {(["chats", "sources"] as const).map((tab) => (
-          <ButtonBase
-            key={tab}
-            role="tab"
-            aria-selected={activeTab === tab}
-            onClick={() => setActiveTab(tab)}
-            sx={{
-              px: 1.5,
-              py: 0.75,
-              borderRadius: "9999px",
-              justifyContent: "flex-start",
-              bgcolor: activeTab === tab ? "action.selected" : "transparent",
-              color: activeTab === tab ? "text.primary" : "text.secondary",
-              fontFamily: "inherit",
-              fontSize: "12px",
-              textTransform: "capitalize",
-              "&:hover": { bgcolor: "action.hover" },
-            }}
-          >
-            {tab}
-          </ButtonBase>
-        ))}
-      </Box>
-      {activeTab === "sources" ? (
-        <Box role="tabpanel"><FolderSources folder={folder} /></Box>
-      ) : (
-      <Box role="tabpanel" sx={{ width: "100%" }}>
-      {selectedIds.size > 0 && (
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            gap: 1.5,
-            mb: 1.5,
-            px: 1,
-            py: 1,
-            borderRadius: "8px",
-            bgcolor: "action.selected",
-          }}
-        >
-          <Typography sx={{ fontSize: "13px", flex: 1 }}>
-            {selectedIds.size} selected
-          </Typography>
-          <Typography
-            component="button"
-            onClick={selectedIds.size === chats.length ? handleClearSelection : handleSelectAll}
-            sx={{
-              fontSize: "12px",
-              color: "primary.main",
-              cursor: "pointer",
-              bgcolor: "transparent",
-              border: "none",
-              p: 0,
-              fontFamily: "inherit",
-              "&:hover": { textDecoration: "underline" },
-            }}
-          >
-            {selectedIds.size === chats.length ? "Deselect all" : "Select all"}
-          </Typography>
-          <IconButton
-            size="small"
-            aria-label="Delete selected conversations"
-            onClick={handleBatchDelete}
-            sx={{ color: "error.main", p: 0.5 }}
-          >
-            <Trash2 size={16} />
-          </IconButton>
-          <IconButton
-            size="small"
-            aria-label="Clear selection"
-            onClick={handleClearSelection}
-            sx={{ color: "text.secondary", p: 0.5 }}
-          >
-            <X size={16} />
-          </IconButton>
-        </Box>
-      )}
-      {chats.length === 0 ? (
-        <Box sx={{ textAlign: "center", pt: 9 }}>
-          <MessageSquare size={32} style={{ opacity: 0.3, marginBottom: 12 }} />
-          <Typography sx={{ fontSize: "13px", color: "text.primary" }}>Start a chat in this folder</Typography>
-          <Typography sx={{ fontSize: "12px", mt: 0.5, color: "text.secondary" }}>New conversations will stay grouped in {folder.name}.</Typography>
-        </Box>
-      ) : (
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
-          {chats.map((chat) => (
-            <ConversationItem
-              key={chat.id}
-              conv={chat}
-              activeConversationId={activeConversationId}
-              isGenerating={streamingConversationId === chat.id}
-              onClick={() => setActiveConversationId(chat.id)}
-              variant="folder"
-              selected={selectedIds.has(chat.id)}
-              onToggleSelect={toggleSelect}
-              editingId={editingId}
-              editValue={editValue}
-              setEditValue={setEditValue}
-              handleConfirmRename={handleConfirmRename}
-              handleCancelRename={handleCancelRename}
-              handleStartRename={handleStartRename}
-              handleArchive={handleArchive}
-              handleStartDelete={handleStartDelete}
-              onExport={handleExport}
-            />
-          ))}
-        </Box>
-      )}
 
-      <DeleteConversationDialog
-        open={isDeleteDialogOpen}
-        onOpenChange={setIsDeleteDialogOpen}
-        onConfirm={handleConfirmDelete}
-        title={deleteTitle}
-      />
-      <DeleteConversationDialog
-        open={isBatchDeleteDialogOpen}
-        onOpenChange={setIsBatchDeleteDialogOpen}
-        onConfirm={handleConfirmBatchDelete}
-        count={selectedIds.size}
-      />
-      </Box>
-      )}
-      </Box>
+      <Tabs defaultValue="chats" className="w-full">
+        <TabsList>
+          <TabsTrigger value="chats">Chats</TabsTrigger>
+          <TabsTrigger value="sources">Sources</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="sources">
+          <FolderSources folder={folder} />
+        </TabsContent>
+
+        <TabsContent value="chats">
+          {selectedIds.size > 0 && (
+            <Box>
+              <Typography>
+                {selectedIds.size} selected
+              </Typography>
+              <Typography
+                as="button"
+                onClick={selectedIds.size === chats.length ? handleClearSelection : handleSelectAll}
+              >
+                {selectedIds.size === chats.length ? "Deselect all" : "Select all"}
+              </Typography>
+              <IconButton
+                size="small"
+                aria-label="Delete selected conversations"
+                onClick={handleBatchDelete}
+              >
+                <Trash2 size={16} />
+              </IconButton>
+              <IconButton
+                size="small"
+                aria-label="Clear selection"
+                onClick={handleClearSelection}
+              >
+                <X size={16} />
+              </IconButton>
+            </Box>
+          )}
+
+          {chats.length === 0 ? (
+            <Box className="flex flex-col items-center text-center">
+              <MessageSquare size={32} style={{ opacity: 0.3, marginBottom: 12 }} />
+              <Typography>Start a chat in this folder</Typography>
+              <Typography>New conversations will stay grouped in {folder.name}.</Typography>
+            </Box>
+          ) : (
+            <Box>
+              {chats.map((chat) => (
+                <ConversationItem
+                  key={chat.id}
+                  conv={chat}
+                  activeConversationId={activeConversationId}
+                  isGenerating={streamingConversationId === chat.id}
+                  onClick={() => setActiveConversationId(chat.id)}
+                  variant="folder"
+                  selected={selectedIds.has(chat.id)}
+                  onToggleSelect={toggleSelect}
+                  editingId={editingId}
+                  editValue={editValue}
+                  setEditValue={setEditValue}
+                  handleConfirmRename={handleConfirmRename}
+                  handleCancelRename={handleCancelRename}
+                  handleStartRename={handleStartRename}
+                  handleArchive={handleArchive}
+                  handleStartDelete={handleStartDelete}
+                  onExport={handleExport}
+                />
+              ))}
+            </Box>
+          )}
+
+          <DeleteConversationDialog
+            open={isDeleteDialogOpen}
+            onOpenChange={setIsDeleteDialogOpen}
+            onConfirm={handleConfirmDelete}
+            title={deleteTitle}
+          />
+          <DeleteConversationDialog
+            open={isBatchDeleteDialogOpen}
+            onOpenChange={setIsBatchDeleteDialogOpen}
+            onConfirm={handleConfirmBatchDelete}
+            count={selectedIds.size}
+          />
+        </TabsContent>
+      </Tabs>
     </Box>
   );
 }

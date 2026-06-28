@@ -1,25 +1,24 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
-import Chip from "@mui/material/Chip";
-import Dialog from "@mui/material/Dialog";
-import DialogActions from "@mui/material/DialogActions";
-import DialogContent from "@mui/material/DialogContent";
-import DialogTitle from "@mui/material/DialogTitle";
-import Divider from "@mui/material/Divider";
-import FormControl from "@mui/material/FormControl";
-import InputLabel from "@mui/material/InputLabel";
-import MenuItem from "@mui/material/MenuItem";
-import Select from "@mui/material/Select";
-import Slider from "@mui/material/Slider";
-import Stack from "@mui/material/Stack";
-import Switch from "@mui/material/Switch";
-import TextField from "@mui/material/TextField";
-import Typography from "@mui/material/Typography";
-import type { SelectChangeEvent } from "@mui/material/Select";
+import { Box } from "@/components/ui/Box";
+import { Button } from "@/components/ui/button";
+import { Chip } from "@/components/ui/chip";
+import { Dialog } from "@/components/ui/dialog-panel";
+import { DialogActions } from "@/components/ui/dialog-panel";
+import { DialogContent } from "@/components/ui/dialog-panel";
+import { DialogTitle } from "@/components/ui/dialog-panel";
+import { Divider } from "@/components/ui/divider";
+import { FormControl } from "@/components/ui/native-select";
+import { InputLabel } from "@/components/ui/native-select";
+import { MenuItem } from "@/components/ui/native-select";
+import { Select } from "@/components/ui/native-select";
+import { Slider } from "@/components/ui/slider";
+import { Stack } from "@/components/ui/Stack";
+import { Switch } from "@/components/ui/switch";
+import { TextField } from "@/components/ui/text-field";
+import { Typography } from "@/components/ui/Typography";
+import type { SelectChangeEvent } from "@/components/ui/native-select";
 import { RefreshCcw, Search, Trash2 } from "lucide-react";
-import { appTextFieldSx } from "@/components/ui/appDialog";
-import { EmptyState, SectionHeader, SettingCard, selectSx } from "@/features/settings/SettingComponents";
+import { EmptyState, SectionHeader, SettingCard } from "@/features/settings/SettingComponents";
 import { useNotify } from "@/hooks/useNotify";
 import { getCurrentProviderAccountId } from "@/features/providers";
 import {
@@ -234,8 +233,8 @@ export function MemoryTab() {
         title="Memory provider"
         description="Native local storage is active. Mem0 adapter lands in next phase."
         action={
-          <FormControl size="small" sx={{ minWidth: 128 }}>
-            <Select value={settingsReady.provider} onChange={(event) => saveSettings({ provider: event.target.value, locality: event.target.value === "disabled" ? "local" : "remote" })} sx={selectSx}>
+          <FormControl size="small">
+            <Select value={settingsReady.provider} onChange={(event) => saveSettings({ provider: event.target.value, locality: event.target.value === "disabled" ? "local" : "remote" })}>
               <MenuItem value="disabled">Disabled</MenuItem>
               <MenuItem value="mem0" disabled>Mem0</MenuItem>
             </Select>
@@ -286,13 +285,13 @@ export function MemoryTab() {
         description={`${activeCount} active shown. Superseded memories appear when inactive records are enabled.`}
         action={
           <Stack direction="row" spacing={1}>
-            <Button size="small" startIcon={<RefreshCcw size={14} />} onClick={loadRecords} sx={{ textTransform: "none" }}>Refresh</Button>
-            <Button size="small" onClick={testConnection} sx={{ textTransform: "none" }}>Test</Button>
+            <Button size="small" startIcon={<RefreshCcw size={14} />} onClick={loadRecords}>Refresh</Button>
+            <Button size="small" onClick={testConnection}>Test</Button>
           </Stack>
         }
       />
-      <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ py: 1 }}>
-        <TextField value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search memories" size="small" fullWidth sx={appTextFieldSx} InputProps={{ startAdornment: <Search size={14} /> }} />
+      <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+        <TextField value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search memories" size="small" fullWidth InputProps={{ startAdornment: <Search size={14} /> }} />
         <FilterSelect label="Scope" value={scope} values={["all", ...scopes]} onChange={(value) => setScope(value as MemoryScope | "all")} />
         <FilterSelect label="Category" value={category} values={["all", ...categories]} onChange={(value) => setCategory(value as MemoryCategory | "all")} />
       </Stack>
@@ -301,16 +300,16 @@ export function MemoryTab() {
         description="Includes inactive historical values for inspection."
         action={<Switch checked={includeInactive} onChange={(e) => setIncludeInactive(e.target.checked)} />}
       />
-      <Stack spacing={1} sx={{ py: 1 }}>
+      <Stack spacing={1}>
         {loading ? <EmptyState>Loading memories...</EmptyState> : records.length === 0 ? <EmptyState>No memories found.</EmptyState> : records.map((record) => (
           <MemoryRow key={record.id} record={record} onEdit={setEditing} onDelete={removeMemory} />
         ))}
       </Stack>
-      <Stack direction="row" spacing={1} sx={{ pt: 1 }}>
-        <Button size="small" color="error" variant="outlined" disabled={scope === "all"} onClick={clearCurrentScope} startIcon={<Trash2 size={14} />} sx={{ textTransform: "none" }}>
+      <Stack direction="row" spacing={1}>
+        <Button size="small" color="error" variant="outlined" disabled={scope === "all"} onClick={clearCurrentScope} startIcon={<Trash2 size={14} />}>
           Clear scope
         </Button>
-        <Button size="small" color="error" variant="text" onClick={clearAll} sx={{ textTransform: "none" }}>
+        <Button size="small" color="error" variant="text" onClick={clearAll}>
           Clear all
         </Button>
       </Stack>
@@ -323,9 +322,9 @@ export function MemoryTab() {
 
 function FilterSelect({ label, value, values, onChange }: { label: string; value: string; values: string[]; onChange: (value: string) => void }) {
   return (
-    <FormControl size="small" sx={{ minWidth: 128 }}>
+    <FormControl size="small">
       <InputLabel>{label}</InputLabel>
-      <Select label={label} value={value} onChange={(event: SelectChangeEvent) => onChange(event.target.value)} sx={selectSx}>
+      <Select label={label} value={value} onChange={(event: SelectChangeEvent) => onChange(event.target.value)}>
         {values.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}
       </Select>
     </FormControl>
@@ -334,24 +333,24 @@ function FilterSelect({ label, value, values, onChange }: { label: string; value
 
 function MemoryRow({ record, onEdit, onDelete }: { record: MemoryRecord; onEdit: (record: MemoryRecord) => void; onDelete: (record: MemoryRecord) => void }) {
   return (
-    <Box sx={{ border: "1px solid", borderColor: "divider", borderRadius: "8px", p: 1.25 }}>
+    <Box>
       <Stack direction="row" justifyContent="space-between" spacing={1}>
-        <Box sx={{ minWidth: 0 }}>
-          <Typography sx={{ fontSize: 13, fontWeight: 700, color: record.isActive ? "text.primary" : "text.secondary" }}>{record.summary}</Typography>
-          <Typography sx={{ fontSize: 12, color: "text.secondary", mt: 0.25 }}>{record.canonicalKey ?? "uncategorized"} · {record.scope} · {record.category}</Typography>
+        <Box>
+          <Typography>{record.summary}</Typography>
+          <Typography>{record.canonicalKey ?? "uncategorized"} · {record.scope} · {record.category}</Typography>
         </Box>
         <Stack direction="row" spacing={0.5}>
-          <Button size="small" onClick={() => onEdit(record)} sx={{ textTransform: "none" }}>Edit</Button>
-          <Button size="small" color="error" onClick={() => onDelete(record)} sx={{ textTransform: "none" }}>Delete</Button>
+          <Button size="small" onClick={() => onEdit(record)}>Edit</Button>
+          <Button size="small" color="error" onClick={() => onDelete(record)}>Delete</Button>
         </Stack>
       </Stack>
-      <Divider sx={{ my: 1 }} />
-      <Typography component="pre" sx={{ m: 0, fontSize: 12, color: "text.secondary", whiteSpace: "pre-wrap", wordBreak: "break-word", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>
+      <Divider />
+      <Typography as="pre">
         {formatValue(record.value)}
       </Typography>
       <details>
         <summary style={{ cursor: "pointer", fontSize: 12, marginTop: 8 }}>Metadata</summary>
-        <Typography sx={{ mt: 0.75, fontSize: 11, color: "text.secondary", wordBreak: "break-word" }}>
+        <Typography>
           confidence {record.confidence.toFixed(2)} · importance {record.importance.toFixed(2)} · sync {record.syncStatus}
           <br />
           source {record.sourceChatId ?? "none"} · created {new Date(record.createdAt).toLocaleString()} · updated {new Date(record.updatedAt).toLocaleString()}
@@ -393,14 +392,14 @@ function EditMemoryDialog({ record, ownerId, onClose, onSaved }: { record: Memor
     <Dialog open={Boolean(record)} onClose={onClose} fullWidth maxWidth="sm">
       <DialogTitle>Edit memory</DialogTitle>
       <DialogContent>
-        <Stack spacing={2} sx={{ pt: 1 }}>
-          <TextField label="Summary" value={summary} onChange={(e) => setSummary(e.target.value)} size="small" fullWidth sx={appTextFieldSx} />
-          <TextField label="Value" value={value} onChange={(e) => setValue(e.target.value)} size="small" fullWidth multiline minRows={5} sx={appTextFieldSx} />
+        <Stack spacing={2}>
+          <TextField label="Summary" value={summary} onChange={(e) => setSummary(e.target.value)} size="small" fullWidth />
+          <TextField label="Value" value={value} onChange={(e) => setValue(e.target.value)} size="small" fullWidth multiline minRows={5} />
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} sx={{ textTransform: "none" }}>Cancel</Button>
-        <Button onClick={save} disabled={saving || !summary.trim()} variant="contained" disableElevation sx={{ textTransform: "none" }}>Save</Button>
+        <Button onClick={onClose}>Cancel</Button>
+        <Button onClick={save} disabled={saving || !summary.trim()} variant="contained" disableElevation>Save</Button>
       </DialogActions>
     </Dialog>
   );
@@ -424,10 +423,10 @@ function ConfirmDialog({ confirm, onClose }: { confirm: null | { title: string; 
   return (
     <Dialog open={Boolean(confirm)} onClose={onClose} fullWidth maxWidth="xs">
       <DialogTitle>{confirm?.title}</DialogTitle>
-      <DialogContent><Typography sx={{ fontSize: 13, color: "text.secondary" }}>{confirm?.body}</Typography></DialogContent>
+      <DialogContent><Typography>{confirm?.body}</Typography></DialogContent>
       <DialogActions>
-        <Button onClick={onClose} sx={{ textTransform: "none" }}>Cancel</Button>
-        <Button color="error" variant="contained" disabled={running} onClick={run} disableElevation sx={{ textTransform: "none" }}>Confirm</Button>
+        <Button onClick={onClose}>Cancel</Button>
+        <Button color="error" variant="contained" disabled={running} onClick={run} disableElevation>Confirm</Button>
       </DialogActions>
     </Dialog>
   );

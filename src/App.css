@@ -1,28 +1,258 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/jetbrains-mono";
+
+@custom-variant dark (&:is(.dark *));
+
 :root {
     --titlebar-height: 0px;
     --z-titlebar: 10000;
-    --z-modal: 9000;
-    --z-popover: 8000;
-    --z-toast: 9999;
-    --background: var(--mui-palette-background-sidebar, #f3f3f3);
-    --border: var(--mui-palette-divider, rgba(0, 0, 0, 0.05));
-    --app-scrollbar-thumb: var(--mui-palette-action-selected);
-    --app-scrollbar-thumb-hover: var(--mui-palette-action-hover);
-    --app-drop-bg: color-mix(in srgb, var(--mui-palette-info-main) 8%, transparent);
-    --app-drop-border: color-mix(in srgb, var(--mui-palette-info-main) 90%, transparent);
-    --app-drop-ring: color-mix(in srgb, var(--mui-palette-info-main) 10%, transparent);
-    --app-drop-label-bg: color-mix(in srgb, var(--mui-palette-info-main) 12%, transparent);
-    --app-drop-label-border: color-mix(in srgb, var(--mui-palette-info-main) 24%, transparent);
+    --z-dropdown: calc(var(--z-titlebar) + 10);
+    --z-popover: calc(var(--z-titlebar) + 20);
+    --z-tooltip: calc(var(--z-titlebar) + 30);
+    --z-modal: calc(var(--z-titlebar) + 40);
+    --z-toast: calc(var(--z-titlebar) + 50);
+    --background: oklch(1 0 0);
+    --foreground: oklch(0.148 0.004 228.8);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.148 0.004 228.8);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.148 0.004 228.8);
+    --primary: oklch(0.218 0.008 223.9);
+    --primary-foreground: oklch(0.985 0 0);
+    --secondary: oklch(0.97 0 0);
+    --secondary-foreground: oklch(0.205 0 0);
+    --muted: oklch(0.97 0 0);
+    --muted-foreground: oklch(0.556 0 0);
+    --accent: oklch(0.97 0 0);
+    --accent-foreground: oklch(0.205 0 0);
+    --destructive: oklch(0.577 0.245 27.325);
+    --destructive-foreground: oklch(1 0 0);
+    --border: oklch(0.925 0.005 214.3);
+    --input: oklch(0.925 0.005 214.3);
+    --ring: oklch(0.723 0.014 214.4);
+    --sidebar: oklch(0.985 0 0);
+    --sidebar-foreground: oklch(0.148 0.004 228.8);
+    --chat-panel: oklch(0.97 0.002 197.1);
+    --chat-bubble: oklch(0.963 0.002 197.1);
+    --chat-bubble-user: oklch(0.97 0.002 197.1);
+    --success: oklch(0.72 0.18 149);
+    --success-soft: oklch(0.72 0.18 149 / 10%);
+    --error: oklch(0.637 0.237 25.331);
+    --error-soft: oklch(0.637 0.237 25.331 / 10%);
+    --info: oklch(0.58 0.15 240);
+    --info-soft: oklch(0.58 0.15 240 / 10%);
+    --warning: oklch(0.68 0.16 58);
+    --warning-soft: oklch(0.68 0.16 58 / 10%);
+    --radius: 0.625rem;
+    --radius-sm: calc(var(--radius) * 0.6);
+    --radius-md: calc(var(--radius) * 0.8);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) * 1.4);
+    --radius-2xl: calc(var(--radius) * 1.8);
+    --radius-3xl: calc(var(--radius) * 2.2);
+    --radius-4xl: calc(var(--radius) * 2.6);
+    --dur-fast: 160ms;
+    --dur-base: 240ms;
+    --dur-slow: 320ms;
+    --ease-premium: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-soft: cubic-bezier(0.4, 0, 0.2, 1);
+    --app-zoom: 1;
+    --app-scrollbar-thumb: oklch(0 0 0 / 10%);
+    --app-scrollbar-thumb-hover: oklch(0 0 0 / 20%);
+    --app-drop-bg: color-mix(in oklch, var(--info) 8%, transparent);
+    --app-drop-border: color-mix(in oklch, var(--info) 90%, transparent);
+    --app-drop-ring: color-mix(in oklch, var(--info) 10%, transparent);
+    --app-drop-label-bg: color-mix(in oklch, var(--info) 12%, transparent);
+    --app-drop-label-border: color-mix(in oklch, var(--info) 24%, transparent);
+    --tok-keyword: oklch(0.45 0.15 270);
+    --tok-string: oklch(0.48 0.13 150);
+    --tok-comment: oklch(0.55 0.02 250);
+    --tok-function: oklch(0.32 0.05 250);
+    --tok-number: oklch(0.52 0.14 50);
+    --tok-type: oklch(0.55 0.13 200);
+    --tok-property: oklch(0.52 0.16 25);
+    --tok-operator: oklch(0.55 0.02 250);
+    --tok-punctuation: oklch(0.55 0.02 250);
+    --tok-variable: oklch(0.18 0.02 230);
+    --tok-constant: oklch(0.52 0.14 50);
+    --tok-class: var(--tok-type);
+    --tok-identifier: var(--tok-variable);
+    --tok-sign: var(--tok-punctuation);
+    --tok-jsxliterals: oklch(0.52 0.14 70);
+    --tok-entity: var(--tok-function);
+    --sh-keyword: var(--tok-keyword);
+    --sh-class: var(--tok-class);
+    --sh-identifier: var(--tok-identifier);
+    --sh-string: var(--tok-string);
+    --sh-comment: var(--tok-comment);
+    --sh-sign: var(--tok-sign);
+    --sh-jsxliterals: var(--tok-jsxliterals);
+    --sh-entity: var(--tok-entity);
+    --sh-property: var(--tok-property);
+    --chart-1: oklch(0.87 0 0);
+    --chart-2: oklch(0.556 0 0);
+    --chart-3: oklch(0.439 0 0);
+    --chart-4: oklch(0.371 0 0);
+    --chart-5: oklch(0.269 0 0);
+    --sidebar-primary: oklch(0.205 0 0);
+    --sidebar-primary-foreground: oklch(0.985 0 0);
+    --sidebar-accent: oklch(0.97 0 0);
+    --sidebar-accent-foreground: oklch(0.205 0 0);
+    --sidebar-border: oklch(0.922 0 0);
+    --sidebar-ring: oklch(0.708 0 0);
 }
 
-:root.dark {
-    --background: var(--mui-palette-background-sidebar, #121212);
-    --border: var(--mui-palette-divider, rgba(255, 255, 255, 0.05));
+.dark {
+    --background: oklch(0.145 0 0);
+    --foreground: oklch(0.987 0.002 197.1);
+    --card: oklch(0.205 0 0);
+    --card-foreground: oklch(0.985 0 0);
+    --popover: oklch(0.205 0 0);
+    --popover-foreground: oklch(0.985 0 0);
+    --primary: oklch(0.922 0 0);
+    --primary-foreground: oklch(0.205 0 0);
+    --secondary: oklch(0.269 0 0);
+    --secondary-foreground: oklch(0.985 0 0);
+    --muted: oklch(0.269 0 0);
+    --muted-foreground: oklch(0.708 0 0);
+    --accent: oklch(0.269 0 0);
+    --accent-foreground: oklch(0.985 0 0);
+    --destructive: oklch(0.704 0.191 22.216);
+    --destructive-foreground: oklch(0 0 0);
+    --border: oklch(1 0 0 / 10%);
+    --input: oklch(1 0 0 / 15%);
+    --ring: oklch(0.556 0 0);
+    --sidebar: oklch(0.205 0 0);
+    --sidebar-foreground: oklch(0.985 0 0);
+    --chat-panel: oklch(0.17 0.004 228.8);
+    --chat-bubble: oklch(0.24 0.006 228.8);
+    --chat-bubble-user: oklch(0.21 0.006 228.8);
+    --success: oklch(0.82 0.12 145);
+    --success-soft: oklch(0.82 0.12 145 / 10%);
+    --error: oklch(0.72 0.18 25);
+    --error-soft: oklch(0.72 0.18 25 / 10%);
+    --info: oklch(0.74 0.12 240);
+    --info-soft: oklch(0.74 0.12 240 / 10%);
+    --warning: oklch(0.84 0.15 82);
+    --warning-soft: oklch(0.84 0.15 82 / 10%);
+    --app-scrollbar-thumb: oklch(1 0 0 / 14%);
+    --app-scrollbar-thumb-hover: oklch(1 0 0 / 24%);
+    --tok-keyword: oklch(0.78 0.13 305);
+    --tok-string: oklch(0.82 0.12 145);
+    --tok-comment: oklch(0.6 0.02 250);
+    --tok-function: oklch(0.74 0.12 240);
+    --tok-number: oklch(0.84 0.15 82);
+    --tok-type: oklch(0.74 0.12 240);
+    --tok-property: oklch(0.72 0.18 25);
+    --tok-operator: oklch(0.68 0.02 250);
+    --tok-punctuation: oklch(0.68 0.02 250);
+    --tok-variable: oklch(0.92 0.003 197.1);
+    --tok-constant: oklch(0.84 0.15 82);
+    --tok-jsxliterals: oklch(0.84 0.15 82);
+    --chart-1: oklch(0.87 0 0);
+    --chart-2: oklch(0.556 0 0);
+    --chart-3: oklch(0.439 0 0);
+    --chart-4: oklch(0.371 0 0);
+    --chart-5: oklch(0.269 0 0);
+    --sidebar-primary: oklch(0.488 0.243 264.376);
+    --sidebar-primary-foreground: oklch(0.985 0 0);
+    --sidebar-accent: oklch(0.269 0 0);
+    --sidebar-accent-foreground: oklch(0.985 0 0);
+    --sidebar-border: oklch(1 0 0 / 10%);
+    --sidebar-ring: oklch(0.556 0 0);
+}
+
+@theme inline {
+    --color-background: var(--background);
+    --color-foreground: var(--foreground);
+    --color-card: var(--card);
+    --color-card-foreground: var(--card-foreground);
+    --color-popover: var(--popover);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-primary: var(--primary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-secondary: var(--secondary);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-muted: var(--muted);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-accent: var(--accent);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-destructive: var(--destructive);
+    --color-destructive-foreground: var(--destructive-foreground);
+    --color-border: var(--border);
+    --color-input: var(--input);
+    --color-ring: var(--ring);
+    --color-sidebar: var(--sidebar);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-chat-panel: var(--chat-panel);
+    --color-chat-bubble: var(--chat-bubble);
+    --color-chat-bubble-user: var(--chat-bubble-user);
+    --color-success: var(--success);
+    --color-success-soft: var(--success-soft);
+    --color-error: var(--error);
+    --color-error-soft: var(--error-soft);
+    --color-info: var(--info);
+    --color-info-soft: var(--info-soft);
+    --color-warning: var(--warning);
+    --color-warning-soft: var(--warning-soft);
+    --color-tok-keyword: var(--tok-keyword);
+    --color-tok-string: var(--tok-string);
+    --color-tok-comment: var(--tok-comment);
+    --color-tok-function: var(--tok-function);
+    --color-tok-number: var(--tok-number);
+    --color-tok-type: var(--tok-type);
+    --color-tok-property: var(--tok-property);
+    --color-tok-operator: var(--tok-operator);
+    --color-tok-punctuation: var(--tok-punctuation);
+    --color-tok-variable: var(--tok-variable);
+    --color-tok-constant: var(--tok-constant);
+    --radius-sm: var(--radius-sm);
+    --radius-md: var(--radius-md);
+    --radius-lg: var(--radius-lg);
+    --radius-xl: var(--radius-xl);
+    --font-heading: 'Inter Variable', sans-serif;
+    --font-sans: 'Geist Variable', sans-serif;
+    --font-mono: 'JetBrains Mono Variable', monospace;
+    --color-sidebar-ring: var(--sidebar-ring);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-chart-5: var(--chart-5);
+    --color-chart-4: var(--chart-4);
+    --color-chart-3: var(--chart-3);
+    --color-chart-2: var(--chart-2);
+    --color-chart-1: var(--chart-1);
+    --radius-2xl: var(--radius-2xl);
+    --radius-3xl: var(--radius-3xl);
+    --radius-4xl: var(--radius-4xl);
+}
+
+html.reduce-motion {
+    --dur-fast: 0.01ms;
+    --dur-base: 0.01ms;
+    --dur-slow: 0.01ms;
 }
 
 body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: "Geist Variable", "Inter", system-ui, sans-serif;
     user-select: none;
     -webkit-user-select: none;
+}
+
+.zoom-content {
+    zoom: var(--app-zoom);
+}
+
+.zoom-exempt {
+    zoom: calc(1 / var(--app-zoom));
 }
 
 .app-root-shell {
@@ -74,28 +304,28 @@ body {
 
 .startup-error-message,
 .error-boundary-message {
-    color: var(--mui-palette-text-secondary);
+    color: var(--muted-foreground);
     font-size: 14px;
     margin: 0;
 }
 
 .startup-error-log {
-    color: var(--mui-palette-text-disabled);
+    color: color-mix(in oklch, var(--foreground) 45%, transparent);
     font-size: 13px;
     margin: 12px 0 0;
 }
 
 .startup-error-button,
 .error-boundary-button {
-    background: var(--mui-palette-action-hover);
-    border: 1px solid var(--mui-palette-divider);
+    background: var(--accent);
+    border: 1px solid var(--border);
     color: inherit;
     cursor: pointer;
     font-size: 14px;
 }
 
 .startup-error-button {
-    border-radius: var(--mui-shape-borderRadius);
+    border-radius: var(--radius);
     margin-top: 18px;
     padding: 8px 14px;
 }
@@ -114,7 +344,7 @@ body {
 
 .settings-sql-result-table th,
 .settings-sql-result-table td {
-    border-bottom: 1px solid var(--mui-palette-divider);
+    border-bottom: 1px solid var(--border);
     padding: 4px 8px;
     text-align: left;
 }
@@ -146,17 +376,13 @@ html.reduce-transparency,
 html.reduce-transparency body,
 html.reduce-transparency[data-chrome="borderless"],
 html.reduce-transparency[data-chrome="borderless"] body {
-    background: var(--background, #f3f3f3) !important;
+    background: var(--background) !important;
 }
 
 html[data-chrome="borderless"] #root {
-    border-radius: 12px;
     overflow: hidden;
-    border: 1px solid var(--border, var(--mui-palette-divider, rgba(0, 0, 0, 0.05)));
-    background: var(
-        --background,
-        var(--mui-palette-background-sidebar, #f3f3f3)
-    );
+    border: 1px solid var(--border);
+    background: var(--background);
 }
 
 html.reduce-transparency[data-chrome="borderless"] #root {
@@ -168,22 +394,24 @@ html[data-chrome="borderless"].maximized #root {
     border: none;
 }
 
-/* CSS reset for native button elements */
-button:where(:not(.MuiButtonBase-root)) {
-    all: unset;
-    box-sizing: border-box;
-}
-
-button:focus-visible,
-[role="button"]:focus-visible {
-    outline: 2px solid var(--mui-palette-primary-main, #3b82f6);
-    outline-offset: 2px;
-}
-
 *,
 *::before,
 *::after {
     box-sizing: border-box;
+}
+
+html,
+html *,
+html *::before,
+html *::after {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+html *::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
 }
 
 /* Mobile touch scrolling improvements */
@@ -200,28 +428,9 @@ button:focus-visible,
     }
 }
 
-/* Custom Scrollbar */
-::-webkit-scrollbar {
-    width: 5px;
-    height: 5px;
-}
-
-::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-    background: var(--app-scrollbar-thumb);
-    border-radius: 9999px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-    background: var(--app-scrollbar-thumb-hover);
-}
-
 /* Inline code fallback when MUI components aren't available */
 code {
-    font-family: monospace;
+    font-family: "JetBrains Mono Variable", monospace;
     font-size: 0.9em;
 }
 
@@ -258,10 +467,10 @@ code {
 
 .chat-file-drop-target {
     transition:
-        border-color 160ms ease,
-        box-shadow 160ms ease,
-        background-color 160ms ease,
-        opacity 160ms ease;
+        border-color var(--dur-fast) var(--ease-soft),
+        box-shadow var(--dur-fast) var(--ease-soft),
+        background-color var(--dur-fast) var(--ease-soft),
+        opacity var(--dur-fast) var(--ease-soft);
 }
 
 .chat-file-drop-target--active {
@@ -280,7 +489,7 @@ code {
     border: 1px solid var(--app-drop-label-border);
     border-radius: 9999px;
     background: var(--app-drop-label-bg);
-    color: var(--mui-palette-info-main);
+    color: var(--info);
     font-size: 12px;
     font-weight: 700;
     line-height: 1;
@@ -288,8 +497,8 @@ code {
     padding: 6px 9px;
     transform: translateY(-2px);
     transition:
-        opacity 140ms ease,
-        transform 140ms ease;
+        opacity var(--dur-fast) var(--ease-soft),
+        transform var(--dur-fast) var(--ease-soft);
 }
 
 .chat-file-drop-target--active .chat-file-drop-label {
@@ -308,7 +517,7 @@ code {
 }
 
 .animate-spin {
-    animation: spin 0.9s linear infinite;
+    animation: spin var(--dur-slow) linear infinite;
 }
 
 /* Conversation actions in sidebar */
@@ -327,11 +536,8 @@ code {
     }
 }
 
-/* ── Animation Utilities ── */
-
-/* Toast entrance — slide up + fade */
 .animate-toast-in {
-    animation: toast-in 0.18s ease-out forwards;
+    animation: toast-in var(--dur-fast) var(--ease-premium) forwards;
 }
 
 @keyframes toast-in {
@@ -347,7 +553,7 @@ code {
 
 /* Fade in */
 .animate-fade-in {
-    animation: fade-in 0.24s ease-out forwards;
+    animation: fade-in var(--dur-base) var(--ease-premium) forwards;
 }
 
 @keyframes fade-in {
@@ -361,7 +567,7 @@ code {
 
 /* Slide in from left */
 .animate-slide-in {
-    animation: slide-in 0.18s ease-out forwards;
+    animation: slide-in var(--dur-fast) var(--ease-premium) forwards;
 }
 
 @keyframes slide-in {
@@ -377,7 +583,18 @@ code {
 
 /* Popover entrance */
 .animate-popover {
-    animation: popover-in 0.12s ease-out forwards;
+    animation: popover-in var(--dur-fast) var(--ease-premium) forwards;
+}
+
+@keyframes app-dialog-fade {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 @keyframes popover-in {
@@ -393,7 +610,7 @@ code {
 
 /* Thinking pulse — subtle opacity oscillation */
 .animate-thinking {
-    animation: thinking-pulse 1.5s ease-in-out infinite;
+    animation: thinking-pulse var(--dur-slow) var(--ease-soft) infinite;
 }
 
 @keyframes thinking-pulse {
@@ -406,19 +623,117 @@ code {
     }
 }
 
-/* Shimmer sweep — used by text-shimmer */
-@keyframes shimmer-sweep {
+@keyframes terax-shimmer {
     from {
-        background-position: 200% center;
+        background-position: 100% center;
     }
     to {
-        background-position: -200% center;
+        background-position: 0% center;
     }
+}
+
+.terax-shimmer {
+    background-repeat: no-repeat, padding-box;
+    background-size: 250% 100%, auto;
+    background-image:
+        linear-gradient(
+            90deg,
+            transparent calc(50% - var(--shimmer-spread, 20%)),
+            var(--color-background),
+            transparent calc(50% + var(--shimmer-spread, 20%))
+        ),
+        linear-gradient(
+            var(--color-muted-foreground),
+            var(--color-muted-foreground)
+        );
+    animation: terax-shimmer var(--shimmer-duration, 2s) linear infinite;
+}
+
+.terax-reveal {
+    display: grid;
+    grid-template-rows: 0fr;
+    opacity: 0;
+    transition:
+        grid-template-rows var(--dur-base) var(--ease-premium),
+        opacity var(--dur-base) var(--ease-premium);
+}
+
+.terax-reveal[data-state="open"] {
+    grid-template-rows: 1fr;
+    opacity: 1;
+}
+
+.terax-reveal > * {
+    min-height: 0;
+    overflow: hidden;
+}
+
+.terax-bg-surface {
+    background: var(--background);
+}
+
+html[data-chrome="borderless"] .terax-bg-surface {
+    border-radius: inherit;
+}
+
+.hljs-keyword,
+.tok-keyword,
+.sh__token--keyword {
+    color: var(--tok-keyword);
+}
+
+.hljs-string,
+.tok-string,
+.sh__token--string {
+    color: var(--tok-string);
+}
+
+.hljs-comment,
+.tok-comment,
+.sh__token--comment {
+    color: var(--tok-comment);
+}
+
+.hljs-function,
+.tok-function,
+.sh__token--entity {
+    color: var(--tok-function);
+}
+
+.hljs-number,
+.tok-number {
+    color: var(--tok-number);
+}
+
+.hljs-type,
+.tok-type,
+.sh__token--class {
+    color: var(--tok-type);
+}
+
+.hljs-property,
+.tok-property,
+.sh__token--property {
+    color: var(--tok-property);
+}
+
+.tok-operator {
+    color: var(--tok-operator);
+}
+
+.tok-punctuation,
+.sh__token--sign {
+    color: var(--tok-punctuation);
+}
+
+.tok-variable,
+.sh__token--identifier {
+    color: var(--tok-variable);
 }
 
 /* Pulse for skeletons */
 .animate-pulse {
-    animation: pulse 1.5s ease-in-out infinite;
+    animation: pulse var(--dur-slow) var(--ease-soft) infinite;
 }
 
 @keyframes pulse {
@@ -432,22 +747,43 @@ code {
 }
 
 
-@media (prefers-reduced-motion: reduce) {
-  .animate-fade-in,
-  .animate-slide-in,
-  .animate-popover,
-  .animate-toast-in,
-  .animate-thinking,
-  .animate-pulse {
-    animation: none !important;
-  }
-}
-
 html.reduce-motion .animate-fade-in,
 html.reduce-motion .animate-slide-in,
 html.reduce-motion .animate-popover,
 html.reduce-motion .animate-toast-in,
+html.reduce-motion .animate-spin,
 html.reduce-motion .animate-thinking,
-html.reduce-motion .animate-pulse {
+html.reduce-motion .animate-pulse,
+html.reduce-motion .terax-shimmer,
+html.reduce-motion .animate-in,
+html.reduce-motion .animate-out,
+html.reduce-motion .fade-in-0,
+html.reduce-motion .fade-out-0,
+html.reduce-motion .zoom-in-95,
+html.reduce-motion .zoom-out-95,
+html.reduce-motion [class*="slide-in-from-"],
+html.reduce-motion [class*="slide-out-to-"] {
   animation: none !important;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+    }
+  body {
+    @apply bg-background text-foreground;
+    }
+  button:not(:disabled), [role="button"]:not(:disabled) {
+    cursor: pointer;
+    }
+  button:focus-visible,
+  [role="button"]:focus-visible,
+  a:focus-visible {
+    border-color: var(--ring);
+    box-shadow: 0 0 0 3px color-mix(in oklch, var(--ring) 30%, transparent);
+    outline: none;
+    }
+  html {
+    @apply font-sans;
+    }
 }

@@ -1,36 +1,24 @@
-import * as React from "react";
-import FormLabel from "@mui/material/FormLabel";
-import { SxProps } from "@mui/material/styles";
-import { Theme } from "@mui/material/styles";
+"use client"
 
-const Label = React.forwardRef<
-  HTMLLabelElement,
-  Omit<React.ComponentPropsWithoutRef<"label">, 'color'> & { sx?: SxProps<Theme> }
->(({ className, children, sx, ...props }, ref) => (
-  <FormLabel
-    ref={ref}
-    component="label"
-    className={className}
-    sx={{
-      display: "flex",
-      alignItems: "center",
-      gap: 1,
-      fontSize: "14px",
-      fontWeight: 500,
-      color: "text.primary",
-      mb: 0.5,
-      cursor: "pointer",
-      "&.Mui-disabled": {
-        opacity: 0.5,
-        cursor: "not-allowed",
-      },
-      ...sx as any,
-    }}
-    {...props}
-  >
-    {children}
-  </FormLabel>
-));
-Label.displayName = "Label";
+import * as React from "react"
+import { Label as LabelPrimitive } from "radix-ui"
 
-export { Label };
+import { cn } from "@/lib/utils"
+
+function Label({
+  className,
+  ...props
+}: React.ComponentProps<typeof LabelPrimitive.Root>) {
+  return (
+    <LabelPrimitive.Root
+      data-slot="label"
+      className={cn(
+        "flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+export { Label }

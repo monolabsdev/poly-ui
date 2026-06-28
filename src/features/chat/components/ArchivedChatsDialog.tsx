@@ -3,15 +3,14 @@ import {
   AppDialogBody,
   AppDialogFrame,
   AppDialogHeader,
-  appPanelSx,
 } from "@/components/ui/appDialog";
 import { useChatStore } from "@/store/chatStore";
-import Box from "@mui/material/Box";
-import IconButton from "@mui/material/IconButton";
-import InputBase from "@mui/material/InputBase";
-import Stack from "@mui/material/Stack";
-import Tooltip from "@mui/material/Tooltip";
-import Typography from "@mui/material/Typography";
+import { Box } from "@/components/ui/Box";
+import { IconButton } from "@/components/ui/icon-button";
+import { InputBase } from "@/components/ui/input-base";
+import { Stack } from "@/components/ui/Stack";
+import { TooltipLabel as Tooltip } from "@/components/ui/tooltip-label";
+import { Typography } from "@/components/ui/Typography";
 import { ArchiveRestore, MessageSquare, Search, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { DeleteConversationDialog } from "@/features/chat/components/DeleteConversationDialog";
@@ -39,7 +38,7 @@ export function ArchivedChatsDialog({
 
   return (
     <AppDialogFrame open={open} onOpenChange={onOpenChange}>
-      <Box sx={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
+      <Box className="flex h-full min-h-0 flex-col">
         <AppDialogHeader
           title="Archived Chats"
           onClose={() => onOpenChange(false)}
@@ -52,27 +51,21 @@ export function ArchivedChatsDialog({
             {archivedConversations.length === 0 ? (
               <EmptyArchivedState hasSearch={searchQuery.length > 0} />
             ) : (
-              <Stack spacing={1}>
+              <Stack spacing={0}>
                 {archivedConversations.map((conversation) => (
-                  <Box key={conversation.id} sx={chatRowSx}>
-                    <Stack direction="row" alignItems="center" spacing={1.5} sx={{ minWidth: 0, flex: 1 }}>
-                      <Box sx={chatIconSx}>
+                  <Box
+                    key={conversation.id}
+                    className="flex items-center justify-between gap-3 border-b border-border/60 p-3 transition-colors duration-[var(--dur-fast)] ease-[var(--ease-soft)] hover:bg-muted/60"
+                  >
+                    <Stack direction="row" alignItems="center" spacing={1.5}>
+                      <Box className="grid size-8 shrink-0 place-items-center rounded-lg text-muted-foreground">
                         <MessageSquare size={17} />
                       </Box>
-                      <Box sx={{ minWidth: 0, flex: 1 }}>
-                        <Typography
-                          sx={{
-                            fontSize: 14,
-                            fontWeight: 800,
-                            color: "text.primary",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
-                          }}
-                        >
+                      <Box className="min-w-0">
+                        <Typography className="truncate text-sm font-medium">
                           {conversation.title || "Untitled"}
                         </Typography>
-                        <Typography sx={{ mt: 0.35, color: "text.secondary", fontSize: 12 }}>
+                        <Typography color="muted" className="text-xs">
                           Archived on{" "}
                           {new Date(conversation.updatedAt).toLocaleDateString(undefined, {
                             month: "short",
@@ -83,7 +76,7 @@ export function ArchivedChatsDialog({
                       </Box>
                     </Stack>
 
-                    <Stack direction="row" spacing={0.5} sx={{ flexShrink: 0 }}>
+                    <Stack direction="row" spacing={0.5}>
                       <Tooltip title="Restore">
                         <IconButton
                           size="small"
@@ -92,7 +85,6 @@ export function ArchivedChatsDialog({
                             event.stopPropagation();
                             actions.unarchiveConversation(conversation.id);
                           }}
-                          sx={actionButtonSx}
                         >
                           <ArchiveRestore size={16} />
                         </IconButton>
@@ -104,10 +96,6 @@ export function ArchivedChatsDialog({
                           onClick={(event) => {
                             event.stopPropagation();
                             setDeleteTarget({ id: conversation.id, title: conversation.title || "Untitled" });
-                          }}
-                          sx={{
-                            ...actionButtonSx,
-                            "&:hover": { bgcolor: "error.main", color: "error.contrastText" },
                           }}
                         >
                           <Trash2 size={16} />
@@ -141,21 +129,12 @@ function SearchField({
   onChange: (value: string) => void;
 }) {
   return (
-    <Box sx={searchShellSx}>
+    <Box className="flex h-10 items-center gap-2 border-b border-border/60 px-3 text-muted-foreground transition-colors duration-[var(--dur-fast)] ease-[var(--ease-soft)] focus-within:border-muted-foreground">
       <Search size={17} />
       <InputBase
         placeholder="Search archived chats..."
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        sx={{
-          flex: 1,
-          fontSize: 14,
-          color: "text.primary",
-          "& .MuiInputBase-input::placeholder": {
-            color: "text.secondary",
-            opacity: 0.7,
-          },
-        }}
       />
     </Box>
   );
@@ -165,88 +144,18 @@ function EmptyArchivedState({ hasSearch }: { hasSearch: boolean }) {
   return (
     <Stack
       spacing={1.25}
-      sx={[
-        appPanelSx,
-        {
-        minHeight: 240,
-        alignItems: "center",
-        justifyContent: "center",
-        textAlign: "center",
-        },
-      ]}
+      alignItems="center"
+      className="py-16 text-center"
     >
-      <Box sx={emptyIconSx}>
+      <Box className="grid size-12 place-items-center rounded-lg text-muted-foreground">
         <ArchiveRestore size={24} />
       </Box>
-      <Typography sx={{ fontWeight: 800, color: "text.primary", fontSize: 14 }}>
+      <Typography className="font-medium">
         {hasSearch ? "No matching chats" : "No archived chats"}
       </Typography>
-      <Typography sx={{ fontSize: 12.5, color: "text.secondary" }}>
+      <Typography color="muted" className="text-sm">
         {hasSearch ? "Try a different search term" : "Your archived conversations will appear here"}
       </Typography>
     </Stack>
   );
 }
-
-const searchShellSx = {
-  display: "flex",
-  alignItems: "center",
-  gap: 1,
-  px: 1.5,
-  height: 40,
-  bgcolor: "transparent",
-  color: "text.secondary",
-  border: "none",
-  borderBottom: "1px solid",
-  borderRadius: 0,
-  borderColor: "divider",
-  transition: "border-color 160ms ease",
-  "&:focus-within": {
-    borderColor: "text.secondary",
-  },
-} as const;
-
-const chatRowSx = {
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "space-between",
-  gap: 1.5,
-  p: 1.5,
-  borderBottom: "1px solid",
-  borderColor: "divider",
-  transition: "background 100ms ease",
-  "&:hover": {
-    bgcolor: "action.hover",
-  },
-} as const;
-
-const chatIconSx = {
-  width: 32,
-  height: 32,
-  borderRadius: "8px",
-  bgcolor: "transparent",
-  color: "text.secondary",
-  display: "grid",
-  placeItems: "center",
-  flexShrink: 0,
-} as const;
-
-const emptyIconSx = {
-  width: 48,
-  height: 48,
-  borderRadius: "8px",
-  bgcolor: "transparent",
-  display: "grid",
-  placeItems: "center",
-  color: "text.secondary",
-} as const;
-
-const actionButtonSx = {
-  width: 32,
-  height: 32,
-  color: "text.secondary",
-  "&:hover": {
-    bgcolor: "primary.main",
-    color: "primary.contrastText",
-  },
-} as const;

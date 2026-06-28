@@ -1,15 +1,14 @@
 import { useEffect, useState } from "react";
-import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
-import ButtonBase from "@mui/material/ButtonBase";
-import Stack from "@mui/material/Stack";
-import TextField from "@mui/material/TextField";
-import Typography from "@mui/material/Typography";
+import { Box } from "@/components/ui/Box";
+import { Button } from "@/components/ui/button";
+import { ButtonBase } from "@/components/ui/button-base";
+import { Stack } from "@/components/ui/Stack";
+import { TextField } from "@/components/ui/text-field";
+import { Typography } from "@/components/ui/Typography";
 import {
   AppDialogBody,
   AppDialogFrame,
   AppDialogHeader,
-  appTextFieldSx,
 } from "@/components/ui/appDialog";
 import {
   Settings,
@@ -26,6 +25,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { SettingCard, SectionHeader } from "./SettingComponents";
+import { cn } from "@/lib/utils";
 import { useDevStore } from "@/store/devStore";
 import { useNotify } from "@/hooks/useNotify";
 import { loggedInvoke } from "@/lib/utils/utils";
@@ -39,7 +39,6 @@ import { ConnectionsTab } from "./tabs/ConnectionsTab";
 import { AdvancedTab } from "./tabs/AdvancedTab";
 import { MemoryTab } from "@/features/memory/MemoryTab";
 import { idleManager } from "@/lib/idle";
-import { APP_DIALOG_SIDEBAR_WIDTH } from "@/components/ui/appDialog";
 import { useSettingsStore } from "@/store/settingsStore";
 import { clearUpdateState, simulateUpdateProgress } from "@/store/updateStore";
 
@@ -105,32 +104,14 @@ function SettingsNavButton({
   return (
     <ButtonBase
       onClick={onClick}
-      sx={(theme) => ({
-        justifyContent: "flex-start",
-        borderRadius: theme.app.radius.pill,
-        bgcolor: isActive ? "action.hover" : "transparent",
-        color: isActive ? "text.primary" : "text.secondary",
-        ...(mobile
-          ? {
-              px: { xs: 1.5, sm: 1.25 },
-              py: { xs: 1, sm: 0.75 },
-              whiteSpace: "nowrap",
-              scrollSnapAlign: "start",
-            }
-          : {
-              width: "100%",
-              gap: 1.5,
-              px: 1.5,
-              py: 0.85,
-              "&:hover": {
-                bgcolor: "action.hover",
-                color: "text.primary",
-              },
-            }),
-      })}
+      className={cn(
+        "flex h-9 w-full items-center gap-2 rounded-lg px-3 text-left text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+        isActive && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground",
+        mobile && "h-8 w-auto shrink-0 whitespace-nowrap px-3",
+      )}
     >
       {!mobile && <Icon size={16} />}
-      <Typography sx={{ fontSize: 13, fontWeight: mobile ? 500 : isActive ? 600 : 500 }}>
+      <Typography as="span" color="inherit" className="text-[13px] font-medium">
         {item.label}
       </Typography>
     </ButtonBase>
@@ -139,6 +120,7 @@ function SettingsNavButton({
 
 export function SettingsModal({ isOpen, onClose, initialTab = "general" }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
+  const [allMounted, setAllMounted] = useState(false);
   const devMode = useDevStore((s) => s.devMode);
   const experimentalEnabled = useSettingsStore((state) => state.general.experimentalFeatures);
   const sidebarItems = devMode
@@ -150,6 +132,7 @@ export function SettingsModal({ isOpen, onClose, initialTab = "general" }: Setti
     : [...SIDEBAR_ITEMS, ...(experimentalEnabled ? [MEMORY_ITEM] : [])];
 
   const activeItem = [...sidebarItems, ADVANCED_ITEM].find((item) => item.id === activeTab);
+  const panelItems = [...sidebarItems, ADVANCED_ITEM];
 
   useEffect(() => {
     if (!isOpen) return;
@@ -165,34 +148,21 @@ export function SettingsModal({ isOpen, onClose, initialTab = "general" }: Setti
     if (!experimentalEnabled && activeTab === "memory") setActiveTab("advanced");
   }, [activeTab, experimentalEnabled]);
 
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setAllMounted(true));
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
   return (
     <AppDialogFrame open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: {
-            xs: "1fr",
-            md: `${APP_DIALOG_SIDEBAR_WIDTH}px 1fr`,
-          },
-          width: "100%",
-          height: "100%",
-          minWidth: 0,
-          boxSizing: "border-box",
-        }}
+        className="flex h-full min-h-0"
       >
         <Box
-          component="aside"
-          sx={{
-            display: { xs: "none", md: "flex" },
-            flexDirection: "column",
-            height: "100%",
-            minHeight: 0,
-            boxSizing: "border-box",
-            bgcolor: "transparent",
-            p: 2,
-          }}
+          as="aside"
+          className="hidden w-[244px] shrink-0 flex-col border-r border-border/60 p-3 md:flex"
         >
-          <Stack component="nav" spacing={0.5}>
+          <Stack as="nav" spacing={1}>
             {sidebarItems.map((item) => {
               const isActive = activeTab === item.id;
 
@@ -206,8 +176,8 @@ export function SettingsModal({ isOpen, onClose, initialTab = "general" }: Setti
               );
             })}
           </Stack>
-          <Box sx={{ flex: 1 }} />
-          <Box sx={{ pt: 1, borderTop: "1px solid", borderColor: "divider" }}>
+          <Box className="flex-1" />
+          <Box>
             {(() => {
               const isActive = activeTab === ADVANCED_ITEM.id;
               return (
@@ -222,12 +192,7 @@ export function SettingsModal({ isOpen, onClose, initialTab = "general" }: Setti
         </Box>
 
         <Box
-          sx={{
-            display: "flex",
-            flexDirection: "column",
-            minWidth: 0,
-            minHeight: 0,
-          }}
+          className="flex min-w-0 flex-1 flex-col"
         >
           <AppDialogHeader
             title={activeItem?.label ?? "Settings"}
@@ -235,24 +200,9 @@ export function SettingsModal({ isOpen, onClose, initialTab = "general" }: Setti
           />
 
           <Box
-            sx={{
-              display: { xs: "flex", md: "none" },
-              gap: 1,
-              px: 2.5,
-              py: 1.5,
-              overflowX: "auto",
-              scrollSnapType: "x mandatory",
-              borderBottom: "1px solid",
-              borderColor: "divider",
-              position: "sticky",
-              top: 0,
-              zIndex: 1,
-              bgcolor: "background.paper",
-              scrollbarWidth: "none",
-              "&::-webkit-scrollbar": { display: "none" },
-            }}
+            className="flex gap-2 overflow-x-auto border-b border-border/60 px-4 pb-3 md:hidden"
           >
-            {[...sidebarItems, ADVANCED_ITEM].map((item) => {
+            {panelItems.map((item) => {
               const isActive = activeTab === item.id;
               return (
                 <SettingsNavButton
@@ -267,17 +217,17 @@ export function SettingsModal({ isOpen, onClose, initialTab = "general" }: Setti
           </Box>
 
           <AppDialogBody>
-            <Box key={activeTab}>
-              {activeTab === "general" && <GeneralTab />}
-              {activeTab === "profile" && <ProfileTab />}
-              {activeTab === "connections" && <ConnectionsTab />}
-              {activeTab === "personalisation" && <PersonalisationTab />}
-              {activeTab === "speech" && <SpeechTab />}
-              {activeTab === "data-controls" && <DataControlsTab />}
-              {activeTab === "about" && <AboutTab />}
-              {activeTab === "memory" && experimentalEnabled && <MemoryTab />}
-              {activeTab === "advanced" && <AdvancedTab />}
-              {activeTab === "developer" && <DeveloperTab onClose={onClose} />}
+            <Box className="min-h-[400px] w-full">
+              <Box className={activeTab !== "general" ? "hidden" : ""}><GeneralTab /></Box>
+              {(allMounted || activeTab === "profile") && <Box className={activeTab !== "profile" ? "hidden" : ""}><ProfileTab /></Box>}
+              {(allMounted || activeTab === "connections") && <Box className={activeTab !== "connections" ? "hidden" : ""}><ConnectionsTab /></Box>}
+              {(allMounted || activeTab === "personalisation") && <Box className={activeTab !== "personalisation" ? "hidden" : ""}><PersonalisationTab /></Box>}
+              {(allMounted || activeTab === "speech") && <Box className={activeTab !== "speech" ? "hidden" : ""}><SpeechTab /></Box>}
+              {(allMounted || activeTab === "data-controls") && <Box className={activeTab !== "data-controls" ? "hidden" : ""}><DataControlsTab /></Box>}
+              {(allMounted || activeTab === "about") && <Box className={activeTab !== "about" ? "hidden" : ""}><AboutTab /></Box>}
+              {experimentalEnabled && (allMounted || activeTab === "memory") && <Box className={activeTab !== "memory" ? "hidden" : ""}><MemoryTab /></Box>}
+              {(allMounted || activeTab === "advanced") && <Box className={activeTab !== "advanced" ? "hidden" : ""}><AdvancedTab /></Box>}
+              {(allMounted || activeTab === "developer") && <Box className={activeTab !== "developer" ? "hidden" : ""}><DeveloperTab onClose={onClose} /></Box>}
             </Box>
           </AppDialogBody>
         </Box>
@@ -347,15 +297,6 @@ function DeveloperTab({ onClose }: { onClose: () => void }) {
           maxRows={12}
           fullWidth
           size="small"
-          sx={[
-            appTextFieldSx,
-            {
-            "& .MuiInputBase-root": {
-              fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-              fontSize: 13,
-            },
-            },
-          ]}
         />
       </SettingCard>
 
@@ -369,7 +310,6 @@ function DeveloperTab({ onClose }: { onClose: () => void }) {
             onClick={handleExecuteSql}
             disabled={isExecuting || !sql.trim()}
             startIcon={<Play size={14} />}
-            sx={{ textTransform: "none", fontWeight: 700 }}
           >
             {isExecuting ? "Running..." : "Execute"}
           </Button>
@@ -377,15 +317,6 @@ function DeveloperTab({ onClose }: { onClose: () => void }) {
       >
         {result ? (
           <Box
-            sx={(theme) => ({
-              p: 1.5,
-              borderRadius: theme.app.radius.control,
-              border: "1px solid",
-              borderColor: "divider",
-              bgcolor: "background.paper",
-              overflow: "auto",
-              maxHeight: 400,
-            })}
           >
             {result.columns.length > 0 ? (
               <table className="settings-sql-result-table">
@@ -414,11 +345,6 @@ function DeveloperTab({ onClose }: { onClose: () => void }) {
               result.rows.map((row, i) => (
                 <Typography
                   key={i}
-                  sx={{
-                    fontSize: 13,
-                    fontFamily: "monospace",
-                    color: "text.secondary",
-                  }}
                 >
                   {row[0]}
                 </Typography>
@@ -430,14 +356,12 @@ function DeveloperTab({ onClose }: { onClose: () => void }) {
 
       <SectionHeader title="Update Tester" description="Simulate the update flow to test the UI." />
       <SettingCard title="Simulate Update Download" action={
-        <Button size="small" variant="outlined" onClick={simulateUpdateProgress}
-          sx={{ textTransform: "none", fontWeight: 700 }}>
+        <Button size="small" variant="outlined" onClick={simulateUpdateProgress}>
           Download
         </Button>
       } />
       <SettingCard title="Clear Update State" action={
-        <Button size="small" variant="outlined" onClick={clearUpdateState}
-          sx={{ textTransform: "none", fontWeight: 700 }}>
+        <Button size="small" variant="outlined" onClick={clearUpdateState}>
           Clear
         </Button>
       } />
@@ -452,7 +376,6 @@ function DeveloperTab({ onClose }: { onClose: () => void }) {
               window.dispatchEvent(new CustomEvent("force-release-notes"));
               onClose();
             }}
-            sx={{ textTransform: "none", fontWeight: 700 }}
           >
             Show
           </Button>
@@ -467,14 +390,12 @@ function DeveloperTab({ onClose }: { onClose: () => void }) {
             <Button
               size="small" variant="outlined"
               onClick={() => idleManager.forceIdle()}
-              sx={{ textTransform: "none", fontWeight: 700 }}
             >
               Force Idle
             </Button>
             <Button
               size="small" variant="outlined"
               onClick={() => idleManager.forceActive()}
-              sx={{ textTransform: "none", fontWeight: 700 }}
             >
               Force Active
             </Button>
@@ -494,7 +415,6 @@ function DeveloperTab({ onClose }: { onClose: () => void }) {
                 notify.success('Model released')
               } catch { notify.error('No model loaded or unavailable') }
             }}
-            sx={{ textTransform: "none", fontWeight: 700 }}
           >
             Release
           </Button>
@@ -508,7 +428,6 @@ function DeveloperTab({ onClose }: { onClose: () => void }) {
             size="small"
             variant="text"
             onClick={() => useDevStore.getState().actions.setDevMode(false)}
-            sx={{ textTransform: "none", fontWeight: 700 }}
           >
             Exit Dev Mode
           </Button>

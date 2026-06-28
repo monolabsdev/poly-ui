@@ -12,11 +12,11 @@ import {
   Trash2,
   Search,
 } from "lucide-react";
-import Box from "@mui/material/Box";
-import Typography from "@mui/material/Typography";
-import IconButton from "@mui/material/IconButton";
-import Tooltip from "@mui/material/Tooltip";
-import CircularProgress from "@mui/material/CircularProgress";
+import { Box } from "@/components/ui/Box";
+import { Typography } from "@/components/ui/Typography";
+import { IconButton } from "@/components/ui/icon-button";
+import { TooltipLabel as Tooltip } from "@/components/ui/tooltip-label";
+import { CircularProgress } from "@/components/ui/spinner";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -183,38 +183,14 @@ export function AssistantMessage(props: MessageProps) {
 
   return (
     <Box
-      sx={{
-        display: "flex",
-        flexDirection: "column",
-        width: "100%",
-        minWidth: 0,
-        py: 0.5,
-        "& .action-bar": {
-          opacity: 0,
-        },
-        "&:hover .action-bar, &:focus-within .action-bar": {
-          opacity: 1,
-        },
-        "@media (hover: none)": {
-          "& .action-bar": {
-            opacity: 1,
-          },
-        },
-      }}
+      className="group/message mr-auto flex w-full max-w-[min(100%,48rem)] flex-col gap-2"
     >
-      <Box sx={{ width: "100%", minWidth: 0, maxWidth: "100%", boxSizing: "border-box" }}>
+      <Box className="rounded-3xl rounded-tl-md border border-border/60 bg-card px-4 py-3 text-card-foreground shadow-sm">
         {model && !agent && (
           <Typography
             variant="caption"
-            sx={{
-              color: "text.secondary",
-              fontWeight: 600,
-              mb: 1,
-              display: "block",
-              textTransform: "uppercase",
-              letterSpacing: "0.05em",
-              fontSize: "10px",
-            }}
+            color="text.secondary"
+            className="mb-2 block"
           >
             {model}
           </Typography>
@@ -222,35 +198,19 @@ export function AssistantMessage(props: MessageProps) {
 
         {status === "error" && (
           <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 1.5,
-              mb: 2,
-              p: 1.5,
-              borderRadius: "12px",
-              bgcolor: "error.soft",
-              border: "1px solid",
-              borderColor: "error.main",
-              color: "error.main",
-            }}
+            className="mb-3 flex gap-3 rounded-2xl border border-destructive/25 bg-destructive/10 p-3 text-destructive"
           >
             <AlertCircle size={18} />
             <Box>
               <Typography
                 variant="caption"
-                sx={{
-                  fontWeight: 700,
-                  display: "block",
-                  textTransform: "uppercase",
-                  fontSize: "10px",
-                }}
+                weight="medium"
               >
                 Generation Error
               </Typography>
               <Typography
                 variant="body2"
-                sx={{ fontSize: "13px", opacity: 0.9 }}
+                className="text-current"
               >
                 {errorMessage || "The provider encountered an issue."}
               </Typography>
@@ -258,18 +218,10 @@ export function AssistantMessage(props: MessageProps) {
                 <IconButton
                   size="small"
                   onClick={() => onRegenerate(messageIndex)}
-                  sx={{
-                    mt: 1,
-                    color: "error.main",
-                    bgcolor: "error.soft",
-                    px: 2,
-                    py: 0.5,
-                    gap: 1,
-                    "&:hover": { bgcolor: "action.hover" },
-                  }}
+                  className="mt-2 rounded-full"
                 >
                   <RotateCcw size={14} />
-                  <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                  <Typography variant="caption">
                     Retry
                   </Typography>
                 </IconButton>
@@ -280,19 +232,11 @@ export function AssistantMessage(props: MessageProps) {
 
         {status === "aborted" && (
           <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 1,
-              mb: 1,
-              color: "text.secondary",
-              opacity: 0.7,
-            }}
+            className="mb-3 flex items-center gap-2 text-muted-foreground"
           >
             <StopCircle size={14} />
             <Typography
               variant="caption"
-              sx={{ fontSize: "11px", fontWeight: 500 }}
             >
               Generation stopped by user
             </Typography>
@@ -308,7 +252,7 @@ export function AssistantMessage(props: MessageProps) {
         />
 
         {webSearch && (
-          <Box sx={{ mb: 0.5 }}>
+          <Box>
             <WebSearchDisclosure
               isSearching={webSearch.status === "searching"}
               query={webSearch.query}
@@ -332,31 +276,23 @@ export function AssistantMessage(props: MessageProps) {
         {content && (!agent || !agentBodyText) ? (
           <Box
             id={`message-${messageIndex}`}
-            sx={{
-              maxWidth: { xs: "90%", sm: "80%" },
-              width: "100%",
-              contentVisibility: "auto",
-              containIntrinsicSize: "1px 5000px",
-              minWidth: 0,
-              boxSizing: "border-box",
-              overflowX: "hidden",
-            }}
+            className="min-w-0"
           >
-            <MarkdownProse
-              content={isStreaming ? streamingDisplayContent || "" : processedContent}
-              streaming={isStreaming}
-            />
+            {isStreaming ? (
+              <Typography
+                as="p"
+                className="whitespace-pre-wrap text-sm leading-6"
+              >
+                {streamingDisplayContent || content}
+              </Typography>
+            ) : (
+              <MarkdownProse content={processedContent} />
+            )}
           </Box>
         ) : showEmptyFinalNotice ? (
           <Box
             id={`message-${messageIndex}`}
-            sx={{
-              maxWidth: { xs: "90%", sm: "80%" },
-              color: "text.secondary",
-              fontSize: "13px",
-              lineHeight: 1.6,
-              fontStyle: "italic",
-            }}
+            className="text-sm text-muted-foreground"
           >
             The model returned reasoning but no final response.
           </Box>
@@ -365,13 +301,7 @@ export function AssistantMessage(props: MessageProps) {
         {/* ── Source Badges ── */}
         {!isStreaming && webSearch?.results && webSearch.results.length > 0 && (
             <Box
-              sx={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: 0.75,
-                mt: 1.5,
-                maxWidth: { xs: "90%", sm: "80%" },
-              }}
+              className="mt-3 flex flex-wrap gap-2"
             >
               {webSearch.results.map((result) => (
                 <Source key={result.url} href={result.url}>
@@ -387,29 +317,13 @@ export function AssistantMessage(props: MessageProps) {
 
         {/* ── Contextual Action Toolbar ── */}
         <Box
-          className={!isLastMessage ? "action-bar" : undefined}
-          sx={{
-            display: "flex",
-            gap: 0.5,
-            mt: 1.5,
-            ...(isLastMessage
-              ? {
-                  opacity: isStreaming ? 0 : 1,
-                }
-              : {}),
-          }}
+          className={`${!isLastMessage ? "action-bar " : ""}mt-2 flex items-center gap-1 text-muted-foreground transition-opacity`}
         >
           <Tooltip title={copied ? "Copied" : "Copy"}>
             <IconButton
               size="small"
               onClick={handleCopy}
-              sx={{
-                color: copied ? "success.main" : "text.secondary",
-                "&:hover": {
-                  color: copied ? "success.main" : "text.primary",
-                  bgcolor: "action.hover",
-                },
-              }}
+              className="size-7 rounded-full"
             >
                 <Box
                   style={{
@@ -431,13 +345,7 @@ export function AssistantMessage(props: MessageProps) {
                 size="small"
                 onClick={handleSpeak}
                 disabled={isStreaming || (isGenerating && !isSpeaking)}
-                sx={{
-                  color: isSpeaking ? "primary.main" : "text.secondary",
-                  "&:hover": {
-                    color: isSpeaking ? "primary.main" : "text.primary",
-                    bgcolor: "action.hover",
-                  },
-                }}
+                className="size-7 rounded-full"
               >
                 {isGenerating ? (
                   <CircularProgress size={14} color="inherit" />
@@ -455,10 +363,7 @@ export function AssistantMessage(props: MessageProps) {
               <IconButton
                 size="small"
                 onClick={() => onRegenerate(messageIndex)}
-                sx={{
-                  color: "text.secondary",
-                  "&:hover": { color: "text.primary", bgcolor: "action.hover" },
-                }}
+                className="size-7 rounded-full"
               >
                 <RotateCcw size={14} />
               </IconButton>
@@ -469,10 +374,7 @@ export function AssistantMessage(props: MessageProps) {
             <DropdownMenuTrigger asChild>
               <IconButton
                 size="small"
-                sx={{
-                  color: "text.secondary",
-                  "&:hover": { color: "text.primary", bgcolor: "action.hover" },
-                }}
+                className="size-7 rounded-full"
               >
                 <MoreHorizontal size={14} />
               </IconButton>
@@ -480,21 +382,21 @@ export function AssistantMessage(props: MessageProps) {
             <DropdownMenuContent align="end">
               {isMemoryUiEnabled() && (
                 <>
-                  <DropdownMenuItem onClick={handleRemember} sx={{ gap: 2 }}>
+                  <DropdownMenuItem onClick={handleRemember}>
                     <Brain size={14} />
                     Remember this
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleForget} sx={{ gap: 2 }}>
+                  <DropdownMenuItem onClick={handleForget}>
                     <Trash2 size={14} />
                     Forget this
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleRelated} sx={{ gap: 2 }}>
+                  <DropdownMenuItem onClick={handleRelated}>
                     <Search size={14} />
                     View related memories
                   </DropdownMenuItem>
                 </>
               )}
-              <DropdownMenuItem onClick={handleCopy} sx={{ gap: 2 }}>
+              <DropdownMenuItem onClick={handleCopy}>
                 <Copy size={14} />
                 Copy message
               </DropdownMenuItem>
@@ -507,7 +409,6 @@ export function AssistantMessage(props: MessageProps) {
                     notify.success("Copied as plain text");
                   });
                 }}
-                sx={{ gap: 2 }}
               >
                 <Copy size={14} />
                 Copy as plain text

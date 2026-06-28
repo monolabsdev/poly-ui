@@ -1,11 +1,7 @@
 import React, { useEffect } from "react";
-import Box from "@mui/material/Box";
-import Typography from "@mui/material/Typography";
-import IconButton from "@mui/material/IconButton";
-import { useTheme } from "@mui/material/styles";
-import { alpha } from "@mui/material/styles";
 import { CheckCircle2, AlertCircle, Info, AlertTriangle, X, Loader2 } from "lucide-react";
 import { useNotificationStore, type Toast as ToastType } from "@/store/notificationStore";
+import { cn } from "@/lib/utils";
 
 const typeIcon = {
   success: CheckCircle2,
@@ -17,18 +13,15 @@ const typeIcon = {
 
 const ToastItem = ({ toast }: { toast: ToastType }) => {
   const remove = useNotificationStore((s) => s.actions.remove);
-  const theme = useTheme();
-
-  const getColor = () => {
-    switch (toast.type) {
-      case "success": return theme.palette.success.main;
-      case "error": return theme.palette.error.main;
-      case "warning": return theme.palette.warning.main;
-      default: return theme.palette.text.secondary;
-    }
-  };
-
   const Icon = typeIcon[toast.type] || Info;
+  const tone =
+    toast.type === "success"
+      ? "border-[var(--success-soft)] text-[var(--success)]"
+      : toast.type === "error"
+        ? "border-destructive/25 text-destructive"
+        : toast.type === "warning"
+          ? "border-[var(--warning-soft)] text-[var(--warning)]"
+          : "border-border/60 text-muted-foreground";
 
   useEffect(() => {
     if (toast.duration === Infinity) return;
@@ -37,75 +30,36 @@ const ToastItem = ({ toast }: { toast: ToastType }) => {
   }, [toast.id, toast.duration, remove]);
 
   return (
-    <Box
-      className="animate-toast-in"
-      sx={{
-        width: { xs: "calc(100vw - 32px)", sm: 380 },
-        maxWidth: 380,
-        pointerEvents: "auto",
-        mb: 1.5,
-        p: "14px 16px",
-        borderRadius: "12px",
-        bgcolor: alpha(theme.palette.background.paper, 0.95),
-        backdropFilter: "blur(8px)",
-        border: 1,
-        borderColor: alpha(getColor(), 0.25),
-        boxShadow: theme.shadows[10],
-        display: "flex",
-        alignItems: "flex-start",
-        gap: 1.75,
-        position: "relative",
-      }}
+    <div
+      className={cn(
+        "animate-toast-in pointer-events-auto relative mb-3 flex w-[calc(100vw-32px)] max-w-[380px] items-start gap-3.5 rounded-xl border bg-card/95 px-4 py-3.5 shadow-xl backdrop-blur-sm sm:w-[380px]",
+        tone,
+      )}
     >
-      <Box sx={{ mt: 0.25, flexShrink: 0, color: getColor(), lineHeight: 0 }}>
-        <Icon size={18} />
-      </Box>
+      <div className="mt-1 shrink-0 leading-none">
+        <Icon size={18} className={toast.type === "loading" ? "animate-spin" : undefined} />
+      </div>
 
-      <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Typography
-          variant="body2"
-          sx={{
-            fontWeight: 600,
-            color: "text.primary",
-            lineHeight: 1.5,
-            letterSpacing: "-0.01em",
-          }}
-        >
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold leading-5 text-foreground">
           {toast.message}
-        </Typography>
+        </p>
         {toast.description && (
-          <Typography
-            variant="caption"
-            sx={{
-              color: "text.secondary",
-              mt: 0.5,
-              display: "block",
-              lineHeight: 1.4,
-              fontSize: "0.75rem",
-            }}
-          >
+          <p className="mt-1 block text-xs leading-[1.4] text-muted-foreground">
             {toast.description}
-          </Typography>
+          </p>
         )}
-      </Box>
+      </div>
 
-      <IconButton
-        size="small"
+      <button
+        type="button"
         onClick={() => remove(toast.id)}
-        sx={{
-          color: "text.disabled",
-          p: 0.5,
-          mt: -0.5,
-          mr: -0.5,
-          "&:hover": {
-            color: "text.primary",
-            bgcolor: alpha(theme.palette.action.hover, 0.5),
-          },
-        }}
+        className="-mt-1 -mr-1 rounded-md p-1 text-muted-foreground/60 hover:bg-accent hover:text-foreground"
+        aria-label="Dismiss notification"
       >
         <X size={14} />
-      </IconButton>
-    </Box>
+      </button>
+    </div>
   );
 };
 
@@ -115,21 +69,11 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
   return (
     <>
       {children}
-      <Box
-        sx={{
-          position: "fixed",
-          bottom: { xs: 16, sm: 24 },
-          right: { xs: 16, sm: 24 },
-          zIndex: 9999,
-          display: "flex",
-          flexDirection: "column-reverse",
-          pointerEvents: "none",
-        }}
-      >
+      <div className="pointer-events-none fixed right-4 bottom-4 z-[var(--z-toast)] flex flex-col-reverse sm:right-6 sm:bottom-6">
         {toasts.map((toast) => (
           <ToastItem key={toast.id} toast={toast} />
         ))}
-      </Box>
+      </div>
     </>
   );
 };

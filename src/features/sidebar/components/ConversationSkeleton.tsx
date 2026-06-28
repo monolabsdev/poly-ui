@@ -1,27 +1,16 @@
-import Box from "@mui/material/Box";
-import { useSidebar } from "@/features/sidebar/hooks/useSidebar";
+import { useSidebar } from "@/components/ui/sidebar";
 
 export function ConversationSkeleton() {
-  const { isCollapsed } = useSidebar();
-  if (isCollapsed) return null;
+  const { state } = useSidebar();
+  if (state === "collapsed") return null;
   return (
-    <Box sx={{ px: 1.5 }}>
+    <div className="px-3">
       {[1, 2, 3, 4, 5].map((i) => (
-        <Box
+        <div
           key={i}
-          sx={{
-            height: 36,
-            borderRadius: (theme) => theme.shape.borderRadius,
-            mb: 0.5,
-            bgcolor: "action.hover",
-            animation: "pulse 1.5s ease-in-out infinite",
-            "@keyframes pulse": {
-              "0%, 100%": { opacity: 0.6 },
-              "50%": { opacity: 0.3 },
-            },
-          }}
+          className="mb-1 h-9 animate-pulse rounded-[var(--radius)] bg-accent"
         />
       ))}
-    </Box>
+    </div>
   );
 }

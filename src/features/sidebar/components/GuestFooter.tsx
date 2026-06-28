@@ -1,80 +1,64 @@
 import * as React from "react";
-import Box from "@mui/material/Box";
-import IconButton from "@mui/material/IconButton";
-import Tooltip from "@mui/material/Tooltip";
-import Typography from "@mui/material/Typography";
-import MuiButton from "@mui/material/Button";
-import { Info, MoreHorizontal, LogIn, Settings, Archive, Cpu } from "lucide-react";
+import { Info, MoreHorizontal, LogIn, Settings, Archive } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ArchivedChatsDialog } from "@/features/chat/components/ArchivedChatsDialog";
 import { useAuthStore } from "@/store/authStore";
-import { useSidebar } from "@/features/sidebar/hooks/useSidebar";
-import { useReducedMotion } from "@/features/sidebar/hooks/useReducedMotion";
-import { sidebarIconButtonSx } from "@/features/sidebar/components/SidebarPrimitives";
-import { useViewStore } from "@/lib/view-registry";
+import { useSidebar } from "@/components/ui/sidebar";
+import { sidebarIconButtonClassName } from "@/features/sidebar/components/sidebar-utils";
 
 export function GuestFooter({ onOpenSettings }: { onOpenSettings: () => void }) {
   const openAuth = useAuthStore((s) => s.actions.openAuth);
-  const { isCollapsed } = useSidebar();
-  const reducedMotion = useReducedMotion();
+  const { state } = useSidebar();
+  const isCollapsed = state === "collapsed";
   const [archivedOpen, setArchivedOpen] = React.useState(false);
 
   if (isCollapsed) {
     return (
       <>
         <DropdownMenu>
-          <Box sx={{ display: "flex", justifyContent: "center" }}>
-            <Tooltip title="Guest mode" placement="right">
+          <div className="flex justify-center">
+            <Tooltip>
+              <TooltipTrigger asChild>
               <DropdownMenuTrigger asChild>
-                <IconButton
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
                   aria-label="Guest menu"
-                  sx={(theme) => ({
-                    ...sidebarIconButtonSx(theme, reducedMotion),
-                    bgcolor: "action.selected",
-                    "&:hover": {
-                      bgcolor: "action.selected",
-                      opacity: 0.8,
-                    },
-                  })}
+                  className={`${sidebarIconButtonClassName} bg-muted hover:bg-muted/80`}
                 >
-                  <Avatar sx={(theme) => ({ width: theme.spacing(3), height: theme.spacing(3) })}>
-                    <AvatarFallback
-                      sx={(theme) => ({
-                        ...theme.typography.caption,
-                        bgcolor: "action.selected",
-                        color: "text.secondary",
-                      })}
-                    >
+                  <Avatar size="sm">
+                    <AvatarFallback className="bg-muted text-xs text-muted-foreground">
                       ?
                     </AvatarFallback>
                   </Avatar>
-                </IconButton>
+                </Button>
               </DropdownMenuTrigger>
+              </TooltipTrigger>
+              <TooltipContent side="right">Guest mode</TooltipContent>
             </Tooltip>
-          </Box>
-          <DropdownMenuContent align="end" sx={{ minWidth: 180 }}>
-            <DropdownMenuItem onClick={onOpenSettings} sx={{ gap: 1.5 }}>
+          </div>
+          <DropdownMenuContent align="end" className="min-w-[180px]">
+            <DropdownMenuItem onClick={onOpenSettings} className="gap-3">
               <Settings size={14} />
               <span>Settings</span>
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => useViewStore.getState().setActiveView("model-browser")} sx={{ gap: 1.5 }}>
-              <Cpu size={14} />
-              <span>Models</span>
-            </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => setArchivedOpen(true)}
-              sx={{ gap: 1.5 }}
+              className="gap-3"
             >
               <Archive size={14} />
               <span>Archived Chats</span>
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => openAuth()} sx={{ gap: 1.5 }}>
+            <DropdownMenuItem onClick={() => openAuth()} className="gap-3">
               <LogIn size={14} />
               <span>Sign in</span>
             </DropdownMenuItem>
@@ -90,120 +74,68 @@ export function GuestFooter({ onOpenSettings }: { onOpenSettings: () => void }) 
 
   return (
     <>
-      <Box
+      <div
         data-testid="guest-footer-flat"
-        sx={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 1,
-          px: 1.25,
-          pb: 0.5,
-        }}
+        className="flex flex-col gap-2 px-2.5 pb-1"
       >
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
-          <Avatar sx={(theme) => ({ width: theme.spacing(3.5), height: theme.spacing(3.5), flexShrink: 0 })}>
-            <AvatarFallback
-              sx={(theme) => ({
-                ...theme.typography.caption,
-                bgcolor: "action.selected",
-                color: "text.secondary",
-              })}
-            >
+        <div className="flex items-center gap-2.5">
+          <Avatar className="size-7 shrink-0">
+            <AvatarFallback className="bg-muted text-xs text-muted-foreground">
               ?
             </AvatarFallback>
           </Avatar>
-          <Box sx={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 0.5 }}>
-            <Typography
-              sx={(theme) => ({
-                ...theme.typography.body2,
-                fontWeight: theme.typography.fontWeightMedium,
-                color: "text.primary",
-                lineHeight: 1.3,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-              })}
-            >
+          <div className="flex min-w-0 flex-1 flex-col gap-1">
+            <p className="overflow-hidden text-ellipsis whitespace-nowrap text-sm font-medium leading-[1.3] text-foreground">
               Guest mode
-            </Typography>
-            <Typography
-              sx={(theme) => ({
-                ...theme.typography.caption,
-                color: "text.secondary",
-                lineHeight: 1.4,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-              })}
-            >
+            </p>
+            <p className="overflow-hidden text-ellipsis whitespace-nowrap text-xs leading-[1.4] text-muted-foreground">
               Not signed in
-            </Typography>
-          </Box>
+            </p>
+          </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <IconButton
-                size="small"
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
                 aria-label="More options"
-                sx={(theme) => sidebarIconButtonSx(theme, reducedMotion)}
+                className={sidebarIconButtonClassName}
               >
                 <MoreHorizontal />
-              </IconButton>
+              </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" sx={{ minWidth: 180 }}>
-              <DropdownMenuItem onClick={onOpenSettings} sx={{ gap: 1.5 }}>
+            <DropdownMenuContent align="end" className="min-w-[180px]">
+              <DropdownMenuItem onClick={onOpenSettings} className="gap-3">
                 <Settings size={14} />
                 <span>Settings</span>
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => useViewStore.getState().setActiveView("model-browser")} sx={{ gap: 1.5 }}>
-                <Cpu size={14} />
-                <span>Models</span>
-              </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => setArchivedOpen(true)}
-                sx={{ gap: 1.5 }}
+                className="gap-3"
               >
                 <Archive size={14} />
                 <span>Archived Chats</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-        </Box>
+        </div>
 
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            gap: 0.75,
-            color: "text.secondary",
-          }}
-        >
+        <div className="flex items-center gap-1.5 text-muted-foreground">
           <Info size={12} style={{ flexShrink: 0, opacity: 0.6 }} />
-          <Typography
-            sx={(theme) => ({
-              ...theme.typography.caption,
-              lineHeight: 1.3,
-            })}
-          >
+          <p className="text-xs leading-[1.3]">
             Sign in to save your chats.
-          </Typography>
-        </Box>
+          </p>
+        </div>
 
-        <MuiButton
-          variant="contained"
-          color="primary"
-          fullWidth
-          startIcon={<LogIn size={14} />}
+        <Button
+          type="button"
           onClick={() => openAuth()}
-          sx={{
-            minHeight: 34,
-            typography: "body2",
-            fontWeight: (theme) => theme.typography.fontWeightMedium,
-            textTransform: "none",
-          }}
+          className="min-h-[34px] w-full gap-2 text-sm font-medium"
         >
+          <LogIn size={14} />
           Sign in
-        </MuiButton>
-      </Box>
+        </Button>
+      </div>
 
       <ArchivedChatsDialog open={archivedOpen} onOpenChange={setArchivedOpen} />
     </>

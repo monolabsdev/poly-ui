@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import Box from "@mui/material/Box";
-import ButtonBase from "@mui/material/ButtonBase";
-import Chip from "@mui/material/Chip";
-import InputBase from "@mui/material/InputBase";
-import Typography from "@mui/material/Typography";
-import { alpha } from "@mui/material/styles";
+import { Box } from "@/components/ui/Box";
+import { ButtonBase } from "@/components/ui/button-base";
+import { Chip } from "@/components/ui/chip";
+import { InputBase } from "@/components/ui/input-base";
+import { Typography } from "@/components/ui/Typography";
 import {
   Check,
   ChevronDown,
@@ -63,8 +62,11 @@ export function AgentComposerControls({
   chatId?: string | null;
   mode?: "all" | "permission" | "workspace";
 }) {
-  const { permissionPreset, workspaceSelections, workspaces, recentWorkspaces, actions } =
-    useAgentStore();
+  const permissionPreset = useAgentStore((state) => state.permissionPreset);
+  const workspaceSelections = useAgentStore((state) => state.workspaceSelections);
+  const workspaces = useAgentStore((state) => state.workspaces);
+  const recentWorkspaces = useAgentStore((state) => state.recentWorkspaces);
+  const actions = useAgentStore((state) => state.actions);
   const [query, setQuery] = useState("");
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -153,7 +155,9 @@ export function AgentComposerControls({
       document.querySelectorAll<HTMLElement>("[data-workspace-menu-item]"),
     );
     const target = event.key === "ArrowDown" ? items[0] : items[items.length - 1];
-    target?.focus();
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => target?.focus());
+    });
   };
 
   useEffect(() => {
@@ -165,14 +169,6 @@ export function AgentComposerControls({
 
   return (
     <Box
-      sx={{
-        display: "flex",
-        alignItems: "center",
-        gap: 0.75,
-        width: "auto",
-        minWidth: 0,
-        flexWrap: "wrap",
-      }}
     >
       {(mode === "all" || mode === "permission") && (
         <DropdownMenu>
@@ -183,32 +179,15 @@ export function AgentComposerControls({
               disabled={disabled}
               icon={<SelectedPresetIcon size={14} />}
               label={
-                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                <Box>
                   {selectedPreset.label}
                   <ChevronDown size={12} />
                 </Box>
               }
-              sx={{
-                height: 30,
-                borderRadius: "8px",
-                px: 0.25,
-                fontWeight: 650,
-                color:
-                  permissionPreset === "full-access"
-                    ? "warning.main"
-                    : "text.primary",
-                bgcolor: disabled ? "action.disabledBackground" : "background.paper",
-                border: "1px solid",
-                borderColor: "divider",
-                ".MuiChip-icon": { color: "inherit", ml: 1 },
-                ".MuiChip-label": { px: 0.75 },
-                "&:hover": { bgcolor: "action.hover" },
-              }}
             />
           </DropdownMenuTrigger>
           <DropdownMenuContent
             align="start"
-            sx={{ minWidth: 320, borderRadius: "10px", p: 0.5 }}
           >
             {PRESETS.map((preset) => {
               const Icon = preset.icon;
@@ -217,14 +196,13 @@ export function AgentComposerControls({
                 <DropdownMenuItem
                   key={preset.value}
                   onClick={() => actions.setPermissionPreset(preset.value)}
-                  sx={{ alignItems: "flex-start", borderRadius: "8px", py: 0.9 }}
                 >
                   <Icon size={16} />
-                  <Box sx={{ flex: 1 }}>
-                    <Typography sx={{ fontSize: 13, fontWeight: 750 }}>
+                  <Box>
+                    <Typography>
                       {preset.label}
                     </Typography>
-                    <Typography sx={{ fontSize: 12, color: "text.secondary" }}>
+                    <Typography>
                       {preset.description}
                     </Typography>
                   </Box>
@@ -252,89 +230,22 @@ export function AgentComposerControls({
               icon={<Folder size={14} />}
               label={
                 <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 0.5,
-                    minWidth: 0,
-                  }}
                 >
                   <Box
-                    component="span"
-                    sx={{
-                      maxWidth: 160,
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                    }}
+                    as="span"
                   >
                     {workspaceLabel}
                   </Box>
                   <ChevronDown size={12} />
                 </Box>
               }
-              sx={{
-                height: mode === "workspace" ? 28 : 30,
-                maxWidth: { xs: 220, sm: 280 },
-                borderRadius: "8px",
-                fontWeight: 650,
-                color: selectedSelection
-                  ? mode === "workspace"
-                    ? "text.secondary"
-                    : "text.primary"
-                  : "error.main",
-                bgcolor: disabled
-                  ? "action.disabledBackground"
-                  : mode === "workspace"
-                    ? "transparent"
-                    : "background.paper",
-                border: "1px solid",
-                borderColor: selectedSelection
-                  ? mode === "workspace"
-                    ? "border.light"
-                    : "divider"
-                  : "error.main",
-                px: mode === "workspace" ? 0.25 : 0,
-                ".MuiChip-icon": {
-                  color: "inherit",
-                  ml: mode === "workspace" ? 0.5 : 1,
-                },
-                ".MuiChip-label": {
-                  minWidth: 0,
-                  px: mode === "workspace" ? 0.5 : undefined,
-                },
-                "&:hover": {
-                  bgcolor:
-                    mode === "workspace" ? "action.hover" : "action.hover",
-                },
-              }}
             />
           </DropdownMenuTrigger>
           <DropdownMenuContent
             align="start"
-            sx={{
-              width: 260,
-              minWidth: 260,
-              maxWidth: 260,
-              borderRadius: "8px",
-              p: "6px",
-              bgcolor: "background.paper",
-              border: "1px solid",
-              borderColor: "border.light",
-              boxShadow: (theme) => `0 14px 40px ${alpha(theme.palette.common.black, theme.palette.mode === "dark" ? 0.38 : 0.12)}`,
-              color: "text.primary",
-              ".MuiList-root": { p: 0 },
-            }}
           >
             <Box
               onKeyDown={handleWorkspaceKeyDown}
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                height: 32,
-                px: "10px",
-                color: "text.disabled",
-              }}
             >
               <Search size={13} />
               <InputBase
@@ -343,20 +254,6 @@ export function AgentComposerControls({
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search projects"
                 autoFocus
-                  sx={{
-                    flex: 1,
-                    fontSize: 13,
-                    color: "text.primary",
-                    fontWeight: 500,
-                    ".MuiInputBase-input": {
-                      height: 32,
-                      p: 0,
-                      "&::placeholder": {
-                        color: "text.disabled",
-                        opacity: 1,
-                      },
-                    },
-                  }}
                 inputProps={{ "aria-label": "Search projects" }}
               />
             </Box>
@@ -379,7 +276,9 @@ export function AgentComposerControls({
               onClick={async () => {
                 const workspace = await pickAgentWorkspace();
                 if (!workspace) {
-                  searchRef.current?.focus();
+                  requestAnimationFrame(() => {
+                    requestAnimationFrame(() => searchRef.current?.focus());
+                  });
                   return;
                 }
                 actions.addWorkspace(workspace);
@@ -423,7 +322,7 @@ function ProjectMenuRow({
   return (
     <ButtonBase
       data-workspace-menu-item
-      onKeyDown={(event) => {
+      onKeyDown={(event: React.KeyboardEvent<HTMLElement>) => {
         if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
         event.preventDefault();
         const items = Array.from(
@@ -432,67 +331,24 @@ function ProjectMenuRow({
         const index = items.indexOf(event.currentTarget);
         const offset = event.key === "ArrowDown" ? 1 : -1;
         const next = items[(index + offset + items.length) % items.length];
-        next?.focus();
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => next?.focus());
+        });
       }}
-      onClick={(event) => {
+      onClick={(event: React.MouseEvent<HTMLElement>) => {
         event.stopPropagation();
         onClick();
       }}
-      sx={{
-        display: "flex",
-        alignItems: "center",
-        width: "100%",
-        minHeight: 34,
-        height: 34,
-        px: "10px",
-        my: "1px",
-        gap: "9px",
-        borderRadius: "7px",
-        color: "text.primary",
-        textAlign: "left",
-        outline: 0,
-        "&:hover, &.Mui-focusVisible": {
-          bgcolor: "action.hover",
-        },
-      }}
     >
       <Box
-        sx={{
-          width: 16,
-          height: 16,
-          display: "grid",
-          placeItems: "center",
-          color: "text.disabled",
-          flexShrink: 0,
-        }}
       >
         {icon}
       </Box>
       <Typography
-        sx={{
-          flex: 1,
-          minWidth: 0,
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-          fontSize: 13,
-          fontWeight: 550,
-          color: "inherit",
-          lineHeight: 1.2,
-          letterSpacing: 0,
-        }}
       >
         {label}
       </Typography>
       <Box
-        sx={{
-          width: 16,
-          height: 16,
-          display: "grid",
-          placeItems: "center",
-          color: selected ? "success.main" : "text.disabled",
-          flexShrink: 0,
-        }}
       >
         {selected ? <Check size={14} strokeWidth={2.4} /> : trailing}
       </Box>

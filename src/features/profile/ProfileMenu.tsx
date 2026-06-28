@@ -10,25 +10,18 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import Box from "@mui/material/Box";
-import Typography from "@mui/material/Typography";
-import MuiButton from "@mui/material/Button";
-import Tooltip from "@mui/material/Tooltip";
-import { Settings, Archive, LogOut, LogIn, Cpu } from "lucide-react";
+import { Box } from "@/components/ui/Box";
+import { Typography } from "@/components/ui/Typography";
+import { Button as Button } from "@/components/ui/button";
+import { Settings, Archive, LogOut, LogIn } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-import { useSidebar } from "@/features/sidebar";
+import { useSidebar } from "@/components/ui/sidebar";
 import { ArchivedChatsDialog } from "@/features/chat/components/ArchivedChatsDialog";
 import type { SettingsTab } from "@/features/settings/SettingsModal";
-import { useViewStore } from "@/lib/view-registry";
 
 interface ProfileMenuProps {
   onOpenSettings?: (tab?: SettingsTab) => void;
-}
-
-const menuItemSx = { gap: 2 } as const;
-
-function openModelBrowser() {
-  useViewStore.getState().setActiveView("model-browser");
 }
 
 export const ProfileMenu: React.FC<ProfileMenuProps> = ({
@@ -42,190 +35,109 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
       isLoading: state.isLoading,
     })),
   );
-  const { isCollapsed } = useSidebar();
+  const { state } = useSidebar();
+  const isCollapsed = state === "collapsed";
   const [isArchivedOpen, setIsArchivedOpen] = React.useState(false);
 
   if (isLoading) {
     return (
-      <Box sx={{ width: "100%", display: "flex", flexDirection: "column", alignItems: "center", opacity: 0.5 }}>
-        <MuiButton
+      <Box className="px-2 pb-1">
+        <Button
+          type="button"
+          variant="ghost"
           fullWidth
           disabled
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "flex-start",
-            gap: 1,
-            p: 1,
-            textTransform: "none",
-          }}
+          className={cn(
+            "h-auto min-w-0 justify-start gap-2 rounded-xl px-2 py-2",
+            isCollapsed && "justify-center px-0",
+          )}
         >
-          <Box
-            sx={(theme) => ({
-              width: theme.spacing(4.5),
-              height: theme.spacing(4.5),
-              borderRadius: theme.app.radius.pill,
-              bgcolor: "action.selected",
-            })}
-          />
+          <Box className="size-8 shrink-0 rounded-full bg-muted" />
           {!isCollapsed && (
-            <Box
-              sx={(theme) => ({
-                width: theme.spacing(10),
-                height: theme.spacing(1.75),
-                bgcolor: "action.selected",
-                mb: 0.5,
-                borderRadius: theme.shape.borderRadius,
-              })}
-            >
-              <Box
-                sx={(theme) => ({
-                  width: theme.spacing(5),
-                  height: theme.spacing(1.25),
-                  bgcolor: "action.selected",
-                  borderRadius: theme.shape.borderRadius,
-                })}
-              />
+            <Box className="flex min-w-0 flex-1 flex-col gap-1">
+              <Box className="h-3 w-24 rounded-full bg-muted" />
+              <Box className="h-3 w-14 rounded-full bg-muted" />
             </Box>
           )}
-        </MuiButton>
+        </Button>
       </Box>
     );
   }
 
   if (isGuest) {
     const guestButton = (
-      <MuiButton
+      <Button
+        type="button"
+        variant="ghost"
         fullWidth
-        sx={(theme) => ({
-          display: "flex",
-          alignItems: "center",
-          justifyContent: isCollapsed ? "center" : "flex-start",
-          gap: isCollapsed ? 0 : 1.5,
-          p: 0.5,
-          px: isCollapsed ? 0 : 0.75,
-          textTransform: "none",
-          color: "text.secondary",
-          textAlign: "left",
-          minWidth: 0,
-          ...(isCollapsed
-            ? {
-                bgcolor: "action.selected",
-                borderRadius: theme.app.radius.pill,
-                width: 32,
-                height: 32,
-                mx: "auto",
-                flexShrink: 0,
-                "&:hover": { bgcolor: "action.selected", opacity: 0.8 },
-              }
-            : {
-                "&:hover": { bgcolor: "action.hover" },
-              }),
-        })}
+        title={isCollapsed ? "Guest" : undefined}
+        className={cn(
+          "h-auto min-w-0 justify-start gap-2 rounded-xl px-2 py-2 text-left",
+          isCollapsed && "justify-center px-0",
+        )}
       >
-        <Box sx={{ display: "flex", flexShrink: 0 }}>
-          <Avatar
-            sx={(theme) => ({
-              width: theme.spacing(isCollapsed ? 3 : 3.5),
-              height: theme.spacing(isCollapsed ? 3 : 3.5),
-            })}
-          >
-            <AvatarFallback
-              sx={(theme) => ({
-                ...theme.typography.caption,
-                bgcolor: "action.selected",
-                color: "text.secondary",
-              })}
-            >
+        <Avatar className="size-8 shrink-0">
+          <AvatarFallback>
               ?
-            </AvatarFallback>
-          </Avatar>
-        </Box>
+          </AvatarFallback>
+        </Avatar>
         {!isCollapsed && (
             <Box
-              className="animate-slide-in"
-              sx={{ flex: 1, overflow: "hidden" }}
+              className="flex min-w-0 flex-1 flex-col"
             >
               <Typography
-                sx={(theme) => ({
-                  ...theme.typography.body2,
-                  fontWeight: theme.typography.fontWeightMedium,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                  color: "text.primary",
-                })}
+                noWrap
+                weight="medium"
               >
                 Guest mode
               </Typography>
               <Typography
-                sx={(theme) => ({
-                  ...theme.typography.caption,
-                  display: "block",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                  color: "text.secondary",
-                  opacity: 0.6,
-                })}
+                variant="caption"
+                color="text.secondary"
+                noWrap
               >
                 Not signed in
               </Typography>
             </Box>
           )}
-      </MuiButton>
+      </Button>
     );
 
     return (
-      <Box sx={{ width: "100%", display: "flex", flexDirection: "column", alignItems: "center" }}>
+      <Box className="px-2 pb-1">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            {isCollapsed ? (
-              <Tooltip title="Guest" placement="right">
-                {guestButton}
-              </Tooltip>
-            ) : (
-              guestButton
-            )}
+            {guestButton}
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" sx={{ width: 256 }}>
+          <DropdownMenuContent align="end" className="min-w-56">
             <DropdownMenuLabel>
-              <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+              <Box className="flex min-w-0 flex-col">
                 <Typography
-                  sx={(theme) => ({
-                    ...theme.typography.body2,
-                    fontWeight: theme.typography.fontWeightMedium,
-                    lineHeight: 1.2,
-                  })}
+                  weight="medium"
+                  noWrap
                 >
                   Guest
                 </Typography>
                 <Typography
-                  sx={(theme) => ({
-                    ...theme.typography.caption,
-                    color: "text.secondary",
-                    lineHeight: 1.2,
-                  })}
+                  variant="caption"
+                  color="text.secondary"
+                  noWrap
                 >
                   Signed out
                 </Typography>
               </Box>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => onOpenSettings?.("profile")} sx={menuItemSx}>
+            <DropdownMenuItem className="gap-3 whitespace-nowrap" onClick={() => onOpenSettings?.("profile")}>
               <Settings size={16} />
               <span>Settings</span>
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={openModelBrowser} sx={menuItemSx}>
-              <Cpu size={16} />
-              <span>Models</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setIsArchivedOpen(true)} sx={menuItemSx}>
+            <DropdownMenuItem className="gap-3 whitespace-nowrap" onClick={() => setIsArchivedOpen(true)}>
               <Archive size={16} />
               <span>Archived Chats</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => actions.openAuth()} sx={menuItemSx}>
+            <DropdownMenuItem className="gap-3 whitespace-nowrap" onClick={() => actions.openAuth()}>
               <LogIn size={16} />
               <span>Log In</span>
             </DropdownMenuItem>
@@ -251,157 +163,74 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
     : user.email[0].toUpperCase();
 
   const button = (
-    <MuiButton
+    <Button
+      type="button"
+      variant="ghost"
       fullWidth
-      sx={(theme) => ({
-        display: "flex",
-        alignItems: "center",
-        justifyContent: isCollapsed ? "center" : "flex-start",
-        gap: isCollapsed ? 0 : 1.25,
-        p: 0.75,
-        px: isCollapsed ? 0 : 1,
-        textTransform: "none",
-        color: "text.primary",
-        textAlign: "left",
-        minWidth: 0,
-        borderRadius: isCollapsed ? theme.app.radius.pill : theme.app.radius.control,
-        ...(isCollapsed
-          ? {
-              bgcolor: "action.selected",
-              width: 32,
-              height: 32,
-              mx: "auto",
-              flexShrink: 0,
-              "&:hover": { bgcolor: "action.selected", opacity: 0.8 },
-            }
-          : {
-              "&:hover": { bgcolor: "action.hover" },
-            }),
-      })}
+      title={isCollapsed ? user.fullName || user.email : undefined}
+      className={cn(
+        "flex h-auto min-w-0 items-center justify-start gap-2 rounded-xl px-2 py-2 text-left",
+        isCollapsed && "justify-center px-0",
+      )}
     >
-      <Box sx={{ display: "flex", flexShrink: 0, position: "relative" }}>
-        <Avatar
-          sx={(theme) => ({
-            width: theme.spacing(isCollapsed ? 3 : 3.5),
-            height: theme.spacing(isCollapsed ? 3 : 3.5),
-          })}
-        >
+      <Box className="relative shrink-0">
+        <Avatar className="size-8">
           {user.avatarUrl ? (
             <AvatarImage src={user.avatarUrl} alt={user.fullName || user.email} />
           ) : (
-            <AvatarFallback
-              sx={(theme) => ({
-                ...theme.typography.caption,
-                bgcolor: "action.selected",
-                color: "text.primary",
-              })}
-            >
-              {initials}
-            </AvatarFallback>
+            <AvatarFallback seed={user.email}>{initials}</AvatarFallback>
           )}
         </Avatar>
-        {!isCollapsed && (
-          <Box
-            sx={{
-              position: "absolute",
-              bottom: 0,
-              right: 0,
-              width: 10,
-              height: 10,
-              bgcolor: "success.main",
-              border: "2px solid",
-              borderColor: "background.sidebar",
-              borderRadius: (theme) => theme.app.radius.pill,
-            }}
-          />
-        )}
       </Box>
       {!isCollapsed && (
           <Box
-            className="animate-slide-in"
-            sx={{ flex: 1, overflow: "hidden" }}
+            className="flex min-w-0 flex-1 flex-col"
           >
             <Typography
-              sx={(theme) => ({
-                ...theme.typography.body2,
-                fontWeight: theme.typography.fontWeightMedium,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              })}
+              noWrap
+              weight="medium"
             >
               {user.fullName || "User"}
             </Typography>
             <Typography
-              sx={(theme) => ({
-                ...theme.typography.caption,
-                display: "block",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-                color: "text.secondary",
-                opacity: 0.6,
-              })}
+              variant="caption"
+              color="text.secondary"
+              noWrap
             >
               Active
             </Typography>
           </Box>
         )}
-    </MuiButton>
+    </Button>
   );
 
   return (
-    <Box sx={{ width: "100%", display: "flex", flexDirection: "column", alignItems: "center" }}>
+    <Box className="px-2 pb-1">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          {isCollapsed ? (
-            <Tooltip title={user.fullName || user.email} placement="right">
-              {button}
-            </Tooltip>
-          ) : (
-            button
-          )}
+          {button}
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" sx={{ width: 256 }}>
-          <DropdownMenuLabel>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}>
-              <Avatar sx={(theme) => ({ width: theme.spacing(4.25), height: theme.spacing(4.25), flexShrink: 0 })}>
+        <DropdownMenuContent align="end" className="min-w-60">
+          <DropdownMenuLabel className="p-2">
+            <Box className="flex min-w-0 items-center gap-2">
+              <Avatar className="size-8 shrink-0">
                 {user.avatarUrl ? (
                   <AvatarImage src={user.avatarUrl} alt={user.fullName || user.email} />
                 ) : (
-                  <AvatarFallback
-                    sx={(theme) => ({
-                      ...theme.typography.caption,
-                      bgcolor: "action.selected",
-                      color: "text.primary",
-                    })}
-                  >
-                    {initials}
-                  </AvatarFallback>
+                  <AvatarFallback seed={user.email}>{initials}</AvatarFallback>
                 )}
               </Avatar>
-              <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5, minWidth: 0 }}>
+              <Box className="flex min-w-0 flex-1 flex-col">
                 <Typography
-                  sx={(theme) => ({
-                    ...theme.typography.body2,
-                    fontWeight: theme.typography.fontWeightMedium,
-                    lineHeight: 1.2,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  })}
+                  weight="medium"
+                  noWrap
                 >
                   {user.fullName || "User"}
                 </Typography>
                 <Typography
-                  sx={(theme) => ({
-                    ...theme.typography.caption,
-                    color: "text.secondary",
-                    lineHeight: 1.2,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  })}
+                  variant="caption"
+                  color="text.secondary"
+                  noWrap
                 >
                   {user.email}
                 </Typography>
@@ -410,21 +239,17 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
           </DropdownMenuLabel>
 
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => onOpenSettings?.("profile")} sx={menuItemSx}>
+          <DropdownMenuItem className="gap-3 whitespace-nowrap" onClick={() => onOpenSettings?.("profile")}>
             <Settings size={16} />
             <span>Settings</span>
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={openModelBrowser} sx={menuItemSx}>
-            <Cpu size={16} />
-            <span>Models</span>
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setIsArchivedOpen(true)} sx={menuItemSx}>
+          <DropdownMenuItem className="gap-3 whitespace-nowrap" onClick={() => setIsArchivedOpen(true)}>
             <Archive size={16} />
             <span>Archived Chats</span>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
-            sx={{ color: "error.main", "&:focus": { color: "error.main" }, gap: 2 }}
+            className="gap-3 whitespace-nowrap"
             onClick={() => actions.logout()}
           >
             <LogOut size={16} />

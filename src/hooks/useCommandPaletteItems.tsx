@@ -9,7 +9,7 @@ import {
   SquarePen,
   Trash2,
 } from "lucide-react";
-import { IS_MAC } from "@/lib/utils/platform";
+import { fmtShortcut, MOD_KEY } from "@/lib/platform";
 import type { FeatureDef } from "@/lib/featureRegistry";
 import type { CommandPaletteItem } from "@/features/command-palette/types";
 import type { Conversation } from "@/types/chat";
@@ -98,7 +98,7 @@ export function useCommandPaletteItems({
         category: "action",
         keywords: ["new", "chat", "compose"],
         icon: <SquarePen size={16} />,
-        shortcut: IS_MAC ? "Cmd N" : "Ctrl N",
+        shortcut: fmtShortcut(MOD_KEY, "N"),
         execute: onNewChat,
         smartCommand: { command: "new-chat" },
       },
@@ -109,7 +109,7 @@ export function useCommandPaletteItems({
         category: "action",
         keywords: ["settings", "preferences", "sett"],
         icon: <Settings size={16} />,
-        shortcut: IS_MAC ? "Cmd ," : "Ctrl ,",
+        shortcut: fmtShortcut(MOD_KEY, ","),
         execute: () => onOpenSettings("general"),
         smartCommand: { command: "open-settings" },
       },

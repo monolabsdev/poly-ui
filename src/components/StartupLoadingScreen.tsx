@@ -1,7 +1,4 @@
 import { memo, useEffect } from "react";
-import Box from "@mui/material/Box";
-import Typography from "@mui/material/Typography";
-import { useTheme } from "@mui/material/styles";
 import { Ring2 } from "ldrs/react";
 import "ldrs/react/Ring2.css";
 import { TITLE_BAR_HEIGHT } from "@/components/Layout/WindowTitleBar";
@@ -15,7 +12,6 @@ function StartupLoadingScreen({
   visible = true,
   onExited,
 }: StartupLoadingScreenProps) {
-  const theme = useTheme();
   useEffect(() => {
     if (visible || !onExited) return;
     const timer = setTimeout(onExited, 1000);
@@ -23,44 +19,24 @@ function StartupLoadingScreen({
   }, [visible, onExited]);
 
   return (
-    <Box
-      sx={{
-        opacity: visible ? 1 : 0,
-        transition: "opacity 0.28s ease-out",
-        position: "fixed",
-        top: `${TITLE_BAR_HEIGHT}px`,
-        right: 0,
-        bottom: 0,
-        left: 0,
-        zIndex: 2147483647,
-        bgcolor: "background.default",
-        pointerEvents: visible ? "auto" : "none",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 2,
-      }}
+    <div
+      className={`fixed inset-x-0 bottom-0 z-[2147483647] flex flex-col items-center justify-center gap-4 bg-background transition-opacity duration-[var(--dur-slow)] ease-[var(--ease-premium)] ${
+        visible ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"
+      }`}
+      style={{ top: TITLE_BAR_HEIGHT }}
     >
-      <Typography
-        sx={{
-          fontSize: 28,
-          fontWeight: 700,
-          letterSpacing: "-0.03em",
-          color: "text.primary",
-        }}
-      >
+      <p className="text-[28px] font-bold text-foreground">
         PolyUI
-      </Typography>
+      </p>
       <Ring2
         size="28"
         stroke="5"
         strokeLength="0.25"
         bgOpacity="0.1"
         speed="0.8"
-        color={theme.palette.text.primary}
+        color="var(--foreground)"
       />
-    </Box>
+    </div>
   );
 }
 

@@ -1,4 +1,4 @@
-import Box from "@mui/material/Box";
+import { Box } from "@/components/ui/Box";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 interface DeleteConversationDialogProps {
@@ -17,9 +17,9 @@ export function DeleteConversationDialog({
   count,
 }: DeleteConversationDialogProps) {
   const description = count ? (
-    <>This will delete <Box component="span" sx={{ fontWeight: 700, color: "text.primary" }}>{count} chats</Box>. This action cannot be undone.</>
+    <>This will delete <Box as="span">{count} chats</Box>. This action cannot be undone.</>
   ) : (
-    <>This will delete <Box component="span" sx={{ fontWeight: 700, color: "text.primary" }}>{title}</Box>. This action cannot be undone.</>
+    <>This will delete <Box as="span">{title}</Box>. This action cannot be undone.</>
   );
 
   return (

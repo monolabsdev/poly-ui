@@ -1,17 +1,9 @@
 import * as React from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import Box from "@mui/material/Box";
-import ButtonBase from "@mui/material/ButtonBase";
-import Typography from "@mui/material/Typography";
-import { alpha } from "@mui/material/styles";
-import { useTheme } from "@mui/material/styles";
-import { Check, AlertTriangle, MessageSquare, Search, Settings, Sparkles, X, Zap } from "lucide-react";
+import { AlertTriangle, Check, MessageSquare, Search, Settings, Sparkles, X, Zap } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { CommandPaletteCategory, CommandPaletteItem } from "./types";
-import {
-  getIntentSummary,
-  parseCommandIntent,
-  type ParsedIntent,
-} from "./intentParser";
+import { getIntentSummary, parseCommandIntent, type ParsedIntent } from "./intentParser";
 
 type CommandPaletteProps = {
   open: boolean;
@@ -23,108 +15,64 @@ type PaletteRow =
   | { type: "header"; id: string; label: string }
   | { type: "item"; id: string; item: CommandPaletteItem };
 
-const HEADER_ROW_HEIGHT = 24;
-const ITEM_ROW_HEIGHT = 38;
-const ITEM_ROW_WITH_DESCRIPTION_HEIGHT = 38;
-const ROW_VERTICAL_GAP = 2;
+const HEADER_HEIGHT = 36;
+const ITEM_HEIGHT = 40;
 const MEDIUM_CONFIDENCE = 0.62;
 
 const CATEGORY_LABELS: Record<CommandPaletteCategory, string> = {
-  conversation: "Conversations",
   action: "Actions",
+  conversation: "Conversations",
   feature: "Features",
   setting: "Settings",
 };
 
-const EMPTY_ORDER: CommandPaletteCategory[] = [
-  "conversation",
-  "action",
-  "feature",
-  "setting",
-];
-
-const SEARCH_ORDER: CommandPaletteCategory[] = [
-  "action",
-  "conversation",
-  "feature",
-  "setting",
-];
+const EMPTY_ORDER: CommandPaletteCategory[] = ["action", "conversation", "feature", "setting"];
+const SEARCH_ORDER: CommandPaletteCategory[] = ["action", "conversation", "feature", "setting"];
 
 function scoreItem(item: CommandPaletteItem, query: string) {
-  const haystack = [
-    item.title,
-    item.description,
-    item.category,
-    ...(item.keywords ?? []),
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
+  const haystack = [item.title, item.description, item.category, ...(item.keywords ?? [])]
+    .filter(Boolean).join(" ").toLowerCase();
   const needle = query.trim().toLowerCase();
   if (!needle) return 1;
   if (haystack.includes(needle)) return 1000 - haystack.indexOf(needle);
-
-  let score = 0;
-  let haystackIndex = 0;
-  for (const char of needle) {
-    const foundIndex = haystack.indexOf(char, haystackIndex);
-    if (foundIndex === -1) return 0;
-    score += foundIndex === haystackIndex ? 12 : 4;
-    haystackIndex = foundIndex + 1;
+  let score = 0, hi = 0;
+  for (const ch of needle) {
+    const fi = haystack.indexOf(ch, hi);
+    if (fi === -1) return 0;
+    score += fi === hi ? 12 : 4;
+    hi = fi + 1;
   }
   return score - haystack.length * 0.01;
 }
 
 function buildRows(items: CommandPaletteItem[], query: string): PaletteRow[] {
   const trimmed = query.trim();
-  const minimumScore = Math.max(16, trimmed.length * 8);
+  const minScore = Math.max(16, trimmed.length * 8);
   const source = trimmed
-    ? items
-        .map((item) => ({ item, score: scoreItem(item, trimmed) }))
-        .filter((entry) => entry.score >= minimumScore)
+    ? items.map((item) => ({ item, score: scoreItem(item, trimmed) }))
+        .filter((e) => e.score >= minScore)
         .sort((a, b) => b.score - a.score)
-        .map((entry) => entry.item)
+        .map((e) => e.item)
     : items;
 
-  const order = trimmed ? SEARCH_ORDER : EMPTY_ORDER;
   const rows: PaletteRow[] = [];
-  for (const category of order) {
-    const group = source.filter((item) => item.category === category);
-    if (group.length === 0) continue;
-    rows.push({
-      type: "header",
-      id: `header-${category}`,
-      label: CATEGORY_LABELS[category],
-    });
-    rows.push(
-      ...group.map((item) => ({ type: "item" as const, id: item.id, item })),
-    );
+  for (const cat of trimmed ? SEARCH_ORDER : EMPTY_ORDER) {
+    const group = source.filter((i) => i.category === cat);
+    if (!group.length) continue;
+    rows.push({ type: "header", id: `hdr-${cat}`, label: CATEGORY_LABELS[cat] });
+    rows.push(...group.map((item) => ({ type: "item" as const, id: item.id, item })));
   }
   return rows;
 }
 
-function categoryIcon(category: CommandPaletteCategory) {
-  if (category === "conversation") return <MessageSquare size={16} />;
-  if (category === "feature") return <Zap size={16} />;
-  if (category === "setting") return <Settings size={16} />;
-  return <Sparkles size={16} />;
+function catIcon(category: CommandPaletteCategory) {
+  if (category === "conversation") return <MessageSquare size={15} />;
+  if (category === "feature") return <Zap size={15} />;
+  if (category === "setting") return <Settings size={15} />;
+  return <Sparkles size={15} />;
 }
 
-function getPaletteRowHeight(row: PaletteRow | undefined) {
-  if (!row) return ITEM_ROW_HEIGHT;
-  if (row.type === "header") return HEADER_ROW_HEIGHT;
-  return row.item.description
-    ? ITEM_ROW_WITH_DESCRIPTION_HEIGHT
-    : ITEM_ROW_HEIGHT;
-}
-
-
-export function CommandPalette({
-  open,
-  onOpenChange,
-  items,
-}: CommandPaletteProps) {
-  const theme = useTheme();
+export function CommandPalette({ open, onOpenChange, items }: CommandPaletteProps) {
   const inputRef = React.useRef<HTMLInputElement>(null);
   const parentRef = React.useRef<HTMLDivElement>(null);
   const [query, setQuery] = React.useState("");
@@ -133,484 +81,203 @@ export function CommandPalette({
   const rows = React.useMemo(() => buildRows(items, query), [items, query]);
   const parsedIntent = React.useMemo(() => parseCommandIntent(query), [query]);
   const showIntent = Boolean(
-    parsedIntent &&
-      (parsedIntent.confidence >= MEDIUM_CONFIDENCE || parsedIntent.destructive),
+    parsedIntent && (parsedIntent.confidence >= MEDIUM_CONFIDENCE || parsedIntent.destructive),
   );
-  const selectableItems = React.useMemo(
-    () =>
-      rows.filter(
-        (row): row is Extract<PaletteRow, { type: "item" }> =>
-          row.type === "item",
-      ),
+
+  const selectable = React.useMemo(
+    () => rows.filter((r): r is Extract<PaletteRow, { type: "item" }> => r.type === "item"),
     [rows],
   );
-  const selectedIndex = selectableItems.findIndex(
-    (row) => row.item.id === selectedId,
-  );
-  const selectedItem =
-    selectedIndex >= 0
-      ? selectableItems[selectedIndex]?.item
-      : selectableItems[0]?.item;
+  const selIdx = selectable.findIndex((r) => r.item.id === selectedId);
+  const selectedItem = selIdx >= 0 ? selectable[selIdx]?.item : selectable[0]?.item;
 
-  const virtualizer = useVirtualizer({
+  const virt = useVirtualizer({
     count: rows.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: (index) => getPaletteRowHeight(rows[index]),
+    estimateSize: (i) => (rows[i]?.type === "header" ? HEADER_HEIGHT : ITEM_HEIGHT),
     overscan: 10,
   });
 
   React.useEffect(() => {
     if (!open) return;
     setQuery("");
-    requestAnimationFrame(() => inputRef.current?.focus());
+    requestAnimationFrame(() => requestAnimationFrame(() => inputRef.current?.focus()));
   }, [open]);
 
   React.useEffect(() => {
-    if (!open || selectableItems.length === 0) {
-      setSelectedId(null);
-      return;
-    }
-    if (selectedId && selectableItems.some((row) => row.item.id === selectedId))
-      return;
-    setSelectedId(selectableItems[0].item.id);
-  }, [open, selectableItems, selectedId]);
+    if (!open || !selectable.length) { setSelectedId(null); return; }
+    if (selectedId && selectable.some((r) => r.item.id === selectedId)) return;
+    setSelectedId(selectable[0].item.id);
+  }, [open, selectable, selectedId]);
 
   React.useEffect(() => {
-    const rowIndex = rows.findIndex(
-      (row) => row.type === "item" && row.item.id === selectedItem?.id,
-    );
-    if (rowIndex >= 0) virtualizer.scrollToIndex(rowIndex, { align: "auto" });
-  }, [rows, selectedItem?.id, virtualizer]);
+    const idx = rows.findIndex((r) => r.type === "item" && r.item.id === selectedItem?.id);
+    if (idx >= 0) virt.scrollToIndex(idx, { align: "auto" });
+  }, [rows, selectedItem?.id, virt]);
 
-  const execute = React.useCallback(
-    (item: CommandPaletteItem | undefined) => {
-      if (!item) return;
-      item.execute();
-      onOpenChange(false);
-    },
-    [onOpenChange],
-  );
+  const execute = React.useCallback((item?: CommandPaletteItem) => {
+    if (!item) return;
+    item.execute();
+    onOpenChange(false);
+  }, [onOpenChange]);
 
-  const executeIntent = React.useCallback(
-    (intent: ParsedIntent | null) => {
-      if (!intent) return;
-      if (intent.command === "search-chats") {
-        setQuery(intent.args.query);
-        requestAnimationFrame(() => inputRef.current?.focus());
-        return;
-      }
-
-      const action = items.find(
-        (item) => item.smartCommand?.command === intent.command,
-      );
-      if (!action) return;
-      const executor = action.smartCommand?.execute;
-      if (executor) void executor(intent.args as never);
-      else action.execute();
-      onOpenChange(false);
-    },
-    [items, onOpenChange],
-  );
-
-  const moveSelection = React.useCallback(
-    (direction: 1 | -1) => {
-      if (selectableItems.length === 0) return;
-      const current = Math.max(0, selectedIndex);
-      const next =
-        (current + direction + selectableItems.length) % selectableItems.length;
-      setSelectedId(selectableItems[next].item.id);
-    },
-    [selectableItems, selectedIndex],
-  );
-
-  const handleKeyDown = (event: React.KeyboardEvent) => {
-    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
-      event.preventDefault();
-      event.stopPropagation();
-      onOpenChange(false);
+  const executeIntent = React.useCallback((intent: ParsedIntent | null) => {
+    if (!intent) return;
+    if (intent.command === "search-chats") {
+      setQuery(intent.args.query);
+      requestAnimationFrame(() => requestAnimationFrame(() => inputRef.current?.focus()));
       return;
     }
-    if (event.key === "Escape") {
-      event.preventDefault();
-      onOpenChange(false);
-      return;
-    }
-    if (event.key === "ArrowDown") {
-      event.preventDefault();
-      moveSelection(1);
-      return;
-    }
-    if (event.key === "ArrowUp") {
-      event.preventDefault();
-      moveSelection(-1);
-      return;
-    }
-    if (event.key === "Enter") {
-      event.preventDefault();
-      if (parsedIntent && showIntent) {
-        executeIntent(parsedIntent);
-        return;
-      }
+    const action = items.find((i) => i.smartCommand?.command === intent.command);
+    if (!action) return;
+    const exec = action.smartCommand?.execute;
+    if (exec) void exec(intent.args as never); else action.execute();
+    onOpenChange(false);
+  }, [items, onOpenChange]);
+
+  const moveSelection = React.useCallback((dir: 1 | -1) => {
+    if (!selectable.length) return;
+    const cur = Math.max(0, selIdx);
+    setSelectedId(selectable[(cur + dir + selectable.length) % selectable.length].item.id);
+  }, [selectable, selIdx]);
+
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); onOpenChange(false); return; }
+    if (e.key === "Escape") { e.preventDefault(); onOpenChange(false); return; }
+    if (e.key === "ArrowDown") { e.preventDefault(); moveSelection(1); return; }
+    if (e.key === "ArrowUp") { e.preventDefault(); moveSelection(-1); return; }
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (parsedIntent && showIntent) { executeIntent(parsedIntent); return; }
       execute(selectedItem);
     }
   };
 
-  return (
-    <React.Fragment>
-      {open ? (
-        <Box
-          className="animate-fade-in"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) onOpenChange(false);
-          }}
-          sx={{
-            position: "fixed",
-            inset: "var(--titlebar-height) 0 0 0",
-            zIndex: theme.zIndex.modal + 20,
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            py: "clamp(16px, 6vh, 56px)",
-            px: { xs: 1.5, sm: 2 },
-            bgcolor: alpha(theme.palette.background.default, 0.5),
-            backdropFilter: "blur(18px)",
-            "@media (max-height: 560px)": {
-              py: "12px",
-            },
-          }}
-        >
-          <Box
-            className="animate-popover"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Command palette"
-            onKeyDown={handleKeyDown}
-            sx={{
-              width: "520px",
-              maxWidth: { xs: "calc(100vw - 24px)", sm: "90vw" },
-              maxHeight: "min(55dvh, calc(100dvh - var(--titlebar-height) - clamp(32px, 12vh, 112px)))",
-              display: "flex",
-              flexDirection: "column",
-              overflow: "hidden",
-              borderRadius: theme.app.radius.commandPalette,
-              border: "1px solid",
-              borderColor: alpha(
-                theme.palette.common.white,
-                theme.palette.mode === "dark" ? 0.1 : 0.2,
-              ),
-              bgcolor:
-                theme.palette.mode === "dark"
-                  ? theme.palette.background.default
-                  : theme.palette.background.paper,
-              "@media (max-height: 560px)": {
-                maxHeight: "calc(100dvh - var(--titlebar-height) - 24px)",
-              },
-              "@media (max-width: 520px)": {
-                width: "calc(100vw - 24px)",
-              },
-            }}
-          >
-            <Box
-              sx={{
-                px: 1.25,
-                pt: 1.25,
-                pb: 1,
-                borderBottom: "1px solid",
-                borderColor: "divider",
-                flexShrink: 0,
-              }}
-            >
-              <Box
-                sx={(theme) => ({
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 1,
-                  height: 40,
-                  px: 1.5,
-                  borderRadius: theme.app.radius.pill,
-                  bgcolor: "action.hover",
-                  border: "1px solid",
-                  borderColor: "divider",
-                  color: "text.secondary",
-                })}
-              >
-                <Search size={16} />
-                <Box
-                  ref={inputRef}
-                  component="input"
-                  value={query}
-                  onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-                    setQuery(event.target.value)
-                  }
-                  placeholder="Search commands and conversations"
-                  aria-label="Search commands"
-                  aria-activedescendant={
-                    selectedItem ? `command-${selectedItem.id}` : undefined
-                  }
-                  sx={{
-                    flex: 1,
-                    minWidth: 0,
-                    border: 0,
-                    outline: 0,
-                    bgcolor: "transparent",
-                    color: "text.primary",
-                    fontSize: 13.5,
-                    fontWeight: 450,
-                    "&::placeholder": {
-                      color: "text.secondary",
-                      opacity: 0.7,
-                    },
-                  }}
-                />
-              </Box>
-            </Box>
-
-            {showIntent && parsedIntent ? (
-              <IntentPreview intent={parsedIntent} />
-            ) : null}
-
-            <Box
-              ref={parentRef}
-              role="listbox"
-              aria-label="Command results"
-              sx={{
-                flex: 1,
-                minHeight: 0,
-                overflowY: "auto",
-                px: 0.75,
-                pt: 0.5,
-                pb: 1,
-                scrollbarWidth: "thin",
-                scrollbarColor: `${alpha(theme.palette.text.secondary, 0.32)} transparent`,
-                "&::-webkit-scrollbar": {
-                  width: 8,
-                },
-                "&::-webkit-scrollbar-track": {
-                  background: "transparent",
-                },
-                "&::-webkit-scrollbar-thumb": {
-                  backgroundColor: alpha(theme.palette.text.secondary, 0.24),
-                  borderRadius: 8,
-                  border: "2px solid transparent",
-                  backgroundClip: "content-box",
-                },
-                "&::-webkit-scrollbar-thumb:hover": {
-                  backgroundColor: alpha(theme.palette.text.secondary, 0.38),
-                },
-              }}
-            >
-              {rows.length === 0 ? (
-                <Box
-                  sx={{ py: 7, textAlign: "center", color: "text.secondary" }}
-                >
-                  <Typography sx={{ fontSize: 14, fontWeight: 600 }}>
-                    No results
-                  </Typography>
-                  <Typography sx={{ mt: 0.5, fontSize: 12 }}>
-                    Try a different search.
-                  </Typography>
-                </Box>
-              ) : (
-                <Box
-                  sx={{
-                    height: virtualizer.getTotalSize(),
-                    position: "relative",
-                  }}
-                >
-                  {virtualizer.getVirtualItems().map((virtualRow) => {
-                    const row = rows[virtualRow.index];
-                    if (!row) return null;
-                    return (
-                      <Box
-                        key={row.id}
-                        data-index={virtualRow.index}
-                        sx={{
-                          position: "absolute",
-                          top: 0,
-                          left: 0,
-                          width: "100%",
-                          height: virtualRow.size,
-                          boxSizing: "border-box",
-                          transform: `translateY(${virtualRow.start}px)`,
-                        }}
-                      >
-                        {row.type === "header" ? (
-                          <Box
-                            sx={{
-                              height: HEADER_ROW_HEIGHT,
-                              display: "flex",
-                              alignItems: "flex-end",
-                              px: 1.5,
-                              pb: 0.25,
-                            }}
-                          >
-                            <Typography
-                              sx={{
-                                fontSize: 11,
-                                fontWeight: 500,
-                                color: "text.secondary",
-                                opacity: 0.7,
-                              }}
-                            >
-                              {row.label}
-                            </Typography>
-                          </Box>
-                        ) : (
-                          <CommandRow
-                            item={row.item}
-                            active={row.item.id === selectedItem?.id}
-                            onMouseEnter={() => setSelectedId(row.item.id)}
-                            onClick={() => execute(row.item)}
-                          />
-                        )}
-                      </Box>
-                    );
-                  })}
-                </Box>
-              )}
-            </Box>
-
-          </Box>
-        </Box>
-      ) : null}
-    </React.Fragment>
-  );
-}
-
-function IntentPreview({ intent }: { intent: ParsedIntent }) {
-  const summary = getIntentSummary(intent);
-  const text = `${summary.action}${summary.argument ? ` "${summary.argument}"` : ""}`;
+  if (!open) return null;
 
   return (
-    <Box
-      sx={{
-        display: "flex",
-        alignItems: "center",
-        gap: 0.75,
-        px: 1.75,
-        py: 0.6,
-        borderBottom: "1px solid",
-        borderColor: "divider",
-        flexShrink: 0,
-        color: intent.destructive ? "error.main" : "text.secondary",
-        opacity: 0.8,
-      }}
+    <div
+      className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center"
+      onMouseDown={(e) => { if (e.target === e.currentTarget) onOpenChange(false); }}
     >
-      {intent.destructive
-        ? <AlertTriangle size={11} />
-        : <Sparkles size={11} />}
-      <Typography
-        noWrap
-        sx={{
-          fontSize: 11,
-          lineHeight: 1,
-          color: "inherit",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-        }}
+      <div
+        className="absolute inset-0 bg-background/70 backdrop-blur-sm"
+        onClick={() => onOpenChange(false)}
+      />
+
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Command palette"
+        onKeyDown={onKeyDown}
+        className="relative z-10 mx-4 flex w-full max-w-[600px] flex-col overflow-hidden rounded-[24px] bg-popover shadow-2xl"
+        style={{ maxHeight: "min(560px, 72vh)" }}
       >
-        {text}
-      </Typography>
-      {import.meta.env.DEV ? (
-        <Typography sx={{ fontSize: 10, ml: "auto", opacity: 0.5, flexShrink: 0 }}>
-          {Math.round(intent.confidence * 100)}%
-        </Typography>
-      ) : null}
-    </Box>
+        {/* Search */}
+        <div className="flex items-center gap-3 px-5 py-4">
+          <Search size={15} className="shrink-0 text-muted-foreground" />
+          <input
+            ref={inputRef}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Type a command or search…"
+            aria-label="Search commands"
+            className="min-w-0 flex-1 bg-transparent text-[14px] text-foreground placeholder:text-muted-foreground/60 outline-none"
+          />
+        </div>
+
+        {/* Intent */}
+        {showIntent && parsedIntent ? (
+          <div className={cn(
+            "flex items-center gap-2 px-5 py-2 text-[12px]",
+            parsedIntent.destructive ? "text-destructive" : "text-muted-foreground",
+          )}>
+            {parsedIntent.destructive ? <AlertTriangle size={12} /> : <Sparkles size={12} />}
+            <span className="truncate">
+              {(() => { const s = getIntentSummary(parsedIntent); return `${s.action}${s.argument ? ` "${s.argument}"` : ""}`; })()}
+            </span>
+          </div>
+        ) : null}
+
+        {/* List */}
+        <div
+          ref={parentRef}
+          role="listbox"
+          aria-label="Command results"
+          className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-2 pb-3"
+        >
+          {rows.length === 0 ? (
+            <div className="py-10 text-center text-sm text-muted-foreground">No results</div>
+          ) : (
+            <div className="relative" style={{ height: virt.getTotalSize() }}>
+              {virt.getVirtualItems().map((vr) => {
+                const row = rows[vr.index];
+                if (!row) return null;
+                return (
+                  <div
+                    key={row.id}
+                    data-index={vr.index}
+                    ref={virt.measureElement}
+                    className="absolute left-0 top-0 w-full"
+                    style={{ transform: `translateY(${vr.start}px)` }}
+                  >
+                    {row.type === "header" ? (
+                      <div className="flex h-9 items-end px-3 pb-1">
+                        <span className="text-[12px] text-muted-foreground/60">{row.label}</span>
+                      </div>
+                    ) : (
+                      <CmdRow
+                        item={row.item}
+                        active={row.item.id === selectedItem?.id}
+                        onMouseEnter={() => setSelectedId(row.item.id)}
+                        onClick={() => execute(row.item)}
+                      />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 
-function CommandRow({
-  item,
-  active,
-  onMouseEnter,
-  onClick,
-}: {
+function CmdRow({ item, active, onMouseEnter, onClick }: {
   item: CommandPaletteItem;
   active: boolean;
   onMouseEnter: () => void;
   onClick: () => void;
 }) {
   const isFeature = item.category === "feature";
-  const isFeatureEnabled = item.title.startsWith("\u2713");
-  const displayTitle = isFeature
-    ? item.title.replace(/^[\u2713\u2715]\s*/, "")
-    : item.title;
+  const isOn = item.title.startsWith("✓");
+  const title = isFeature ? item.title.replace(/^[✓✕]\s*/, "") : item.title;
 
   return (
-    <ButtonBase
-      id={`command-${item.id}`}
+    <button
+      id={`cmd-${item.id}`}
       role="option"
       aria-selected={active}
       onMouseEnter={onMouseEnter}
       onClick={onClick}
-      sx={{
-        display: "flex",
-        alignItems: "center",
-        boxSizing: "border-box",
-        width: "100%",
-        height: ITEM_ROW_HEIGHT - ROW_VERTICAL_GAP,
-        my: `${ROW_VERTICAL_GAP / 2}px`,
-        justifyContent: "flex-start",
-        gap: 1.25,
-        px: 1.25,
-        borderRadius: "10px",
-        color: active ? "text.primary" : "text.secondary",
-        bgcolor: active ? "action.selected" : "transparent",
-        "&:hover": { bgcolor: active ? "action.selected" : "action.hover" },
-        transition: "background-color 80ms",
-      }}
+      className={cn(
+        "flex h-10 w-full items-center gap-3 rounded-xl px-3 text-left",
+        active ? "bg-accent" : "hover:bg-accent/50",
+      )}
     >
-      <Box sx={{ display: "flex", alignItems: "center", flexShrink: 0, color: "inherit" }}>
-        {item.icon ?? categoryIcon(item.category)}
-      </Box>
-      <Typography
-        noWrap
-        sx={{
-          flex: "1 1 auto",
-          minWidth: 0,
-          textAlign: "left",
-          fontSize: 13.5,
-          fontWeight: active ? 600 : 500,
-          color: "text.primary",
-          lineHeight: 1,
-        }}
-      >
-        {displayTitle}
-      </Typography>
-      {item.shortcut ? <KeyHint>{item.shortcut}</KeyHint> : null}
-      {isFeature ? (
-        <Box
-          sx={(theme) => ({
-            display: "flex",
-            alignItems: "center",
-            flexShrink: 0,
-            color: isFeatureEnabled ? theme.palette.success.main : theme.palette.text.disabled,
-          })}
-          aria-hidden="true"
-        >
-          {isFeatureEnabled ? <Check size={14} /> : <X size={14} />}
-        </Box>
+      <span className="shrink-0 text-muted-foreground [&>svg]:size-[15px]">
+        {item.icon ?? catIcon(item.category)}
+      </span>
+      <span className="min-w-0 flex-1 truncate text-[13.5px] text-foreground">{title}</span>
+      {item.shortcut ? (
+        <span className="shrink-0 text-[12px] text-muted-foreground/70">{item.shortcut}</span>
       ) : null}
-    </ButtonBase>
-  );
-}
-
-function KeyHint({ children }: { children: React.ReactNode }) {
-  return (
-    <Box
-      component="span"
-      sx={{
-        flexShrink: 0,
-        color: "text.secondary",
-        opacity: 0.6,
-        fontSize: 12,
-        fontFamily: "inherit",
-        lineHeight: 1,
-        letterSpacing: "0.02em",
-      }}
-    >
-      {children}
-    </Box>
+      {isFeature ? (
+        <span className={isOn ? "text-green-400" : "text-muted-foreground/40"}>
+          {isOn ? <Check size={13} /> : <X size={13} />}
+        </span>
+      ) : null}
+    </button>
   );
 }

@@ -1,104 +1,18 @@
 import React, { useCallback, useState } from "react";
-import Box from "@mui/material/Box";
-import MuiButton from "@mui/material/Button";
-import IconButton from "@mui/material/IconButton";
-import MuiModal from "@mui/material/Modal";
-import Stack from "@mui/material/Stack";
-import Typography from "@mui/material/Typography";
-import type { Theme } from "@mui/material/styles";
+import { Box } from "@/components/ui/Box";
+import { Button } from "@/components/ui/button";
+import { IconButton } from "@/components/ui/icon-button";
+import { ModalRoot } from "@/components/ui/modal-root";
+import { Stack } from "@/components/ui/Stack";
+import { Typography } from "@/components/ui/Typography";
 import { ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 
 type AuthTab = "login" | "signup";
 type SignupStep = 1 | 2;
-
-const authTabsSx = (theme: Theme) => ({
-  position: "relative",
-  display: "grid",
-  gridTemplateColumns: "1fr 1fr",
-  p: 0.5,
-  borderRadius: theme.app.radius.pill,
-  bgcolor: theme.palette.auth.tabBackground,
-  border: "1px solid",
-  borderColor: theme.palette.auth.tabBorder,
-  width: { xs: "100%", sm: 260 },
-  overflow: "hidden",
-});
-
-const authTabIndicatorSx = (tab: AuthTab) => (theme: Theme) => ({
-  position: "absolute",
-  top: 4,
-  bottom: 4,
-  left: tab === "login" ? 4 : "50%",
-  width: "calc(50% - 4px)",
-  borderRadius: theme.app.radius.pill,
-  bgcolor: theme.palette.auth.selectedSurface,
-  boxShadow: theme.app.shadow.authActive,
-});
-
-const authTabButtonSx = (active: boolean) => (theme: Theme) => ({
-  position: "relative",
-  zIndex: 1,
-  minHeight: 36,
-  borderRadius: theme.app.radius.pill,
-  color: active ? theme.palette.auth.inverseText : theme.palette.auth.textMuted,
-  fontWeight: 700,
-  fontSize: 13,
-  "&:hover": {
-    bgcolor: "transparent",
-    color: active ? theme.palette.auth.inverseText : theme.palette.auth.controlHover,
-  },
-});
-
-const authInputSx = (theme: Theme) => ({
-  height: 40,
-  borderRadius: theme.app.radius.menuItem,
-  bgcolor: theme.palette.auth.inputBackground,
-  borderColor: theme.palette.auth.inputBorder,
-  color: theme.palette.auth.control,
-  "&.Mui-focused": {
-    borderColor: theme.palette.auth.focusBorder,
-    boxShadow: theme.palette.auth.focusRing,
-    bgcolor: theme.palette.auth.inputBackgroundFocus,
-  },
-  "& .MuiInputBase-input::placeholder": {
-    color: theme.palette.auth.textFaint,
-    opacity: 1,
-  },
-});
-
-const authErrorTextSx = (theme: Theme) => ({
-  color: theme.palette.auth.danger,
-  fontSize: 13,
-  fontWeight: 650,
-});
-
-const authBackButtonSx = (theme: Theme) => ({
-  width: 44,
-  height: 42,
-  borderRadius: theme.app.radius.pill,
-  color: theme.palette.auth.ghostText,
-  flexShrink: 0,
-});
-
-const authFooterTextSx = (theme: Theme) => ({
-  color: theme.palette.auth.textSubtle,
-  fontSize: 13,
-  textAlign: "center",
-  mt: 2,
-});
-
-const authInlineButtonSx = (theme: Theme) => ({
-  p: 0,
-  minWidth: 0,
-  color: theme.palette.auth.controlHover,
-  fontWeight: 750,
-  verticalAlign: "baseline",
-  "&:hover": { bgcolor: "transparent", textDecoration: "underline" },
-});
 
 function AuthTabs({
   tab,
@@ -113,20 +27,27 @@ function AuthTabs({
   ];
 
   return (
-    <Box sx={authTabsSx}>
+    <Box className="relative grid w-full grid-cols-2 overflow-hidden rounded-full border border-border/60 bg-muted/40 p-1 sm:w-[260px]">
       <Box
         aria-hidden
-        sx={authTabIndicatorSx(tab)}
+        className={cn(
+          "absolute top-1 bottom-1 w-[calc(50%_-_4px)] rounded-full bg-primary shadow-sm transition-all duration-[var(--dur-base)] ease-[var(--ease-premium)]",
+          tab === "login" ? "left-1" : "left-1/2",
+        )}
       />
       {tabs.map((item) => (
-        <MuiButton
+        <Button
           key={item.key}
-          disableRipple
+          type="button"
+          variant="ghost"
           onClick={() => onChange(item.key)}
-          sx={authTabButtonSx(tab === item.key)}
+          className={cn(
+            "relative z-10 h-9 rounded-full bg-transparent text-[13px] font-bold hover:bg-transparent",
+            tab === item.key ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground",
+          )}
         >
           {item.label}
-        </MuiButton>
+        </Button>
       ))}
     </Box>
   );
@@ -143,7 +64,9 @@ function AuthForm({
   onTabChange: (tab: AuthTab) => void;
   onSignupStepChange: (step: SignupStep) => void;
 }) {
-  const { isLoading, error, actions } = useAuthStore();
+  const isLoading = useAuthStore((state) => state.isLoading);
+  const error = useAuthStore((state) => state.error);
+  const actions = useAuthStore((state) => state.actions);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -171,28 +94,28 @@ function AuthForm({
   };
 
   return (
-    <Box component="form" onSubmit={submit}>
-      <Stack spacing={1.55} sx={{ minHeight: 244 }}>
+    <Box as="form" onSubmit={submit} className="w-full">
+      <Stack spacing={1.55}>
         {tab === "signup" && signupStep === 1 && (
           <>
             <StepStatus current={1} />
             <Field label="Name" htmlFor="signup-name">
               <Input
+                className="h-10 rounded-lg"
                 id="signup-name"
                 placeholder="Tessa Rivera"
                 value={fullName}
                 onChange={(event) => setFullName(event.target.value)}
-                sx={authInputSx}
               />
             </Field>
             <Field label="Email" htmlFor="signup-email">
               <Input
+                className="h-10 rounded-lg"
                 id="signup-email"
                 type="email"
                 placeholder="you@polyui.local"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
-                sx={authInputSx}
                 required
               />
             </Field>
@@ -216,22 +139,22 @@ function AuthForm({
             </Field>
             <Field label="Confirm password" htmlFor="confirm-password">
               <Input
+                className="h-10 rounded-lg pr-10"
                 id="confirm-password"
                 type={showPassword ? "text" : "password"}
                 placeholder="Repeat password"
                 value={confirmPassword}
                 onChange={(event) => setConfirmPassword(event.target.value)}
-                sx={authInputSx}
                 required
               />
             </Field>
             {passwordMismatch && (
-              <Typography sx={authErrorTextSx}>
+              <Typography className="text-[13px] font-semibold text-destructive">
                 Passwords do not match
               </Typography>
             )}
             {error && (
-              <Typography sx={authErrorTextSx}>
+              <Typography className="text-[13px] font-semibold text-destructive">
                 {error}
               </Typography>
             )}
@@ -239,8 +162,8 @@ function AuthForm({
               <Button
                 type="button"
                 variant="ghost"
+                size="icon"
                 onClick={() => onSignupStepChange(1)}
-                sx={authBackButtonSx}
                 aria-label="Back to signup details"
               >
                 <ArrowLeft size={17} />
@@ -256,12 +179,12 @@ function AuthForm({
           <>
             <Field label="Email" htmlFor="login-email">
               <Input
+                className="h-10 rounded-lg"
                 id="login-email"
                 type="email"
                 placeholder="you@polyui.local"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
-                sx={authInputSx}
                 required
               />
             </Field>
@@ -275,7 +198,7 @@ function AuthForm({
               />
             </Field>
             {error && (
-              <Typography sx={authErrorTextSx}>
+              <Typography className="text-[13px] font-semibold text-destructive">
                 {error}
               </Typography>
             )}
@@ -287,16 +210,19 @@ function AuthForm({
       </Stack>
 
       <Typography
-        sx={authFooterTextSx}
+        align="center"
+        color="muted"
+        className="mt-4 text-[13px]"
       >
         {tab === "login" ? "New here?" : "Already have account?"}{" "}
-        <MuiButton
-          disableRipple
+        <Button
+          type="button"
+          variant="link"
+          className="h-auto p-0 align-baseline text-[13px] font-bold"
           onClick={() => onTabChange(tab === "login" ? "signup" : "login")}
-          sx={authInlineButtonSx}
         >
           {tab === "login" ? "Sign up" : "Sign in"}
-        </MuiButton>
+        </Button>
       </Typography>
     </Box>
   );
@@ -308,14 +234,10 @@ function StepStatus({ current }: { current: SignupStep }) {
       direction="row"
       spacing={1}
       alignItems="center"
-      sx={(theme) => ({
-        color: theme.palette.auth.focusBorder,
-        fontSize: 12,
-        fontWeight: 700,
-      })}
+      className="justify-center"
     >
       <StepDot active={current === 1}>1</StepDot>
-      <Box sx={(theme) => ({ height: 1, flex: 1, bgcolor: theme.palette.auth.divider })} />
+      <Box className="h-px w-10 bg-border" />
       <StepDot active={current === 2}>2</StepDot>
     </Stack>
   );
@@ -330,17 +252,10 @@ function StepDot({
 }) {
   return (
     <Box
-      sx={(theme) => ({
-        width: 24,
-        height: 24,
-        borderRadius: theme.app.radius.pill,
-        display: "grid",
-        placeItems: "center",
-        bgcolor: active
-          ? theme.palette.auth.selectedSurface
-          : theme.palette.auth.tabBorder,
-        color: active ? theme.palette.auth.inverseText : theme.palette.auth.ghostText,
-      })}
+      className={cn(
+        "grid size-6 place-items-center rounded-full border text-xs font-bold",
+        active ? "border-primary bg-primary text-primary-foreground" : "border-border/60 text-muted-foreground",
+      )}
     >
       {children}
     </Box>
@@ -360,20 +275,8 @@ function SubmitButton({
     <Button
       type="submit"
       disabled={disabled}
-      sx={(theme) => ({
-        flex: fullWidth ? "none" : 1,
-        width: fullWidth ? "100%" : "auto",
-        height: 42,
-        borderRadius: theme.app.radius.pill,
-        bgcolor: theme.palette.auth.control,
-        color: theme.palette.auth.inverseText,
-        fontWeight: 800,
-        "&:hover": { bgcolor: theme.palette.auth.controlHover, opacity: 1 },
-        "&.Mui-disabled": {
-          bgcolor: theme.palette.auth.disabledSurface,
-          color: theme.palette.auth.disabledText,
-        },
-      })}
+      fullWidth={fullWidth}
+      className="h-10 font-bold"
     >
       {children}
     </Button>
@@ -394,14 +297,14 @@ function PasswordInput({
   onToggleShowPassword: () => void;
 }) {
   return (
-    <Box sx={{ position: "relative" }}>
+    <Box className="relative">
       <Input
+        className="h-10 rounded-lg pr-10"
         id={id}
         type={showPassword ? "text" : "password"}
         placeholder="Enter password"
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        sx={(theme) => ({ ...authInputSx(theme), pr: 5 })}
         required
       />
       <IconButton
@@ -409,13 +312,7 @@ function PasswordInput({
         size="small"
         onClick={onToggleShowPassword}
         aria-label={showPassword ? "Hide password" : "Show password"}
-        sx={(theme) => ({
-          position: "absolute",
-          right: 7,
-          top: "50%",
-          transform: "translateY(-50%)",
-          color: theme.palette.auth.ghostText,
-        })}
+        className="absolute top-1/2 right-1 -translate-y-1/2"
       >
         {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
       </IconButton>
@@ -436,11 +333,7 @@ function Field({
     <Stack spacing={0.85}>
       <Label
         htmlFor={htmlFor}
-        sx={(theme) => ({
-          color: theme.palette.auth.textSecondary,
-          fontSize: 13,
-          fontWeight: 750,
-        })}
+        className="text-xs font-semibold text-muted-foreground"
       >
         {label}
       </Label>
@@ -464,24 +357,16 @@ function AuthPage({
 
   return (
     <Box
-      sx={(theme) => ({
-        minHeight: "100%",
-        boxSizing: "border-box",
-        bgcolor: theme.palette.auth.background,
-        color: theme.palette.auth.text,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        overflowX: "hidden",
-        px: { xs: 3, sm: 6 },
-        py: { xs: 4, md: 6 },
-      })}
+      className="w-[min(420px,calc(100vw_-_32px))] rounded-3xl border border-border/60 bg-card/95 p-6 text-card-foreground shadow-2xl backdrop-blur-xl"
     >
-      <Stack spacing={2.5} sx={{ width: "min(100%, 420px)" }}>
+      <Stack spacing={2.5} alignItems="center">
         <AuthTabs tab={tab} onChange={onTabChange} />
         <Typography
           id="auth-dialog-title"
-          sx={{ m: 0, fontSize: 28, fontWeight: 820, letterSpacing: 0 }}
+          as="h2"
+          variant="h4"
+          align="center"
+          className="pt-1"
         >
           {tab === "login"
             ? "Welcome back"
@@ -495,25 +380,23 @@ function AuthPage({
           onTabChange={onTabChange}
           onSignupStepChange={onSignupStepChange}
         />
-        <MuiButton
-          disableRipple
+        <Button
+          type="button"
+          variant="link"
+          className="h-auto p-0 text-[13px] font-semibold"
           onClick={skipAuth}
-          sx={(theme) => ({
-            color: theme.palette.auth.textMuted,
-            fontWeight: 700,
-            alignSelf: "center",
-            "&:hover": { bgcolor: "transparent", color: theme.palette.auth.controlHover },
-          })}
         >
           Continue as guest
-        </MuiButton>
+        </Button>
       </Stack>
     </Box>
   );
 }
 
 export const AuthModal: React.FC = () => {
-  const { isAuthenticated, isLoading, isGuest } = useAuthStore();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const isLoading = useAuthStore((state) => state.isLoading);
+  const isGuest = useAuthStore((state) => state.isGuest);
   const [tab, setTab] = useState<AuthTab>("login");
   const [signupStep, setSignupStep] = useState<SignupStep>(1);
   const isOpen = !isAuthenticated && !isLoading && !isGuest;
@@ -526,28 +409,14 @@ export const AuthModal: React.FC = () => {
   if (!isOpen) return null;
 
   return (
-    <MuiModal
+    <ModalRoot
       open={isOpen}
       aria-labelledby="auth-dialog-title"
       aria-modal="true"
-      slotProps={{
-        backdrop: {
-          sx: { top: "var(--titlebar-height)" },
-        },
-      }}
     >
       <Box
         role="dialog"
-        sx={{
-          position: "fixed",
-          top: "var(--titlebar-height)",
-          left: 0,
-          right: 0,
-          bottom: 0,
-          zIndex: "modal",
-          overflowY: "hidden",
-          overflowX: "hidden",
-        }}
+        className="mt-[var(--titlebar-height)]"
       >
         <AuthPage
           tab={tab}
@@ -556,6 +425,6 @@ export const AuthModal: React.FC = () => {
           onSignupStepChange={setSignupStep}
         />
       </Box>
-    </MuiModal>
+    </ModalRoot>
   );
 };

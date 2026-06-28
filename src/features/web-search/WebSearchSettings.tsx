@@ -1,12 +1,11 @@
-import FormControl from "@mui/material/FormControl";
-import Link from "@mui/material/Link";
-import MenuItem from "@mui/material/MenuItem";
-import Select from "@mui/material/Select";
-import Stack from "@mui/material/Stack";
-import TextField from "@mui/material/TextField";
-import Typography from "@mui/material/Typography";
-import { appTextFieldSx } from "@/components/ui/appDialog";
-import { SettingCard, selectSx } from "@/features/settings/SettingComponents";
+import { FormControl } from "@/components/ui/native-select";
+import { Link } from "@/components/ui/link";
+import { MenuItem } from "@/components/ui/native-select";
+import { Select } from "@/components/ui/native-select";
+import { Stack } from "@/components/ui/Stack";
+import { TextField } from "@/components/ui/text-field";
+import { Typography } from "@/components/ui/Typography";
+import { SettingCard, selectClassName } from "@/features/settings/SettingComponents";
 import { useSettingsStore } from "@/store/settingsStore";
 import { webSearchProviderRegistry } from "./registry";
 import type { WebSearchProviderId } from "./types";
@@ -22,9 +21,10 @@ export function WebSearchSettings() {
         title="Web search provider"
         description="Choose provider used for live web results."
         action={
-          <FormControl size="small" sx={{ minWidth: 150 }}>
+          <FormControl size="small">
             <Select
               value={provider.id}
+              className={selectClassName}
               onChange={(event) => {
                 updateGeneral({
                   webSearch: {
@@ -33,7 +33,6 @@ export function WebSearchSettings() {
                   },
                 });
               }}
-              sx={selectSx}
             >
               {webSearchProviderRegistry.map((option) => (
                 <MenuItem key={option.id} value={option.id}>{option.name}</MenuItem>
@@ -66,9 +65,8 @@ export function WebSearchSettings() {
             autoComplete="off"
             fullWidth
             size="small"
-            sx={appTextFieldSx}
           />
-          <Typography sx={{ fontSize: 12, color: "text.secondary" }}>
+          <Typography>
             Need key?{" "}
             <Link href={provider.dashboardUrl} target="_blank" rel="noreferrer">
               Open {provider.name} dashboard

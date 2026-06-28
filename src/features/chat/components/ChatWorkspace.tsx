@@ -1,5 +1,5 @@
 import { useCallback, useEffect } from "react";
-import Box from "@mui/material/Box";
+import { Box } from "@/components/ui/Box";
 import { useShallow } from "zustand/react/shallow";
 import { ChatArea } from "@/features/chat/components/ChatArea";
 import { ChatInput } from "@/features/chat/components/ChatInput";
@@ -231,69 +231,64 @@ export default function ChatWorkspace({
 
   return (
     <Box
-      sx={{
-        flex: 1,
-        display: "flex",
-        flexDirection: "column",
-        overflow: "hidden",
-        justifyContent: "flex-start",
-        width: "100%",
-      }}
+      className="relative flex h-full min-h-0 flex-1 flex-col bg-background"
     >
       {ViewComponent ? (
         <ViewComponent />
       ) : (
         <>
           <Header
-            selectedModels={selectedModels}
-            selectedProviders={selectedProviders}
-            selectedModelChoices={selectedModelChoices}
-            onModelChange={modelUpdateSelectedModel}
-            onAddModel={() => modelAddSelectedModel("OllamaLocal", "")}
-            onRemoveModel={modelRemoveSelectedModel}
-            onSetDefault={handleSetDefault}
+        selectedModels={selectedModels}
+        selectedProviders={selectedProviders}
+        selectedModelChoices={selectedModelChoices}
+        onModelChange={modelUpdateSelectedModel}
+        onAddModel={() => modelAddSelectedModel("OllamaLocal", "")}
+        onRemoveModel={modelRemoveSelectedModel}
+        onSetDefault={handleSetDefault}
+        isTemporary={isTemporary}
+        onToggleTemporaryChat={handleToggleTemporary}
+        transparent
+      />
+
+      {activeFolder && !activeConversationId ? (
+        <FolderHome
+          folder={activeFolder}
+          onSubmit={handleSend}
+          onStop={agentEnabled ? cancelAgentRun : stopStreaming}
+          isStreaming={effectiveStreaming}
+          providerOnline={ollama.online}
+          onOpenConnections={onOpenConnections}
+        />
+      ) : hasMessages ? (
+        <ChatArea
+          key={activeConversationId ?? "no-conv"}
+          messages={messages}
+          streamingMessagesList={streamingMessagesList}
+          bottomRef={bottomRef}
+          onRegenerate={handleRegenerate}
+          isTemporary={isTemporary}
+        />
+      ) : (
+        <EmptyState
+          selectedModels={selectedModels}
+          userName={userName}
+          isTemporary={isTemporary}
+          providerOnline={ollama.online}
+          onOpenConnections={onOpenConnections}
+        >
+          <ChatInput
+            onSubmit={handleSend}
+            onStop={agentEnabled ? cancelAgentRun : stopStreaming}
+            isStreaming={effectiveStreaming}
             isTemporary={isTemporary}
-            onToggleTemporaryChat={handleToggleTemporary}
-            transparent
+            conversationId={activeConversationId}
           />
+        </EmptyState>
+      )}
 
-          {activeFolder && !activeConversationId ? (
-            <FolderHome
-              folder={activeFolder}
-              onSubmit={handleSend}
-              onStop={agentEnabled ? cancelAgentRun : stopStreaming}
-              isStreaming={effectiveStreaming}
-              providerOnline={ollama.online}
-              onOpenConnections={onOpenConnections}
-            />
-          ) : hasMessages ? (
-            <ChatArea
-              key={activeConversationId ?? "no-conv"}
-              messages={messages}
-              streamingMessagesList={streamingMessagesList}
-              bottomRef={bottomRef}
-              onRegenerate={handleRegenerate}
-              isTemporary={isTemporary}
-            />
-          ) : (
-            <EmptyState
-              selectedModels={selectedModels}
-              userName={userName}
-              isTemporary={isTemporary}
-              providerOnline={ollama.online}
-              onOpenConnections={onOpenConnections}
-            >
-              <ChatInput
-                onSubmit={handleSend}
-                onStop={agentEnabled ? cancelAgentRun : stopStreaming}
-                isStreaming={effectiveStreaming}
-                isTemporary={isTemporary}
-                conversationId={activeConversationId}
-              />
-            </EmptyState>
-          )}
-
-          {hasMessages ? (
+      {hasMessages ? (
+        <Box className="shrink-0 px-6 pb-6">
+          <Box className="mx-auto w-full max-w-3xl">
             <ChatInput
               onSubmit={handleSend}
               onStop={agentEnabled ? cancelAgentRun : stopStreaming}
@@ -301,7 +296,9 @@ export default function ChatWorkspace({
               isTemporary={isTemporary}
               conversationId={activeConversationId}
             />
-          ) : null}
+          </Box>
+        </Box>
+      ) : null}
         </>
       )}
     </Box>

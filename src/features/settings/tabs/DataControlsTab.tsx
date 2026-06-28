@@ -1,7 +1,7 @@
 import { useState } from "react";
-import Button from "@mui/material/Button";
-import CircularProgress from "@mui/material/CircularProgress";
-import Stack from "@mui/material/Stack";
+import { Button } from "@/components/ui/button";
+import { CircularProgress } from "@/components/ui/spinner";
+import { Stack } from "@/components/ui/Stack";
 import { Trash2, Archive, Download } from "lucide-react";
 import { SettingCard, SectionHeader } from "../SettingComponents";
 import { useChatStore } from "@/store/chatStore";
@@ -131,7 +131,6 @@ export function DataControlsTab() {
             startIcon={
               exporting ? <CircularProgress size={14} /> : <Download size={14} />
             }
-            sx={{ textTransform: "none", fontWeight: 700 }}
           >
             {exporting ? "Exporting..." : "Export"}
           </Button>
@@ -148,7 +147,6 @@ export function DataControlsTab() {
             color="warning"
             onClick={() => setArchiveOpen(true)}
             startIcon={<Archive size={14} />}
-            sx={{ textTransform: "none", fontWeight: 700 }}
           >
             Archive All
           </Button>
@@ -165,7 +163,6 @@ export function DataControlsTab() {
             color="error"
             onClick={() => setDeleteOpen(true)}
             startIcon={<Trash2 size={14} />}
-            sx={{ textTransform: "none", fontWeight: 700 }}
           >
             Delete All
           </Button>

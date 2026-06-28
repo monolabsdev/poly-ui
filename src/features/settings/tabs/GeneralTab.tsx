@@ -1,10 +1,10 @@
-import FormControl from "@mui/material/FormControl";
-import MenuItem from "@mui/material/MenuItem";
-import Select from "@mui/material/Select";
-import Stack from "@mui/material/Stack";
-import Switch from "@mui/material/Switch";
+import { FormControl } from "@/components/ui/native-select";
+import { MenuItem } from "@/components/ui/native-select";
+import { Select } from "@/components/ui/native-select";
+import { Stack } from "@/components/ui/Stack";
+import { Switch } from "@/components/ui/switch";
 import { useShallow } from "zustand/react/shallow";
-import { SettingCard, SectionHeader, selectSx } from "../SettingComponents";
+import { SettingCard, SectionHeader, selectClassName } from "../SettingComponents";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useThemeStore } from "@/store/themeStore";
 
@@ -30,11 +30,11 @@ export function GeneralTab() {
         title="Theme"
         description="Choose how the interface is rendered."
         action={
-          <FormControl size="small" sx={{ minWidth: 150 }}>
+          <FormControl size="small">
             <Select
               value={mode}
+              className={selectClassName}
               onChange={(e) => setMode(e.target.value as "light" | "dark" | "system")}
-              sx={selectSx}
             >
               <MenuItem value="system">System</MenuItem>
               <MenuItem value="light">Light</MenuItem>
@@ -48,11 +48,11 @@ export function GeneralTab() {
         title="Language"
         description="UI language preference."
         action={
-          <FormControl size="small" sx={{ minWidth: 150 }}>
+          <FormControl size="small">
             <Select
               value={general.language}
+              className={selectClassName}
               onChange={(e) => actions.updateGeneral({ language: e.target.value })}
-              sx={selectSx}
             >
               <MenuItem value="en">English</MenuItem>
             </Select>

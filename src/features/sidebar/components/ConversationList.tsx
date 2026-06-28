@@ -1,5 +1,3 @@
-import Box from "@mui/material/Box";
-import Typography from "@mui/material/Typography";
 import { MessageSquare } from "lucide-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useMemo, useRef } from "react";
@@ -7,10 +5,10 @@ import { ConversationItem } from "@/features/chat/components/ConversationItem";
 import {
   SidebarGroupLabel,
   SidebarMenuButton,
-  SidebarSectionHeader,
-} from "@/features/sidebar/components/SidebarPrimitives";
+} from "@/components/ui/sidebar";
+import { SidebarSectionHeader } from "@/features/sidebar/components/sidebar-utils";
 import { ConversationSkeleton } from "@/features/sidebar/components/ConversationSkeleton";
-import { useSidebar } from "@/features/sidebar/hooks/useSidebar";
+import { useSidebar } from "@/components/ui/sidebar";
 import { useSidebarActions } from "@/features/sidebar/hooks/useSidebarActions";
 import { useChatStore } from "@/store/chatStore";
 import { useNotify } from "@/hooks/useNotify";
@@ -33,7 +31,8 @@ export function ConversationList({
   conversationsLoading,
   streamingConversationId,
 }: ConversationListProps) {
-  const { isCollapsed, isMobile, setOpenMobile } = useSidebar();
+  const { state, isMobile, setOpenMobile } = useSidebar();
+  const isCollapsed = state === "collapsed";
   const { conv, onSelectConversation } = useSidebarActions();
   const activeConversationId = useChatStore((s) => s.activeConversationId);
   const notify = useNotify();
@@ -99,79 +98,48 @@ export function ConversationList({
 
   if (groupedConversations.length === 0) {
     return (
-      <Box
-        sx={{
-          flex: 1,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 0.75,
-          px: 2,
-          color: "text.secondary",
-          textAlign: "center",
-        }}
-      >
+      <div className="flex flex-1 flex-col items-center justify-center gap-1.5 px-4 text-center text-muted-foreground">
         <MessageSquare size={16} style={{ opacity: 0.5 }} />
-        <Typography
-          sx={(theme) => ({
-            ...theme.typography.caption,
-            lineHeight: 1.4,
-            color: "text.secondary",
-            opacity: 0.75,
-          })}
-        >
+        <p className="text-xs leading-[1.4] opacity-75">
           No chats yet
-        </Typography>
-      </Box>
+        </p>
+      </div>
     );
   }
 
   return (
-    <Box sx={{ display: "flex", minHeight: 0, flex: 1, flexDirection: "column" }}>
-      <Box sx={{ px: 1.5, mb: 0.25 }}>
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="mb-0.5 px-3">
         <SidebarSectionHeader label="Recents" />
-      </Box>
-      <Box ref={parentRef} sx={{ flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden" }}>
-        <Box
-          sx={{
-            height: rowVirtualizer.getTotalSize(),
-            position: "relative",
-            width: "100%",
-          }}
+      </div>
+      <div ref={parentRef} className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
+        <div
+          className="relative w-full"
+          style={{ height: rowVirtualizer.getTotalSize() }}
         >
           {rowVirtualizer.getVirtualItems().map((virtualRow) => {
             const row = rows[virtualRow.index];
             if (!row) return null;
             return (
-              <Box
+              <div
                 key={row.id}
                 data-index={virtualRow.index}
                 ref={rowVirtualizer.measureElement}
-                sx={{
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  width: "100%",
-                  transform: `translateY(${virtualRow.start}px)`,
-                }}
+                className="absolute top-0 left-0 w-full"
+                style={{ transform: `translateY(${virtualRow.start}px)` }}
               >
                 {row.type === "group" ? (
                   <SidebarGroupLabel>{row.label}</SidebarGroupLabel>
                 ) : (
-                  <Box sx={{ px: isCollapsed ? 0.5 : 1.5, py: 0.125 }}>
+                  <div className={`${isCollapsed ? "px-1" : "px-3"} py-px`}>
                     <SidebarMenuButton
                       isActive={activeConversationId === row.conversation.id}
-                      ariaCurrent={activeConversationId === row.conversation.id}
                       tooltip={row.conversation.title || "Untitled"}
                       onClick={() => {
                         onSelectConversation(row.conversation.id);
                         if (isMobile) setOpenMobile(false);
                       }}
-                      sx={{
-                        px: 1,
-                        "&:hover .conversation-actions, &:focus-within .conversation-actions": { opacity: 1 },
-                      }}
+                      className="px-2 hover:[&_.conversation-actions]:opacity-100 focus-within:[&_.conversation-actions]:opacity-100"
                     >
                       <ConversationItem
                         conv={row.conversation}
@@ -189,13 +157,13 @@ export function ConversationList({
                         onExport={handleExport}
                       />
                     </SidebarMenuButton>
-                  </Box>
+                  </div>
                 )}
-              </Box>
+              </div>
             );
           })}
-        </Box>
-      </Box>
-    </Box>
+        </div>
+      </div>
+    </div>
   );
 }

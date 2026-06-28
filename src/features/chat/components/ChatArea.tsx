@@ -10,14 +10,15 @@ import {
 } from "react";
 import type { ChatMessage } from "@/types/chat";
 import { Message } from "./Message";
-import Box from "@mui/material/Box";
-import CircularProgress from "@mui/material/CircularProgress";
-import Typography from "@mui/material/Typography";
-import IconButton from "@mui/material/IconButton";
-import Fade from "@mui/material/Fade";
+import { Box } from "@/components/ui/Box";
+import { CircularProgress } from "@/components/ui/spinner";
+import { Typography } from "@/components/ui/Typography";
+import { IconButton } from "@/components/ui/icon-button";
+import { Fade } from "@/components/ui/visibility";
 import { useChatStore } from "@/store/chatStore";
 import { ChevronDown } from "lucide-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { useStickToBottom } from "use-stick-to-bottom";
 import { PRETEXT_FONTS, PRETEXT_LINE_HEIGHTS, measureTextHeight } from "@/lib/utils/pretext";
 import { getMotionPolicy } from "@/lib/performance/policy";
 
@@ -93,17 +94,10 @@ const TurnItem = memo(function TurnItem({
         turn.assistantMessages[0]?.id ||
         `turn-${turnIndex}`
       }
-      sx={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 1,
-        minWidth: 0,
-        maxWidth: "100%",
-        boxSizing: "border-box",
-      }}
+      className="flex flex-col gap-5 py-2"
     >
       {turn.userMessage && (
-        <Box sx={{ maxWidth: 768, mx: "auto", width: "100%", minWidth: 0, boxSizing: "border-box" }}>
+        <Box className="flex justify-end animate-in fade-in-0 slide-in-from-bottom-1 duration-[var(--dur-base)] ease-[var(--ease-premium)]">
           <Message
             role={turn.userMessage.role}
             id={turn.userMessage.id}
@@ -118,37 +112,11 @@ const TurnItem = memo(function TurnItem({
       )}
 
       {allAssistantMessages.length > 0 && (
-        <Box
-          sx={{
-            display: "grid",
-            gridTemplateColumns: {
-              xs: "1fr",
-              md:
-                allAssistantMessages.length > 1
-                  ? `repeat(${Math.min(allAssistantMessages.length, 3)}, 1fr)`
-                  : "1fr",
-            },
-            gap: 1.5,
-            width: "100%",
-            alignItems: "stretch",
-            maxWidth: 768,
-            mx: "auto",
-            minWidth: 0,
-            boxSizing: "border-box",
-          }}
-        >
+        <Box className="flex flex-col gap-3">
           {allAssistantMessages.map((msg, idx) => (
             <Box
               key={msg.id || `msg-${turnIndex}-${idx}`}
-              sx={{
-                height: "100%",
-                display: "flex",
-                flexDirection: "column",
-                bgcolor: "transparent",
-                minWidth: 0,
-                maxWidth: "100%",
-                boxSizing: "border-box",
-              }}
+              className="flex justify-start animate-in fade-in-0 slide-in-from-bottom-1 duration-[var(--dur-base)] ease-[var(--ease-premium)]"
             >
               <Message
                 role={msg.role}
@@ -191,13 +159,13 @@ export const ChatArea = memo(function ChatArea({
   const scrollRef = useRef<HTMLDivElement>(null);
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const scrollFrameRef = useRef<number | null>(null);
+  const stickToBottom = useStickToBottom({ initial: "smooth", resize: "smooth" });
   const [viewportWidth, setViewportWidth] = useState(768);
   const scrollAnchorRef = useRef<{
     scrollHeight: number;
     scrollTop: number;
     pending: boolean;
   } | null>(null);
-  const stickToBottomRef = useRef(true);
   const showScrollButtonRef = useRef(false);
   const onRegenCb = useCallback(
     (i: number) => onRegenerate?.(i),
@@ -206,36 +174,24 @@ export const ChatArea = memo(function ChatArea({
 
   const [showScrollButton, setShowScrollButton] = useState(false);
 
+  const setScrollRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      scrollRef.current = node;
+      stickToBottom.scrollRef(node);
+    },
+    [stickToBottom.scrollRef],
+  );
+
+  const setContentRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      stickToBottom.contentRef(node);
+    },
+    [stickToBottom.contentRef],
+  );
+
   const handleScrollToBottom = useCallback(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
-  }, []);
-
-  useLayoutEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const threshold = 150;
-    const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-    stickToBottomRef.current = distFromBottom <= threshold;
-    if (distFromBottom <= threshold && distFromBottom >= 0) {
-      el.scrollTop = el.scrollHeight;
-    }
-  }, [messages, streamingMessagesList]);
-
-  useEffect(() => {
-    const el = scrollRef.current;
-    const bottom = bottomRef.current;
-    if (!el || !bottom) return;
-
-    const observer = new ResizeObserver(() => {
-      if (stickToBottomRef.current) {
-        el.scrollTop = el.scrollHeight;
-      }
-    });
-    observer.observe(bottom.parentElement ?? bottom);
-    return () => observer.disconnect();
-  }, [bottomRef]);
+    void stickToBottom.scrollToBottom("smooth");
+  }, [stickToBottom]);
 
   // Scroll anchoring for load-more: restore position after prepending
   useLayoutEffect(() => {
@@ -300,13 +256,9 @@ export const ChatArea = memo(function ChatArea({
 
     const scheduleScrollStateUpdate = () => {
       if (scrollFrameRef.current !== null) return;
-      scrollFrameRef.current = requestAnimationFrame(updateScrollState);
-    };
-
-    const updateStickToBottom = () => {
-      const distFromBottom =
-        element.scrollHeight - element.scrollTop - element.clientHeight;
-      stickToBottomRef.current = distFromBottom <= 150;
+      scrollFrameRef.current = requestAnimationFrame(() => {
+        scrollFrameRef.current = requestAnimationFrame(updateScrollState);
+      });
     };
 
     updateScrollState();
@@ -315,12 +267,10 @@ export const ChatArea = memo(function ChatArea({
     element.addEventListener("scroll", scheduleScrollStateUpdate, {
       passive: true,
     });
-    element.addEventListener("scroll", updateStickToBottom, { passive: true });
 
     return () => {
       resizeObserver.disconnect();
       element.removeEventListener("scroll", scheduleScrollStateUpdate);
-      element.removeEventListener("scroll", updateStickToBottom);
       if (scrollFrameRef.current !== null) {
         cancelAnimationFrame(scrollFrameRef.current);
       }
@@ -377,70 +327,27 @@ export const ChatArea = memo(function ChatArea({
 
   return (
       <Box
-        ref={scrollRef}
+        ref={setScrollRef}
         role="log"
         aria-live="polite"
         aria-relevant="additions text"
-        sx={{
-          flex: 1,
-          overflowY: "auto",
-          overflowX: "hidden",
-          minWidth: 0,
-          maxWidth: "100%",
-          boxSizing: "border-box",
-        }}
+        className="relative flex min-h-0 flex-1 overflow-y-auto px-4 py-6"
       >
       <Box
-        sx={{
-          mx: "auto",
-          display: "flex",
-          width: "100%",
-          maxWidth: 1200,
-          flexDirection: "column",
-          gap: 3,
-          px: { xs: 2, sm: 3 },
-          pb: 8,
-          pt: 4,
-          minWidth: 0,
-          boxSizing: "border-box",
-        }}
+        ref={setContentRef}
+        className="relative mx-auto w-full max-w-3xl"
       >
         <Box
           ref={loadMoreRef}
-          sx={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            py: 2,
-            visibility: hasMoreMessages || isTemporary ? "visible" : "hidden",
-            height: isTemporary ? "auto" : 40,
-            gap: 2,
-          }}
+          className="flex min-h-6 items-center justify-center pb-2 text-muted-foreground"
         >
           {isTemporary && (
             <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                gap: 1,
-                px: 1.5,
-                py: 0.5,
-                borderRadius: "12px",
-                bgcolor: "action.hover",
-                border: "1px dashed",
-                borderColor: "text.secondary",
-                color: "text.secondary",
-                mb: 1,
-              }}
+              className="rounded-full border border-dashed border-border/60 px-3 py-1"
             >
               <Typography
-                sx={{
-                  fontSize: "12px",
-                  fontWeight: 600,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.5px",
-                }}
+                variant="caption"
+                color="text.secondary"
               >
                 Temporary Chat Enabled
               </Typography>
@@ -450,12 +357,8 @@ export const ChatArea = memo(function ChatArea({
         </Box>
 
         <Box
-          sx={{
-            height: rowVirtualizer.getTotalSize(),
-            minHeight: turns.length === 0 ? 0 : ESTIMATED_TURN_HEIGHT,
-            position: "relative",
-            width: "100%",
-          }}
+          className="relative w-full"
+          style={{ height: rowVirtualizer.getTotalSize() }}
         >
         {virtualRows.map((virtualRow) => {
           const turnIndex = virtualRow.index;
@@ -471,14 +374,8 @@ export const ChatArea = memo(function ChatArea({
               }
               data-index={virtualRow.index}
               ref={rowVirtualizer.measureElement}
-              sx={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                width: "100%",
-                pb: 3,
-                transform: `translateY(${virtualRow.start}px)`,
-              }}
+              className="absolute left-0 top-0 w-full pb-4"
+              style={{ transform: `translateY(${virtualRow.start}px)` }}
             >
               <TurnItem
                 turn={turn}
@@ -496,39 +393,18 @@ export const ChatArea = memo(function ChatArea({
         })}
         </Box>
 
-        <Box ref={bottomRef} sx={{ height: 80 }} />
+        <Box ref={bottomRef} className="h-px" />
       </Box>
 
       <Fade in={showScrollButton} timeout={200}>
         <Box
-          sx={{
-            position: "sticky",
-            bottom: 24,
-            display: "flex",
-            justifyContent: "center",
-            pointerEvents: "none",
-            zIndex: 10,
-            mb: 2,
-          }}
+          className="pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2"
         >
           <IconButton
             size="small"
             aria-label="Scroll to latest messages"
             onClick={handleScrollToBottom}
-            sx={{
-              pointerEvents: "auto",
-              bgcolor: "background.paper",
-              border: "1px solid",
-              borderColor: "divider",
-              boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
-              color: "text.secondary",
-              width: 36,
-              height: 36,
-              "&:hover": {
-                bgcolor: "action.hover",
-                color: "text.primary",
-              },
-            }}
+            className="pointer-events-auto rounded-full border border-border/60 bg-background/90 shadow-md backdrop-blur"
           >
             <ChevronDown size={18} />
           </IconButton>

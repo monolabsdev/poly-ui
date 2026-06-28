@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
-import Box from "@mui/material/Box";
-import Typography from "@mui/material/Typography";
-import Link from "@mui/material/Link";
+import { Box } from "@/components/ui/Box";
+import { Typography } from "@/components/ui/Typography";
+import { Link } from "@/components/ui/link";
 import { Globe, ExternalLink } from "lucide-react";
 import { TextShimmer } from "@/components/ui/text-shimmer";
 import {
@@ -51,48 +51,30 @@ export const WebSearchDisclosure = React.memo(
         : text;
 
     const triggerContent = (
-      <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+      <Box>
         <Box
-          component="span"
-          sx={{
-            display: "flex",
-            color: "text.secondary",
-            flexShrink: 0,
-          }}
+          as="span"
         >
           <Globe size={13} />
         </Box>
         {isSearching ? (
           <TextShimmer as="span" duration={2} spread={15}>
             <Typography
-              component="span"
-              sx={{ fontSize: "13px", fontWeight: 500, lineHeight: 1 }}
+              as="span"
             >
               {label}
             </Typography>
           </TextShimmer>
         ) : (
           <Typography
-            component="span"
-            sx={{
-              fontSize: "13px",
-              fontWeight: 500,
-              lineHeight: 1,
-              color: "text.secondary",
-            }}
+            as="span"
           >
             {label}
           </Typography>
         )}
         {meta && (
           <Typography
-            component="span"
-            sx={{
-              fontSize: "12px",
-              fontWeight: 400,
-              color: "text.disabled",
-              lineHeight: 1,
-            }}
+            as="span"
           >
             {meta}
           </Typography>
@@ -101,53 +83,23 @@ export const WebSearchDisclosure = React.memo(
     );
 
     return (
-      <Box sx={{ maxWidth: { xs: "90%", sm: "80%" }, my: 0.5 }}>
+      <Box>
         <Reasoning open={isExpanded} onOpenChange={onToggle}>
           <ReasoningTrigger>{triggerContent}</ReasoningTrigger>
           {hasResults && (
             <ReasoningContent
-              contentSx={{
-                mt: 1,
-                ml: "2px",
-                pl: 1.5,
-                borderLeft: "1.5px solid",
-                borderColor: "divider",
-              }}
             >
               <Box
-                sx={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 1.5,
-                  py: 0.5,
-                }}
               >
                 {results?.map((result, i) => (
                   <Box
                     key={`${result.url}-${i}`}
-                    sx={{
-                      "&:not(:last-child)": {
-                        borderBottom: "1px dashed",
-                        borderColor: "action.hover",
-                        pb: 1.25,
-                      },
-                    }}
                   >
                     <Link
                       href={result.url}
                       target="_blank"
                       rel="noopener noreferrer"
                       underline="hover"
-                      sx={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 0.5,
-                        fontSize: "13px",
-                        fontWeight: 600,
-                        color: "primary.main",
-                        lineHeight: 1.4,
-                        mb: 0.5,
-                      }}
                     >
                       {result.title}
                       <ExternalLink size={11} style={{ flexShrink: 0 }} />
@@ -157,15 +109,6 @@ export const WebSearchDisclosure = React.memo(
                       <Typography
                         key={j}
                         variant="body2"
-                        sx={{
-                          fontSize: "12.5px",
-                          color: "text.secondary",
-                          lineHeight: 1.5,
-                          pl: 1,
-                          borderLeft: "2px solid",
-                          borderColor: "action.hover",
-                          mt: 0.5,
-                        }}
                       >
                         {truncate(highlight)}
                       </Typography>

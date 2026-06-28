@@ -1,6 +1,6 @@
 import { useState } from "react";
-import Box from "@mui/material/Box";
-import Typography from "@mui/material/Typography";
+import { Box } from "@/components/ui/Box";
+import { Typography } from "@/components/ui/Typography";
 import { useDevStore } from "@/store/devStore";
 import type { AgentApproval, AgentMessageState } from "./types";
 import { AgentReviewPanel } from "./AgentReviewPanel";
@@ -41,7 +41,7 @@ export function AgentActivity({ agent, resultText, onResolveApproval, onRetry }:
   };
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", gap: 0.15, my: 1, maxWidth: 760, pl: 0.5, minWidth: 0 }}>
+    <Box>
       <AgentRunHeader elapsed={elapsed} status={status} waitingMessage={waitMsg} />
 
       {steps.length > 0 && (
@@ -94,43 +94,21 @@ function AgentRunHeader({
 }) {
   return (
     <Box
-      sx={{
-        display: "grid",
-        gridTemplateColumns: "18px minmax(0, 1fr)",
-        columnGap: 1,
-        py: 0.35,
-        mb: 0.2,
-      }}
     >
-      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: 18 }}>
-        <Box sx={{ color: status.color, display: "flex" }}>{status.icon}</Box>
+      <Box>
+        <Box>{status.icon}</Box>
       </Box>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 0.65, minWidth: 0 }}>
-        <Typography sx={{ fontSize: 12.5, fontWeight: 650, lineHeight: 1.3, color: "text.primary" }}>
+      <Box>
+        <Typography>
           {elapsed ? `Worked for ${elapsed}` : "Working"}
         </Typography>
         {waitingMessage && (
-          <Typography sx={{ fontSize: 11, color: "text.disabled", lineHeight: 1.3, minWidth: 0 }}>
+          <Typography>
             {waitingMessage}
           </Typography>
         )}
-        <Box sx={{ ml: "auto" }}>
+        <Box>
           <Box
-            sx={{
-              display: "inline-flex",
-              alignItems: "center",
-              px: 0.6,
-              py: 0.15,
-              borderRadius: "6px",
-              color: status.color,
-              bgcolor: status.bg,
-              border: "1px solid",
-              borderColor: status.border,
-              fontSize: 10.5,
-              fontWeight: 650,
-              lineHeight: 1.5,
-              whiteSpace: "nowrap",
-            }}
           >
             {status.label}
           </Box>

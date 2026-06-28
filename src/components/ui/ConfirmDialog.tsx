@@ -1,9 +1,11 @@
 import * as React from "react";
-import Box from "@mui/material/Box";
-import ButtonBase from "@mui/material/ButtonBase";
-import Typography from "@mui/material/Typography";
-import { useTheme } from "@mui/material/styles";
-import { Dialog } from "./dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "./dialog";
+import { Button } from "./button";
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -24,71 +26,40 @@ export function ConfirmDialog({
   confirmLabel = "Confirm",
   cancelLabel = "Cancel",
   onConfirm,
+  destructive,
 }: ConfirmDialogProps) {
-  const theme = useTheme();
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <Box
-        sx={{
-          width: "min(400px, calc(100vw - 32px))",
-          bgcolor: theme.palette.mode === "dark" ? "#1a1a1a" : theme.palette.background.paper,
-          border: "1px solid",
-          borderColor: "divider",
-          borderRadius: theme.app.radius.dialog,
-          p: 3,
-          display: "flex",
-          flexDirection: "column",
-          gap: 1.5,
-        }}
-      >
-        <Typography sx={{ fontSize: 17, fontWeight: 500, color: "text.primary", lineHeight: 1.3 }}>
+      <DialogContent className="flex w-[min(400px,calc(100vw-32px))] max-w-none flex-col gap-3 rounded-[28px] border border-border/60 bg-card/95 p-6 text-card-foreground backdrop-blur-xl">
+        <DialogTitle className="text-[17px] font-medium leading-[1.3]">
           {title}
-        </Typography>
+        </DialogTitle>
 
         {description ? (
-          <Typography sx={{ fontSize: 13, fontWeight: 400, color: "text.secondary", lineHeight: 1.5 }}>
+          <DialogDescription className="text-[13px] font-normal leading-5 text-muted-foreground">
             {description}
-          </Typography>
+          </DialogDescription>
         ) : null}
 
-        <Box sx={{ display: "flex", gap: 1, mt: 0.5 }}>
-          <ButtonBase
+        <div className="mt-1 flex gap-2">
+          <Button
+            type="button"
+            variant="secondary"
             onClick={() => onOpenChange(false)}
-            sx={{
-              flex: 1,
-              height: 36,
-              borderRadius: theme.app.radius.pill,
-              bgcolor: theme.palette.mode === "dark" ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.06)",
-              color: "text.primary",
-              fontSize: 13,
-              fontWeight: 500,
-              fontFamily: "inherit",
-              "&:hover": { bgcolor: theme.palette.mode === "dark" ? "rgba(255,255,255,0.11)" : "rgba(0,0,0,0.09)" },
-              transition: "background-color 100ms",
-            }}
+            className="h-9 flex-1 rounded-full text-[13px] font-medium"
           >
             {cancelLabel}
-          </ButtonBase>
-          <ButtonBase
+          </Button>
+          <Button
+            type="button"
+            variant={destructive ? "destructive" : "default"}
             onClick={() => { onConfirm(); onOpenChange(false); }}
-            sx={{
-              flex: 1,
-              height: 36,
-              borderRadius: theme.app.radius.pill,
-              bgcolor: theme.palette.mode === "dark" ? "#efefef" : "#1a1a1a",
-              color: theme.palette.mode === "dark" ? "#1a1a1a" : "#efefef",
-              fontSize: 13,
-              fontWeight: 500,
-              fontFamily: "inherit",
-              "&:hover": { bgcolor: theme.palette.mode === "dark" ? "#ffffff" : "#000000" },
-              transition: "background-color 100ms",
-            }}
+            className="h-9 flex-1 rounded-full text-[13px] font-medium"
           >
             {confirmLabel}
-          </ButtonBase>
-        </Box>
-      </Box>
+          </Button>
+        </div>
+      </DialogContent>
     </Dialog>
   );
 }

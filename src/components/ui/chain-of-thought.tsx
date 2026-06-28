@@ -5,8 +5,8 @@ import {
   type HTMLAttributes,
   type ReactNode,
 } from "react";
-import Box from "@mui/material/Box";
 import { ChevronDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 
 /* ─── ChainOfThought ─── */
@@ -18,7 +18,7 @@ export type ChainOfThoughtProps = {
 export function ChainOfThought({ children, ...props }: ChainOfThoughtProps) {
   const array = Children.toArray(children);
   return (
-    <Box {...props}>
+    <div {...props}>
       {array.map((child, i) =>
         isValidElement(child)
           ? cloneElement(child as React.ReactElement<ChainOfThoughtStepProps>, {
@@ -26,7 +26,7 @@ export function ChainOfThought({ children, ...props }: ChainOfThoughtProps) {
             })
           : child,
       )}
-    </Box>
+    </div>
   );
 }
 
@@ -60,49 +60,22 @@ export function ChainOfThoughtStep({
   });
 
   return (
-    <Box
-      sx={{
-        display: "flex",
-        gap: 1.5,
-        "&:not(:last-child)": { mb: 0.5 },
-      }}
-    >
+    <div className={cn("flex gap-3", !isLast && "mb-1")}>
       {/* Timeline column */}
-      <Box
-        sx={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          width: 16,
-          flexShrink: 0,
-        }}
-      >
-        <Box
-          sx={{
-            width: 8,
-            height: 8,
-            borderRadius: "50%",
-            bgcolor: isActive ? "text.primary" : "divider",
-            flexShrink: 0,
-            mt: 0.625,
-            transition: "background-color 0.2s",
-          }}
+      <div className="flex w-4 shrink-0 flex-col items-center">
+        <div
+          className={cn(
+            "mt-1.5 size-2 shrink-0 rounded-full transition-colors duration-[var(--dur-base)] ease-[var(--ease-soft)]",
+            isActive ? "bg-foreground" : "bg-border",
+          )}
         />
         {!isLast && (
-          <Box
-            sx={{
-              width: 1.5,
-              flex: 1,
-              bgcolor: "divider",
-              mt: 0.5,
-              minHeight: 16,
-            }}
-          />
+          <div className="mt-1 min-h-4 w-px flex-1 bg-border" />
         )}
-      </Box>
+      </div>
 
       {/* Content column */}
-      <Box sx={{ flex: 1, minWidth: 0, pb: isLast ? 0 : 1 }}>
+      <div className={cn("min-w-0 flex-1", !isLast && "pb-2")}>
         {trigger &&
           isValidElement(trigger) &&
           cloneElement(trigger as React.ReactElement<ChainOfThoughtTriggerProps>, {
@@ -111,20 +84,12 @@ export function ChainOfThoughtStep({
             onToggle,
           })}
         {content && isExpanded && (
-          <Box
-            sx={{
-              mt: 1,
-              ml: "2px",
-              pl: 1.5,
-              borderLeft: "1.5px solid",
-              borderColor: "divider",
-            }}
-          >
-            {content}
-          </Box>
+          <div className="terax-reveal mt-2 ml-0.5 border-l border-border/60 pl-3" data-state="open">
+            <div>{content}</div>
+          </div>
         )}
-      </Box>
-    </Box>
+      </div>
+    </div>
   );
 }
 
@@ -145,70 +110,33 @@ export function ChainOfThoughtTrigger({
   onToggle,
 }: ChainOfThoughtTriggerProps) {
   return (
-    <Box
-      component="button"
+    <button
+      type="button"
       onClick={onToggle}
       disabled={isActive}
-      sx={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 0.75,
-        cursor: isActive ? "default" : "pointer",
-        border: "none",
-        background: "none",
-        p: 0,
-        fontFamily: "inherit",
-        fontSize: "13px",
-        fontWeight: 500,
-        color: "text.secondary",
-        borderRadius: "9999px",
-        transition: "color 0.15s",
-        "&:hover": {
-          color: isActive ? "text.secondary" : "text.primary",
-        },
-        "&:focus-visible": {
-          outline: "2px solid",
-          outlineColor: "text.primary",
-          outlineOffset: "2px",
-          borderRadius: "4px",
-        },
-      }}
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-full bg-transparent p-0 font-inherit text-[13px] font-medium text-muted-foreground transition-colors duration-[var(--dur-fast)] ease-[var(--ease-soft)] focus-visible:rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground",
+        isActive ? "cursor-default" : "cursor-pointer hover:text-foreground",
+      )}
     >
       {icon && (
-        <Box
-          component="span"
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            color: "text.secondary",
-            flexShrink: 0,
-          }}
-        >
+        <span className="flex shrink-0 items-center text-muted-foreground">
           {icon}
-        </Box>
+        </span>
       )}
       {isActive ? (
-        <Box component="span" className="animate-thinking" sx={{ display: "inline" }}>
+        <span className="animate-thinking inline">
           {children}
-        </Box>
+        </span>
       ) : (
         children
       )}
       {!isActive && (
-        <Box
-          component="span"
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            color: "text.disabled",
-            flexShrink: 0,
-            transition: "transform 0.2s",
-          }}
-        >
+        <span className="flex shrink-0 items-center text-muted-foreground/55 transition-transform duration-[var(--dur-base)] ease-[var(--ease-premium)]">
           <ChevronDown size={13} />
-        </Box>
+        </span>
       )}
-    </Box>
+    </button>
   );
 }
 

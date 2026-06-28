@@ -1,14 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-import Avatar from "@mui/material/Avatar";
-import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
-import ButtonBase from "@mui/material/ButtonBase";
-import Stack from "@mui/material/Stack";
-import TextField from "@mui/material/TextField";
-import Typography from "@mui/material/Typography";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Box } from "@/components/ui/Box";
+import { Button } from "@/components/ui/button";
+import { ButtonBase } from "@/components/ui/button-base";
+import { Stack } from "@/components/ui/Stack";
+import { TextField } from "@/components/ui/text-field";
+import { Typography } from "@/components/ui/Typography";
 import { Camera, Lock, Save } from "lucide-react";
 import { EmptyState, SectionHeader, SettingCard } from "../SettingComponents";
-import { appTextFieldSx } from "@/components/ui/appDialog";
 import { useNotify } from "@/hooks/useNotify";
 import { imageUploadConfig } from "@/lib/image-upload/config";
 import { validateImageFiles } from "@/lib/image-upload/validation";
@@ -68,45 +67,13 @@ function AvatarPicker({ value, label, fallback, onChange }: AvatarPickerProps) {
       <ButtonBase
         aria-label="Upload profile picture"
         onClick={() => inputRef.current?.click()}
-        sx={{
-          position: "relative",
-          borderRadius: "9999px",
-          cursor: "pointer",
-          "&:hover .ProfileAvatarImage": { opacity: 0.6 },
-          "&:hover .ProfileAvatarOverlay": { opacity: 1 },
-          "&:focus-visible": { outline: "2px solid", outlineColor: "primary.main", outlineOffset: 2 },
-        }}
       >
-        <Avatar
-          className="ProfileAvatarImage"
-          src={value || undefined}
-          alt={label}
-          sx={{
-            width: 64,
-            height: 64,
-            bgcolor: "action.selected",
-            color: "text.primary",
-            fontSize: 20,
-            fontWeight: 800,
-            transition: "opacity 120ms ease",
-          }}
-        >
-          {fallback}
+        <Avatar className="ProfileAvatarImage">
+          <AvatarImage src={value || undefined} alt={label} />
+          <AvatarFallback>{fallback}</AvatarFallback>
         </Avatar>
         <Box
           className="ProfileAvatarOverlay"
-          sx={{
-            position: "absolute",
-            inset: 0,
-            display: "grid",
-            placeItems: "center",
-            borderRadius: "9999px",
-            bgcolor: "action.selected",
-            color: "text.primary",
-            opacity: 0,
-            transition: "opacity 120ms ease",
-            pointerEvents: "none",
-          }}
         >
           <Camera size={20} />
         </Box>
@@ -208,8 +175,8 @@ export function ProfileTab() {
   return (
     <Stack spacing={3}>
       <Box>
-        <Typography variant="h6" sx={{ fontWeight: 750, color: "text.primary" }}>Profile</Typography>
-        <Typography sx={{ mt: 0.5, fontSize: 13, color: "text.secondary", lineHeight: 1.5 }}>
+        <Typography variant="h6">Profile</Typography>
+        <Typography>
           Manage local account details, profile picture, and password.
         </Typography>
       </Box>
@@ -228,18 +195,18 @@ export function ProfileTab() {
                   setAvatarFileName(fileName);
                 }}
               />
-              <Stack spacing={1.5} sx={{ flex: 1, width: "100%", minWidth: 0 }}>
-                <TextField label="Display name" value={displayName} onChange={(event) => setDisplayName(event.target.value)} fullWidth size="small" slotProps={{ htmlInput: { maxLength: 120 } }} sx={appTextFieldSx} />
-                <TextField label="Email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} error={emailInvalid} helperText={emailInvalid ? "Enter a valid email address." : " "} fullWidth required size="small" slotProps={{ htmlInput: { maxLength: 254 } }} sx={appTextFieldSx} />
+              <Stack spacing={1.5}>
+                <TextField label="Display name" value={displayName} onChange={(event) => setDisplayName(event.target.value)} fullWidth size="small" slotProps={{ htmlInput: { maxLength: 120 } }} />
+                <TextField label="Email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} error={emailInvalid} helperText={emailInvalid ? "Enter a valid email address." : " "} fullWidth required size="small" slotProps={{ htmlInput: { maxLength: 254 } }} />
               </Stack>
             </Stack>
 
             <Stack spacing={1} alignItems="flex-start">
-              <Typography sx={{ fontSize: 12, color: "text.secondary" }}>
+              <Typography>
                 {avatarFileName ? `Selected ${avatarFileName}` : "Click avatar to choose a local image."}
               </Typography>
-              <Button size="small" variant="contained" disableElevation startIcon={<Save size={14} />} onClick={saveProfile} disabled={isLoading || profileSaving || emailInvalid || !profileDirty} sx={{ textTransform: "none", fontWeight: 700 }}>
-                {profileDirty && <Box component="span" sx={{ width: 6, height: 6, borderRadius: "50%", bgcolor: "warning.main", mr: 0.75 }} />}
+              <Button size="small" variant="contained" disableElevation startIcon={<Save size={14} />} onClick={saveProfile} disabled={isLoading || profileSaving || emailInvalid || !profileDirty}>
+                {profileDirty && <Box as="span" />}
                 {profileSaving ? "Saving..." : "Save"}
               </Button>
             </Stack>
@@ -251,11 +218,11 @@ export function ProfileTab() {
         <SectionHeader title="Security" description="Change your password with current-password verification." />
         <SettingCard title="Password" description="Changing password keeps this session active and expires other sessions.">
           <Stack spacing={1.5}>
-            <TextField label="Current password" type="password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} fullWidth size="small" autoComplete="current-password" sx={appTextFieldSx} />
-            <TextField label="New password" type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} error={passwordInvalid} helperText={passwordInvalid ? PASSWORD_HELP : " "} fullWidth size="small" autoComplete="new-password" slotProps={{ htmlInput: { maxLength: 128 } }} sx={appTextFieldSx} />
-            <TextField label="Confirm new password" type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} error={passwordMismatch} helperText={passwordMismatch ? "Passwords do not match." : " "} fullWidth size="small" autoComplete="new-password" slotProps={{ htmlInput: { maxLength: 128 } }} sx={appTextFieldSx} />
+            <TextField label="Current password" type="password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} fullWidth size="small" autoComplete="current-password" />
+            <TextField label="New password" type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} error={passwordInvalid} helperText={passwordInvalid ? PASSWORD_HELP : " "} fullWidth size="small" autoComplete="new-password" slotProps={{ htmlInput: { maxLength: 128 } }} />
+            <TextField label="Confirm new password" type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} error={passwordMismatch} helperText={passwordMismatch ? "Passwords do not match." : " "} fullWidth size="small" autoComplete="new-password" slotProps={{ htmlInput: { maxLength: 128 } }} />
             <Box>
-              <Button size="small" variant="outlined" startIcon={<Lock size={14} />} onClick={savePassword} disabled={isLoading || passwordSaving || passwordInvalid || passwordMismatch || !currentPassword || !newPassword || !confirmPassword} sx={{ textTransform: "none", fontWeight: 700 }}>
+              <Button size="small" variant="outlined" startIcon={<Lock size={14} />} onClick={savePassword} disabled={isLoading || passwordSaving || passwordInvalid || passwordMismatch || !currentPassword || !newPassword || !confirmPassword}>
                 {passwordSaving ? "Updating..." : "Update password"}
               </Button>
             </Box>

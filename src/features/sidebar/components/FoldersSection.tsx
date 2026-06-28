@@ -1,9 +1,6 @@
 import * as React from "react";
-import Box from "@mui/material/Box";
-import Collapse from "@mui/material/Collapse";
-import IconButton from "@mui/material/IconButton";
-import Typography from "@mui/material/Typography";
 import { Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useFolderStore } from "@/store/folderStore";
 import { Conversation } from "@/types/chat";
 import { FolderTree } from "@/features/sidebar/components/FolderTree";
@@ -13,9 +10,11 @@ import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarMenu,
+} from "@/components/ui/sidebar";
+import {
   SidebarSectionHeader,
-  sidebarIconButtonSx,
-} from "@/features/sidebar/components/SidebarPrimitives";
+  sidebarIconButtonClassName,
+} from "@/features/sidebar/components/sidebar-utils";
 
 const FOLDERS_COLLAPSED_STORAGE_KEY = "polyui:sidebar:folders-collapsed";
 const FOLDERS_SECTION_CONTENT_ID = "sidebar-folders-section-content";
@@ -60,8 +59,8 @@ export function FoldersSection({
   const [isCollapsed, setIsCollapsed] = useFoldersSectionCollapsed();
 
   return (
-    <SidebarGroup sx={{ mb: 1 }}>
-      <Box sx={{ px: 1.5, mb: 0.25 }}>
+    <SidebarGroup className="mb-2">
+      <div className="mb-0.5 px-3">
         <SidebarSectionHeader
           label="Folders"
           disclosure={{
@@ -70,43 +69,33 @@ export function FoldersSection({
             controlsId: FOLDERS_SECTION_CONTENT_ID,
           }}
           action={
-            <IconButton
-              size="small"
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
               aria-label="Create folder"
               onClick={folder.openCreateModal}
-              sx={(theme) => sidebarIconButtonSx(theme, reducedMotion)}
+              className={sidebarIconButtonClassName}
             >
               <Plus />
-            </IconButton>
+            </Button>
           }
         />
-      </Box>
-      <Collapse
+      </div>
+      <div
         id={FOLDERS_SECTION_CONTENT_ID}
-        in={!isCollapsed}
-        timeout={reducedMotion ? 0 : "auto"}
-        unmountOnExit
+        className={`overflow-hidden ${isCollapsed ? "max-h-0 opacity-0" : "max-h-[800px] opacity-100"} ${
+          reducedMotion ? "" : "transition-[max-height,opacity] duration-[var(--dur-base)] ease-[var(--ease-premium)]"
+        }`}
       >
         <SidebarGroupContent>
           <SidebarMenu>
             {empty ? (
-              <Box
-                sx={{
-                  px: 1,
-                  py: 1,
-                  color: "text.secondary",
-                  opacity: 0.7,
-                }}
-              >
-                <Typography
-                  sx={(theme) => ({
-                    ...theme.typography.caption,
-                    lineHeight: 1.4,
-                  })}
-                >
+              <div className="px-2 py-2 text-muted-foreground/70">
+                <p className="text-xs leading-[1.4]">
                   No folders
-                </Typography>
-              </Box>
+                </p>
+              </div>
             ) : (
               rootFolders.map((f) => (
                 <FolderTree
@@ -119,7 +108,7 @@ export function FoldersSection({
             )}
           </SidebarMenu>
         </SidebarGroupContent>
-      </Collapse>
+      </div>
     </SidebarGroup>
   );
 }

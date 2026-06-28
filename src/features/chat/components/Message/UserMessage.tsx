@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
-import Box from "@mui/material/Box";
-import Typography from "@mui/material/Typography";
-import IconButton from "@mui/material/IconButton";
-import Tooltip from "@mui/material/Tooltip";
-import { useTheme } from "@mui/material/styles";
+import { Box } from "@/components/ui/Box";
+import { Typography } from "@/components/ui/Typography";
+import { IconButton } from "@/components/ui/icon-button";
+import { TooltipLabel as Tooltip } from "@/components/ui/tooltip-label";
+
 import { Paperclip, Copy, Check, MoreHorizontal, Brain, Trash2, Search } from "lucide-react";
 import { isImageAttachment, createDataUrl, formatFileSize } from "@/lib/utils/utils";
 import { useNotify } from "@/hooks/useNotify";
@@ -22,8 +22,6 @@ import {
 } from "@/features/memory/messageMemoryActions";
 
 export function UserMessage({ id, conversationId, content, attachments }: MessageProps) {
-  const theme = useTheme();
-  const isDark = theme.palette.mode === "dark";
   const [copied, setCopied] = useState(false);
   const notify = useNotify();
 
@@ -76,52 +74,16 @@ export function UserMessage({ id, conversationId, content, attachments }: Messag
 
   return (
     <Box
-      sx={{
-        display: "flex",
-        flexDirection: "column",
-        width: "100%",
-        alignItems: "flex-end",
-        py: 0.5,
-        "& .action-bar": {
-          opacity: 0,
-        },
-        "&:hover .action-bar, &:focus-within .action-bar": {
-          opacity: 1,
-        },
-        "@media (hover: none)": {
-          "& .action-bar": {
-            opacity: 1,
-          },
-        },
-      }}
+      className="group/message ml-auto flex w-fit max-w-[min(82%,48rem)] flex-col items-end gap-2"
     >
       {attachments && attachments.length > 0 && (
         <Box
-          sx={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: 1,
-            mb: 1,
-            maxWidth: { xs: "85%", sm: "70%" },
-          }}
+          className="grid max-w-full grid-cols-2 gap-2"
         >
           {attachments.map((att) => (
             <Box
               key={att.id}
-              sx={{
-                width: isImageAttachment(att.type) ? { xs: 80, sm: 120 } : "auto",
-                height: isImageAttachment(att.type) ? { xs: 80, sm: 120 } : "auto",
-                minWidth: isImageAttachment(att.type) ? 0 : { xs: 140, sm: 200 },
-                borderRadius: "12px",
-                overflow: "hidden",
-                border: "1px solid",
-                borderColor: "divider",
-                bgcolor: "secondary.main",
-                display: "flex",
-                alignItems: "center",
-                p: isImageAttachment(att.type) ? 0 : 1.5,
-                gap: 1.5,
-              }}
+              className="flex min-w-0 overflow-hidden rounded-2xl border border-border/50 bg-card text-card-foreground"
             >
               {isImageAttachment(att.type) ? (
                 <img
@@ -136,35 +98,20 @@ export function UserMessage({ id, conversationId, content, attachments }: Messag
               ) : (
                 <>
                   <Box
-                    sx={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: 1,
-                      bgcolor: "action.hover",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      flexShrink: 0,
-                    }}
+                    className="flex size-10 shrink-0 items-center justify-center text-muted-foreground"
                   >
                     <Paperclip size={20} />
                   </Box>
-                  <Box sx={{ overflow: "hidden" }}>
+                  <Box>
                     <Typography
                       variant="body2"
-                      sx={{
-                        fontWeight: 500,
-                        color: "text.primary",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                      }}
+                      noWrap
                     >
                       {att.name}
                     </Typography>
                     <Typography
                       variant="caption"
-                      sx={{ color: "text.secondary" }}
+                      color="text.secondary"
                     >
                       {formatFileSize(att.size)}
                     </Typography>
@@ -176,43 +123,21 @@ export function UserMessage({ id, conversationId, content, attachments }: Messag
         </Box>
       )}
       <Box
-        sx={{
-          maxWidth: { xs: "85%", sm: "70%" },
-          borderRadius: "24px",
-          bgcolor: isDark ? "grey.900" : "grey.100",
-          border: "1px solid",
-          borderColor: "border.light",
-          px: 2.5,
-          py: 1.5,
-        }}
+        className="rounded-2xl rounded-br-sm bg-muted/70 px-3 py-2 text-foreground"
       >
         <Typography
-          sx={{
-            userSelect: "text",
-            WebkitUserSelect: "text",
-            whiteSpace: "pre-wrap",
-            wordBreak: "break-word",
-            lineHeight: 1.6,
-            fontSize: "15.5px",
-            color: "text.primary",
-          }}
+          className="whitespace-pre-wrap text-sm leading-6"
         >
           {content}
         </Typography>
       </Box>
 
-      <Box className="action-bar" sx={{ mt: 0.5, mr: 1 }}>
+      <Box className="action-bar flex items-center gap-1 pr-1 text-muted-foreground transition-opacity">
         <Tooltip title={copied ? "Copied" : "Copy"}>
           <IconButton
             size="small"
             onClick={handleCopy}
-            sx={{
-              color: copied ? "success.main" : "text.secondary",
-              "&:hover": {
-                color: copied ? "success.main" : "text.primary",
-                bgcolor: "action.hover",
-              },
-            }}
+            className="size-7 rounded-full"
           >
             <Box
               style={{
@@ -232,24 +157,21 @@ export function UserMessage({ id, conversationId, content, attachments }: Messag
             <DropdownMenuTrigger asChild>
               <IconButton
                 size="small"
-                sx={{
-                  color: "text.secondary",
-                  "&:hover": { color: "text.primary", bgcolor: "action.hover" },
-                }}
+                className="size-7 rounded-full"
               >
                 <MoreHorizontal size={14} />
               </IconButton>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={handleRemember} sx={{ gap: 2 }}>
+              <DropdownMenuItem onClick={handleRemember}>
                 <Brain size={14} />
                 Remember this
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleForget} sx={{ gap: 2 }}>
+              <DropdownMenuItem onClick={handleForget}>
                 <Trash2 size={14} />
                 Forget this
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleRelated} sx={{ gap: 2 }}>
+              <DropdownMenuItem onClick={handleRelated}>
                 <Search size={14} />
                 View related memories
               </DropdownMenuItem>

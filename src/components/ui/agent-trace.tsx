@@ -10,10 +10,8 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import Box from "@mui/material/Box";
-import Collapse from "@mui/material/Collapse";
-import { alpha } from "@mui/material/styles";
 import { ChevronDown, Check, Circle, AlertTriangle, LoaderCircle, ShieldAlert } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export type StepStatus = "pending" | "running" | "complete" | "error" | "waiting";
 
@@ -44,7 +42,7 @@ export type AgentTraceProps = {
 export function AgentTrace({ children }: AgentTraceProps) {
   const array = Children.toArray(children);
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", gap: 0.15 }}>
+    <div className="flex flex-col gap-0.5">
       {array.map((child, i) =>
         isValidElement(child)
           ? cloneElement(child as React.ReactElement<{ isLast?: boolean }>, {
@@ -52,7 +50,7 @@ export function AgentTrace({ children }: AgentTraceProps) {
             })
           : child,
       )}
-    </Box>
+    </div>
   );
 }
 
@@ -75,11 +73,11 @@ function StatusIcon({ status }: { status: StepStatus }) {
 
 function statusColor(status: StepStatus): string {
   switch (status) {
-    case "running": return "primary.main";
-    case "complete": return "success.main";
-    case "error": return "error.main";
-    case "waiting": return "warning.main";
-    default: return "text.disabled";
+    case "running": return "text-primary";
+    case "complete": return "text-[var(--success)]";
+    case "error": return "text-destructive";
+    case "waiting": return "text-[var(--warning)]";
+    default: return "text-muted-foreground/50";
   }
 }
 
@@ -134,57 +132,32 @@ export function AgentTraceStep({
 
   return (
     <StepCtx.Provider value={{ status, expanded, onToggle, isLast, hasContent }}>
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: "18px minmax(0, 1fr)",
-          columnGap: 1,
-        }}
-      >
+      <div className="grid grid-cols-[18px_minmax(0,1fr)] gap-x-2">
         {/* Icon / connector column */}
-        <Box
-          sx={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-          }}
-        >
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              height: 18,
-              width: 18,
-              flexShrink: 0,
-              color: statusColor(status),
-            }}
-          >
+        <div className="flex flex-col items-center">
+          <div className={cn("flex size-[18px] shrink-0 items-center justify-center", statusColor(status))}>
             <StatusIcon status={status} />
-          </Box>
+          </div>
           {!isLast && (
-            <Box
-              sx={{
-                width: "1px",
-                flex: 1,
-                bgcolor: (theme) => alpha(theme.palette.text.primary, 0.1),
-              }}
-            />
+            <div className="w-px flex-1 bg-foreground/10" />
           )}
-        </Box>
+        </div>
 
         {/* Content column */}
-        <Box sx={{ minWidth: 0, pb: isLast ? 0 : 0.65 }}>
+        <div className={cn("min-w-0", !isLast && "pb-1.5")}>
           {trigger}
           {hasContent && (
-            <Collapse in={expanded} timeout={200}>
-              <Box sx={{ mt: 0.35, pl: 0.1, display: "flex", flexDirection: "column", gap: 0.2 }}>
+            <div
+              className="terax-reveal"
+              data-state={expanded ? "open" : "closed"}
+            >
+              <div className="mt-1 flex flex-col gap-0.5 pl-0.5">
                 {content}
-              </Box>
-            </Collapse>
+              </div>
+            </div>
           )}
-        </Box>
-      </Box>
+        </div>
+      </div>
     </StepCtx.Provider>
   );
 }
@@ -201,69 +174,38 @@ export function AgentTraceTrigger({ children, leftIcon }: AgentTraceTriggerProps
   const { hasContent } = useStepCtx();
 
   return (
-    <Box
-      component="button"
+    <button
       type="button"
       onClick={hasContent ? onToggle : undefined}
       aria-expanded={expanded}
-      sx={{
-        display: "flex",
-        alignItems: "center",
-        gap: 0.65,
-        width: "100%",
-        cursor: hasContent ? "pointer" : "default",
-        border: "none",
-        background: "none",
-        p: 0,
-        fontFamily: "inherit",
-        fontSize: 12.5,
-        fontWeight: status === "running" ? 650 : 500,
-        color:
-          status === "error"
-            ? "error.main"
-            : status === "waiting"
-              ? "warning.main"
-              : status === "running"
-                ? "text.primary"
-                : "text.secondary",
-        textAlign: "left",
-        lineHeight: 1.35,
-        minHeight: 22,
-        borderRadius: "5px",
-        px: hasContent ? 0.25 : 0,
-        transition: "color 0.15s",
-        "&:hover": { color: "text.primary" },
-        "&:focus-visible": {
-          outline: "2px solid",
-          outlineColor: "primary.main",
-          outlineOffset: 1,
-        },
-      }}
+      className={cn(
+        "flex min-h-[22px] w-full items-center gap-1.5 rounded-[5px] bg-transparent p-0 text-left text-[12.5px] leading-[1.35] transition-colors duration-[var(--dur-fast)] ease-[var(--ease-soft)] hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
+        hasContent ? "cursor-pointer px-0.5" : "cursor-default",
+        status === "running" ? "font-semibold text-foreground" : "font-medium",
+        status === "error" && "text-destructive",
+        status === "waiting" && "text-[var(--warning)]",
+        status !== "running" && status !== "error" && status !== "waiting" && "text-muted-foreground",
+      )}
     >
       {leftIcon && (
-        <Box component="span" sx={{ display: "flex", flexShrink: 0, color: "text.secondary" }}>
+        <span className="flex shrink-0 text-muted-foreground">
           {leftIcon}
-        </Box>
+        </span>
       )}
-      <Box component="span" sx={{ flex: 1, minWidth: 0 }}>
+      <span className="min-w-0 flex-1">
         {children}
-      </Box>
+      </span>
       {hasContent && (
-        <Box
-          component="span"
-          sx={{
-            display: "flex",
-            flexShrink: 0,
-            color: "text.disabled",
-            opacity: 0.55,
-            transform: expanded ? "rotate(180deg)" : "rotate(0deg)",
-            transition: "transform 0.2s ease",
-          }}
+        <span
+          className={cn(
+            "flex shrink-0 text-muted-foreground/55 transition-transform duration-[var(--dur-base)] ease-[var(--ease-premium)]",
+            expanded && "rotate-180",
+          )}
         >
           <ChevronDown size={11} />
-        </Box>
+        </span>
       )}
-    </Box>
+    </button>
   );
 }
 
@@ -286,14 +228,14 @@ export type AgentTraceItemProps = {
 
 export function AgentTraceItem({ children, secondary }: AgentTraceItemProps) {
   return (
-    <Box sx={{ display: "flex", alignItems: "baseline", gap: 0.75, py: 0.05 }}>
-      <Box sx={{ flex: 1, minWidth: 0, fontSize: 12, color: "text.secondary", lineHeight: 1.45 }}>
+    <div className="flex items-baseline gap-1.5 py-px">
+      <div className="min-w-0 flex-1 text-xs leading-[1.45] text-muted-foreground">
         {children}
-      </Box>
+      </div>
       {secondary && (
-        <Box sx={{ flexShrink: 0, fontSize: 11, color: "text.disabled" }}>{secondary}</Box>
+        <div className="shrink-0 text-[11px] text-muted-foreground/55">{secondary}</div>
       )}
-    </Box>
+    </div>
   );
 }
 
@@ -306,29 +248,11 @@ export type AgentTraceBadgeProps = {
 
 export function AgentTraceBadge({ children, color }: AgentTraceBadgeProps) {
   return (
-    <Box
-      component="span"
-      sx={{
-        display: "inline-flex",
-        alignItems: "center",
-        px: 0.5,
-        py: 0.05,
-        borderRadius: "5px",
-        fontSize: 10.5,
-        fontWeight: 650,
-        fontFamily: "ui-monospace, SFMono-Regular, Consolas, monospace",
-        color: color ?? "text.secondary",
-        bgcolor: "action.hover",
-        border: "1px solid",
-        borderColor: "border.light",
-        lineHeight: 1.5,
-        maxWidth: 320,
-        overflow: "hidden",
-        textOverflow: "ellipsis",
-        whiteSpace: "nowrap",
-      }}
+    <span
+      className="inline-flex max-w-80 items-center overflow-hidden truncate rounded-[5px] border border-border/60 bg-accent px-1 py-px font-mono text-[10.5px] font-semibold leading-normal text-muted-foreground"
+      style={color ? { color } : undefined}
     >
       {children}
-    </Box>
+    </span>
   );
 }

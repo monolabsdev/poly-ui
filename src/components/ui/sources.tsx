@@ -9,12 +9,11 @@ import {
   useState,
   type ReactNode,
 } from "react"
-import Box from "@mui/material/Box"
-import Link from "@mui/material/Link"
-import Paper from "@mui/material/Paper"
-import Popper from "@mui/material/Popper"
-import Typography from "@mui/material/Typography"
-import type { SxProps, Theme } from "@mui/material/styles"
+import { Box } from "@/components/ui/Box"
+import { Link } from "@/components/ui/link"
+import { Paper } from "@/components/ui/Paper"
+import { Popper } from "@/components/ui/floating"
+import { Typography } from "@/components/ui/Typography"
 
 // ─── Context ────────────────────────────────────────────
 
@@ -92,27 +91,18 @@ export function Source({ href, children }: SourceProps) {
     <SourceContext.Provider
       value={{ href, domain, scheduleShow, scheduleHide, cancelHide, setContentProps }}
     >
-      <Box sx={{ display: "inline-flex" }}>
+      <Box>
         {children}
       </Box>
       <Popper
         open={open}
         anchorEl={anchorEl}
         placement="bottom-start"
-        sx={{ zIndex: 1300, pt: 0.5 }}
       >
         <Paper
           onMouseEnter={cancelHide}
           onMouseLeave={scheduleHide}
           elevation={0}
-          sx={{
-            width: 320,
-            borderRadius: (theme) => theme.app.radius.dialog,
-            boxShadow: (theme) => theme.app.shadow.dialog,
-            border: "1px solid",
-            borderColor: "divider",
-            overflow: "hidden",
-          }}
         >
           {contentProps && (
             <Link
@@ -120,54 +110,26 @@ export function Source({ href, children }: SourceProps) {
               target="_blank"
               rel="noopener noreferrer"
               underline="none"
-              sx={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 1.5,
-                p: 2,
-              }}
             >
-              <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+              <Box>
                 <Box
-                  component="img"
+                  as="img"
                   src={`https://www.google.com/s2/favicons?sz=64&domain_url=${encodeURIComponent(href)}`}
                   alt=""
-                  sx={{ width: 16, height: 16, borderRadius: "50%" }}
                 />
                 <Typography
                   variant="body2"
-                  sx={{
-                    color: "text.primary",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
                 >
                   {domain.replace("www.", "")}
                 </Typography>
               </Box>
               <Typography
                 variant="body2"
-                sx={{
-                  fontWeight: 600,
-                  display: "-webkit-box",
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: "vertical",
-                  overflow: "hidden",
-                  color: "text.primary",
-                }}
               >
                 {contentProps.title}
               </Typography>
               <Typography
                 variant="body2"
-                sx={{
-                  color: "text.secondary",
-                  display: "-webkit-box",
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: "vertical",
-                  overflow: "hidden",
-                }}
               >
                 {contentProps.description}
               </Typography>
@@ -184,13 +146,13 @@ export function Source({ href, children }: SourceProps) {
 export interface SourceTriggerProps {
   label?: string | number
   showFavicon?: boolean
-  sx?: SxProps<Theme>
+  className?: string
 }
 
 export function SourceTrigger({
   label,
   showFavicon = false,
-  sx,
+  className,
 }: SourceTriggerProps) {
   const { href, domain, scheduleShow, scheduleHide } = useSourceContext()
   const ref = useRef<HTMLAnchorElement>(null)
@@ -205,46 +167,17 @@ export function SourceTrigger({
       onMouseEnter={() => { if (ref.current) scheduleShow(ref.current) }}
       onMouseLeave={scheduleHide}
       underline="none"
-      sx={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 0.5,
-        height: 20,
-        maxWidth: 128,
-        overflow: "hidden",
-        borderRadius: "9999px",
-        fontSize: "12px",
-        lineHeight: 1,
-        textDecoration: "none",
-        bgcolor: "action.hover",
-        color: "text.secondary",
-        transition: "background 0.15s ease, color 0.15s ease",
-        "&:hover": {
-          bgcolor: "action.selected",
-          color: "text.primary",
-        },
-        ...(showFavicon ? { pl: 0.5, pr: 1 } : { px: 0.5 }),
-        ...sx,
-      }}
+      className={className}
     >
       {showFavicon && (
         <Box
-          component="img"
+          as="img"
           src={`https://www.google.com/s2/favicons?sz=64&domain_url=${encodeURIComponent(href)}`}
           alt=""
-          sx={{ width: 14, height: 14, borderRadius: "50%", flexShrink: 0 }}
         />
       )}
       <Box
-        component="span"
-        sx={{
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-          textAlign: "center",
-          fontWeight: 400,
-          fontVariantNumeric: "tabular-nums",
-        }}
+        as="span"
       >
         {labelToShow}
       </Box>
@@ -257,7 +190,7 @@ export function SourceTrigger({
 export interface SourceContentProps {
   title: string
   description: string
-  sx?: SxProps<Theme>
+  className?: string
 }
 
 export function SourceContent({ title, description }: SourceContentProps) {

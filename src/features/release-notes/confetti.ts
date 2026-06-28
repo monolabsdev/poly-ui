@@ -1,5 +1,12 @@
 import confetti from "canvas-confetti";
 
+function confettiColors() {
+  const styles = getComputedStyle(document.documentElement);
+  return ["--primary", "--info", "--success", "--destructive", "--warning"]
+    .map((name) => styles.getPropertyValue(name).trim())
+    .filter(Boolean);
+}
+
 export function fireConfettiBothSides() {
   const defaults = {
     spread: 60,
@@ -8,7 +15,7 @@ export function fireConfettiBothSides() {
     decay: 0.94,
     startVelocity: 30,
     zIndex: 9500,
-    colors: ["#a864fd", "#29cdff", "#78ff44", "#ff718d", "#fdff6a"],
+    colors: confettiColors(),
   };
 
   confetti({ ...defaults, angle: 60, origin: { x: 0, y: 0.7 } });

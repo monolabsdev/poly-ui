@@ -6,18 +6,18 @@ import {
   Square,
   Volume2,
 } from "lucide-react";
-import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
-import Chip from "@mui/material/Chip";
-import CircularProgress from "@mui/material/CircularProgress";
-import FormControl from "@mui/material/FormControl";
-import MenuItem from "@mui/material/MenuItem";
-import Select from "@mui/material/Select";
-import Slider from "@mui/material/Slider";
-import Stack from "@mui/material/Stack";
-import Switch from "@mui/material/Switch";
-import Typography from "@mui/material/Typography";
-import { SettingCard, SectionHeader, selectSx } from "../SettingComponents";
+import { Box } from "@/components/ui/Box";
+import { Button } from "@/components/ui/button";
+import { Chip } from "@/components/ui/chip";
+import { CircularProgress } from "@/components/ui/spinner";
+import { FormControl } from "@/components/ui/native-select";
+import { MenuItem } from "@/components/ui/native-select";
+import { Select } from "@/components/ui/native-select";
+import { Slider } from "@/components/ui/slider";
+import { Stack } from "@/components/ui/Stack";
+import { Switch } from "@/components/ui/switch";
+import { Typography } from "@/components/ui/Typography";
+import { SettingCard, SectionHeader, selectClassName } from "../SettingComponents";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useTtsStore } from "@/store/ttsStore";
 import { useNotify } from "@/hooks/useNotify";
@@ -151,20 +151,9 @@ export function SpeechTab() {
 
       {!speechSupported ? (
         <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            gap: 1.5,
-            p: 2,
-            borderRadius: (theme) => theme.app.radius.dialog,
-            bgcolor: "error.soft",
-            border: "1px solid",
-            borderColor: "error.main",
-            color: "error.main",
-          }}
         >
           <AlertCircle size={18} />
-          <Typography variant="body2" sx={{ fontSize: "13px" }}>
+          <Typography variant="body2">
             Native speech synthesis is not supported or disabled on your system.
           </Typography>
         </Box>
@@ -176,9 +165,10 @@ export function SpeechTab() {
             title="Voice"
             description="Select the system voice to use for reading messages."
             action={
-              <FormControl size="small" sx={{ minWidth: 220, maxWidth: 300 }}>
+              <FormControl size="small">
                 <Select
                   value={tts.browser.voiceURI || (voices[0]?.voiceURI ?? "")}
+                  className={selectClassName}
                   onChange={(event) =>
                     actions.updateTts({
                       browser: {
@@ -187,7 +177,6 @@ export function SpeechTab() {
                       },
                     })
                   }
-                  sx={selectSx}
                   displayEmpty
                 >
                   {voices.length === 0 ? (
@@ -196,7 +185,7 @@ export function SpeechTab() {
                     </MenuItem>
                   ) : (
                     voices.map((voice) => (
-                      <MenuItem key={voice.voiceURI} value={voice.voiceURI} sx={{ fontSize: 13 }}>
+                      <MenuItem key={voice.voiceURI} value={voice.voiceURI}>
                         {voice.name} ({voice.lang})
                       </MenuItem>
                     ))
@@ -207,7 +196,7 @@ export function SpeechTab() {
           />
 
           <SettingCard title="Playback Speed" description="Adjust the voice reading speed.">
-            <Box sx={{ px: 1, py: 0.5, display: "flex", alignItems: "center", gap: 3 }}>
+            <Box>
               <Slider
                 value={tts.browser.speed}
                 min={0.5}
@@ -220,10 +209,8 @@ export function SpeechTab() {
                     browser: { ...tts.browser, speed: value as number },
                   })
                 }
-                sx={{ flexGrow: 1 }}
               />
               <Typography
-                sx={{ width: 45, fontSize: 13, fontWeight: 700, textAlign: "right", color: "text.secondary" }}
               >
                 {tts.browser.speed.toFixed(1)}x
               </Typography>
@@ -231,7 +218,7 @@ export function SpeechTab() {
           </SettingCard>
 
           <SettingCard title="Voice Pitch" description="Adjust the tone of the speaking voice.">
-            <Box sx={{ px: 1, py: 0.5, display: "flex", alignItems: "center", gap: 3 }}>
+            <Box>
               <Slider
                 value={tts.browser.pitch}
                 min={0.5}
@@ -244,10 +231,8 @@ export function SpeechTab() {
                     browser: { ...tts.browser, pitch: value as number },
                   })
                 }
-                sx={{ flexGrow: 1 }}
               />
               <Typography
-                sx={{ width: 45, fontSize: 13, fontWeight: 700, textAlign: "right", color: "text.secondary" }}
               >
                 {tts.browser.pitch.toFixed(1)}
               </Typography>
@@ -256,7 +241,7 @@ export function SpeechTab() {
         </>
       ) : null}
 
-      <Box sx={{ py: 1.5, display: "flex", justifyContent: "flex-end" }}>
+      <Box>
         <Button
           variant="contained"
           disableElevation
@@ -271,7 +256,6 @@ export function SpeechTab() {
               <Volume2 size={16} />
             )
           }
-          sx={{ textTransform: "none", fontWeight: 700, fontSize: 13, px: 3 }}
         >
           {ttsPlayback.isGenerating && isTesting
             ? "Preparing..."
@@ -308,16 +292,15 @@ export function SpeechTab() {
             title="Language"
             description="Language for speech recognition. Auto-detect defaults to English for reliability."
             action={
-              <FormControl size="small" sx={{ minWidth: 180, maxWidth: 240 }}>
+              <FormControl size="small">
                 <Select
                   value={dictation.language}
                   onChange={(event) =>
                     actions.updateDictation({ language: event.target.value })
                   }
-                  sx={selectSx}
                 >
                   {WHISPER_LANGUAGES.map((lang) => (
-                    <MenuItem key={lang.code} value={lang.code} sx={{ fontSize: 13 }}>
+                    <MenuItem key={lang.code} value={lang.code}>
                       {lang.label}
                     </MenuItem>
                   ))}
@@ -349,25 +332,22 @@ export function SpeechTab() {
                 size="small"
                 variant="outlined"
                 onClick={() => setManageOpen(true)}
-                sx={{ textTransform: "none", fontWeight: 600, fontSize: 12 }}
               >
                 {models.length > 0 ? "Manage models" : "Install model"}
               </Button>
             }
           >
             {currentModel && (
-              <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+              <Box>
                 <Chip
                   label={currentModel.speedLabel}
                   size="small"
                   variant="outlined"
-                  sx={{ fontSize: 11 }}
                 />
                 <Chip
                   label={currentModel.qualityLabel}
                   size="small"
                   variant="outlined"
-                  sx={{ fontSize: 11 }}
                 />
               </Box>
             )}

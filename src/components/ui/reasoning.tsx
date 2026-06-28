@@ -5,12 +5,11 @@ import {
   useContext,
   useEffect,
   useId,
-  useRef,
   useState,
   type HTMLAttributes,
   type ReactNode,
 } from "react";
-import Box from "@mui/material/Box";
+import { cn } from "@/lib/utils";
 
 type ReasoningContextType = {
   isOpen: boolean;
@@ -78,7 +77,7 @@ export function Reasoning({
     <ReasoningContext.Provider
       value={{ isOpen, onOpenChange: handleOpenChange, panelId }}
     >
-      <Box {...props}>{children}</Box>
+      <div {...props}>{children}</div>
     </ReasoningContext.Provider>
   );
 }
@@ -94,99 +93,53 @@ export function ReasoningTrigger({
   const { isOpen, onOpenChange, panelId } = useReasoningContext();
 
   return (
-    <Box
-      component="button"
+    <button
+      type="button"
       onClick={() => onOpenChange(!isOpen)}
       aria-expanded={isOpen}
       aria-controls={panelId}
-      sx={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 0.75,
-        cursor: "pointer",
-        border: "none",
-        background: "none",
-        p: 0,
-        fontFamily: "inherit",
-        fontSize: "inherit",
-        color: "inherit",
-        borderRadius: "9999px",
-        minHeight: 24,
-        "&:focus-visible": {
-          outline: "2px solid",
-          outlineColor: "primary.main",
-          outlineOffset: 2,
-        },
-      }}
+      className="inline-flex min-h-6 cursor-pointer items-center gap-1.5 rounded-full bg-transparent p-0 font-inherit text-inherit focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
       {...props}
     >
-      <Box sx={{ color: "primary.main" }}>{children}</Box>
-      <Box
-        sx={{
-          display: "flex",
-          transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
-          transition: "transform 0.2s ease",
-          color: "text.secondary",
-        }}
+      <span className="text-primary">{children}</span>
+      <span
+        className={cn(
+          "flex text-muted-foreground transition-transform duration-[var(--dur-base)] ease-[var(--ease-premium)]",
+          isOpen && "rotate-180",
+        )}
       >
         <ChevronDown size={16} />
-      </Box>
-    </Box>
+      </span>
+    </button>
   );
 }
 
 export type ReasoningContentProps = {
   children: ReactNode;
-  contentSx?: Record<string, unknown>;
+  contentClassName?: string;
 } & HTMLAttributes<HTMLDivElement>;
 
 export function ReasoningContent({
   children,
-  contentSx,
+  contentClassName,
+  className,
   ...props
 }: ReasoningContentProps) {
-  const outerRef = useRef<HTMLDivElement>(null);
-  const innerRef = useRef<HTMLDivElement>(null);
   const { isOpen, panelId } = useReasoningContext();
-  const [maxHeight, setMaxHeight] = useState("0px");
-
-  const updateHeight = useCallback(() => {
-    if (innerRef.current) {
-      setMaxHeight(isOpen ? `${innerRef.current.scrollHeight}px` : "0px");
-    }
-  }, [isOpen]);
-
-  useEffect(() => {
-    const inner = innerRef.current;
-    if (!inner) return;
-    const observer = new ResizeObserver(updateHeight);
-    observer.observe(inner);
-    updateHeight();
-    return () => observer.disconnect();
-  }, [updateHeight]);
-
-  useEffect(() => {
-    updateHeight();
-  }, [isOpen, updateHeight]);
 
   return (
-    <Box
-      ref={outerRef}
+    <div
       id={panelId}
       role="region"
-      sx={{
-        overflow: "hidden",
-        transition: "max-height 0.2s ease-out",
-        maxHeight,
-      }}
+      data-state={isOpen ? "open" : "closed"}
+      className={cn("terax-reveal", className)}
       {...props}
     >
-      <Box
-        ref={innerRef}
-        sx={{ color: "text.secondary", ...contentSx }}
+      <div
+        className={cn("text-muted-foreground", contentClassName)}
       >
         {children}
-      </Box>
-    </Box>
+      </div>
+    </div>
   );
 }

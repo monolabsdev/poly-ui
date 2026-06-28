@@ -1,4 +1,3 @@
-import Box from "@mui/material/Box";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useEffect, useState } from "react";
 import { Minus, Square, X } from "lucide-react";
@@ -22,7 +21,7 @@ export function WindowControls({ closeOnly = false }: { closeOnly?: boolean }) {
 
   const w = getCurrentWindow();
   return (
-    <Box sx={{ display: "flex", height: "100%", flexShrink: 0, alignItems: "center", gap: 0.25, pr: 0 }}>
+    <div className="flex h-full shrink-0 items-center gap-0.5 pr-0">
       {!closeOnly && (
         <>
           <WinButton onClick={() => void w.minimize()} title="Minimize">
@@ -36,7 +35,7 @@ export function WindowControls({ closeOnly = false }: { closeOnly?: boolean }) {
       <WinButton close onClick={() => void w.close()} title="Close">
         <X size={15} strokeWidth={1.5} />
       </WinButton>
-    </Box>
+    </div>
   );
 }
 
@@ -47,28 +46,17 @@ function WinButton({ children, onClick, title, close = false }: {
   close?: boolean;
 }) {
   return (
-    <Box
-      component="button"
+    <button
       type="button"
       onClick={onClick}
       title={title}
       onMouseDown={(e: React.MouseEvent) => e.stopPropagation()}
       onDoubleClick={(e: React.MouseEvent) => e.stopPropagation()}
-      sx={{
-        width: 46,
-        height: "100%",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        color: "text.secondary",
-        cursor: "pointer",
-        borderRadius: 0,
-        "&:hover": close
-          ? { bgcolor: "#c42b1c", color: "#ffffff" }
-          : { bgcolor: "action.hover", color: "text.primary" },
-      }}
+      className={`flex h-full w-[46px] cursor-pointer items-center justify-center rounded-none text-muted-foreground ${
+        close ? "hover:bg-destructive/15 hover:text-destructive" : "hover:bg-accent hover:text-foreground"
+      }`}
     >
       {children}
-    </Box>
+    </button>
   );
 }

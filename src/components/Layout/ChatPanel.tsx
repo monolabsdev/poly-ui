@@ -1,5 +1,3 @@
-import Box from "@mui/material/Box";
-
 type ChatPanelProps = {
   children: React.ReactNode;
   backgroundImage?: string | null;
@@ -7,54 +5,19 @@ type ChatPanelProps = {
 
 export function ChatPanel({ children, backgroundImage }: ChatPanelProps) {
   return (
-    <Box
-      sx={{
-        flex: 1,
-        minHeight: 0,
-        display: "flex",
-        flexDirection: "column",
-        overflow: "hidden",
-        position: "relative",
-        bgcolor: "background.chatPanel",
-        borderRadius: "14px 0 0 0",
-        border: "1px solid",
-        borderColor: "divider",
-      }}
-    >
+    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-tl-xl bg-sidebar">
       {backgroundImage && (
-        <Box
-          sx={{
-            position: "absolute",
-            inset: 0,
-            backgroundImage: `url(${backgroundImage})`,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-            backgroundRepeat: "no-repeat",
-            filter: "blur(24px)",
-          }}
+        <div
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat blur-3xl"
+          style={{ backgroundImage: `url(${backgroundImage})` }}
         />
       )}
       {backgroundImage && (
-        <Box
-          sx={{
-            position: "absolute",
-            inset: 0,
-            bgcolor: "rgba(0,0,0,0.35)",
-          }}
-        />
+        <div className="absolute inset-0 bg-black/35" />
       )}
-      <Box
-        sx={{
-          position: "relative",
-          zIndex: 1,
-          flex: 1,
-          minHeight: 0,
-          display: "flex",
-          flexDirection: "column",
-        }}
-      >
+      <div className="relative z-[1] flex min-h-0 flex-1 flex-col">
         {children}
-      </Box>
-    </Box>
+      </div>
+    </div>
   );
 }
