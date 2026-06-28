@@ -1,5 +1,8 @@
 import * as React from "react";
-import { Modal as MuiModal, Box, SxProps, Theme } from "@mui/material";
+import MuiModal from "@mui/material/Modal";
+import Box from "@mui/material/Box";
+import { SxProps } from "@mui/material/styles";
+import { Theme } from "@mui/material/styles";
 
 export function Dialog({
   children,
@@ -58,7 +61,7 @@ export function DialogContent({
         bgcolor: "background.sidebar",
         border: "1px solid",
         borderColor: "divider",
-        borderRadius: "12px",
+        borderRadius: (theme) => (theme as any).app?.radius?.dialog ?? "20px",
         boxSizing: "border-box",
         overflow: "hidden",
         position: "relative",

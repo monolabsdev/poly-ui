@@ -9,14 +9,12 @@ import {
   X,
 } from "lucide-react";
 import { useState, memo, useEffect, useCallback, useMemo } from "react";
-import {
-  Box,
-  InputBase,
-  IconButton,
-  Typography,
-  Tooltip,
-  useTheme,
-} from "@mui/material";
+import Box from "@mui/material/Box";
+import InputBase from "@mui/material/InputBase";
+import IconButton from "@mui/material/IconButton";
+import Typography from "@mui/material/Typography";
+import Tooltip from "@mui/material/Tooltip";
+import { useTheme } from "@mui/material/styles";
 import StopIcon from "@mui/icons-material/Stop";
 import {
   DropdownMenu,
@@ -25,9 +23,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { motion, AnimatePresence } from "motion/react";
 
-import { useTiming } from "@/lib/utils/motion";
 import { useFeatures, type FeatureDef } from "@/lib/featureRegistry";
 import { useChatAttachments } from "@/features/chat/hooks/useChatAttachments";
 import { useFileDragDetection } from "@/features/chat/hooks/useFileDragDetection";
@@ -77,8 +73,6 @@ export const ChatInput = memo(function ChatInput({
     chars: number;
   } | null>(null);
   const theme = useTheme();
-  const timing = useTiming();
-  const enableLayoutAnimation = timing.motionPolicy.enableLayoutAnimation;
   const experimentalFeatures = useSettingsStore(
     (state) => state.general.experimentalFeatures,
   );
@@ -217,18 +211,12 @@ export const ChatInput = memo(function ChatInput({
       p: 0,
       maxHeight: `${MAX_HEIGHT}px`,
       overflowY: "auto",
-      transition: enableLayoutAnimation
-        ? theme.transitions.create("height", {
-            duration: theme.transitions.duration.short,
-            easing: theme.transitions.easing.easeOut,
-          })
-        : "none",
       "&::placeholder": {
         color: "text.secondary",
         opacity: 1,
       },
     },
-  }), [enableLayoutAnimation, theme]);
+  }), [theme]);
 
   const agentBarSx = useMemo(() => {
     const isDark = theme.palette.mode === "dark";
@@ -434,8 +422,7 @@ export const ChatInput = memo(function ChatInput({
           pb: agentEnabled ? { xs: "52px", sm: "54px" } : 0,
         }}
       >
-        <AnimatePresence>
-          {showSlashMenu && (
+        {showSlashMenu && (
             <SlashCommandMenu
               features={filteredFeatures}
               onSelect={handleSlashSelect}
@@ -443,7 +430,6 @@ export const ChatInput = memo(function ChatInput({
               slashQuery={slashQuery}
             />
           )}
-        </AnimatePresence>
 
         <Box
           className={`chat-file-drop-target${isDraggingFiles ? " chat-file-drop-target--active" : ""}`}
@@ -478,46 +464,21 @@ export const ChatInput = memo(function ChatInput({
             >
               Drop files to attach
             </Box>
-            <AnimatePresence>
-              {activeFeatures.length > 0 && (
-                <motion.div
-                  key="feature-badges-container"
-                  initial={
-                    enableLayoutAnimation
-                      ? { opacity: 0, height: 0, overflow: "hidden" }
-                      : { opacity: 0 }
-                  }
-                  animate={
-                    enableLayoutAnimation
-                      ? { opacity: 1, height: "auto" }
-                      : { opacity: 1 }
-                  }
-                  exit={
-                    enableLayoutAnimation
-                      ? { opacity: 0, height: 0 }
-                      : { opacity: 0 }
-                  }
-                  transition={{
-                    duration: timing.duration("base"),
-                    ease: timing.ease,
-                  }}
-                >
+            {activeFeatures.length > 0 && (
+                <Box className="animate-fade-in">
                   <ActiveFeaturesList
                     activeFeatures={activeFeatures}
                     hasAttachments={currentAttachments.length > 0}
                   />
-                </motion.div>
+                </Box>
               )}
-            </AnimatePresence>
 
-            <AnimatePresence>
-              {currentAttachments.length > 0 && (
+            {currentAttachments.length > 0 && (
                 <ChatAttachmentsList
                   attachments={currentAttachments}
                   onRemove={removeCurrentAttachment}
                 />
               )}
-            </AnimatePresence>
 
             <InputBase
               multiline
@@ -538,29 +499,9 @@ export const ChatInput = memo(function ChatInput({
               sx={inputBaseSx}
             />
 
-            <AnimatePresence>
-              {pastedPreview && (
+            {pastedPreview && (
                 <Box
-                  component={motion.div}
-                  initial={
-                    enableLayoutAnimation
-                      ? { opacity: 0, height: 0, marginBottom: 0 }
-                      : { opacity: 0 }
-                  }
-                  animate={
-                    enableLayoutAnimation
-                      ? { opacity: 1, height: "auto", marginBottom: 0 }
-                      : { opacity: 1 }
-                  }
-                  exit={
-                    enableLayoutAnimation
-                      ? { opacity: 0, height: 0, marginBottom: 0 }
-                      : { opacity: 0 }
-                  }
-                  transition={{
-                    duration: timing.duration("base"),
-                    ease: timing.ease,
-                  }}
+                  className="animate-fade-in"
                   sx={{
                     mx: 1.5,
                     mt: 1,
@@ -635,7 +576,6 @@ export const ChatInput = memo(function ChatInput({
                   </IconButton>
                 </Box>
               )}
-            </AnimatePresence>
 
             <Box
               sx={{

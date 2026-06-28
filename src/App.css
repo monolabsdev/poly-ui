@@ -329,6 +329,22 @@ code {
 
 /* ── Animation Utilities ── */
 
+/* Toast entrance — slide up + fade */
+.animate-toast-in {
+    animation: toast-in 0.18s ease-out forwards;
+}
+
+@keyframes toast-in {
+    from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
 /* Fade in */
 .animate-fade-in {
     animation: fade-in 0.24s ease-out forwards;
@@ -420,6 +436,7 @@ code {
   .animate-fade-in,
   .animate-slide-in,
   .animate-popover,
+  .animate-toast-in,
   .animate-thinking,
   .animate-pulse {
     animation: none !important;
@@ -429,6 +446,7 @@ code {
 html.reduce-motion .animate-fade-in,
 html.reduce-motion .animate-slide-in,
 html.reduce-motion .animate-popover,
+html.reduce-motion .animate-toast-in,
 html.reduce-motion .animate-thinking,
 html.reduce-motion .animate-pulse {
   animation: none !important;

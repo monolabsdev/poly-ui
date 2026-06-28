@@ -1,9 +1,11 @@
 import React, { useEffect } from "react";
-import { motion, AnimatePresence } from "motion/react";
-import { Box, Typography, IconButton, useTheme, alpha } from "@mui/material";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
+import IconButton from "@mui/material/IconButton";
+import { useTheme } from "@mui/material/styles";
+import { alpha } from "@mui/material/styles";
 import { CheckCircle2, AlertCircle, Info, AlertTriangle, X, Loader2 } from "lucide-react";
 import { useNotificationStore, type Toast as ToastType } from "@/store/notificationStore";
-import { useReducedMotion } from "@/features/sidebar/hooks/useReducedMotion";
 
 const typeIcon = {
   success: CheckCircle2,
@@ -16,7 +18,6 @@ const typeIcon = {
 const ToastItem = ({ toast }: { toast: ToastType }) => {
   const remove = useNotificationStore((s) => s.actions.remove);
   const theme = useTheme();
-  const shouldReduce = useReducedMotion();
 
   const getColor = () => {
     switch (toast.type) {
@@ -37,11 +38,7 @@ const ToastItem = ({ toast }: { toast: ToastType }) => {
 
   return (
     <Box
-      component={motion.div}
-      layout={!shouldReduce}
-      initial={{ opacity: 0, y: 20, scale: 0.98 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.98, transition: { duration: shouldReduce ? 0 : 0.1 } }}
+      className="animate-toast-in"
       sx={{
         width: { xs: "calc(100vw - 32px)", sm: 380 },
         maxWidth: 380,
@@ -129,11 +126,9 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
           pointerEvents: "none",
         }}
       >
-        <AnimatePresence mode="popLayout">
-          {toasts.map((toast) => (
-            <ToastItem key={toast.id} toast={toast} />
-          ))}
-        </AnimatePresence>
+        {toasts.map((toast) => (
+          <ToastItem key={toast.id} toast={toast} />
+        ))}
       </Box>
     </>
   );

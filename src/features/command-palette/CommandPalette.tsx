@@ -1,9 +1,11 @@
 import * as React from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { Box, ButtonBase, Typography, alpha, useTheme } from "@mui/material";
-import { AnimatePresence, motion } from "motion/react";
+import Box from "@mui/material/Box";
+import ButtonBase from "@mui/material/ButtonBase";
+import Typography from "@mui/material/Typography";
+import { alpha } from "@mui/material/styles";
+import { useTheme } from "@mui/material/styles";
 import { Check, AlertTriangle, MessageSquare, Search, Settings, Sparkles, X, Zap } from "lucide-react";
-import { useReducedMotion } from "@/features/sidebar/hooks/useReducedMotion";
 import type { CommandPaletteCategory, CommandPaletteItem } from "./types";
 import {
   getIntentSummary,
@@ -25,7 +27,6 @@ const HEADER_ROW_HEIGHT = 24;
 const ITEM_ROW_HEIGHT = 38;
 const ITEM_ROW_WITH_DESCRIPTION_HEIGHT = 38;
 const ROW_VERTICAL_GAP = 2;
-const HIGH_CONFIDENCE = 0.86;
 const MEDIUM_CONFIDENCE = 0.62;
 
 const CATEGORY_LABELS: Record<CommandPaletteCategory, string> = {
@@ -117,9 +118,6 @@ function getPaletteRowHeight(row: PaletteRow | undefined) {
     : ITEM_ROW_HEIGHT;
 }
 
-function getIntentKey(intent: ParsedIntent) {
-  return `${intent.command}:${JSON.stringify(intent.args)}`;
-}
 
 export function CommandPalette({
   open,
@@ -127,32 +125,16 @@ export function CommandPalette({
   items,
 }: CommandPaletteProps) {
   const theme = useTheme();
-  const shouldReduce = useReducedMotion();
   const inputRef = React.useRef<HTMLInputElement>(null);
   const parentRef = React.useRef<HTMLDivElement>(null);
   const [query, setQuery] = React.useState("");
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
-  const [pendingIntentKey, setPendingIntentKey] = React.useState<string | null>(
-    null,
-  );
 
   const rows = React.useMemo(() => buildRows(items, query), [items, query]);
   const parsedIntent = React.useMemo(() => parseCommandIntent(query), [query]);
-  const intentKey = parsedIntent ? getIntentKey(parsedIntent) : null;
-  const intentAction = React.useMemo(
-    () => items.find((item) => item.smartCommand?.command === parsedIntent?.command),
-    [items, parsedIntent?.command],
-  );
   const showIntent = Boolean(
     parsedIntent &&
       (parsedIntent.confidence >= MEDIUM_CONFIDENCE || parsedIntent.destructive),
-  );
-  const intentNeedsConfirmation =
-    showIntent &&
-    (Boolean(parsedIntent?.destructive) ||
-      (parsedIntent ? parsedIntent.confidence < HIGH_CONFIDENCE : false));
-  const intentConfirming = Boolean(
-    parsedIntent && pendingIntentKey === intentKey,
   );
   const selectableItems = React.useMemo(
     () =>
@@ -180,13 +162,8 @@ export function CommandPalette({
   React.useEffect(() => {
     if (!open) return;
     setQuery("");
-    setPendingIntentKey(null);
     requestAnimationFrame(() => inputRef.current?.focus());
   }, [open]);
-
-  React.useEffect(() => {
-    setPendingIntentKey(null);
-  }, [query]);
 
   React.useEffect(() => {
     if (!open || selectableItems.length === 0) {
@@ -219,7 +196,6 @@ export function CommandPalette({
       if (!intent) return;
       if (intent.command === "search-chats") {
         setQuery(intent.args.query);
-        setPendingIntentKey(null);
         requestAnimationFrame(() => inputRef.current?.focus());
         return;
       }
@@ -272,10 +248,6 @@ export function CommandPalette({
     if (event.key === "Enter") {
       event.preventDefault();
       if (parsedIntent && showIntent) {
-        if (intentNeedsConfirmation && !intentConfirming) {
-          setPendingIntentKey(intentKey);
-          return;
-        }
         executeIntent(parsedIntent);
         return;
       }
@@ -284,14 +256,10 @@ export function CommandPalette({
   };
 
   return (
-    <AnimatePresence>
+    <React.Fragment>
       {open ? (
         <Box
-          component={motion.div}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: shouldReduce ? 0 : 0.12 }}
+          className="animate-fade-in"
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) onOpenChange(false);
           }}
@@ -312,14 +280,10 @@ export function CommandPalette({
           }}
         >
           <Box
-            component={motion.div}
+            className="animate-popover"
             role="dialog"
             aria-modal="true"
             aria-label="Command palette"
-            initial={{ opacity: 0, scale: 0.97, y: -8 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.98, y: -4 }}
-            transition={{ duration: shouldReduce ? 0 : 0.16, ease: [0.2, 0.8, 0.2, 1] }}
             onKeyDown={handleKeyDown}
             sx={{
               width: "520px",
@@ -336,12 +300,8 @@ export function CommandPalette({
               ),
               bgcolor:
                 theme.palette.mode === "dark"
-                  ? alpha(theme.palette.background.default, 0.92)
-                  : alpha(theme.palette.background.paper, 0.95),
-              boxShadow:
-                theme.palette.mode === "dark"
-                  ? `0 16px 48px ${alpha(theme.palette.common.black, 0.48)}`
-                  : `0 16px 48px ${alpha(theme.palette.common.black, 0.18)}`,
+                  ? theme.palette.background.default
+                  : theme.palette.background.paper,
               "@media (max-height: 560px)": {
                 maxHeight: "calc(100dvh - var(--titlebar-height) - 24px)",
               },
@@ -406,11 +366,7 @@ export function CommandPalette({
             </Box>
 
             {showIntent && parsedIntent ? (
-              <IntentPreview
-                intent={parsedIntent}
-                confirming={intentConfirming}
-                actionTitle={intentAction?.title}
-              />
+              <IntentPreview intent={parsedIntent} />
             ) : null}
 
             <Box
@@ -517,95 +473,48 @@ export function CommandPalette({
           </Box>
         </Box>
       ) : null}
-    </AnimatePresence>
+    </React.Fragment>
   );
 }
 
-function IntentPreview({
-  intent,
-  confirming,
-  actionTitle,
-}: {
-  intent: ParsedIntent;
-  confirming: boolean;
-  actionTitle?: string;
-}) {
+function IntentPreview({ intent }: { intent: ParsedIntent }) {
   const summary = getIntentSummary(intent);
-  const label = confirming
-    ? intent.destructive
-      ? "Press Enter again to delete"
-      : "Press Enter again to confirm"
-    : actionTitle
-      ? "Interpreted action"
-      : "Interpreted action";
+  const text = `${summary.action}${summary.argument ? ` "${summary.argument}"` : ""}`;
 
   return (
     <Box
-      sx={(theme) => ({
+      sx={{
         display: "flex",
         alignItems: "center",
-        gap: 1,
-        px: { xs: 1.5, sm: 2 },
-        py: 1,
+        gap: 0.75,
+        px: 1.75,
+        py: 0.6,
         borderBottom: "1px solid",
-        borderColor: intent.destructive
-          ? alpha(theme.palette.error.main, 0.32)
-          : "divider",
-        bgcolor: intent.destructive
-          ? alpha(theme.palette.error.main, 0.08)
-          : alpha(theme.palette.primary.main, 0.06),
-        color: intent.destructive ? "error.main" : "text.primary",
+        borderColor: "divider",
         flexShrink: 0,
-      })}
+        color: intent.destructive ? "error.main" : "text.secondary",
+        opacity: 0.8,
+      }}
     >
-      {intent.destructive ? <AlertTriangle size={15} /> : <Sparkles size={15} />}
-      <Box sx={{ minWidth: 0, flex: 1 }}>
-        <Typography
-          sx={{
-            fontSize: 11,
-            fontWeight: 750,
-            color: "text.secondary",
-            lineHeight: 1.2,
-          }}
-        >
-          {label}
-        </Typography>
-        <Typography
-          sx={{
-            mt: 0.25,
-            fontSize: 13,
-            fontWeight: 650,
-            color: intent.destructive ? "error.main" : "text.primary",
-            lineHeight: 1.25,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {summary.action}
-          {summary.argument ? (
-            <>
-              {" "}
-              <Box
-                component="span"
-                sx={(theme) => ({
-                  px: 0.45,
-                  py: 0.1,
-                  borderRadius: "5px",
-                  bgcolor: intent.destructive
-                    ? alpha(theme.palette.error.main, 0.14)
-                    : alpha(theme.palette.primary.main, 0.16),
-                  color: intent.destructive ? "error.main" : "primary.main",
-                })}
-              >
-                {summary.argument}
-              </Box>
-            </>
-          ) : null}
-        </Typography>
-      </Box>
+      {intent.destructive
+        ? <AlertTriangle size={11} />
+        : <Sparkles size={11} />}
+      <Typography
+        noWrap
+        sx={{
+          fontSize: 11,
+          lineHeight: 1,
+          color: "inherit",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+        }}
+      >
+        {text}
+      </Typography>
       {import.meta.env.DEV ? (
-        <KeyHint>{Math.round(intent.confidence * 100)}%</KeyHint>
+        <Typography sx={{ fontSize: 10, ml: "auto", opacity: 0.5, flexShrink: 0 }}>
+          {Math.round(intent.confidence * 100)}%
+        </Typography>
       ) : null}
     </Box>
   );
@@ -660,9 +569,10 @@ function CommandRow({
         sx={{
           flex: "1 1 auto",
           minWidth: 0,
+          textAlign: "left",
           fontSize: 13.5,
           fontWeight: active ? 600 : 500,
-          color: active ? "text.primary" : "text.primary",
+          color: "text.primary",
           lineHeight: 1,
         }}
       >
@@ -689,20 +599,15 @@ function CommandRow({
 function KeyHint({ children }: { children: React.ReactNode }) {
   return (
     <Box
-      component="kbd"
+      component="span"
       sx={{
-        px: 0.8,
-        py: 0.35,
-        borderRadius: "6px",
-        border: "1px solid",
-        borderColor: "divider",
-        bgcolor: "action.hover",
+        flexShrink: 0,
         color: "text.secondary",
-        fontSize: 11,
+        opacity: 0.6,
+        fontSize: 12,
         fontFamily: "inherit",
         lineHeight: 1,
-        ml: "auto",
-        flexShrink: 0,
+        letterSpacing: "0.02em",
       }}
     >
       {children}

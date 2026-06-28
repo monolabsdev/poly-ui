@@ -1,31 +1,19 @@
 import { useEffect } from "react";
-import { Box, Typography, Stack, IconButton } from "@mui/material";
-import { motion, AnimatePresence } from "motion/react";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
+import Stack from "@mui/material/Stack";
+import IconButton from "@mui/material/IconButton";
 import { X, ExternalLink, Sparkles } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { MarkdownProse } from "@/features/chat/components/Message/MarkdownProse";
-import { MOTION_TOKENS, useTiming } from "@/lib/utils/motion";
 import { useReleaseNotes } from "./useReleaseNotes";
 import type { ReleaseNotesResult } from "./releaseNotesApi";
 import { fireConfettiBothSides } from "./confetti";
 
-const VARIANTS = {
-  overlay: {
-    initial: { opacity: 0 },
-    animate: { opacity: 1 },
-    exit: { opacity: 0 },
-  },
-  panel: {
-    initial: { opacity: 0, scale: 0.96, y: 12 },
-    animate: { opacity: 1, scale: 1, y: 0 },
-    exit: { opacity: 0, scale: 0.96, y: 12 },
-  },
-};
-
 export function ReleaseNotesModal() {
   const { show, loading, data, version, dismiss } = useReleaseNotes();
-  const timing = useTiming();
+
 
   useEffect(() => {
     if (!show) {
@@ -44,24 +32,9 @@ export function ReleaseNotesModal() {
       showCloseButton={false}
       contentSx={{ overflow: "hidden", flex: "0 1 auto" }}
     >
-      <AnimatePresence mode="wait">
-        {show && (
-          <motion.div
-            key="release-notes"
-            variants={VARIANTS.overlay}
-            initial="initial"
-            animate="animate"
-            exit="exit"
-            transition={{ duration: timing.duration("base"), ease: MOTION_TOKENS.ease.out }}
-            style={{ display: "contents" }}
-          >
-            <motion.div
-              variants={VARIANTS.panel}
-              initial="initial"
-              animate="animate"
-              exit="exit"
-              transition={{ duration: timing.duration("slow"), ease: MOTION_TOKENS.ease.out, delay: timing.shouldReduce ? 0 : 0.04 }}
-            >
+      {show && (
+        <Box>
+          <Box>  
               <Box sx={{ position: "relative", display: "flex", flexDirection: "column", maxHeight: "calc(100vh - var(--titlebar-height) - 32px)" }}>
                 <IconButton
                   onClick={dismiss}
@@ -156,10 +129,9 @@ export function ReleaseNotesModal() {
                   </Button>
                 </Box>
               </Box>
-            </motion.div>
-          </motion.div>
+            </Box>
+          </Box>
         )}
-      </AnimatePresence>
     </Modal>
   );
 }

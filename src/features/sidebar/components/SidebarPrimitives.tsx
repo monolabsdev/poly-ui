@@ -1,7 +1,12 @@
 import * as React from "react";
-import { Box, IconButton, CSSObject, Typography, Tooltip, ButtonBase, type SxProps } from "@mui/material";
-import { alpha, useTheme, type Theme } from "@mui/material/styles";
-import { motion, AnimatePresence } from "motion/react";
+import Box from "@mui/material/Box";
+import IconButton from "@mui/material/IconButton";
+import { CSSObject } from "@mui/material/styles";
+import Typography from "@mui/material/Typography";
+import Tooltip from "@mui/material/Tooltip";
+import ButtonBase from "@mui/material/ButtonBase";
+import type { SxProps } from "@mui/material/styles";
+import { alpha, type Theme } from "@mui/material/styles";
 import { ChevronRight, PanelLeft } from "lucide-react";
 import { useSidebar } from "@/features/sidebar/hooks/useSidebar";
 import { useReducedMotion } from "@/features/sidebar/hooks/useReducedMotion";
@@ -9,8 +14,6 @@ import { useReducedMotion } from "@/features/sidebar/hooks/useReducedMotion";
 const SIDEBAR_ITEM_SPACING = 5;
 const SIDEBAR_ICON_SPACING = 4;
 const SIDEBAR_GLYPH_SPACING = 2.125;
-
-const ROW_HOVER_DURATION = 0.12;
 
 const sidebarItemFocus = {
   outline: "2px solid",
@@ -248,8 +251,6 @@ export function SidebarRow({
   ariaCurrent?: boolean;
 }) {
   const { isCollapsed } = useSidebar();
-  const reducedMotion = useReducedMotion();
-  const theme = useTheme();
   const [hovered, setHovered] = React.useState(false);
 
   const content = (
@@ -286,43 +287,19 @@ export function SidebarRow({
         ...(Array.isArray(sx) ? sx : [sx]),
       ]}
     >
-      {/* Animated pill background */}
-      <AnimatePresence initial={false}>
-        {isActive && (
-          <motion.span
-            key="active"
-            initial={reducedMotion ? { opacity: 1 } : { opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={reducedMotion ? { opacity: 0 } : { opacity: 0, transition: { duration: ROW_HOVER_DURATION } }}
-            transition={{ duration: ROW_HOVER_DURATION }}
-            style={{
-              position: "absolute",
-              inset: 0,
-              borderRadius: "inherit",
-              background: theme.palette.action.selected,
-              zIndex: 0,
-              pointerEvents: "none",
-            }}
-          />
-        )}
-        {!isActive && hovered && (
-          <motion.span
-            key="hover"
-            initial={reducedMotion ? { opacity: 1 } : { opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: ROW_HOVER_DURATION }}
-            style={{
-              position: "absolute",
-              inset: 0,
-              borderRadius: "inherit",
-              background: theme.palette.action.hover,
-              zIndex: 0,
-              pointerEvents: "none",
-            }}
-          />
-        )}
-      </AnimatePresence>
+      <Box
+        sx={(t) => ({
+          position: "absolute",
+          inset: 0,
+          borderRadius: "inherit",
+          bgcolor: isActive ? "action.selected" : hovered ? "action.hover" : "transparent",
+          zIndex: 0,
+          pointerEvents: "none",
+          transition: t.transitions.create("background-color", {
+            duration: t.transitions.duration.shortest,
+          }),
+        })}
+      />
       <Box sx={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center", width: "100%", gap: "inherit" }}>
         {children}
       </Box>
