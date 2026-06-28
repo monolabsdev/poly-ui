@@ -3,7 +3,11 @@ use crate::whisper_state::WhisperState;
 use futures::StreamExt;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+#[cfg(target_os = "linux")]
+use std::sync::{mpsc, Arc};
 use std::sync::{LazyLock, Mutex};
+#[cfg(target_os = "linux")]
+use std::thread;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter, State};
 use tokio::io::AsyncWriteExt;
@@ -17,6 +21,37 @@ const MIN_AUDIO_PEAK: f32 = 0.01;
 const MIN_ACTIVE_AUDIO_RATIO: f32 = 0.005;
 const CLIPPING_THRESHOLD: f32 = 0.999;
 static LAST_AUDIO_HASH: LazyLock<Mutex<Option<String>>> = LazyLock::new(|| Mutex::new(None));
+
+#[cfg(target_os = "linux")]
+static NATIVE_RECORDER: LazyLock<Mutex<Option<NativeRecorder>>> =
+    LazyLock::new(|| Mutex::new(None));
+
+#[cfg(target_os = "linux")]
+struct NativeRecorder {
+    stop_tx: mpsc::Sender<()>,
+    join: thread::JoinHandle<()>,
+    samples: Arc<Mutex<Vec<f32>>>,
+    source_sample_rate: u32,
+    source_channel_count: u32,
+    device_name: String,
+    sample_format: String,
+}
+
+#[cfg(target_os = "linux")]
+struct NativeRecorderStarted {
+    samples: Arc<Mutex<Vec<f32>>>,
+    source_sample_rate: u32,
+    source_channel_count: u32,
+    device_name: String,
+    sample_format: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NativeDictationRecording {
+    audio_samples: Vec<f32>,
+    audio_meta: DictationAudioMeta,
+}
 
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -48,7 +83,7 @@ pub struct WhisperDownloadProgress {
     total_bytes: Option<u64>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DictationAudioMeta {
     recorder_mime_type: Option<String>,
@@ -322,6 +357,248 @@ fn sample_window(samples: &[f32], from_start: bool) -> String {
     format!("[{}]", values.join(", "))
 }
 
+fn resample_mono(samples: &[f32], source_sample_rate: u32, target_sample_rate: u32) -> Vec<f32> {
+    if source_sample_rate == target_sample_rate {
+        return samples.to_vec();
+    }
+
+    let output_len = ((samples.len() as f64 * target_sample_rate as f64)
+        / source_sample_rate as f64)
+        .round()
+        .max(1.0) as usize;
+    let ratio = source_sample_rate as f64 / target_sample_rate as f64;
+    let mut output = Vec::with_capacity(output_len);
+
+    for i in 0..output_len {
+        let source_index = i as f64 * ratio;
+        let left = source_index.floor() as usize;
+        let right = (left + 1).min(samples.len().saturating_sub(1));
+        let weight = (source_index - left as f64) as f32;
+        let left_sample = samples.get(left).copied().unwrap_or(0.0);
+        let right_sample = samples.get(right).copied().unwrap_or(left_sample);
+        output.push(left_sample * (1.0 - weight) + right_sample * weight);
+    }
+
+    output
+}
+
+#[cfg(target_os = "linux")]
+fn append_interleaved(samples: &Arc<Mutex<Vec<f32>>>, input: &[f32], channels: usize) {
+    let Ok(mut out) = samples.lock() else { return };
+    for frame in input.chunks(channels.max(1)) {
+        out.push(frame.iter().sum::<f32>() / frame.len() as f32);
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn start_native_recorder() -> Result<(), String> {
+    let mut current = NATIVE_RECORDER
+        .lock()
+        .map_err(|_| "Native recorder lock poisoned".to_string())?;
+    if current.is_some() {
+        return Ok(());
+    }
+
+    let (ready_tx, ready_rx) = mpsc::channel();
+    let (stop_tx, stop_rx) = mpsc::channel();
+    let join = thread::spawn(move || {
+        if let Err(error) = run_native_recording_thread(ready_tx, stop_rx) {
+            log_dictation(format!("native capture failed: {error}"));
+        }
+    });
+
+    let started = match ready_rx.recv().map_err(|error| error.to_string())? {
+        Ok(started) => started,
+        Err(error) => {
+            let _ = join.join();
+            return Err(error);
+        }
+    };
+
+    *current = Some(NativeRecorder {
+        stop_tx,
+        join,
+        samples: started.samples,
+        source_sample_rate: started.source_sample_rate,
+        source_channel_count: started.source_channel_count,
+        device_name: started.device_name,
+        sample_format: started.sample_format,
+    });
+    Ok(())
+}
+
+#[cfg(target_os = "linux")]
+fn run_native_recording_thread(
+    ready_tx: mpsc::Sender<Result<NativeRecorderStarted, String>>,
+    stop_rx: mpsc::Receiver<()>,
+) -> Result<(), String> {
+    use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+
+    let host = cpal::default_host();
+    let device = host
+        .default_input_device()
+        .ok_or_else(|| "No default microphone input device found.".to_string())?;
+    let device_name = device.name().unwrap_or_else(|_| "unknown".to_string());
+    let config = device
+        .default_input_config()
+        .map_err(|error| error.to_string())?;
+    let source_sample_rate = config.sample_rate().0;
+    let source_channel_count = config.channels() as u32;
+    let channels = source_channel_count as usize;
+    let sample_format = format!("{:?}", config.sample_format());
+    let stream_config: cpal::StreamConfig = config.clone().into();
+    let samples = Arc::new(Mutex::new(Vec::new()));
+    let error_handler = |error| log_dictation(format!("native capture stream error: {error}"));
+
+    let stream = match config.sample_format() {
+        cpal::SampleFormat::F32 => {
+            let samples = Arc::clone(&samples);
+            device.build_input_stream(
+                &stream_config,
+                move |data: &[f32], _| append_interleaved(&samples, data, channels),
+                error_handler,
+                None,
+            )
+        }
+        cpal::SampleFormat::I16 => {
+            let samples = Arc::clone(&samples);
+            device.build_input_stream(
+                &stream_config,
+                move |data: &[i16], _| {
+                    let data = data
+                        .iter()
+                        .map(|sample| *sample as f32 / i16::MAX as f32)
+                        .collect::<Vec<_>>();
+                    append_interleaved(&samples, &data, channels);
+                },
+                error_handler,
+                None,
+            )
+        }
+        cpal::SampleFormat::U16 => {
+            let samples = Arc::clone(&samples);
+            device.build_input_stream(
+                &stream_config,
+                move |data: &[u16], _| {
+                    let data = data
+                        .iter()
+                        .map(|sample| (*sample as f32 - 32768.0) / 32768.0)
+                        .collect::<Vec<_>>();
+                    append_interleaved(&samples, &data, channels);
+                },
+                error_handler,
+                None,
+            )
+        }
+        other => return Err(format!("Unsupported microphone sample format: {other:?}")),
+    }
+    .map_err(|error| error.to_string())?;
+
+    stream.play().map_err(|error| error.to_string())?;
+    log_dictation(format!(
+        "native capture start device={} source_rate={} channels={} format={}",
+        device_name, source_sample_rate, source_channel_count, sample_format
+    ));
+
+    ready_tx
+        .send(Ok(NativeRecorderStarted {
+            samples,
+            source_sample_rate,
+            source_channel_count,
+            device_name,
+            sample_format,
+        }))
+        .map_err(|error| error.to_string())?;
+    let _ = stop_rx.recv();
+    drop(stream);
+    Ok(())
+}
+
+#[cfg(target_os = "linux")]
+fn stop_native_recorder() -> Result<NativeDictationRecording, String> {
+    let recorder = NATIVE_RECORDER
+        .lock()
+        .map_err(|_| "Native recorder lock poisoned".to_string())?
+        .take()
+        .ok_or_else(|| "Native dictation is not recording.".to_string())?;
+    let _ = recorder.stop_tx.send(());
+    let _ = recorder.join.join();
+
+    let raw_samples = recorder
+        .samples
+        .lock()
+        .map_err(|_| "Native recorder sample lock poisoned".to_string())?
+        .clone();
+    let audio_samples = resample_mono(
+        &raw_samples,
+        recorder.source_sample_rate,
+        WHISPER_SAMPLE_RATE as u32,
+    );
+    let frontend_stats = serde_json::to_value(summarize_native_samples(&audio_samples)).ok();
+    let audio_meta = DictationAudioMeta {
+        recorder_mime_type: Some("native/cpal".to_string()),
+        blob_type: None,
+        blob_size: None,
+        chunk_count: None,
+        chunk_sizes: None,
+        source_sample_rate: Some(recorder.source_sample_rate),
+        source_channel_count: Some(recorder.source_channel_count),
+        decoded_length: Some(raw_samples.len()),
+        decoded_duration_seconds: Some(
+            raw_samples.len() as f32 / recorder.source_sample_rate as f32,
+        ),
+        target_sample_rate: Some(WHISPER_SAMPLE_RATE as u32),
+        sample_format: Some(recorder.sample_format),
+        track_label: Some(recorder.device_name),
+        track_settings: None,
+        audio_inputs: None,
+        frontend_stats,
+    };
+    log_dictation(format!(
+        "native capture stop source_len={} prepared_len={}",
+        raw_samples.len(),
+        audio_samples.len()
+    ));
+
+    Ok(NativeDictationRecording {
+        audio_samples,
+        audio_meta,
+    })
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct NativeAudioSummary {
+    sample_count: usize,
+    finite_count: usize,
+    nan_count: usize,
+    infinite_count: usize,
+    clipped_count: usize,
+    zero_count: usize,
+    min: f32,
+    max: f32,
+    rms: f32,
+    peak: f32,
+    all_zero: bool,
+}
+
+fn summarize_native_samples(samples: &[f32]) -> NativeAudioSummary {
+    let stats = audio_stats(samples);
+    NativeAudioSummary {
+        sample_count: stats.sample_count,
+        finite_count: stats.finite_count,
+        nan_count: stats.nan_count,
+        infinite_count: stats.infinite_count,
+        clipped_count: stats.clipped_count,
+        zero_count: stats.zero_count,
+        min: stats.min,
+        max: stats.max,
+        rms: stats.rms,
+        peak: stats.peak,
+        all_zero: stats.finite_count == stats.zero_count,
+    }
+}
+
 fn save_debug_wav(
     app_data_dir: &std::path::Path,
     samples: &[f32],
@@ -539,11 +816,53 @@ pub async fn download_whisper_model(
 }
 
 #[tauri::command]
-pub fn transcribe_audio(
-    mut audio_samples: Vec<f32>,
+pub async fn start_native_dictation_recording() -> Result<(), String> {
+    #[cfg(target_os = "linux")]
+    {
+        return tokio::task::spawn_blocking(start_native_recorder)
+            .await
+            .map_err(|error| error.to_string())?;
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        Err("Native dictation recording is only available on Linux.".to_string())
+    }
+}
+
+#[tauri::command]
+pub async fn stop_native_dictation_recording() -> Result<NativeDictationRecording, String> {
+    #[cfg(target_os = "linux")]
+    {
+        return tokio::task::spawn_blocking(stop_native_recorder)
+            .await
+            .map_err(|error| error.to_string())?;
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        Err("Native dictation recording is only available on Linux.".to_string())
+    }
+}
+
+#[tauri::command]
+pub async fn transcribe_audio(
+    audio_samples: Vec<f32>,
     language: Option<String>,
     audio_meta: Option<DictationAudioMeta>,
     state: State<'_, WhisperState>,
+) -> Result<String, String> {
+    let state = state.inner().clone();
+    tokio::task::spawn_blocking(move || {
+        transcribe_audio_blocking(audio_samples, language, audio_meta, state)
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+fn transcribe_audio_blocking(
+    mut audio_samples: Vec<f32>,
+    language: Option<String>,
+    audio_meta: Option<DictationAudioMeta>,
+    state: WhisperState,
 ) -> Result<String, String> {
     log_audio_meta(audio_meta.as_ref());
     let pre_sanitize_stats = audio_stats(&audio_samples);
@@ -715,5 +1034,14 @@ mod tests {
         let mut samples = vec![f32::NAN, f32::INFINITY, 2.0, -2.0, 0.5];
         sanitize_audio_samples(&mut samples);
         assert_eq!(samples, vec![0.0, 0.0, 1.0, -1.0, 0.5]);
+    }
+
+    #[test]
+    fn resamples_native_audio_to_whisper_rate() {
+        let samples = vec![0.5; 48_000];
+        assert_eq!(
+            resample_mono(&samples, 48_000, WHISPER_SAMPLE_RATE as u32).len(),
+            16_000
+        );
     }
 }

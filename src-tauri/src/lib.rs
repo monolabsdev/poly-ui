@@ -19,7 +19,7 @@ use crate::commands::config_commands::cancel_chat;
 use crate::commands::db_commands::execute_sql;
 use crate::commands::dictation_commands::{
     download_whisper_model, get_whisper_models_status, release_whisper_model, select_whisper_model,
-    transcribe_audio,
+    start_native_dictation_recording, stop_native_dictation_recording, transcribe_audio,
 };
 use crate::commands::model_commands::{cancel_pull, delete_model, get_local_models, pull_model};
 use crate::commands::system_commands::{
@@ -200,6 +200,8 @@ pub fn run() {
             download_whisper_model,
             select_whisper_model,
             release_whisper_model,
+            start_native_dictation_recording,
+            stop_native_dictation_recording,
             transcribe_audio,
             startup_frontend_loaded,
             log_startup_error,

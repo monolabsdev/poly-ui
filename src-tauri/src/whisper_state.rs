@@ -1,10 +1,11 @@
 use std::path::PathBuf;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use whisper_rs::{WhisperContext, WhisperContextParameters};
 
+#[derive(Clone)]
 pub struct WhisperState {
     app_data_dir: PathBuf,
-    context: Mutex<Option<LoadedWhisperContext>>,
+    context: Arc<Mutex<Option<LoadedWhisperContext>>>,
 }
 
 struct LoadedWhisperContext {
@@ -16,7 +17,7 @@ impl WhisperState {
     pub fn new(app_data_dir: PathBuf) -> Self {
         Self {
             app_data_dir,
-            context: Mutex::new(None),
+            context: Arc::new(Mutex::new(None)),
         }
     }
 
