@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useSettingsStore } from "@/store/settingsStore";
+import { useNotify } from "@/hooks/useNotify";
+import { IS_LINUX } from "@/lib/utils/platform";
 import {
   DICTATION_SAMPLE_RATE,
   prepareDictationSamples,
@@ -32,7 +34,16 @@ interface WhisperDownloadProgress {
   totalBytes: number | null;
 }
 
+interface NativeDictationRecording {
+  audioSamples: number[];
+  audioMeta: Record<string, unknown>;
+}
+
 const IDLE_TIMEOUT_MS = 5 * 60 * 1000;
+const USE_NATIVE_DICTATION =
+  IS_LINUX ||
+  (typeof navigator !== "undefined" &&
+    navigator.userAgent.toLowerCase().includes("linux"));
 const DICTATION_AUDIO_CONSTRAINTS: MediaStreamConstraints = {
   audio: {
     channelCount: { ideal: 1 },
@@ -57,6 +68,10 @@ function logDictation(message: string): void {
   }).catch(() => {});
 }
 
+function errorText(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 async function listAudioInputs(): Promise<string[]> {
   try {
     const devices = await navigator.mediaDevices.enumerateDevices();
@@ -71,6 +86,7 @@ async function listAudioInputs(): Promise<string[]> {
 }
 
 export function useDictation(onTranscript: (text: string) => void) {
+  const notify = useNotify();
   const [recording, setRecording] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [installOpen, setInstallOpen] = useState(false);
@@ -83,6 +99,7 @@ export function useDictation(onTranscript: (text: string) => void) {
     useState<WhisperDownloadProgress | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const recorderRef = useRef<MediaRecorder | null>(null);
+  const nativeRecordingRef = useRef(false);
   const streamRef = useRef<MediaStream | null>(null);
   const audioInputsRef = useRef<string[]>([]);
   const recordingStartedAtRef = useRef<number>(0);
@@ -129,6 +146,15 @@ export function useDictation(onTranscript: (text: string) => void) {
   }, []);
 
   const beginRecording = useCallback(async () => {
+    if (USE_NATIVE_DICTATION) {
+      await invoke("start_native_dictation_recording");
+      nativeRecordingRef.current = true;
+      recordingStartedAtRef.current = Date.now();
+      logDictation("native capture start requested");
+      setRecording(true);
+      return;
+    }
+
     const stream = await navigator.mediaDevices.getUserMedia(
       DICTATION_AUDIO_CONSTRAINTS,
     );
@@ -160,15 +186,26 @@ export function useDictation(onTranscript: (text: string) => void) {
   }, []);
 
   const start = useCallback(async () => {
-    touchActivity();
-    const status = await refreshModels();
-    if (!status.selectedModelId) {
-      setInstallOpen(true);
-      return;
-    }
+    try {
+      touchActivity();
+      const status = await refreshModels();
+      if (!status.selectedModelId) {
+        setInstallOpen(true);
+        return;
+      }
 
-    await beginRecording();
-  }, [beginRecording, refreshModels, touchActivity]);
+      await beginRecording();
+    } catch (error) {
+      const message = errorText(error);
+      logDictation(`start failed: ${message}`);
+      notify.error("Dictation failed", message);
+      nativeRecordingRef.current = false;
+      recorderRef.current = null;
+      stopTracks();
+      setRecording(false);
+      setProcessing(false);
+    }
+  }, [beginRecording, notify, refreshModels, stopTracks, touchActivity]);
 
   const closeInstall = useCallback(() => {
     if (!installingModelId) {
@@ -191,26 +228,78 @@ export function useDictation(onTranscript: (text: string) => void) {
         await refreshModels();
         setInstallOpen(false);
         await beginRecording();
+      } catch (error) {
+        const message = errorText(error);
+        logDictation(`install/start failed: ${message}`);
+        notify.error("Dictation failed", message);
       } finally {
         setInstallingModelId(null);
         setDownloadProgress(null);
       }
     },
-    [beginRecording, refreshModels, touchActivity],
+    [beginRecording, notify, refreshModels, touchActivity],
   );
 
   const selectInstalledModel = useCallback(
     async (modelId: string) => {
-      touchActivity();
-      await invoke("select_whisper_model", { modelId });
-      await refreshModels();
-      setInstallOpen(false);
-      await beginRecording();
+      try {
+        touchActivity();
+        await invoke("select_whisper_model", { modelId });
+        await refreshModels();
+        setInstallOpen(false);
+        await beginRecording();
+      } catch (error) {
+        const message = errorText(error);
+        logDictation(`select/start failed: ${message}`);
+        notify.error("Dictation failed", message);
+      }
     },
-    [beginRecording, refreshModels, touchActivity],
+    [beginRecording, notify, refreshModels, touchActivity],
   );
 
   const stop = useCallback(async () => {
+    if (nativeRecordingRef.current) {
+      nativeRecordingRef.current = false;
+      setRecording(false);
+      setProcessing(true);
+
+      try {
+        const { audioSamples, audioMeta } = await invoke<NativeDictationRecording>(
+          "stop_native_dictation_recording",
+        );
+        logDictation(
+          `native capture stop elapsed_ms=${Date.now() - recordingStartedAtRef.current} prepared_len=${audioSamples.length} meta=${compact(audioMeta)}`,
+        );
+        const language = useSettingsStore.getState().dictation.language;
+        const transcript = await invoke<string>("transcribe_audio", {
+          audioSamples,
+          language: language === "auto" ? null : language,
+          audioMeta,
+        });
+
+        if (transcript.trim()) {
+          onTranscript(transcript);
+        } else {
+          const stats = summarizePcm(audioSamples);
+          logDictation(`empty transcript native_stats=${compact(stats)}`);
+          notify.warn(
+            "No speech detected",
+            stats.peak === 0
+              ? "The microphone returned silence. Check the selected input device."
+              : "Audio was captured, but Whisper returned no text.",
+          );
+        }
+      } catch (error) {
+        const message = errorText(error);
+        logDictation(`native stop/transcribe failed: ${message}`);
+        notify.error("Dictation failed", message);
+      } finally {
+        setProcessing(false);
+        touchActivity();
+      }
+      return;
+    }
+
     const recorder = recorderRef.current;
     if (!recorder) return;
 
@@ -275,7 +364,15 @@ export function useDictation(onTranscript: (text: string) => void) {
 
         if (transcript.trim()) {
           onTranscript(transcript);
+        } else {
+          const stats = summarizePcm(samples);
+          logDictation(`empty transcript browser_stats=${compact(stats)}`);
+          notify.warn("No speech detected", "Audio was captured, but Whisper returned no text.");
         }
+      } catch (error) {
+        const message = errorText(error);
+        logDictation(`browser stop/transcribe failed: ${message}`);
+        notify.error("Dictation failed", message);
       } finally {
         await audioContext.close();
       }
@@ -285,7 +382,7 @@ export function useDictation(onTranscript: (text: string) => void) {
       setProcessing(false);
       touchActivity();
     }
-  }, [onTranscript, stopTracks, touchActivity]);
+  }, [notify, onTranscript, stopTracks, touchActivity]);
 
   return {
     recording,
