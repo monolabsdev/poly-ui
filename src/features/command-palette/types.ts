@@ -13,6 +13,8 @@ export type CommandPaletteIntentArgs = {
   "open-settings": {};
   "search-chats": { query: string };
   "rename-chat": { title: string };
+  "archive-chat": {};
+  "delete-chat": {};
 };
 
 export type CommandPaletteIntentCommand = keyof CommandPaletteIntentArgs;

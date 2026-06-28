@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import {
   Archive,
+  ArchiveX,
   Download,
   FileInput,
   MessageSquare,
@@ -17,6 +18,9 @@ import {
   importConversations,
   type NotifyApi,
 } from "@/features/command-palette/chatDataActions";
+import { useChatStore } from "@/store/chatStore";
+import { useNotificationStore } from "@/store/notificationStore";
+import { useConfirmStore } from "@/store/confirmStore";
 
 type EnrichedFeature = FeatureDef & { active: boolean; warning?: string };
 
@@ -112,21 +116,23 @@ export function useCommandPaletteItems({
       {
         id: "action:delete-all-chats",
         title: "Delete All Chats",
-        description: "Permanently remove every chat",
         category: "action",
-        keywords: [
-          "delete",
-          "remove",
-          "clear",
-          "all",
-          "chats",
-          "conversations",
-        ],
+        keywords: ["delete", "remove", "clear", "all", "chats", "conversations"],
         icon: <Trash2 size={16} />,
-        execute: () => void onDeleteAllConversations(),
+        execute: () => useConfirmStore.getState().actions.request({
+          title: "Delete all chats?",
+          description: "This will permanently delete all conversations and messages. This action cannot be undone.",
+          confirmLabel: "Delete All",
+          onConfirm: () => void onDeleteAllConversations({ confirmed: true }),
+        }),
         smartCommand: {
           command: "delete-all-chats",
-          execute: () => onDeleteAllConversations({ confirmed: true }),
+          execute: () => useConfirmStore.getState().actions.request({
+            title: "Delete all chats?",
+            description: "This will permanently delete all conversations and messages. This action cannot be undone.",
+            confirmLabel: "Delete All",
+            onConfirm: () => void onDeleteAllConversations({ confirmed: true }),
+          }),
         },
       },
       {
@@ -164,9 +170,6 @@ export function useCommandPaletteItems({
       {
         id: "action:rename-current-chat",
         title: "Rename Current Chat",
-        description: activeConversation
-          ? `Rename ${activeConversation.title || "Untitled"}`
-          : "No active chat selected",
         category: "action",
         keywords: ["rename", "name", "title", "chat", "conversation"],
         icon: <MessageSquare size={16} />,
@@ -174,6 +177,49 @@ export function useCommandPaletteItems({
         smartCommand: {
           command: "rename-chat",
           execute: (args) => onRenameCurrentChat(args as { title: string }),
+        },
+      },
+      {
+        id: "action:archive-current-chat",
+        title: "Archive Current Chat",
+        category: "action",
+        keywords: ["archive", "hide", "chat", "conversation"],
+        icon: <Archive size={16} />,
+        execute: () => {
+          if (!activeConversationId) return;
+          void useChatStore.getState().actions.archiveConversation(activeConversationId);
+          useNotificationStore.getState().actions.add({ type: "success", message: "Chat archived", duration: 2000 });
+        },
+        smartCommand: { command: "archive-chat" },
+      },
+      {
+        id: "action:delete-current-chat",
+        title: "Delete Current Chat",
+        category: "action",
+        keywords: ["delete", "remove", "chat", "conversation"],
+        icon: <ArchiveX size={16} />,
+        execute: () => {
+          if (!activeConversationId) return;
+          const title = activeConversation?.title || "Untitled";
+          useConfirmStore.getState().actions.request({
+            title: "Delete chat?",
+            description: `This will delete "${title}". This action cannot be undone.`,
+            confirmLabel: "Delete",
+            onConfirm: () => void useChatStore.getState().actions.deleteConversation(activeConversationId),
+          });
+        },
+        smartCommand: {
+          command: "delete-chat",
+          execute: () => {
+            if (!activeConversationId) return;
+            const title = activeConversation?.title || "Untitled";
+            useConfirmStore.getState().actions.request({
+              title: "Delete chat?",
+              description: `This will delete "${title}". This action cannot be undone.`,
+              confirmLabel: "Delete",
+              onConfirm: () => void useChatStore.getState().actions.deleteConversation(activeConversationId),
+            });
+          },
         },
       },
       {

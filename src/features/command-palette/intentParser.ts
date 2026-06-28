@@ -51,6 +51,22 @@ export type ParsedIntent =
       display: IntentDisplay;
       destructive: false;
       matchedBy: "alias" | "keywords" | "fuzzy";
+    }
+  | {
+      command: "archive-chat";
+      args: CommandPaletteIntentArgs["archive-chat"];
+      confidence: number;
+      display: IntentDisplay;
+      destructive: false;
+      matchedBy: "alias" | "keywords" | "fuzzy";
+    }
+  | {
+      command: "delete-chat";
+      args: CommandPaletteIntentArgs["delete-chat"];
+      confidence: number;
+      display: IntentDisplay;
+      destructive: true;
+      matchedBy: "alias" | "keywords" | "fuzzy";
     };
 
 export type IntentDisplay = {
@@ -157,6 +173,20 @@ export const commandRegistry = [
     argumentSchema: { type: "text", key: "title", minWords: 1 },
     destructive: false,
   },
+  {
+    id: "archive-chat",
+    aliases: ["archive chat", "archive this chat", "archive conversation"],
+    keywords: ["archive", "hide", "chat", "conversation"],
+    argumentSchema: { type: "none" },
+    destructive: false,
+  },
+  {
+    id: "delete-chat",
+    aliases: ["delete chat", "delete this chat", "delete conversation", "remove chat"],
+    keywords: ["delete", "remove", "chat", "conversation"],
+    argumentSchema: { type: "none" },
+    destructive: true,
+  },
 ] satisfies CommandDefinition[];
 
 export function parseCommandIntent(input: string): ParsedIntent | null {
@@ -201,7 +231,7 @@ function buildCandidate(
     return textCandidate(definition, normalized, "query", "Search chats for");
   if (definition.id === "rename-chat")
     return textCandidate(definition, normalized, "title", "Rename current chat to");
-  return noArgCandidate(definition, normalized);
+  return noArgCandidate(definition as Parameters<typeof noArgCandidate>[0], normalized);
 }
 
 function themeCandidate(normalized: string): Candidate | null {
@@ -238,7 +268,7 @@ function themeCandidate(normalized: string): Candidate | null {
 
 function noArgCandidate(
   definition: Exclude<(typeof commandRegistry)[number], { id: "set-theme" | "search-chats" | "rename-chat" }>,
-  normalized: string,
+  normalized: string
 ): Candidate | null {
   const words = tokenise(normalized);
   const aliasScore = Math.max(
@@ -252,8 +282,10 @@ function noArgCandidate(
   const requiredOk =
     definition.id === "delete-all-chats"
       ? hasAny(words, ["delete", "remove", "clear"]) &&
-        hasAny(words, ["all", "every", "chats", "chat", "conversation", "conversations"])
-      : keywordHits >= 2 || aliasScore > 0;
+        hasAny(words, ["all", "every", "chats", "conversations"])
+      : definition.id === "delete-chat"
+        ? hasAny(words, ["delete", "remove"]) && !hasAny(words, ["all", "every"])
+        : keywordHits >= 2 || aliasScore > 0;
   if (!requiredOk) return null;
 
   const confidence = clamp(
@@ -267,7 +299,11 @@ function noArgCandidate(
       ? { action: "Delete all chats" }
       : command === "new-chat"
         ? { action: "Create new chat" }
-        : { action: "Open settings" };
+        : command === "archive-chat"
+          ? { action: "Archive current chat" }
+          : command === "delete-chat"
+            ? { action: "Delete current chat" }
+            : { action: "Open settings" };
 
   return {
     command,
