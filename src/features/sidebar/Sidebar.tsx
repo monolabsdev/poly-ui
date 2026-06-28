@@ -24,6 +24,7 @@ import {
   SidebarHeader,
   SidebarContent,
   SidebarFooter,
+  SidebarMenu,
 } from "@/features/sidebar/components/SidebarPrimitives";
 import { Conversation } from "@/types/chat";
 
@@ -84,12 +85,10 @@ function SidebarBody({
       </SidebarHeader>
 
       <SidebarContent>
-        <Box sx={{ px: isCollapsed ? 0 : 1.5, pb: 0.5 }}>
+        <SidebarMenu sx={{ pb: 0.5 }}>
           <NewChatButton onClick={onNewChat} />
-        </Box>
-        <Box sx={{ px: isCollapsed ? 0 : 1.5, pb: 1.5 }}>
           <SearchButton onClick={onOpenCommandPalette} />
-        </Box>
+        </SidebarMenu>
 
         {!isCollapsed && (
           <Box sx={{ pb: 0.5 }}>

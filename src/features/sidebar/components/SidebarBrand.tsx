@@ -58,8 +58,8 @@ export function SidebarBrand() {
         <Typography
           onClick={handleDevTap}
           sx={(theme) => ({
-            ...theme.typography.subtitle2,
-            fontWeight: theme.typography.fontWeightMedium,
+            ...theme.typography.subtitle1,
+            fontWeight: theme.typography.fontWeightBold,
             color: "text.primary",
             whiteSpace: "nowrap",
             cursor: "pointer",

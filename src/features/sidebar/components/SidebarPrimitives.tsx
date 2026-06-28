@@ -1,13 +1,16 @@
 import * as React from "react";
 import { Box, IconButton, CSSObject, Typography, Tooltip, ButtonBase, type SxProps } from "@mui/material";
-import { alpha, type Theme } from "@mui/material/styles";
-import { PanelLeft } from "lucide-react";
+import { alpha, useTheme, type Theme } from "@mui/material/styles";
+import { motion, AnimatePresence } from "motion/react";
+import { ChevronRight, PanelLeft } from "lucide-react";
 import { useSidebar } from "@/features/sidebar/hooks/useSidebar";
 import { useReducedMotion } from "@/features/sidebar/hooks/useReducedMotion";
 
-const SIDEBAR_ITEM_SPACING = 4.5;
-const SIDEBAR_ICON_SPACING = 4.5;
-const SIDEBAR_GLYPH_SPACING = 2;
+const SIDEBAR_ITEM_SPACING = 5;
+const SIDEBAR_ICON_SPACING = 4;
+const SIDEBAR_GLYPH_SPACING = 2.125;
+
+const ROW_HOVER_DURATION = 0.12;
 
 const sidebarItemFocus = {
   outline: "2px solid",
@@ -17,8 +20,8 @@ const sidebarItemFocus = {
 
 export function sidebarIconGlyphSx(theme: Theme) {
   return {
-    width: theme.spacing(2.5),
-    height: theme.spacing(2.5),
+    width: theme.spacing(SIDEBAR_ICON_SPACING),
+    height: theme.spacing(SIDEBAR_ICON_SPACING),
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -63,10 +66,10 @@ export function SidebarHeader({
   return (
     <Box
       sx={(theme) => ({
-        px: isCollapsed ? 0 : 1.5,
+        px: isCollapsed ? 1 : 1.5,
         display: "flex",
         alignItems: "center",
-        minHeight: theme.spacing(6),
+        minHeight: theme.spacing(6.5),
         ...sx,
       })}
     >
@@ -104,21 +107,17 @@ export function SidebarFooter({
   sx?: CSSObject;
 }) {
   const { isCollapsed } = useSidebar();
-  const reducedMotion = useReducedMotion();
   return (
     <Box
-      sx={(theme) => ({
-        p: isCollapsed ? 1 : 1.25,
+      sx={{
+        px: isCollapsed ? 1 : 1.5,
+        py: 1.25,
         display: "flex",
         flexDirection: "column",
-        gap: 0.75,
-        borderTop: "1px solid",
-        borderColor: "divider",
-        transition: reducedMotion
-          ? "none"
-          : theme.transitions.create("padding"),
+        justifyContent: "center",
+        gap: 0.5,
         ...sx,
-      })}
+      }}
     >
       {children}
     </Box>
@@ -132,19 +131,19 @@ export function SidebarGroup({
   children: React.ReactNode;
   sx?: CSSObject;
 }) {
-  return <Box sx={{ mb: 1, width: "100%", ...sx }}>{children}</Box>;
+  return <Box sx={{ mb: 0.5, width: "100%", ...sx }}>{children}</Box>;
 }
 
 export function SidebarGroupLabel({ children }: { children: React.ReactNode }) {
   return (
-    <Box sx={{ pl: 3, pr: 1.5, mb: 0.5, mt: 1.75 }}>
+    <Box sx={{ px: 1.5, mb: 0.25, mt: 0.5, minHeight: (theme) => theme.spacing(2.5), display: "flex", alignItems: "center" }}>
       <Box
         component="span"
         sx={(theme) => ({
-          ...theme.typography.overline,
-          fontWeight: theme.typography.fontWeightMedium,
-          color: "text.secondary",
-          opacity: 0.7,
+          ...theme.typography.caption,
+          fontWeight: theme.typography.fontWeightRegular,
+          color: "text.disabled",
+          fontSize: theme.typography.caption.fontSize,
         })}
       >
         {children}
@@ -158,7 +157,7 @@ export function SidebarSectionLabel({ children }: { children: React.ReactNode })
     <Typography
       component="span"
       sx={(theme) => ({
-        ...theme.typography.overline,
+        ...theme.typography.caption,
         fontWeight: theme.typography.fontWeightMedium,
         color: "text.secondary",
         lineHeight: 1.2,
@@ -195,7 +194,7 @@ export function SidebarMenu({
         display: "flex",
         flexDirection: "column",
         gap: 0.25,
-        px: isCollapsed ? 0 : 1.5,
+        px: isCollapsed ? 0.5 : 1.5,
         alignItems: "stretch",
         width: "100%",
         ...sx,
@@ -232,7 +231,8 @@ export function SidebarRailIconButton({
   );
 }
 
-export function SidebarMenuButton({
+/** Single source-of-truth row for all sidebar items: nav actions, folders, and chats. */
+export function SidebarRow({
   children,
   isActive,
   onClick,
@@ -249,50 +249,83 @@ export function SidebarMenuButton({
 }) {
   const { isCollapsed } = useSidebar();
   const reducedMotion = useReducedMotion();
+  const theme = useTheme();
+  const [hovered, setHovered] = React.useState(false);
 
   const content = (
     <ButtonBase
       onClick={onClick}
       aria-current={ariaCurrent ? "page" : undefined}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       sx={[
-        (theme) => ({
-          ...theme.typography.body2,
+        (t) => ({
+          ...t.typography.body2,
           display: "flex",
           alignItems: "center",
           justifyContent: isCollapsed ? "center" : "flex-start",
           textAlign: "left",
-          gap: isCollapsed ? 0 : 1.5,
-          px: isCollapsed ? 0 : 1.5,
-          width: isCollapsed ? theme.spacing(SIDEBAR_ICON_SPACING) : "100%",
-          minWidth: isCollapsed ? theme.spacing(SIDEBAR_ICON_SPACING) : 0,
-          maxWidth: isCollapsed ? theme.spacing(SIDEBAR_ICON_SPACING) : "100%",
-          height: theme.spacing(SIDEBAR_ITEM_SPACING),
-          borderRadius: isCollapsed ? theme.app.radius.pill : theme.shape.borderRadius,
-          bgcolor: isActive
-            ? alpha(theme.palette.primary.main, theme.palette.action.selectedOpacity)
-            : "transparent",
+          gap: isCollapsed ? 0 : 1.25,
+          px: isCollapsed ? 0 : 1,
+          width: isCollapsed ? t.spacing(SIDEBAR_ICON_SPACING) : "100%",
+          minWidth: isCollapsed ? t.spacing(SIDEBAR_ICON_SPACING) : 0,
+          maxWidth: isCollapsed ? t.spacing(SIDEBAR_ICON_SPACING) : "100%",
+          height: t.spacing(SIDEBAR_ITEM_SPACING),
+          borderRadius: isCollapsed ? t.app.radius.pill : t.app.radius.control,
+          bgcolor: "transparent",
           color: isActive ? "text.primary" : "text.secondary",
           fontWeight: isActive
-            ? theme.typography.fontWeightMedium
-            : theme.typography.fontWeightRegular,
+            ? t.typography.fontWeightMedium
+            : t.typography.fontWeightRegular,
           overflow: "hidden",
           position: "relative",
-          transition: reducedMotion
-            ? "none"
-            : theme.transitions.create(["background-color", "color"]),
-          "&:hover": {
-            bgcolor: "action.hover",
-            color: "text.primary",
-          },
-          "&:focus-visible": {
-            ...sidebarItemFocus,
-          },
           ...(isCollapsed ? { alignSelf: "center" } : {}),
+          "&:focus-visible": sidebarItemFocus,
+          "&:hover": { color: "text.primary" },
         }),
         ...(Array.isArray(sx) ? sx : [sx]),
       ]}
     >
-      {children}
+      {/* Animated pill background */}
+      <AnimatePresence initial={false}>
+        {isActive && (
+          <motion.span
+            key="active"
+            initial={reducedMotion ? { opacity: 1 } : { opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={reducedMotion ? { opacity: 0 } : { opacity: 0, transition: { duration: ROW_HOVER_DURATION } }}
+            transition={{ duration: ROW_HOVER_DURATION }}
+            style={{
+              position: "absolute",
+              inset: 0,
+              borderRadius: "inherit",
+              background: theme.palette.action.selected,
+              zIndex: 0,
+              pointerEvents: "none",
+            }}
+          />
+        )}
+        {!isActive && hovered && (
+          <motion.span
+            key="hover"
+            initial={reducedMotion ? { opacity: 1 } : { opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: ROW_HOVER_DURATION }}
+            style={{
+              position: "absolute",
+              inset: 0,
+              borderRadius: "inherit",
+              background: theme.palette.action.hover,
+              zIndex: 0,
+              pointerEvents: "none",
+            }}
+          />
+        )}
+      </AnimatePresence>
+      <Box sx={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center", width: "100%", gap: "inherit" }}>
+        {children}
+      </Box>
     </ButtonBase>
   );
 
@@ -305,6 +338,96 @@ export function SidebarMenuButton({
   }
 
   return content;
+}
+
+/** @deprecated Use SidebarRow */
+export function SidebarMenuButton({
+  children,
+  isActive,
+  onClick,
+  sx,
+  tooltip,
+  ariaCurrent,
+}: {
+  children: React.ReactNode;
+  isActive?: boolean;
+  onClick?: () => void;
+  sx?: SxProps<Theme>;
+  tooltip?: string;
+  ariaCurrent?: boolean;
+}) {
+  return (
+    <SidebarRow
+      isActive={isActive}
+      onClick={onClick}
+      sx={sx}
+      tooltip={tooltip}
+      ariaCurrent={ariaCurrent}
+    >
+      {children}
+    </SidebarRow>
+  );
+}
+
+/** @deprecated Use SidebarRow */
+export function SidebarActionButton({
+  icon,
+  children,
+  onClick,
+  shortcut,
+}: {
+  icon: React.ReactNode;
+  children: React.ReactNode;
+  onClick?: () => void;
+  shortcut?: string;
+}) {
+  const { isCollapsed } = useSidebar();
+
+  const row = (
+    <SidebarRow onClick={onClick}>
+      <Box sx={(t) => sidebarIconGlyphSx(t)}>
+        {icon}
+      </Box>
+      <Box
+        component="span"
+        sx={{
+          flex: 1,
+          textAlign: "left",
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          maxWidth: isCollapsed ? 0 : "none",
+          opacity: isCollapsed ? 0 : 1,
+        }}
+      >
+        {children}
+      </Box>
+      {shortcut && !isCollapsed && (
+        <Typography
+          sx={(t) => ({
+            ...t.typography.caption,
+            opacity: 0.5,
+            whiteSpace: "nowrap",
+            flexShrink: 0,
+          })}
+        >
+          {shortcut}
+        </Typography>
+      )}
+    </SidebarRow>
+  );
+
+  if (isCollapsed) {
+    return (
+      <Box sx={{ display: "flex", justifyContent: "center", width: "100%" }}>
+        <Tooltip title={children} placement="right">
+          {row}
+        </Tooltip>
+      </Box>
+    );
+  }
+
+  return row;
 }
 
 export function SidebarTrigger({ sx }: { sx?: CSSObject }) {
@@ -353,109 +476,27 @@ export function SidebarInset({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function SidebarActionButton({
-  icon,
-  children,
-  onClick,
-  shortcut,
-}: {
-  icon: React.ReactNode;
-  children: React.ReactNode;
-  onClick?: () => void;
-  shortcut?: string;
-}) {
-  const { isCollapsed } = useSidebar();
-  const reducedMotion = useReducedMotion();
-
-  const button = (
-    <ButtonBase
-      onClick={onClick}
-      sx={(theme) => ({
-        ...theme.typography.button,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: isCollapsed ? "center" : "flex-start",
-        gap: isCollapsed ? 0 : 1.5,
-        width: isCollapsed ? theme.spacing(SIDEBAR_ICON_SPACING) : "100%",
-        height: theme.spacing(SIDEBAR_ITEM_SPACING),
-        px: isCollapsed ? 0 : 1.5,
-        borderRadius: isCollapsed ? theme.app.radius.pill : theme.shape.borderRadius,
-        bgcolor: "transparent",
-        border: "none",
-        color: "text.secondary",
-        fontWeight: theme.typography.fontWeightMedium,
-        overflow: "hidden",
-        flexShrink: 0,
-        transition: reducedMotion
-          ? "none"
-          : theme.transitions.create(
-              ["background-color", "color", "width", "border-radius"],
-            ),
-        "&:hover": {
-          bgcolor: "action.hover",
-          color: "text.primary",
-        },
-        "&:focus-visible": {
-          ...sidebarItemFocus,
-        },
-      })}
-    >
-      <Box
-        sx={(theme) => sidebarIconGlyphSx(theme)}
-      >
-        {icon}
-      </Box>
-      <Box
-        component="span"
-        sx={{
-          flex: 1,
-          textAlign: "left",
-          whiteSpace: "nowrap",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          maxWidth: isCollapsed ? 0 : "none",
-          opacity: isCollapsed ? 0 : 1,
-        }}
-      >
-        {children}
-      </Box>
-      {shortcut && (
-        <Typography
-          sx={(theme) => ({
-            ...theme.typography.caption,
-            opacity: 0.5,
-            whiteSpace: "nowrap",
-            flexShrink: 0,
-            maxWidth: isCollapsed ? 0 : "none",
-            overflow: "hidden",
-          })}
-        >
-          {shortcut}
-        </Typography>
-      )}
-    </ButtonBase>
-  );
-
-  if (isCollapsed) {
-    return (
-      <Box sx={{ display: "flex", justifyContent: "center", width: "100%" }}>
-        <Tooltip title={children} placement="right">
-          {button}
-        </Tooltip>
-      </Box>
-    );
-  }
-
-  return button;
-}
-
 export function SidebarSectionHeader({
   label,
   action,
+  disclosure,
 }: {
   label: string;
   action?: React.ReactNode;
+  disclosure?: {
+    expanded: boolean;
+    onToggle: () => void;
+    controlsId: string;
+  };
 }) {
+  const reducedMotion = useReducedMotion();
+  const labelSx = (theme: Theme) => ({
+    ...theme.typography.overline,
+    fontWeight: theme.typography.fontWeightMedium,
+    color: "text.secondary",
+    lineHeight: 1.2,
+  });
+
   return (
     <Box
       sx={{
@@ -465,16 +506,53 @@ export function SidebarSectionHeader({
         minHeight: (theme) => theme.spacing(3.5),
       }}
     >
-      <Typography
-        sx={(theme) => ({
-          ...theme.typography.overline,
-          fontWeight: theme.typography.fontWeightMedium,
-          color: "text.secondary",
-          lineHeight: 1.2,
-        })}
-      >
-        {label}
-      </Typography>
+      {disclosure ? (
+        <ButtonBase
+          aria-expanded={disclosure.expanded}
+          aria-controls={disclosure.controlsId}
+          onClick={disclosure.onToggle}
+          sx={(theme) => ({
+            display: "flex",
+            alignItems: "center",
+            gap: 0.5,
+            minWidth: 0,
+            height: theme.spacing(3.5),
+            pr: 1,
+            borderRadius: theme.app.radius.control,
+            color: "text.secondary",
+            "&:hover": { color: "text.primary" },
+            "&:focus-visible": sidebarItemFocus,
+          })}
+        >
+          <Box
+            className="disclosure"
+            component="span"
+            sx={(theme) => ({
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: theme.spacing(2),
+              height: theme.spacing(2),
+              transition: reducedMotion
+                ? "none"
+                : theme.transitions.create("transform", {
+                    duration: theme.transitions.duration.shorter,
+                    easing: theme.transitions.easing.easeOut,
+                  }),
+              transform: disclosure.expanded ? "rotate(90deg)" : "rotate(0deg)",
+              "& > svg": {
+                width: theme.spacing(1.75),
+                height: theme.spacing(1.75),
+              },
+            })}
+          >
+            <ChevronRight />
+          </Box>
+          <Typography sx={labelSx}>{label}</Typography>
+        </ButtonBase>
+      ) : (
+        <Typography sx={labelSx}>{label}</Typography>
+      )}
       {action}
     </Box>
   );

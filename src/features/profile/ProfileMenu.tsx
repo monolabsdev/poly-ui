@@ -52,7 +52,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
             display: "flex",
             alignItems: "center",
             justifyContent: "flex-start",
-            gap: 1.5,
+            gap: 1,
             p: 1,
             textTransform: "none",
           }}
@@ -99,7 +99,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
           alignItems: "center",
           justifyContent: isCollapsed ? "center" : "flex-start",
           gap: isCollapsed ? 0 : 1.5,
-          p: 0.75,
+          p: 0.5,
           px: isCollapsed ? 0 : 0.75,
           textTransform: "none",
           color: "text.secondary",
@@ -109,8 +109,8 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
             ? {
                 bgcolor: "action.selected",
                 borderRadius: theme.app.radius.pill,
-                width: 40,
-                height: 40,
+                width: 32,
+                height: 32,
                 mx: "auto",
                 flexShrink: 0,
                 "&:hover": { bgcolor: "action.selected", opacity: 0.8 },
@@ -123,8 +123,8 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
         <Box sx={{ display: "flex", flexShrink: 0 }}>
           <Avatar
             sx={(theme) => ({
-              width: theme.spacing(isCollapsed ? 3.5 : 4),
-              height: theme.spacing(isCollapsed ? 3.5 : 4),
+              width: theme.spacing(isCollapsed ? 3 : 3.5),
+              height: theme.spacing(isCollapsed ? 3 : 3.5),
             })}
           >
             <AvatarFallback
@@ -256,17 +256,17 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
         justifyContent: isCollapsed ? "center" : "flex-start",
         gap: isCollapsed ? 0 : 1.25,
         p: 0.75,
-        px: isCollapsed ? 0 : 0.75,
+        px: isCollapsed ? 0 : 1,
         textTransform: "none",
         color: "text.primary",
         textAlign: "left",
         minWidth: 0,
+        borderRadius: isCollapsed ? theme.app.radius.pill : theme.app.radius.control,
         ...(isCollapsed
           ? {
               bgcolor: "action.selected",
-              borderRadius: theme.app.radius.pill,
-              width: 40,
-              height: 40,
+              width: 32,
+              height: 32,
               mx: "auto",
               flexShrink: 0,
               "&:hover": { bgcolor: "action.selected", opacity: 0.8 },
@@ -279,8 +279,8 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
       <Box sx={{ display: "flex", flexShrink: 0, position: "relative" }}>
         <Avatar
           sx={(theme) => ({
-            width: theme.spacing(isCollapsed ? 3.5 : 4),
-            height: theme.spacing(isCollapsed ? 3.5 : 4),
+            width: theme.spacing(isCollapsed ? 3 : 3.5),
+            height: theme.spacing(isCollapsed ? 3 : 3.5),
           })}
         >
           {user.avatarUrl ? (
@@ -361,7 +361,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" sx={{ width: 256 }}>
           <DropdownMenuLabel>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, minWidth: 0 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}>
               <Avatar sx={(theme) => ({ width: theme.spacing(4.25), height: theme.spacing(4.25), flexShrink: 0 })}>
                 {user.avatarUrl ? (
                   <AvatarImage src={user.avatarUrl} alt={user.fullName || user.email} />

@@ -37,12 +37,8 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
   const setOpenMobile = React.useCallback(
     (open: boolean) => {
       setOpenMobileState(open);
-      if (!open && isMobile) {
-        autoCollapsedForSmallRef.current = false;
-        setIsCollapsedState(true);
-      }
     },
-    [isMobile],
+    [],
   );
   const handleBreakpointChange = React.useCallback(
     (matches: boolean) => {

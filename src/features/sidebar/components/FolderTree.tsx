@@ -88,21 +88,21 @@ export function FolderTree({
         }}
         sx={(theme) => ({
           height: theme.spacing(ITEM_HEIGHT),
-          pl: 2 + depth * 2,
-          pr: 1,
-          "&:hover .folder-actions": { opacity: 1 },
-          gap: 1,
+          pl: 1 + depth * 1.5,
+          pr: 0.5,
+          "&:hover .folder-actions, &:focus-within .folder-actions": { opacity: 1 },
+          gap: 0.75,
         })}
       >
         <ChevronRight
-          size={13}
+          size={14}
           style={{
             flexShrink: 0,
             opacity: hasChildren ? 0.5 : 0,
             transform: isOpen ? "rotate(90deg)" : undefined,
           }}
         />
-        <FolderIcon size={15} style={{ flexShrink: 0, opacity: 0.7 }} />
+        <FolderIcon size={16} style={{ flexShrink: 0, opacity: 0.7 }} />
         {isEditing ? (
           <Box
             sx={{ display: "flex", alignItems: "center", flex: 1, gap: 0.5 }}
@@ -223,11 +223,12 @@ export function FolderTree({
       </SidebarMenuButton>
       {isOpen && (
         <Box
-          sx={{
-            ml: 2.5,
+          sx={(theme) => ({
+            ml: 2,
+            pl: 0.5,
             borderLeft: "1px solid",
-            borderColor: "border.light",
-          }}
+            borderColor: theme.palette.divider,
+          })}
         >
           {children.map((child) => (
             <FolderTree
@@ -250,8 +251,8 @@ export function FolderTree({
               }}
               sx={(theme) => ({
                 height: theme.spacing(ITEM_HEIGHT),
-                pl: 2 + depth * 2,
-                pr: 1,
+                pl: 1 + depth * 1.5,
+                pr: 0.5,
               })}
             >
               <ConversationItem

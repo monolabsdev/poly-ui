@@ -75,8 +75,8 @@ export const ConversationItem = React.memo(function ConversationItem({
         alignItems: "center",
         width: "100%",
         minWidth: 0,
-        p: 1,
-        gap: 1,
+        p: 0.75,
+        gap: 0.75,
         borderRadius: theme.shape.borderRadius,
         bgcolor: isActive ? "action.selected" : "transparent",
         color: "inherit",
@@ -134,7 +134,7 @@ export const ConversationItem = React.memo(function ConversationItem({
       </IconButton>
     </Box>
   ) : (
-    <Box sx={{ display: "flex", alignItems: "center", width: "100%", minWidth: 0, gap: isFolder ? 1 : 0 }}>
+    <Box sx={{ display: "flex", alignItems: "center", width: "100%", minWidth: 0, gap: isFolder ? 0.75 : 0 }}>
       {onToggleSelect ? (
         <Box
           className="checkbox-icon"
@@ -180,7 +180,7 @@ export const ConversationItem = React.memo(function ConversationItem({
           fontWeight: isActive
             ? theme.typography.fontWeightMedium
             : theme.typography.fontWeightRegular,
-          pr: 1,
+          pr: 0.5,
           lineHeight: 1.25,
         })}
       >
@@ -199,8 +199,8 @@ export const ConversationItem = React.memo(function ConversationItem({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            width: isFolderTree ? 18 : isFolder ? 20 : 28,
-            height: isFolderTree ? 18 : isFolder ? 20 : 28,
+            width: isFolderTree ? 20 : 24,
+            height: isFolderTree ? 20 : 24,
             color: "primary.main",
           }}
         >
@@ -220,9 +220,10 @@ export const ConversationItem = React.memo(function ConversationItem({
             display: "flex",
             gap: 0,
             mr: -0.5,
+            flexShrink: 0,
             visibility: isCollapsed ? "hidden" : "visible",
-            width: isFolderTree ? 22 : 28,
-            height: isFolderTree ? 22 : 28,
+            width: 32,
+            height: 32,
             alignItems: "center",
             justifyContent: "center",
           }}

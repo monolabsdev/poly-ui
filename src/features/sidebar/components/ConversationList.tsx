@@ -54,7 +54,7 @@ export function ConversationList({
   const rowVirtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: (index) => (rows[index]?.type === "group" ? 34 : 40),
+    estimateSize: (index) => (rows[index]?.type === "group" ? 30 : 42),
     overscan: 8,
   });
 
@@ -128,8 +128,8 @@ export function ConversationList({
 
   return (
     <Box sx={{ display: "flex", minHeight: 0, flex: 1, flexDirection: "column" }}>
-      <Box sx={{ px: 1.5, mb: 0.5 }}>
-        <SidebarSectionHeader label="Chats" />
+      <Box sx={{ px: 1.5, mb: 0.25 }}>
+        <SidebarSectionHeader label="Recents" />
       </Box>
       <Box ref={parentRef} sx={{ flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden" }}>
         <Box
@@ -158,7 +158,7 @@ export function ConversationList({
                 {row.type === "group" ? (
                   <SidebarGroupLabel>{row.label}</SidebarGroupLabel>
                 ) : (
-                  <Box sx={{ px: isCollapsed ? 0 : 1.5, py: 0.125 }}>
+                  <Box sx={{ px: isCollapsed ? 0.5 : 1.5, py: 0.125 }}>
                     <SidebarMenuButton
                       isActive={activeConversationId === row.conversation.id}
                       ariaCurrent={activeConversationId === row.conversation.id}
@@ -168,7 +168,8 @@ export function ConversationList({
                         if (isMobile) setOpenMobile(false);
                       }}
                       sx={{
-                        "&:hover .conversation-actions": { opacity: 1 },
+                        px: 1,
+                        "&:hover .conversation-actions, &:focus-within .conversation-actions": { opacity: 1 },
                       }}
                     >
                       <ConversationItem

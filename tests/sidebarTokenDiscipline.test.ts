@@ -74,4 +74,35 @@ describe("sidebar visual tokens", () => {
     expect(folders).toContain("sidebarIconButtonSx");
     expect(guestFooter).toContain("sidebarIconButtonSx");
   });
+
+  it("keeps sidebar rows and icons compact", () => {
+    const primitives = readFileSync(
+      "src/features/sidebar/components/SidebarPrimitives.tsx",
+      "utf8",
+    );
+
+    expect(primitives).toContain("const SIDEBAR_ITEM_SPACING = 5");
+    expect(primitives).toContain("const SIDEBAR_ICON_SPACING = 4");
+    expect(primitives).toContain("const SIDEBAR_GLYPH_SPACING = 2.125");
+    expect(primitives).toContain("theme.app.radius.control");
+  });
+
+  it("supports a persisted collapsible folders section", () => {
+    const folders = readFileSync(
+      "src/features/sidebar/components/FoldersSection.tsx",
+      "utf8",
+    );
+
+    expect(folders).toContain("useFoldersSectionCollapsed");
+    const primitives = readFileSync(
+      "src/features/sidebar/components/SidebarPrimitives.tsx",
+      "utf8",
+    );
+
+    expect(folders).toContain("expanded: !isCollapsed");
+    expect(primitives).toContain("aria-expanded={disclosure.expanded}");
+    expect(folders).toContain("SidebarSectionHeader");
+    expect(folders).toContain("disclosure");
+    expect(folders).toContain("polyui:sidebar:folders-collapsed");
+  });
 });

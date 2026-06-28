@@ -91,7 +91,7 @@ export function GuestFooter({ onOpenSettings }: { onOpenSettings: () => void }) 
         sx={{
           display: "flex",
           flexDirection: "column",
-          gap: 1.25,
+          gap: 1,
           px: 1.25,
           pb: 0.5,
         }}
