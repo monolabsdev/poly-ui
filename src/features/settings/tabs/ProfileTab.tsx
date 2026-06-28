@@ -110,8 +110,9 @@ function AvatarPicker({ value, label, fallback, onChange }: AvatarPickerProps) {
 }
 
 export function ProfileTab() {
-  const notify = useNotify();
-  const dirtyRef = useRef(false);
+  const { notify, success, error, dismiss } = useNotify();
+  const notifiedRef = useRef(false);
+  const toastIdRef = useRef("");
   const { user, isGuest, isLoading, actions } = useAuthStore(
     useShallow((state) => ({
       user: state.user,
@@ -149,12 +150,23 @@ export function ProfileTab() {
   }, [user?.avatarUrl, user?.email, user?.fullName]);
 
   useEffect(() => {
-    dirtyRef.current = profileDirty || passwordDirty;
-  }, [passwordDirty, profileDirty]);
+    const dirty = profileDirty || passwordDirty;
+    if (dirty && !notifiedRef.current) {
+      notifiedRef.current = true;
+      toastIdRef.current = notify("Unsaved profile changes", "warning", { duration: Infinity }) ?? "";
+    }
+    if (!dirty) {
+      notifiedRef.current = false;
+      if (toastIdRef.current) {
+        dismiss(toastIdRef.current);
+        toastIdRef.current = "";
+      }
+    }
+  }, [passwordDirty, profileDirty, notify, dismiss]);
 
   useEffect(() => () => {
-    if (dirtyRef.current) notify.warn("Unsaved profile changes");
-  }, [notify]);
+    if (toastIdRef.current) dismiss(toastIdRef.current);
+  }, [dismiss]);
 
   if (!user || isGuest) return <EmptyState>Profile settings are available after sign in.</EmptyState>;
 
@@ -163,9 +175,9 @@ export function ProfileTab() {
     setProfileSaving(true);
     try {
       await actions.updateProfile({ email: normalizedEmail, fullName: displayName.trim() || undefined, avatarUrl: avatar || undefined });
-      notify.success("Profile updated");
+      success("Profile updated");
     } catch (err) {
-      notify.error("Profile update failed", String(err));
+      error("Profile update failed", String(err));
     } finally {
       setProfileSaving(false);
     }
@@ -179,9 +191,9 @@ export function ProfileTab() {
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
-      notify.success("Password changed");
+      success("Password changed");
     } catch (err) {
-      notify.error("Password change failed", String(err));
+      error("Password change failed", String(err));
     } finally {
       setPasswordSaving(false);
     }
