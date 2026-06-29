@@ -21,4 +21,4 @@ function CircularProgress({
   )
 }
 
-export { CircularProgress }
+export { CircularProgress, CircularProgress as Spinner }

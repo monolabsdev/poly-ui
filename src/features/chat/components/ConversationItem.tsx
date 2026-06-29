@@ -15,8 +15,7 @@ import {
   Trash2,
   Download,
 } from "lucide-react";
-import { Ring2 } from "ldrs/react";
-import "ldrs/react/Ring2.css";
+import { Spinner } from "@/components/ui/spinner";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -68,7 +67,6 @@ export const ConversationItem = React.memo(function ConversationItem({
   variant = "sidebar",
 }: ConversationItemProps) {
   const isFolder = variant === "folder";
-  const isFolderTree = variant === "folderTree";
   const isActive = activeConversationId === conv.id;
   useReducedMotion();
 
@@ -151,14 +149,7 @@ export const ConversationItem = React.memo(function ConversationItem({
         <Box
           className="grid size-5 shrink-0 place-items-center text-muted-foreground"
         >
-          <Ring2
-            size={isFolderTree ? "11" : isFolder ? "12" : "14"}
-            stroke="3"
-            strokeLength="0.28"
-            bgOpacity="0.14"
-            speed="0.8"
-            color="currentColor"
-          />
+          <Spinner className="size-3" />
         </Box>
       ) : (
         <Box

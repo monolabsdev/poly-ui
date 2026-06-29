@@ -1,6 +1,5 @@
 import { memo, useEffect } from "react";
-import { Ring2 } from "ldrs/react";
-import "ldrs/react/Ring2.css";
+import { Spinner } from "@/components/ui/spinner";
 import { TITLE_BAR_HEIGHT } from "@/components/Layout/WindowTitleBar";
 
 type StartupLoadingScreenProps = {
@@ -28,14 +27,7 @@ function StartupLoadingScreen({
       <p className="text-[28px] font-bold text-foreground">
         PolyUI
       </p>
-      <Ring2
-        size="28"
-        stroke="5"
-        strokeLength="0.25"
-        bgOpacity="0.1"
-        speed="0.8"
-        color="var(--foreground)"
-      />
+      <Spinner className="size-7 text-foreground" />
     </div>
   );
 }

@@ -1,5 +1,4 @@
-import { Ring2 } from "ldrs/react";
-import "ldrs/react/Ring2.css";
+import { Spinner } from "@/components/ui/spinner";
 import { useUpdateStore } from "@/store/updateStore";
 
 export function UpdateChip() {
@@ -23,14 +22,7 @@ export function UpdateChip() {
     >
       {isBusy ? (
         <>
-          <Ring2
-            size="12"
-            stroke="3"
-            strokeLength="0.28"
-            bgOpacity="0.2"
-            speed="0.8"
-            color="currentColor"
-          />
+          <Spinner className="size-3" />
           <span className="text-[11px] font-semibold text-inherit">
             {status === "installing" ? "Installing..." : `${progress}%`}
           </span>

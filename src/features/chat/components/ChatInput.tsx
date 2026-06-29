@@ -32,8 +32,7 @@ import {
   useAutoResizeTextarea,
 } from "@/features/chat/hooks/useAutoResizeTextarea";
 import { useSlashCommand } from "@/features/chat/hooks/useSlashCommand";
-import { Ring2 } from "ldrs/react";
-import "ldrs/react/Ring2.css";
+import { Spinner } from "@/components/ui/spinner";
 import { useDictation } from "@/hooks/useDictation";
 import { DictationModelDialog } from "@/features/dictation/DictationModelDialog";
 import { ActiveFeaturesList } from "@/features/chat/components/ChatInput/ActiveFeaturesList";
@@ -515,14 +514,7 @@ export const ChatInput = memo(function ChatInput({
                     {processing ? (
                       <Box
                       >
-                        <Ring2
-                          size={16}
-                          stroke="3"
-                          strokeLength="0.28"
-                          bgOpacity="0.2"
-                          speed="0.8"
-                          color="var(--muted-foreground)"
-                        />
+                        <Spinner className="size-4 text-muted-foreground" />
                       </Box>
                     ) : recording ? (
                       <StopIcon />
