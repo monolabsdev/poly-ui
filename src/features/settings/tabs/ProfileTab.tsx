@@ -41,10 +41,11 @@ type AvatarPickerProps = {
   value: string;
   label: string;
   fallback: string;
+  seed: string;
   onChange: (dataUrl: string, fileName: string) => void;
 };
 
-function AvatarPicker({ value, label, fallback, onChange }: AvatarPickerProps) {
+function AvatarPicker({ value, label, fallback, seed, onChange }: AvatarPickerProps) {
   const notify = useNotify();
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -67,15 +68,16 @@ function AvatarPicker({ value, label, fallback, onChange }: AvatarPickerProps) {
       <ButtonBase
         aria-label="Upload profile picture"
         onClick={() => inputRef.current?.click()}
+        className="group relative box-border size-14 rounded-full border-0 p-0"
       >
-        <Avatar className="ProfileAvatarImage">
+        <Avatar className="size-14">
           <AvatarImage src={value || undefined} alt={label} />
-          <AvatarFallback>{fallback}</AvatarFallback>
+          <AvatarFallback seed={seed}>{fallback}</AvatarFallback>
         </Avatar>
         <Box
-          className="ProfileAvatarOverlay"
+          className="pointer-events-none absolute inset-0 grid place-items-center rounded-full bg-black/45 text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
         >
-          <Camera size={20} />
+          <Camera size={18} />
         </Box>
       </ButtonBase>
     </>
@@ -190,6 +192,7 @@ export function ProfileTab() {
                 value={avatar}
                 label={displayName || email}
                 fallback={initialsFor(displayName, email)}
+                seed={displayName.trim() || email.trim()}
                 onChange={(dataUrl, fileName) => {
                   setAvatar(dataUrl);
                   setAvatarFileName(fileName);
@@ -206,7 +209,6 @@ export function ProfileTab() {
                 {avatarFileName ? `Selected ${avatarFileName}` : "Click avatar to choose a local image."}
               </Typography>
               <Button size="small" variant="contained" disableElevation startIcon={<Save size={14} />} onClick={saveProfile} disabled={isLoading || profileSaving || emailInvalid || !profileDirty}>
-                {profileDirty && <Box as="span" />}
                 {profileSaving ? "Saving..." : "Save"}
               </Button>
             </Stack>

@@ -201,10 +201,7 @@ export const ConversationItem = React.memo(function ConversationItem({
 
   return (
     <Box
-      className={cn(
-        "group flex h-full w-full min-w-0 items-center rounded-lg text-left text-sm",
-        isActive && "bg-muted",
-      )}
+      className="group flex h-full w-full min-w-0 items-center rounded-lg text-left text-sm"
       onClick={onClick}
     >
       {content}

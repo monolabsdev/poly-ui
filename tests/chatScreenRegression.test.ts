@@ -53,7 +53,7 @@ describe("chat screen regression guards", () => {
     expect(css).toContain("--z-tooltip: calc(var(--z-titlebar) + 30)");
     expect(dropdown).toContain("z-50");
     expect(popover).toContain("z-[var(--z-popover)]");
-    expect(tooltip).toContain("z-50");
+    expect(tooltip).toContain("z-[var(--z-tooltip)]");
     expect(slashMenu).toContain("bg-popover/95");
     expect(slashMenu).toContain("role=\"listbox\"");
     expect(slashMenu).toContain("backdrop-blur-xl");

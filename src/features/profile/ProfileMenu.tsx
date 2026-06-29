@@ -146,6 +146,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
         .join("")
         .toUpperCase()
     : user.email[0].toUpperCase();
+  const avatarSeed = user.fullName?.trim() || user.email;
 
   const button = (
     <Button
@@ -163,7 +164,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
           {user.avatarUrl ? (
             <AvatarImage src={user.avatarUrl} alt={user.fullName || user.email} />
           ) : (
-            <AvatarFallback seed={user.email}>{initials}</AvatarFallback>
+            <AvatarFallback seed={avatarSeed}>{initials}</AvatarFallback>
           )}
         </Avatar>
       </Box>
@@ -195,7 +196,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                 {user.avatarUrl ? (
                   <AvatarImage src={user.avatarUrl} alt={user.fullName || user.email} />
                 ) : (
-                  <AvatarFallback seed={user.email}>{initials}</AvatarFallback>
+                  <AvatarFallback seed={avatarSeed}>{initials}</AvatarFallback>
                 )}
               </Avatar>
               <Box className="flex min-w-0 flex-1 flex-col">

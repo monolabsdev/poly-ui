@@ -18,12 +18,12 @@ export const ChatAttachmentsList = memo(function ChatAttachmentsList({
 
   return (
     <Box
-      className="animate-fade-in"
+      className="flex flex-wrap gap-2 pb-2 animate-fade-in"
     >
       {attachments.map((att) => (
         <Box
           key={att.id}
-          className="animate-popover"
+          className="relative flex size-16 overflow-hidden rounded-xl border border-border/60 bg-muted animate-popover"
         >
           {att.type.startsWith("image/") ? (
             <img
@@ -42,6 +42,7 @@ export const ChatAttachmentsList = memo(function ChatAttachmentsList({
             size="small"
             onClick={() => onRemove(att.id)}
             aria-label={`Remove attachment ${att.name}`}
+            className="absolute right-1 top-1 size-5 rounded-full bg-background/80 text-foreground shadow-sm hover:bg-background"
           >
             <X size={12} />
           </IconButton>

@@ -36,6 +36,7 @@ import { useOllama } from "@/features/ollama";
 import { useProviderStore, type ProviderStatus, type ProviderStatusResponse } from "@/features/providers";
 import { PROVIDER_PRESETS, lookupPreset, type ProviderPreset } from "@/features/providers/presets";
 import { WebSearchSettings } from "@/features/web-search/WebSearchSettings";
+import { cn } from "@/lib/utils";
 
 const statusChipColor: Record<
   ProviderStatus,
@@ -437,18 +438,20 @@ export function ConnectionsTab() {
 
       <Dialog open={addOpen} onClose={handleCloseAdd} maxWidth="sm" fullWidth>
         <DialogTitle
+          className="flex items-center justify-between gap-3"
         >
           Add LLM Connection
           <IconButton size="small" aria-label="Close" onClick={handleCloseAdd}>
             <X size={18} />
           </IconButton>
         </DialogTitle>
-        <DialogContent>
-          <Typography>
+        <DialogContent className="space-y-4">
+          <Typography className="text-sm text-muted-foreground">
             Pick a provider preset or configure a custom connection.
           </Typography>
 
           <Box
+            className="grid grid-cols-1 gap-2 sm:grid-cols-2"
           >
             {PROVIDER_PRESETS.map((preset) => {
               const selected = selectedPreset?.id === preset.id;
@@ -456,15 +459,20 @@ export function ConnectionsTab() {
                 <Paper
                   key={preset.id}
                   variant="outlined"
-                  className={selected ? "border-primary" : undefined}
+                  className={cn(
+                    "flex cursor-pointer items-center gap-3 rounded-xl border-border/70 bg-background/40 p-3 transition-colors hover:bg-muted/60",
+                    selected && "border-primary bg-primary/10",
+                  )}
                   onClick={() => selectPreset(preset)}
                 >
                   <Box
+                    className="grid size-8 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground"
                   >
                     {presetIcons[preset.id] ?? <Settings size={22} />}
                   </Box>
                   <Typography
                     variant="body2"
+                    className="font-medium"
                   >
                     {preset.label}
                   </Typography>

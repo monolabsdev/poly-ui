@@ -52,7 +52,6 @@ export function ModelSelector({
   const [query, setQuery] = useState("");
   const [highlightedIndex, setHighlightedIndex] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
-  const filterIndex = FILTERS.findIndex((item) => item.id === filter);
 
   const externalApiUrl =
     providers.find((item) => item.provider_type === "OpenAICompatible")?.config
@@ -151,7 +150,7 @@ export function ModelSelector({
       <PopoverContent
         align="start"
         sideOffset={6}
-        className="w-[min(calc(100vw-1.5rem),30rem)] gap-0 overflow-hidden p-0"
+        className="w-[min(calc(100vw-1.5rem),28rem)] gap-0 overflow-hidden p-0 sm:w-[26rem]"
       >
         <Box className="flex h-11 items-center gap-2 border-b border-border/60 px-3">
           <Search size={16} />
@@ -179,17 +178,7 @@ export function ModelSelector({
           />
         </Box>
 
-        <Box role="tablist" aria-label="Model source" className="relative grid grid-cols-3 gap-1 border-b border-border/60 p-1">
-          <Box
-            aria-hidden="true"
-            className="absolute top-1 bottom-1 z-0 rounded-xl bg-accent"
-            style={{
-              left: "0.25rem",
-              width: "calc((100% - 0.5rem) / 3)",
-              transform: `translateX(${Math.max(0, filterIndex) * 100}%)`,
-              transition: "transform var(--dur-base) var(--ease-premium)",
-            }}
-          />
+        <Box role="tablist" aria-label="Model source" className="flex flex-wrap gap-1 border-b border-border/60 p-1">
           {FILTERS.map((item) => (
             <ButtonBase
               key={item.id}
@@ -197,7 +186,7 @@ export function ModelSelector({
               disableRipple
               aria-selected={filter === item.id}
               onClick={() => setFilter(item.id)}
-              className="relative z-10 rounded-xl bg-transparent px-3 py-1.5 text-xs text-muted-foreground transition-colors duration-[var(--dur-fast)] ease-[var(--ease-soft)] hover:text-foreground aria-selected:text-foreground"
+              className="rounded-xl bg-transparent px-3 py-1.5 text-xs text-muted-foreground transition-colors duration-[var(--dur-fast)] ease-[var(--ease-soft)] hover:bg-muted/60 hover:text-foreground aria-selected:bg-accent aria-selected:text-foreground"
             >
               {item.label}
             </ButtonBase>

@@ -632,6 +632,12 @@ code {
     }
 }
 
+@keyframes shimmer {
+    to {
+        background-position: -200% center;
+    }
+}
+
 .terax-shimmer {
     background-repeat: no-repeat, padding-box;
     background-size: 250% 100%, auto;

@@ -7,6 +7,7 @@ import { TooltipLabel as Tooltip } from "@/components/ui/tooltip-label";
 import { Paperclip, Copy, Check, MoreHorizontal, Brain, Trash2, Search } from "lucide-react";
 import { isImageAttachment, createDataUrl, formatFileSize } from "@/lib/utils/utils";
 import { useNotify } from "@/hooks/useNotify";
+import { cn } from "@/lib/utils";
 import type { MessageProps } from "./types";
 import {
   DropdownMenu,
@@ -83,7 +84,10 @@ export function UserMessage({ id, conversationId, content, attachments }: Messag
           {attachments.map((att) => (
             <Box
               key={att.id}
-              className="flex min-w-0 overflow-hidden rounded-2xl border border-border/50 bg-card text-card-foreground"
+              className={cn(
+                "flex min-w-0 overflow-hidden rounded-2xl border border-border/50 bg-card text-card-foreground",
+                isImageAttachment(att.type) && "size-32",
+              )}
             >
               {isImageAttachment(att.type) ? (
                 <img

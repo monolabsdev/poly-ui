@@ -1,55 +1,70 @@
 import React, { useCallback, useState } from "react";
-import { Box } from "@/components/ui/Box";
 import { Button } from "@/components/ui/button";
-import { IconButton } from "@/components/ui/icon-button";
-import { ModalRoot } from "@/components/ui/modal-root";
-import { Stack } from "@/components/ui/Stack";
-import { Typography } from "@/components/ui/Typography";
-import { ArrowLeft, Eye, EyeOff } from "lucide-react";
-import { useAuthStore } from "@/store/authStore";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/utils";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ModalRoot } from "@/components/ui/modal-root";
+import { ArrowLeft, Eye, EyeOff } from "lucide-react";
+import { useAuthStore } from "@/store/authStore";
 
 type AuthTab = "login" | "signup";
 type SignupStep = 1 | 2;
 
-function AuthTabs({
-  tab,
-  onChange,
+function Field({
+  label,
+  htmlFor,
+  children,
 }: {
-  tab: AuthTab;
-  onChange: (tab: AuthTab) => void;
+  label: string;
+  htmlFor: string;
+  children: React.ReactNode;
 }) {
-  const tabs: Array<{ key: AuthTab; label: string }> = [
-    { key: "login", label: "Sign in" },
-    { key: "signup", label: "Sign up" },
-  ];
-
   return (
-    <Box className="relative grid w-full grid-cols-2 overflow-hidden rounded-full border border-border/60 bg-muted/40 p-1 sm:w-[260px]">
-      <Box
-        aria-hidden
-        className={cn(
-          "absolute top-1 bottom-1 w-[calc(50%_-_4px)] rounded-full bg-primary shadow-sm transition-all duration-[var(--dur-base)] ease-[var(--ease-premium)]",
-          tab === "login" ? "left-1" : "left-1/2",
-        )}
+    <div className="grid gap-2">
+      <Label htmlFor={htmlFor} className="text-xs font-semibold text-muted-foreground">
+        {label}
+      </Label>
+      {children}
+    </div>
+  );
+}
+
+function PasswordInput({
+  id,
+  value,
+  showPassword,
+  onChange,
+  onToggleShowPassword,
+}: {
+  id: string;
+  value: string;
+  showPassword: boolean;
+  onChange: (value: string) => void;
+  onToggleShowPassword: () => void;
+}) {
+  return (
+    <div className="relative">
+      <Input
+        id={id}
+        className="h-11 pr-11"
+        type={showPassword ? "text" : "password"}
+        placeholder="Enter password"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        required
       />
-      {tabs.map((item) => (
-        <Button
-          key={item.key}
-          type="button"
-          variant="ghost"
-          onClick={() => onChange(item.key)}
-          className={cn(
-            "relative z-10 h-9 rounded-full bg-transparent text-[13px] font-bold hover:bg-transparent",
-            tab === item.key ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground",
-          )}
-        >
-          {item.label}
-        </Button>
-      ))}
-    </Box>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-sm"
+        onClick={onToggleShowPassword}
+        aria-label={showPassword ? "Hide password" : "Show password"}
+        className="absolute top-1/2 right-1.5 -translate-y-1/2 text-muted-foreground"
+      >
+        {showPassword ? <EyeOff /> : <Eye />}
+      </Button>
+    </div>
   );
 }
 
@@ -82,7 +97,6 @@ function AuthForm({
       onSignupStepChange(2);
       return;
     }
-
     if (passwordMismatch) return;
 
     try {
@@ -94,126 +108,115 @@ function AuthForm({
   };
 
   return (
-    <Box as="form" onSubmit={submit} className="w-full">
-      <Stack spacing={1.55}>
-        {tab === "signup" && signupStep === 1 && (
-          <>
-            <StepStatus current={1} />
-            <Field label="Name" htmlFor="signup-name">
-              <Input
-                className="h-10 rounded-lg"
-                id="signup-name"
-                placeholder="Tessa Rivera"
-                value={fullName}
-                onChange={(event) => setFullName(event.target.value)}
-              />
-            </Field>
-            <Field label="Email" htmlFor="signup-email">
-              <Input
-                className="h-10 rounded-lg"
-                id="signup-email"
-                type="email"
-                placeholder="you@polyui.local"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                required
-              />
-            </Field>
-            <SubmitButton disabled={isLoading} fullWidth>
-              Continue
-            </SubmitButton>
-          </>
-        )}
+    <form onSubmit={submit} className="grid gap-5">
+      {tab === "signup" && signupStep === 1 && (
+        <>
+          <Field label="Name" htmlFor="signup-name">
+            <Input
+              id="signup-name"
+              className="h-11"
+              placeholder="Tessa Rivera"
+              value={fullName}
+              onChange={(event) => setFullName(event.target.value)}
+            />
+          </Field>
+          <Field label="Email" htmlFor="signup-email">
+            <Input
+              id="signup-email"
+              className="h-11"
+              type="email"
+              placeholder="you@polyui.local"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              required
+            />
+          </Field>
+          <Button type="submit" className="h-11" disabled={isLoading} fullWidth>
+            Continue
+          </Button>
+        </>
+      )}
 
-        {tab === "signup" && signupStep === 2 && (
-          <>
-            <StepStatus current={2} />
-            <Field label="Password" htmlFor="signup-password">
-              <PasswordInput
-                id="signup-password"
-                value={password}
-                showPassword={showPassword}
-                onChange={setPassword}
-                onToggleShowPassword={() => setShowPassword((value) => !value)}
-              />
-            </Field>
-            <Field label="Confirm password" htmlFor="confirm-password">
-              <Input
-                className="h-10 rounded-lg pr-10"
-                id="confirm-password"
-                type={showPassword ? "text" : "password"}
-                placeholder="Repeat password"
-                value={confirmPassword}
-                onChange={(event) => setConfirmPassword(event.target.value)}
-                required
-              />
-            </Field>
-            {passwordMismatch && (
-              <Typography className="text-[13px] font-semibold text-destructive">
-                Passwords do not match
-              </Typography>
-            )}
-            {error && (
-              <Typography className="text-[13px] font-semibold text-destructive">
-                {error}
-              </Typography>
-            )}
-            <Stack direction="row" spacing={1}>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={() => onSignupStepChange(1)}
-                aria-label="Back to signup details"
-              >
-                <ArrowLeft size={17} />
-              </Button>
-              <SubmitButton disabled={isLoading || passwordMismatch}>
-                {isLoading ? "Working..." : "Create account"}
-              </SubmitButton>
-            </Stack>
-          </>
-        )}
+      {tab === "signup" && signupStep === 2 && (
+        <>
+          <Field label="Password" htmlFor="signup-password">
+            <PasswordInput
+              id="signup-password"
+              value={password}
+              showPassword={showPassword}
+              onChange={setPassword}
+              onToggleShowPassword={() => setShowPassword((value) => !value)}
+            />
+          </Field>
+          <Field label="Confirm password" htmlFor="confirm-password">
+            <Input
+              id="confirm-password"
+              className="h-11"
+              type={showPassword ? "text" : "password"}
+              placeholder="Repeat password"
+              value={confirmPassword}
+              onChange={(event) => setConfirmPassword(event.target.value)}
+              required
+            />
+          </Field>
+          {passwordMismatch && (
+            <p className="text-[13px] font-semibold text-destructive">
+              Passwords do not match
+            </p>
+          )}
+          {error && (
+            <p className="text-[13px] font-semibold text-destructive">{error}</p>
+          )}
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="icon-lg"
+              className="h-11 w-11"
+              onClick={() => onSignupStepChange(1)}
+              aria-label="Back to signup details"
+            >
+              <ArrowLeft />
+            </Button>
+            <Button type="submit" className="h-11" disabled={isLoading || passwordMismatch} fullWidth>
+              {isLoading ? "Working..." : "Create account"}
+            </Button>
+          </div>
+        </>
+      )}
 
-        {tab === "login" && (
-          <>
-            <Field label="Email" htmlFor="login-email">
-              <Input
-                className="h-10 rounded-lg"
-                id="login-email"
-                type="email"
-                placeholder="you@polyui.local"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                required
-              />
-            </Field>
-            <Field label="Password" htmlFor="login-password">
-              <PasswordInput
-                id="login-password"
-                value={password}
-                showPassword={showPassword}
-                onChange={setPassword}
-                onToggleShowPassword={() => setShowPassword((value) => !value)}
-              />
-            </Field>
-            {error && (
-              <Typography className="text-[13px] font-semibold text-destructive">
-                {error}
-              </Typography>
-            )}
-            <SubmitButton disabled={isLoading} fullWidth>
-              {isLoading ? "Working..." : "Sign in"}
-            </SubmitButton>
-          </>
-        )}
-      </Stack>
+      {tab === "login" && (
+        <>
+          <Field label="Email" htmlFor="login-email">
+            <Input
+              id="login-email"
+              className="h-11"
+              type="email"
+              placeholder="you@polyui.local"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              required
+            />
+          </Field>
+          <Field label="Password" htmlFor="login-password">
+            <PasswordInput
+              id="login-password"
+              value={password}
+              showPassword={showPassword}
+              onChange={setPassword}
+              onToggleShowPassword={() => setShowPassword((value) => !value)}
+            />
+          </Field>
+          {error && (
+            <p className="text-[13px] font-semibold text-destructive">{error}</p>
+          )}
+          <Button type="submit" className="h-11" disabled={isLoading} fullWidth>
+            {isLoading ? "Working..." : "Sign in"}
+          </Button>
+        </>
+      )}
 
-      <Typography
-        align="center"
-        color="muted"
-        className="mt-4 text-[13px]"
-      >
+      <p className="text-center text-[13px] text-muted-foreground">
         {tab === "login" ? "New here?" : "Already have account?"}{" "}
         <Button
           type="button"
@@ -223,173 +226,8 @@ function AuthForm({
         >
           {tab === "login" ? "Sign up" : "Sign in"}
         </Button>
-      </Typography>
-    </Box>
-  );
-}
-
-function StepStatus({ current }: { current: SignupStep }) {
-  return (
-    <Stack
-      direction="row"
-      spacing={1}
-      alignItems="center"
-      className="justify-center"
-    >
-      <StepDot active={current === 1}>1</StepDot>
-      <Box className="h-px w-10 bg-border" />
-      <StepDot active={current === 2}>2</StepDot>
-    </Stack>
-  );
-}
-
-function StepDot({
-  active,
-  children,
-}: {
-  active: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <Box
-      className={cn(
-        "grid size-6 place-items-center rounded-full border text-xs font-bold",
-        active ? "border-primary bg-primary text-primary-foreground" : "border-border/60 text-muted-foreground",
-      )}
-    >
-      {children}
-    </Box>
-  );
-}
-
-function SubmitButton({
-  disabled,
-  fullWidth = false,
-  children,
-}: {
-  disabled?: boolean;
-  fullWidth?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <Button
-      type="submit"
-      disabled={disabled}
-      fullWidth={fullWidth}
-      className="h-10 font-bold"
-    >
-      {children}
-    </Button>
-  );
-}
-
-function PasswordInput({
-  id,
-  value,
-  showPassword,
-  onChange,
-  onToggleShowPassword,
-}: {
-  id: string;
-  value: string;
-  showPassword: boolean;
-  onChange: (value: string) => void;
-  onToggleShowPassword: () => void;
-}) {
-  return (
-    <Box className="relative">
-      <Input
-        className="h-10 rounded-lg pr-10"
-        id={id}
-        type={showPassword ? "text" : "password"}
-        placeholder="Enter password"
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        required
-      />
-      <IconButton
-        type="button"
-        size="small"
-        onClick={onToggleShowPassword}
-        aria-label={showPassword ? "Hide password" : "Show password"}
-        className="absolute top-1/2 right-1 -translate-y-1/2"
-      >
-        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-      </IconButton>
-    </Box>
-  );
-}
-
-function Field({
-  label,
-  htmlFor,
-  children,
-}: {
-  label: string;
-  htmlFor: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <Stack spacing={0.85}>
-      <Label
-        htmlFor={htmlFor}
-        className="text-xs font-semibold text-muted-foreground"
-      >
-        {label}
-      </Label>
-      {children}
-    </Stack>
-  );
-}
-
-function AuthPage({
-  tab,
-  signupStep,
-  onTabChange,
-  onSignupStepChange,
-}: {
-  tab: AuthTab;
-  signupStep: SignupStep;
-  onTabChange: (tab: AuthTab) => void;
-  onSignupStepChange: (step: SignupStep) => void;
-}) {
-  const skipAuth = useAuthStore((state) => state.actions.skipAuth);
-
-  return (
-    <Box
-      className="w-[min(420px,calc(100vw_-_32px))] rounded-3xl border border-border/60 bg-card/95 p-6 text-card-foreground shadow-2xl backdrop-blur-xl"
-    >
-      <Stack spacing={2.5} alignItems="center">
-        <AuthTabs tab={tab} onChange={onTabChange} />
-        <Typography
-          id="auth-dialog-title"
-          as="h2"
-          variant="h4"
-          align="center"
-          className="pt-1"
-        >
-          {tab === "login"
-            ? "Welcome back"
-            : signupStep === 1
-              ? "Create your account"
-              : "Secure your account"}
-        </Typography>
-        <AuthForm
-          tab={tab}
-          signupStep={signupStep}
-          onTabChange={onTabChange}
-          onSignupStepChange={onSignupStepChange}
-        />
-        <Button
-          type="button"
-          variant="link"
-          className="h-auto p-0 text-[13px] font-semibold"
-          onClick={skipAuth}
-        >
-          Continue as guest
-        </Button>
-      </Stack>
-    </Box>
+      </p>
+    </form>
   );
 }
 
@@ -397,6 +235,7 @@ export const AuthModal: React.FC = () => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const isLoading = useAuthStore((state) => state.isLoading);
   const isGuest = useAuthStore((state) => state.isGuest);
+  const skipAuth = useAuthStore((state) => state.actions.skipAuth);
   const [tab, setTab] = useState<AuthTab>("login");
   const [signupStep, setSignupStep] = useState<SignupStep>(1);
   const isOpen = !isAuthenticated && !isLoading && !isGuest;
@@ -409,22 +248,45 @@ export const AuthModal: React.FC = () => {
   if (!isOpen) return null;
 
   return (
-    <ModalRoot
-      open={isOpen}
-      aria-labelledby="auth-dialog-title"
-      aria-modal="true"
-    >
-      <Box
-        role="dialog"
-        className="mt-[var(--titlebar-height)]"
-      >
-        <AuthPage
-          tab={tab}
-          signupStep={signupStep}
-          onTabChange={handleTabChange}
-          onSignupStepChange={setSignupStep}
-        />
-      </Box>
+    <ModalRoot open={isOpen} aria-labelledby="auth-dialog-title" aria-modal="true">
+      <div role="dialog" className="mt-[var(--titlebar-height)]">
+        <Card className="w-[min(420px,calc(100vw_-_32px))] gap-8 p-8">
+          <Tabs value={tab} onValueChange={(value) => handleTabChange(value as AuthTab)}>
+            <TabsList className="w-full">
+              <TabsTrigger value="login" className="flex-1">
+                Sign in
+              </TabsTrigger>
+              <TabsTrigger value="signup" className="flex-1">
+                Sign up
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+
+          <h2 id="auth-dialog-title" className="font-heading text-center text-2xl font-semibold">
+            {tab === "login"
+              ? "Welcome back"
+              : signupStep === 1
+                ? "Create your account"
+                : "Secure your account"}
+          </h2>
+
+          <AuthForm
+            tab={tab}
+            signupStep={signupStep}
+            onTabChange={handleTabChange}
+            onSignupStepChange={setSignupStep}
+          />
+
+          <Button
+            type="button"
+            variant="link"
+            className="mx-auto h-auto p-0 text-[13px] font-semibold"
+            onClick={skipAuth}
+          >
+            Continue as guest
+          </Button>
+        </Card>
+      </div>
     </ModalRoot>
   );
 };

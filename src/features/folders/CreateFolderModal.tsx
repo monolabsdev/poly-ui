@@ -115,7 +115,10 @@ export function CreateFolderModal({ open, onOpenChange, onSave, initialData }: C
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex w-[min(520px,calc(100vw-32px))] max-w-none flex-col gap-0 rounded-[28px] border border-border/60 bg-card/95 p-0 text-card-foreground backdrop-blur-xl">
+      <DialogContent
+        showCloseButton={false}
+        className="flex w-[min(520px,calc(100vw-32px))] max-w-none flex-col gap-0 rounded-[28px] border border-border/60 bg-card p-0 text-card-foreground shadow-2xl"
+      >
         {/* Header */}
         <div className="flex items-center justify-between px-6 pt-6 pb-5">
           <DialogTitle className="text-[17px] font-semibold">
