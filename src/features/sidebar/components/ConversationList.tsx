@@ -110,7 +110,7 @@ export function ConversationList({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="mb-0.5 px-3">
-        <SidebarSectionHeader label="Recents" />
+        <SidebarSectionHeader label="Recents" quiet />
       </div>
       <div ref={parentRef} className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
         <div

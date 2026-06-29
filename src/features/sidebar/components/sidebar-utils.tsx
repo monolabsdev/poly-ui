@@ -3,12 +3,13 @@ import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const sidebarIconButtonClassName =
-  "size-8 min-w-8 rounded-full bg-transparent p-0 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground active:bg-muted";
+  "size-7 min-w-7 rounded-full bg-transparent p-0 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground active:bg-muted";
 
 export function SidebarSectionHeader({
   label,
   action,
   disclosure,
+  quiet,
 }: {
   label: string;
   action?: React.ReactNode;
@@ -17,16 +18,17 @@ export function SidebarSectionHeader({
     onToggle: () => void;
     controlsId: string;
   };
+  quiet?: boolean;
 }) {
   return (
-    <div className="flex min-h-7 items-center justify-between">
+    <div className="flex min-h-6 items-center justify-between">
       {disclosure ? (
         <button
           type="button"
           aria-expanded={disclosure.expanded}
           aria-controls={disclosure.controlsId}
           onClick={disclosure.onToggle}
-          className="flex h-7 min-w-0 items-center gap-1 rounded-lg pr-2 text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          className="flex h-6 min-w-0 items-center gap-1 rounded-lg pr-2 text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
         >
           <span
             className={cn(
@@ -41,7 +43,14 @@ export function SidebarSectionHeader({
           </span>
         </button>
       ) : (
-        <span className="text-xs font-medium uppercase leading-[1.2] text-muted-foreground">
+        <span
+          className={cn(
+            "text-xs leading-[1.2]",
+            quiet
+              ? "font-normal uppercase tracking-wider text-sidebar-foreground/40"
+              : "font-medium uppercase text-muted-foreground",
+          )}
+        >
           {label}
         </span>
       )}
