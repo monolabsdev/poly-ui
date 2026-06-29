@@ -37,6 +37,8 @@ import { useChatActionHandlers } from "@/hooks/useChatActionHandlers";
 import { useCommandPaletteItems } from "@/hooks/useCommandPaletteItems";
 import ChatWorkspace from "@/features/chat/components/ChatWorkspace";
 import { GlobalConfirmDialog } from "./components/ui/GlobalConfirmDialog";
+import { useDevStore } from "@/store/devStore";
+import { getDevComponentGalleryAction } from "@/features/dev/componentGalleryAction";
 
 const AuthModalLazy = lazy(() =>
   import("@/features/auth/AuthModal").then((module) => ({
@@ -220,10 +222,15 @@ function App() {
   });
 
   const features = useFeatures();
+  const devMode = useDevStore((state) => state.devMode);
   const registeredActions = useRegisteredCommandPaletteActions();
   const settingsCommands = useSettingsCommands({
     openSettings: handleOpenSettings,
   });
+  const devComponentGalleryAction = useMemo(
+    () => getDevComponentGalleryAction(import.meta.env.DEV, devMode),
+    [devMode],
+  );
 
   const handleOpenArchived = useCallback(() => setIsArchivedOpen(true), []);
 
@@ -239,7 +246,9 @@ function App() {
     onSelectConversation: handleSelectConversation,
     onOpenArchived: handleOpenArchived,
     notify,
-    registeredActions,
+    registeredActions: devComponentGalleryAction
+      ? [...registeredActions, devComponentGalleryAction]
+      : registeredActions,
     settingsCommands,
   });
 
