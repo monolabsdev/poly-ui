@@ -85,12 +85,8 @@ export const ThinkingDisclosure = React.memo(
                 <Brain size={13} />
               </Box>
               {isThinking ? (
-                <TextShimmer as="span" duration={2} spread={15}>
-                  <Typography
-                    as="span"
-                  >
-                    {displayIndicator}
-                  </Typography>
+                <TextShimmer as="span" duration={2} spread={15} className="text-sm leading-normal text-foreground">
+                  {displayIndicator}
                 </TextShimmer>
               ) : (
                 <Typography

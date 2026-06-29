@@ -58,12 +58,8 @@ export const WebSearchDisclosure = React.memo(
           <Globe size={13} />
         </Box>
         {isSearching ? (
-          <TextShimmer as="span" duration={2} spread={15}>
-            <Typography
-              as="span"
-            >
-              {label}
-            </Typography>
+          <TextShimmer as="span" duration={2} spread={15} className="text-sm leading-normal text-foreground">
+            {label}
           </TextShimmer>
         ) : (
           <Typography
