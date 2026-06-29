@@ -53,13 +53,15 @@ export function SectionHeader({
   title,
   description,
   action,
+  className,
 }: {
   title: string;
   description?: string;
   action?: React.ReactNode;
+  className?: string;
 }) {
   return (
-    <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2}>
+    <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2} className={className}>
       <Box className="min-w-0">
         <Typography className="text-sm font-bold">
           {title}

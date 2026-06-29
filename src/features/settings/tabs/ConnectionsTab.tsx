@@ -373,7 +373,7 @@ export function ConnectionsTab() {
   );
 
   return (
-    <Stack spacing={0}>
+    <Stack spacing={2}>
       <SectionHeader
         title="LLM Providers"
         description="Connect local or cloud model providers."
@@ -431,6 +431,7 @@ export function ConnectionsTab() {
       <SectionHeader
         title="Web Search API Keys"
         description="API keys for live web search during chat."
+        className="mt-8"
       />
       <WebSearchSettings />
 

@@ -113,7 +113,7 @@ export function DataControlsTab() {
   };
 
   return (
-    <Stack spacing={0}>
+    <Stack spacing={2}>
       <SectionHeader
         title="Data Controls"
         description="Manage your conversation data."

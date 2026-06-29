@@ -143,7 +143,7 @@ export function SpeechTab() {
   const currentModel = models.find((m) => m.id === selectedModelId);
 
   return (
-    <Stack spacing={0}>
+    <Stack spacing={2}>
       <SectionHeader
         title="Speech Settings"
         description="Configure native system speech synthesis for reading assistant messages."
@@ -268,6 +268,7 @@ export function SpeechTab() {
       <SectionHeader
         title="Dictation"
         description="Local voice dictation using Whisper speech recognition models."
+        className="mt-8"
       />
 
       <SettingCard

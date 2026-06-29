@@ -28,7 +28,7 @@ export function AdvancedTab() {
   };
 
   return (
-    <Stack spacing={0}>
+    <Stack spacing={2}>
       <SectionHeader
         title="Experimental"
         description="Try upcoming features before they're stable."
@@ -73,6 +73,7 @@ export function AdvancedTab() {
       <SectionHeader
         title="Performance"
         description="Tune heavier features for this device."
+        className="mt-8"
       />
 
       <SettingCard
