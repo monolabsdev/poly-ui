@@ -13,6 +13,7 @@ export type GeneralSettings = {
   webSearchEnabled: boolean;
   reasoningEnabled: boolean;
   experimentalFeatures: boolean;
+  showModelInEmptyState: boolean;
 };
 
 export type BrowserTtsSettings = {
@@ -60,7 +61,7 @@ const defaultTts: TtsSettings = {
   },
 };
 
-const SETTINGS_VERSION = 13;
+const SETTINGS_VERSION = 14;
 
 export const defaultDictation: DictationSettings = {
   enabled: true,
@@ -91,6 +92,7 @@ function defaultSettingsState(): Omit<SettingsState, "actions"> {
       webSearchEnabled: false,
       reasoningEnabled: false,
       experimentalFeatures: false,
+      showModelInEmptyState: false,
     },
     tts: { ...defaultTts },
     dictation: { ...defaultDictation },
@@ -175,6 +177,9 @@ export const useSettingsStore = create<SettingsState>()(
         }
         if (version < 13) {
           state.performance = { ...defaultPerformance, ...state.performance };
+        }
+        if (version < 14 && state?.general) {
+          state.general.showModelInEmptyState = false;
         }
         startupPhase("settings migration complete");
         return state as SettingsState;

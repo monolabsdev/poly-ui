@@ -23,7 +23,7 @@ export function GeneralTab() {
   );
 
   return (
-    <Stack spacing={0}>
+    <Stack spacing={2}>
       <SectionHeader title="General" />
 
       <SettingCard
@@ -67,6 +67,17 @@ export function GeneralTab() {
           <Switch
             checked={general.notifications}
             onChange={(e) => actions.updateGeneral({ notifications: e.target.checked })}
+          />
+        }
+      />
+
+      <SettingCard
+        title="Show model in empty state"
+        description="Display the active model name instead of the greeting when no messages exist."
+        action={
+          <Switch
+            checked={general.showModelInEmptyState}
+            onChange={(e) => actions.updateGeneral({ showModelInEmptyState: e.target.checked })}
           />
         }
       />
