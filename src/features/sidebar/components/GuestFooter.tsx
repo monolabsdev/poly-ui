@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Info, MoreHorizontal, LogIn, Settings, Archive } from "lucide-react";
+import { MoreHorizontal, LogIn, Settings, Archive } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -46,19 +46,19 @@ export function GuestFooter({ onOpenSettings }: { onOpenSettings: () => void }) 
               <TooltipContent side="right">Guest mode</TooltipContent>
             </Tooltip>
           </div>
-          <DropdownMenuContent align="end" className="min-w-[180px]">
-            <DropdownMenuItem onClick={onOpenSettings} className="gap-3">
+          <DropdownMenuContent align="end" className="min-w-[160px]">
+            <DropdownMenuItem onClick={onOpenSettings} className="gap-2">
               <Settings size={14} />
               <span>Settings</span>
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => setArchivedOpen(true)}
-              className="gap-3"
+              className="gap-2"
             >
               <Archive size={14} />
               <span>Archived Chats</span>
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => openAuth()} className="gap-3">
+            <DropdownMenuItem onClick={() => openAuth()} className="gap-2">
               <LogIn size={14} />
               <span>Sign in</span>
             </DropdownMenuItem>
@@ -76,20 +76,17 @@ export function GuestFooter({ onOpenSettings }: { onOpenSettings: () => void }) 
     <>
       <div
         data-testid="guest-footer-flat"
-        className="flex flex-col gap-2 px-2.5 pb-1"
+        className="flex flex-col gap-1.5 px-2 pb-0.5"
       >
-        <div className="flex items-center gap-2.5">
-          <Avatar className="size-7 shrink-0">
+        <div className="flex items-center gap-2">
+          <Avatar className="size-6 shrink-0">
             <AvatarFallback className="bg-muted text-xs text-muted-foreground">
               ?
             </AvatarFallback>
           </Avatar>
-          <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <div className="flex min-w-0 flex-1 flex-col">
             <p className="overflow-hidden text-ellipsis whitespace-nowrap text-sm font-medium leading-[1.3] text-foreground">
-              Guest mode
-            </p>
-            <p className="overflow-hidden text-ellipsis whitespace-nowrap text-xs leading-[1.4] text-muted-foreground">
-              Not signed in
+              Guest
             </p>
           </div>
           <DropdownMenu>
@@ -104,14 +101,14 @@ export function GuestFooter({ onOpenSettings }: { onOpenSettings: () => void }) 
                 <MoreHorizontal />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="min-w-[180px]">
-              <DropdownMenuItem onClick={onOpenSettings} className="gap-3">
+            <DropdownMenuContent align="end" className="min-w-[160px]">
+              <DropdownMenuItem onClick={onOpenSettings} className="gap-2">
                 <Settings size={14} />
                 <span>Settings</span>
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => setArchivedOpen(true)}
-                className="gap-3"
+                className="gap-2"
               >
                 <Archive size={14} />
                 <span>Archived Chats</span>
@@ -120,19 +117,12 @@ export function GuestFooter({ onOpenSettings }: { onOpenSettings: () => void }) 
           </DropdownMenu>
         </div>
 
-        <div className="flex items-center gap-1.5 text-muted-foreground">
-          <Info size={12} style={{ flexShrink: 0, opacity: 0.6 }} />
-          <p className="text-xs leading-[1.3]">
-            Sign in to save your chats.
-          </p>
-        </div>
-
         <Button
           type="button"
           onClick={() => openAuth()}
-          className="min-h-[34px] w-full gap-2 text-sm font-medium"
+          className="min-h-[30px] w-full gap-1.5 text-xs font-medium"
         >
-          <LogIn size={14} />
+          <LogIn size={13} />
           Sign in
         </Button>
       </div>

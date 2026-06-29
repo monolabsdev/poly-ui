@@ -41,22 +41,21 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
 
   if (isLoading) {
     return (
-      <Box className="px-2 pb-1">
+      <Box className="px-1.5 pb-0.5">
         <Button
           type="button"
           variant="ghost"
           fullWidth
           disabled
           className={cn(
-            "h-auto min-w-0 justify-start gap-2 rounded-xl px-2 py-2",
+            "h-auto min-w-0 justify-start gap-2 rounded-lg px-2 py-1.5",
             isCollapsed && "justify-center px-0",
           )}
         >
-          <Box className="size-8 shrink-0 rounded-full bg-muted" />
+          <Box className="size-7 shrink-0 rounded-full bg-muted" />
           {!isCollapsed && (
             <Box className="flex min-w-0 flex-1 flex-col gap-1">
-              <Box className="h-3 w-24 rounded-full bg-muted" />
-              <Box className="h-3 w-14 rounded-full bg-muted" />
+              <Box className="h-2.5 w-20 rounded-full bg-muted" />
             </Box>
           )}
         </Button>
@@ -72,11 +71,11 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
         fullWidth
         title={isCollapsed ? "Guest" : undefined}
         className={cn(
-          "h-auto min-w-0 justify-start gap-2 rounded-xl px-2 py-2 text-left",
+          "h-auto min-w-0 justify-start gap-2 rounded-lg px-2 py-1.5 text-left",
           isCollapsed && "justify-center px-0",
         )}
       >
-        <Avatar className="size-8 shrink-0">
+        <Avatar className="size-7 shrink-0">
           <AvatarFallback>
               ?
           </AvatarFallback>
@@ -91,20 +90,13 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
               >
                 Guest mode
               </Typography>
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                noWrap
-              >
-                Not signed in
-              </Typography>
             </Box>
           )}
       </Button>
     );
 
     return (
-      <Box className="px-2 pb-1">
+      <Box className="px-1.5 pb-0.5">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             {guestButton}
@@ -117,13 +109,6 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                   noWrap
                 >
                   Guest
-                </Typography>
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  noWrap
-                >
-                  Signed out
                 </Typography>
               </Box>
             </DropdownMenuLabel>
@@ -169,12 +154,12 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
       fullWidth
       title={isCollapsed ? user.fullName || user.email : undefined}
       className={cn(
-        "flex h-auto min-w-0 items-center justify-start gap-2 rounded-xl px-2 py-2 text-left",
+        "flex h-auto min-w-0 items-center justify-start gap-2 rounded-lg px-2 py-1.5 text-left",
         isCollapsed && "justify-center px-0",
       )}
     >
       <Box className="relative shrink-0">
-        <Avatar className="size-8">
+        <Avatar className="size-7">
           {user.avatarUrl ? (
             <AvatarImage src={user.avatarUrl} alt={user.fullName || user.email} />
           ) : (
@@ -192,28 +177,21 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
             >
               {user.fullName || "User"}
             </Typography>
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              noWrap
-            >
-              Active
-            </Typography>
           </Box>
         )}
     </Button>
   );
 
   return (
-    <Box className="px-2 pb-1">
+    <Box className="px-1.5 pb-0.5">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           {button}
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="min-w-60">
-          <DropdownMenuLabel className="p-2">
+          <DropdownMenuLabel className="p-1.5">
             <Box className="flex min-w-0 items-center gap-2">
-              <Avatar className="size-8 shrink-0">
+              <Avatar className="size-7 shrink-0">
                 {user.avatarUrl ? (
                   <AvatarImage src={user.avatarUrl} alt={user.fullName || user.email} />
                 ) : (
@@ -224,6 +202,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                 <Typography
                   weight="medium"
                   noWrap
+                  variant="small"
                 >
                   {user.fullName || "User"}
                 </Typography>
