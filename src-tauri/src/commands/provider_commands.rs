@@ -1,8 +1,29 @@
+use crate::auth::{authorize_account, AuthError};
 use crate::error::AppError;
 use crate::models::chat::ModelDetails;
 use crate::providers::base::{ProviderConfig, ProviderStatus, ProviderType};
 use crate::providers::factory::ProviderFactory;
 use crate::AppState;
+
+fn map_auth_err(error: AuthError) -> String {
+    match error {
+        AuthError::SessionExpired => "Session expired".to_string(),
+        _ => "Not authorized for this account".to_string(),
+    }
+}
+
+async fn check_account(
+    state: &tauri::State<'_, AppState>,
+    token: Option<&str>,
+    account_id: Option<&str>,
+) -> Result<(), String> {
+    match account_id {
+        Some(id) => authorize_account(&state.db, token, id)
+            .await
+            .map_err(map_auth_err),
+        None => Ok(()),
+    }
+}
 
 #[derive(serde::Serialize)]
 pub struct ProviderStatusResponse {
@@ -76,9 +97,11 @@ fn config_health_key(config: &ProviderConfig) -> i64 {
 pub async fn get_providers(
     state: tauri::State<'_, AppState>,
     account_id: Option<String>,
+    token: Option<String>,
 ) -> Result<Vec<ProviderStatusResponse>, String> {
-    let selector = &state.provider_selector;
     let account_id = normalize_account_arg(account_id);
+    check_account(&state, token.as_deref(), account_id.as_deref()).await?;
+    let selector = &state.provider_selector;
     let configs = selector
         .get_provider_configs(account_id.as_deref())
         .await
@@ -102,9 +125,11 @@ pub async fn get_providers(
 pub async fn get_provider_and_models(
     state: tauri::State<'_, AppState>,
     account_id: Option<String>,
+    token: Option<String>,
 ) -> Result<ProviderAndModelsResponse, String> {
-    let selector = &state.provider_selector;
     let account_id = normalize_account_arg(account_id);
+    check_account(&state, token.as_deref(), account_id.as_deref()).await?;
+    let selector = &state.provider_selector;
     let configs = selector
         .get_provider_configs(account_id.as_deref())
         .await
@@ -137,8 +162,10 @@ pub async fn get_provider_models(
     state: tauri::State<'_, AppState>,
     provider_type: ProviderType,
     account_id: Option<String>,
+    token: Option<String>,
 ) -> Result<Vec<ModelDetails>, String> {
     let account_id = normalize_account_arg(account_id);
+    check_account(&state, token.as_deref(), account_id.as_deref()).await?;
     let configs = state
         .provider_selector
         .get_provider_configs(account_id.as_deref())
@@ -185,8 +212,10 @@ pub async fn update_provider_config(
     state: tauri::State<'_, AppState>,
     request: UpdateProviderConfigRequest,
     account_id: Option<String>,
+    token: Option<String>,
 ) -> Result<(), String> {
     let account_id = normalize_account_arg(account_id);
+    check_account(&state, token.as_deref(), account_id.as_deref()).await?;
     state
         .provider_selector
         .update_provider_config(
@@ -230,8 +259,10 @@ pub async fn add_provider(
     state: tauri::State<'_, AppState>,
     request: AddProviderRequest,
     account_id: Option<String>,
+    token: Option<String>,
 ) -> Result<i64, String> {
     let account_id = normalize_account_arg(account_id);
+    check_account(&state, token.as_deref(), account_id.as_deref()).await?;
     state
         .provider_selector
         .add_provider_config(
@@ -254,8 +285,10 @@ pub async fn delete_provider(
     state: tauri::State<'_, AppState>,
     account_id: Option<String>,
     id: i64,
+    token: Option<String>,
 ) -> Result<(), String> {
     let account_id = normalize_account_arg(account_id);
+    check_account(&state, token.as_deref(), account_id.as_deref()).await?;
     state
         .provider_selector
         .delete_provider_config(account_id.as_deref(), id)

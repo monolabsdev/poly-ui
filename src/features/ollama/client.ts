@@ -1,4 +1,4 @@
-import { loggedInvoke } from "@/lib/utils/utils";
+import { loggedInvoke, getSessionToken } from "@/lib/utils/utils";
 import type { OllamaModel } from "./types";
 
 import type {
@@ -22,6 +22,7 @@ export const ollamaClient = {
   async getProviderAndModels(): Promise<ProviderAndModelsResult> {
     return loggedInvoke<ProviderAndModelsResult>("get_provider_and_models", {
       accountId: getCurrentProviderAccountId(),
+      token: getSessionToken(),
     });
   },
 
@@ -29,6 +30,7 @@ export const ollamaClient = {
     return loggedInvoke<OllamaModel[]>("get_provider_models", {
       providerType,
       accountId: getCurrentProviderAccountId(),
+      token: getSessionToken(),
     });
   },
 

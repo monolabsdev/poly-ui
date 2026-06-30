@@ -1,4 +1,4 @@
-import { loggedInvoke } from "@/lib/utils/utils";
+import { loggedInvoke, getSessionToken } from "@/lib/utils/utils";
 import type { ChatMessage } from "@/types/chat";
 import type { ModelProvider } from "@/store/modelStore";
 import { getCurrentProviderAccountId } from "@/features/providers";
@@ -246,6 +246,7 @@ async function generateAndApplyTitle(
       userName,
       providerType,
       accountId: getCurrentProviderAccountId(),
+      token: getSessionToken(),
     });
   } catch (err) {
     console.warn("Title generation invoke failed", err);

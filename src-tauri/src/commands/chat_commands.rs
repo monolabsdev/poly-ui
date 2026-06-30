@@ -1,3 +1,4 @@
+use crate::auth::{authorize_account, AuthError};
 use crate::error::AppError;
 use crate::memory::service::MemoryService;
 use crate::models::chat::ChatMessage;
@@ -10,6 +11,26 @@ use crate::AppState;
 use serde_json::Value;
 use std::sync::atomic::Ordering;
 use tauri::AppHandle;
+
+fn map_auth_err(error: AuthError) -> String {
+    match error {
+        AuthError::SessionExpired => "Session expired".to_string(),
+        _ => "Not authorized for this account".to_string(),
+    }
+}
+
+async fn check_account(
+    state: &tauri::State<'_, AppState>,
+    token: Option<&str>,
+    account_id: Option<&str>,
+) -> Result<(), String> {
+    match account_id {
+        Some(id) => authorize_account(&state.db, token, id)
+            .await
+            .map_err(map_auth_err),
+        None => Ok(()),
+    }
+}
 
 #[tauri::command]
 #[allow(clippy::too_many_arguments)]
@@ -26,7 +47,9 @@ pub async fn chat_stream(
     provider_type: Option<ProviderType>,
     provider_config_id: Option<i64>,
     account_id: Option<String>,
+    token: Option<String>,
 ) -> Result<(), String> {
+    check_account(&state, token.as_deref(), account_id.as_deref()).await?;
     let my_generation_id = state.current_generation_id.load(Ordering::SeqCst);
 
     let provider_type = provider_type.unwrap_or(ProviderType::OllamaLocal);
@@ -133,7 +156,9 @@ pub async fn chat(
     options: Option<Value>,
     provider_type: Option<ProviderType>,
     account_id: Option<String>,
+    token: Option<String>,
 ) -> Result<String, String> {
+    check_account(&state, token.as_deref(), account_id.as_deref()).await?;
     let provider = state
         .provider_selector
         .get_provider(
@@ -165,7 +190,9 @@ pub async fn generate_chat_title(
     user_name: Option<String>,
     provider_type: Option<ProviderType>,
     account_id: Option<String>,
+    token: Option<String>,
 ) -> Result<Option<String>, String> {
+    check_account(&state, token.as_deref(), account_id.as_deref()).await?;
     let provider = match state
         .provider_selector
         .get_provider(

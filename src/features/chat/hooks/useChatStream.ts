@@ -4,7 +4,7 @@ import { useShallow } from "zustand/react/shallow";
 import type { ChatMessage, Attachment, Message } from "@/types/chat";
 import { useChatStore } from "@/store/chatStore";
 import { sanitizeOutput } from "@/lib/chat/sanitize";
-import { loggedInvoke } from "@/lib/utils/utils";
+import { loggedInvoke, getSessionToken } from "@/lib/utils/utils";
 import { useNotify } from "@/hooks/useNotify";
 import { useOllamaStore } from "@/features/ollama/monitor";
 import { buildSystemPrompt } from "@/lib/chat/prompts";
@@ -52,6 +52,7 @@ async function enqueueMemoryProcessing(conversationId: string, assistantMessageI
         userMessageId: userMessage.id,
         assistantMessageId,
       },
+      token: getSessionToken(),
     });
   } catch (error) {
     console.warn("[Memory] Completed turn enqueue skipped", error);
@@ -285,6 +286,7 @@ export function useChatStream(modelChoices: ModelChoice[], systemPrompt = "") {
               providerType: provider,
               providerConfigId: providerConfigId ?? null,
               accountId: getCurrentProviderAccountId(),
+              token: getSessionToken(),
             });
           } catch (err) {
             const errMsg = typeof err === "string" ? err : (err as Error).message || "Unknown error";

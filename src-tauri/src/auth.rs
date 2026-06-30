@@ -333,6 +333,43 @@ pub async fn get_current_user(pool: &SqlitePool, token: &str) -> Result<User, Au
     })
 }
 
+/// Verifies that the caller is allowed to act on `account_id`.
+///
+/// `account_id` values that don't correspond to a registered user (guest IDs,
+/// which are client-generated UUIDs never written to the `users` table) are
+/// allowed through unchanged, since guests have no server-side account to
+/// protect. Account IDs that do belong to a registered user require a valid,
+/// unexpired session token for that same user — callers must not be able to
+/// read or modify another account's data by simply naming its ID.
+pub async fn authorize_account(
+    pool: &SqlitePool,
+    token: Option<&str>,
+    account_id: &str,
+) -> Result<(), AuthError> {
+    let Ok(numeric_id) = account_id.parse::<i64>() else {
+        return Ok(());
+    };
+
+    let is_registered_user = sqlx::query("SELECT 1 FROM users WHERE id = ?")
+        .bind(numeric_id)
+        .fetch_optional(pool)
+        .await?
+        .is_some();
+
+    if !is_registered_user {
+        return Ok(());
+    }
+
+    let token = token.ok_or(AuthError::SessionExpired)?;
+    let user = get_current_user(pool, token).await?;
+
+    if user.id != account_id {
+        return Err(AuthError::InvalidCredentials);
+    }
+
+    Ok(())
+}
+
 pub async fn update_status(pool: &SqlitePool, token: &str, status: &str) -> Result<(), AuthError> {
     let now = Utc::now().to_rfc3339();
 
