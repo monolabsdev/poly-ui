@@ -224,7 +224,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         thinking: message.thinking,
         thinkingDuration: message.thinkingDuration,
         isThinking: message.isThinking,
-        isStreaming: false,
+        isStreaming: message.isStreaming ?? false,
         status: message.status,
         errorMessage: message.errorMessage,
         webSearch: message.webSearch,
