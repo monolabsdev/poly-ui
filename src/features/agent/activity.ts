@@ -408,24 +408,27 @@ function kindForPhase(phase: unknown): AgentActivityItem["kind"] {
 }
 
 function toolKind(toolName: string): AgentActivityItem["kind"] {
-  return toolName === "run_command" ? "command" : "tool";
+  return toolName === "run_command" || toolName === "bash_run" || toolName === "bash_background"
+    ? "command"
+    : "tool";
 }
 
 function phaseForTool(toolName: string): string {
   if (toolName === "read_file" || toolName === "read_important_files") return "file_read";
-  if (toolName === "search_files") return "file_search";
-  if (toolName === "list_files" || toolName === "glob_files" || toolName === "inspect_project") return "workspace_inspection";
-  if (toolName === "apply_patch" || toolName === "write_file" || toolName === "propose_edit") return "editing";
-  if (toolName === "run_command" || toolName === "suggest_command") return `command:${toolName}`;
+  if (toolName === "search_files" || toolName === "grep" || toolName === "glob") return "file_search";
+  if (toolName === "list_files" || toolName === "glob_files" || toolName === "list_directory" || toolName === "inspect_project") return "workspace_inspection";
+  if (toolName === "apply_patch" || toolName === "write_file" || toolName === "propose_edit" || toolName === "edit" || toolName === "multi_edit") return "editing";
+  if (toolName === "run_command" || toolName === "bash_run" || toolName === "bash_background" || toolName === "suggest_command") return `command:${toolName}`;
   return `tool:${toolName}`;
 }
 
 function labelForTool(toolName: string): string {
-  if (toolName === "run_command") return "Running command";
+  if (toolName === "run_command" || toolName === "bash_run") return "Running command";
+  if (toolName === "bash_background") return "Starting background command";
   if (toolName === "read_file") return "Reading files";
-  if (toolName === "search_files") return "Searching files";
-  if (toolName === "list_files" || toolName === "glob_files") return "Inspecting workspace";
-  if (toolName === "apply_patch" || toolName === "write_file") return "Editing files";
+  if (toolName === "search_files" || toolName === "grep" || toolName === "glob") return "Searching files";
+  if (toolName === "list_files" || toolName === "glob_files" || toolName === "list_directory") return "Inspecting workspace";
+  if (toolName === "apply_patch" || toolName === "write_file" || toolName === "edit" || toolName === "multi_edit") return "Editing files";
   if (toolName === "read_url") return "Reading URL";
   return toolName.replace(/_/g, " ");
 }
@@ -450,16 +453,16 @@ function plannedSummaryForTool(toolName: string, args?: Record<string, unknown>)
   if (toolName === "inspect_project" || toolName === "list_files") {
     return "Checking the workspace structure to identify framework, source folders, and project metadata.";
   }
-  if (toolName === "search_files") {
+  if (toolName === "search_files" || toolName === "grep" || toolName === "glob") {
     return "Looking for files that reveal dependencies, storage, UI architecture, and app purpose.";
   }
   if (toolName === "read_file" || toolName === "read_important_files") {
     return path ? `Reading ${path} before answering.` : "Reading the most relevant files before writing the response.";
   }
-  if (toolName === "apply_patch" || toolName === "write_file") {
+  if (toolName === "apply_patch" || toolName === "write_file" || toolName === "edit" || toolName === "multi_edit") {
     return path ? `Preparing a targeted file change for ${path}.` : "Preparing a targeted file change.";
   }
-  if (toolName === "run_command") return "Preparing to run a workspace command.";
+  if (toolName === "run_command" || toolName === "bash_run" || toolName === "bash_background") return "Preparing to run a workspace command.";
   return "Preparing a tool action for this request.";
 }
 
@@ -511,16 +514,32 @@ function normalizeActivityOrder(state: AgentMessageState) {
 
 function editedFileFromTool(call: AgentToolCall): AgentEditedFile | null {
   if (call.isError) return null;
-  if (call.name === "apply_patch") {
+  if (call.name === "apply_patch" || call.name === "edit") {
     const path = stringArg(call, "path");
     if (!path) return null;
-    const oldText = stringArg(call, "expected_old_text") ?? "";
-    const newText = stringArg(call, "replacement_text") ?? "";
+    const oldText = stringArg(call, "expected_old_text") ?? stringArg(call, "old_string") ?? "";
+    const newText = stringArg(call, "replacement_text") ?? stringArg(call, "new_string") ?? "";
     return {
       path,
       deletions: countLines(oldText),
       additions: countLines(newText),
     };
+  }
+  if (call.name === "multi_edit") {
+    const path = stringArg(call, "path");
+    const edits = call.arguments?.edits;
+    if (!path || !Array.isArray(edits)) return null;
+    return edits.reduce<AgentEditedFile>(
+      (acc, edit) => {
+        if (!edit || typeof edit !== "object") return acc;
+        const oldText = "old_string" in edit && typeof edit.old_string === "string" ? edit.old_string : "";
+        const newText = "new_string" in edit && typeof edit.new_string === "string" ? edit.new_string : "";
+        acc.deletions += countLines(oldText);
+        acc.additions += countLines(newText);
+        return acc;
+      },
+      { path, additions: 0, deletions: 0 },
+    );
   }
   if (call.name === "write_file") {
     const path = stringArg(call, "path");

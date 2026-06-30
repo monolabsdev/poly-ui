@@ -58,8 +58,7 @@ export default function ChatWorkspace({
   const setWorkspaceSelection = useAgentStore((state) => state.actions.setSelectedWorkspaceSelection);
   const permissionPreset = useAgentStore((state) => state.permissionPreset);
   const { startAgentRun, cancelAgentRun, agentStatus } = useAgentRun({
-    selectedModels,
-    selectedProviders,
+    selectedModelChoices,
   });
   const isAgentStreaming = ["running", "waiting_for_approval", "cancelling"].includes(agentStatus);
   const effectiveStreaming = isStreaming || isAgentStreaming;

@@ -478,16 +478,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bstr"
-version = "1.12.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "63044e1ae8e69f3b5a92c736ca6269b8d12fa7efe39bf34ddb06d102cf0e2cab"
-dependencies = [
- "memchr",
- "serde",
-]
-
-[[package]]
 name = "bumpalo"
 version = "3.20.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3509,95 +3499,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "poly-agent-core"
-version = "0.1.0"
-source = "git+https://github.com/monolabsdev/poly-agent.git#d44ce938a92a29c11e3e199b86e3c735e5741049"
-dependencies = [
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "uuid",
-]
-
-[[package]]
-name = "poly-agent-providers"
-version = "0.1.0"
-source = "git+https://github.com/monolabsdev/poly-agent.git#d44ce938a92a29c11e3e199b86e3c735e5741049"
-dependencies = [
- "async-stream",
- "async-trait",
- "ollama-rs",
- "poly-agent-core",
- "reqwest 0.12.28",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "tokio",
- "tokio-stream",
- "tracing",
- "url",
- "uuid",
-]
-
-[[package]]
-name = "poly-agent-runtime"
-version = "0.1.0"
-source = "git+https://github.com/monolabsdev/poly-agent.git#d44ce938a92a29c11e3e199b86e3c735e5741049"
-dependencies = [
- "anyhow",
- "async-trait",
- "poly-agent-core",
- "poly-agent-providers",
- "serde",
- "serde_json",
- "tokio",
- "tokio-stream",
- "tokio-util",
- "tracing",
- "uuid",
-]
-
-[[package]]
-name = "poly-agent-tauri"
-version = "0.1.0"
-source = "git+https://github.com/monolabsdev/poly-agent.git#d44ce938a92a29c11e3e199b86e3c735e5741049"
-dependencies = [
- "anyhow",
- "async-trait",
- "poly-agent-core",
- "poly-agent-providers",
- "poly-agent-runtime",
- "poly-agent-tools",
- "serde",
- "serde_json",
- "tauri",
- "thiserror 2.0.18",
- "tokio",
- "tokio-util",
- "uuid",
-]
-
-[[package]]
-name = "poly-agent-tools"
-version = "0.1.0"
-source = "git+https://github.com/monolabsdev/poly-agent.git#d44ce938a92a29c11e3e199b86e3c735e5741049"
-dependencies = [
- "anyhow",
- "async-trait",
- "glob",
- "poly-agent-core",
- "poly-agent-runtime",
- "regex",
- "serde",
- "serde_json",
- "similar",
- "tokio",
- "tokio-util",
- "tracing",
- "walkdir",
-]
-
-[[package]]
 name = "polyui"
 version = "0.14.0"
 dependencies = [
@@ -3611,7 +3512,6 @@ dependencies = [
  "hound",
  "log",
  "ollama-rs",
- "poly-agent-tauri",
  "raw-window-handle",
  "reqwest 0.12.28",
  "semver",
@@ -4670,15 +4570,6 @@ name = "simdutf8"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e3a9fe34e3e7a50316060351f37187a3f546bce95496156754b601a5fa71b76e"
-
-[[package]]
-name = "similar"
-version = "3.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e6505efef05804732ed8a3f2d4f279429eb485bd69d5b0cc6b19cc02005cda16"
-dependencies = [
- "bstr",
-]
 
 [[package]]
 name = "siphasher"

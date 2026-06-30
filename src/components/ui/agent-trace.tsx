@@ -42,7 +42,7 @@ export type AgentTraceProps = {
 export function AgentTrace({ children }: AgentTraceProps) {
   const array = Children.toArray(children);
   return (
-    <div className="flex flex-col gap-0.5">
+    <div className="flex flex-col gap-2">
       {array.map((child, i) =>
         isValidElement(child)
           ? cloneElement(child as React.ReactElement<{ isLast?: boolean }>, {
@@ -132,10 +132,10 @@ export function AgentTraceStep({
 
   return (
     <StepCtx.Provider value={{ status, expanded, onToggle, isLast, hasContent }}>
-      <div className="grid grid-cols-[18px_minmax(0,1fr)] gap-x-2">
+      <div className="grid grid-cols-[24px_minmax(0,1fr)] gap-x-3">
         {/* Icon / connector column */}
         <div className="flex flex-col items-center">
-          <div className={cn("flex size-[18px] shrink-0 items-center justify-center", statusColor(status))}>
+          <div className={cn("flex size-6 shrink-0 items-center justify-center rounded-full bg-background/60", statusColor(status))}>
             <StatusIcon status={status} />
           </div>
           {!isLast && (
@@ -144,14 +144,14 @@ export function AgentTraceStep({
         </div>
 
         {/* Content column */}
-        <div className={cn("min-w-0", !isLast && "pb-1.5")}>
+        <div className={cn("min-w-0", !isLast && "pb-2")}>
           {trigger}
           {hasContent && (
             <div
               className="terax-reveal"
               data-state={expanded ? "open" : "closed"}
             >
-              <div className="mt-1 flex flex-col gap-0.5 pl-0.5">
+              <div className="mt-2 flex flex-col gap-2">
                 {content}
               </div>
             </div>
@@ -179,8 +179,8 @@ export function AgentTraceTrigger({ children, leftIcon }: AgentTraceTriggerProps
       onClick={hasContent ? onToggle : undefined}
       aria-expanded={expanded}
       className={cn(
-        "flex min-h-[22px] w-full items-center gap-1.5 rounded-[5px] bg-transparent p-0 text-left text-[12.5px] leading-[1.35] transition-colors duration-[var(--dur-fast)] ease-[var(--ease-soft)] hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
-        hasContent ? "cursor-pointer px-0.5" : "cursor-default",
+        "flex min-h-7 w-full items-center gap-2 rounded-md bg-transparent p-0 text-left text-sm leading-tight transition-colors duration-[var(--dur-fast)] ease-[var(--ease-soft)] hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
+        hasContent ? "cursor-pointer px-1" : "cursor-default px-1",
         status === "running" ? "font-semibold text-foreground" : "font-medium",
         status === "error" && "text-destructive",
         status === "waiting" && "text-[var(--warning)]",
@@ -228,8 +228,8 @@ export type AgentTraceItemProps = {
 
 export function AgentTraceItem({ children, secondary }: AgentTraceItemProps) {
   return (
-    <div className="flex items-baseline gap-1.5 py-px">
-      <div className="min-w-0 flex-1 text-xs leading-[1.45] text-muted-foreground">
+    <div className="flex items-baseline gap-2 py-px">
+      <div className="min-w-0 flex-1 text-[13px] leading-5 text-muted-foreground">
         {children}
       </div>
       {secondary && (

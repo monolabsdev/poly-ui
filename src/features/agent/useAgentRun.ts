@@ -2,10 +2,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useChatStore } from "@/store/chatStore";
 import { useNotify } from "@/hooks/useNotify";
 import { useProviderStore } from "@/features/providers";
-import type { ModelProvider } from "@/store/modelStore";
+import type { ModelChoice } from "@/lib/models/model-choice";
 import { appendAgentEvent } from "./activity";
 import { cancelAgent, listenToAgentEvents, runAgent } from "./agentClient";
 import { detectFileEditIntent, extractFileMentions } from "./context";
+import { selectAgentProviderConfig } from "./providerConfig";
+import { AGENT_DISPLAY_NAME, buildAgentPrompt } from "./prompt";
 import { sanitizeOutput } from "@/lib/chat/sanitize";
 import { triggerTitleGeneration, type TitleStore } from "@/lib/chat/title-generation";
 import type { AgentUiEventPayload } from "./generated/AgentUiEventPayload";
@@ -26,11 +28,10 @@ const titleStore: TitleStore = {
 };
 
 type UseAgentRunArgs = {
-  selectedModels: string[];
-  selectedProviders: ModelProvider[];
+  selectedModelChoices: ModelChoice[];
 };
 
-export function useAgentRun({ selectedModels, selectedProviders }: UseAgentRunArgs) {
+export function useAgentRun({ selectedModelChoices }: UseAgentRunArgs) {
   const addMessage = useChatStore((state) => state.actions.addMessage);
   const setStreamingMessage = useChatStore((state) => state.actions.setStreamingMessage);
   const patchStreamingMessage = useChatStore((state) => state.actions.patchStreamingMessage);
@@ -141,7 +142,7 @@ export function useAgentRun({ selectedModels, selectedProviders }: UseAgentRunAr
         conversationId: active.conversationId,
         role: "assistant",
         content: finalContent,
-        model: "Poly Agent",
+        model: AGENT_DISPLAY_NAME,
         status:
           agent.status === "failed"
             ? "error"
@@ -172,15 +173,21 @@ export function useAgentRun({ selectedModels, selectedProviders }: UseAgentRunAr
       permissionPreset: PermissionPreset;
       resolvedContext?: AgentResolvedContext;
     }) => {
-      const model = selectedModels[0];
-      const provider = selectedProviders[0];
+      const choice = selectedModelChoices[0];
+      const model = choice?.model;
+      const provider = choice?.provider;
       if (!model || !provider) {
-        notify.warn("Poly Agent unavailable", "Select a model before starting an agent run.");
+        notify.warn(`${AGENT_DISPLAY_NAME} unavailable`, "Select a model before starting an agent run.");
         return;
       }
 
       const providers = useProviderStore.getState().providers;
-      const providerConfig = providers.find((item) => item.config.provider_type === provider)?.config;
+      const providerConfig = selectAgentProviderConfig(
+        providers,
+        provider,
+        model,
+        choice.providerConfigId,
+      );
       const messageId = crypto.randomUUID();
       const fileEditRequested = detectFileEditIntent(input.prompt);
       const targetFile = extractFileMentions(input.prompt)[0]
@@ -219,7 +226,7 @@ export function useAgentRun({ selectedModels, selectedProviders }: UseAgentRunAr
         conversationId: input.conversationId,
         role: "assistant",
         content: "",
-        model: "Poly Agent",
+        model: AGENT_DISPLAY_NAME,
         createdAt: new Date().toISOString(),
         status: "streaming",
         isStreaming: true,
@@ -244,6 +251,7 @@ export function useAgentRun({ selectedModels, selectedProviders }: UseAgentRunAr
               ? providerConfig?.api_key
               : providerConfig?.ollama_api_key,
           debug: import.meta.env.DEV,
+          headers: providerConfig?.headers,
         });
         const nextAgent = { ...agent, runId };
         agentRef.current = nextAgent;
@@ -254,15 +262,14 @@ export function useAgentRun({ selectedModels, selectedProviders }: UseAgentRunAr
         const failedAgent = { ...agent, status: "failed" as const, error: message };
         agentRef.current = failedAgent;
         await finish({ runId: "", messageId, conversationId: input.conversationId }, failedAgent);
-        notify.error("Poly Agent failed", message);
+        notify.error(`${AGENT_DISPLAY_NAME} failed`, message);
       }
     },
     [
       finish,
       notify,
       patchStreamingMessage,
-      selectedModels,
-      selectedProviders,
+      selectedModelChoices,
       setStreamingConversationId,
       setStreamingMessage,
     ],
@@ -286,49 +293,11 @@ export function useAgentRun({ selectedModels, selectedProviders }: UseAgentRunAr
   return { startAgentRun, cancelAgentRun, agentStatus: status };
 }
 
-function buildAgentPrompt(prompt: string, fileEditRequested: boolean, targetFile?: string) {
-  if (fileEditRequested) {
-    const targetLine = targetFile
-      ? `Target file for this current request: ${targetFile}`
-      : "No target file was parsed; infer the target only from this current request or ask for clarification.";
-
-    return [
-      prompt,
-      "",
-      "[Poly UI current-run instruction]",
-      "This current request is a file edit/create request.",
-      targetLine,
-      "Use write_file for new file creation/replacement, or apply_patch for edits/appends.",
-      "Do not answer as complete unless the file tool succeeds. If no file tool can be used, explain why no file changes were produced.",
-      ...agentMarkdownStyleInstructions(),
-    ].join("\n");
-  }
-
-  return [
-    prompt,
-    "",
-    "[Poly UI current-run instruction]",
-    ...agentMarkdownStyleInstructions(),
-  ].join("\n");
-}
-
-function agentMarkdownStyleInstructions() {
-  return [
-    "Format your final response using concise Markdown.",
-    "Prefer headings, bullet points, and short paragraphs for project summaries.",
-    "Avoid Markdown tables by default, especially for project summaries, file trees, feature lists, or long explanations.",
-    "Use tables only for compact comparisons with short cell content.",
-    "Never put long paragraphs, file trees, multi-line code, or feature lists inside table cells.",
-    "Do NOT output raw HTML tags like <br> or <br/>. Use Markdown line breaks instead.",
-    "Keep any code blocks short and focused.",
-  ];
-}
-
 function fallbackAgentText(agent: AgentMessageState) {
   if (agent.status === "failed") {
     return agent.error
-      ? `The Poly Agent encountered an error:\n\n> ${agent.error}`
-      : "The Poly Agent encountered an error while processing your request.";
+      ? `The ${AGENT_DISPLAY_NAME} encountered an error:\n\n> ${agent.error}`
+      : `The ${AGENT_DISPLAY_NAME} encountered an error while processing your request.`;
   }
   if (agent.editedFiles.length > 0) {
     const file = agent.editedFiles[0];
@@ -341,7 +310,7 @@ function fallbackAgentText(agent: AgentMessageState) {
       ? `Attempted to modify \`${agent.request.targetFile}\` but no file changes were returned.`
       : "Attempted the requested file change but no file changes were returned.";
   }
-  return "The Poly Agent run completed.";
+  return `The ${AGENT_DISPLAY_NAME} run completed.`;
 }
 
 function hasFinalDelta(agent: AgentMessageState | null) {

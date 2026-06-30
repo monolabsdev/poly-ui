@@ -30,6 +30,7 @@ export function AgentActivity({ agent, resultText, onResolveApproval, onRetry }:
   const result = agentResult(agent, resultText);
   const status = statusMeta(agent.status, result);
   const steps = buildSteps(agent);
+  const hasFileStep = steps.some((step) => step.files?.length);
   const waitMsg = useHeaderStatus(agent, steps);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [reviewPath, setReviewPath] = useState<string | undefined>();
@@ -43,6 +44,14 @@ export function AgentActivity({ agent, resultText, onResolveApproval, onRetry }:
   return (
     <Box>
       <AgentRunHeader elapsed={elapsed} status={status} waitingMessage={waitMsg} />
+
+      {result.detail && (agent.status === "failed" || steps.length === 0) && (
+        <Box className="mb-3 rounded-2xl border border-border/60 bg-background/50 px-3 py-2">
+          <Typography className="text-sm text-foreground">
+            {result.detail}
+          </Typography>
+        </Box>
+      )}
 
       {steps.length > 0 && (
         <AgentTrace>
@@ -75,7 +84,7 @@ export function AgentActivity({ agent, resultText, onResolveApproval, onRetry }:
         </AgentTrace>
       )}
 
-      {agent.editedFiles.length > 0 && <EditedFilesSummaryCard files={agent.editedFiles} onReview={handleReview} />}
+      {agent.editedFiles.length > 0 && !hasFileStep && <EditedFilesSummaryCard files={agent.editedFiles} onReview={handleReview} />}
 
       <AgentReviewPanel open={reviewOpen} workspacePath={agent.workspacePath} initialPath={reviewPath} fallbackFiles={agent.editedFiles} toolCalls={agent.toolCalls} onClose={() => setReviewOpen(false)} />
 
@@ -93,28 +102,25 @@ function AgentRunHeader({
   waitingMessage?: string;
 }) {
   return (
-    <Box
-    >
-      <Box>
-        <Box>{status.icon}</Box>
-      </Box>
-      <Box>
-        <Typography>
+    <Box className="mb-3 rounded-2xl border border-border/70 bg-muted/30 px-3 py-2">
+      <Box className="flex items-center gap-3">
+        <Box className="flex size-7 items-center justify-center rounded-full bg-background/70 text-muted-foreground">
+          {status.icon}
+        </Box>
+      <Box className="min-w-0 flex-1">
+        <Typography className="text-sm font-medium text-foreground">
           {elapsed ? `Worked for ${elapsed}` : "Working"}
         </Typography>
         {waitingMessage && (
-          <Typography>
+          <Typography className="text-xs text-muted-foreground">
             {waitingMessage}
           </Typography>
         )}
-        <Box>
-          <Box
-          >
-            {status.label}
-          </Box>
+      </Box>
+        <Box className="rounded-full bg-background/70 px-2 py-1 text-xs text-muted-foreground">
+          {status.label}
         </Box>
       </Box>
     </Box>
   );
 }
-

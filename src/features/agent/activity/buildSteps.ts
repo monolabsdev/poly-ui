@@ -45,9 +45,11 @@ export function buildSteps(agent: AgentMessageState): StepDef[] {
 
   for (let i = 0; i < activities.length; i++) {
     const act = activities[i];
+    if (act.kind === "auto_review" && agent.permissionPreset === "full-access") continue;
+    if (act.kind === "reasoning" && agent.editedFiles.length > 0 && agent.status === "completed") continue;
 
     /* Skip empty or consecutive duplicate labels */
-    if (!act.label || act.label === lastLabel) continue;
+    if (!act.label || act.label === lastLabel || steps.some((step) => step.label === act.label)) continue;
     lastLabel = act.label;
 
     /* Skip "Starting" — header status badge already shows it */
@@ -94,11 +96,10 @@ export function buildSteps(agent: AgentMessageState): StepDef[] {
       act.toolCallId &&
       (act.status === "complete" || act.status === "error" || act.label === "Editing file" || act.label === "Editing files")
     ) {
-      const call = toolCalls.find((t) => t.id === act.toolCallId)
-        ?? toolCalls.find((t) => t.name === "apply_patch" || t.name === "write_file");
+      const call = toolCalls.find((t) => t.id === act.toolCallId);
       if (
         call &&
-        (call.name === "apply_patch" || call.name === "write_file")
+        (call.name === "apply_patch" || call.name === "write_file" || call.name === "edit" || call.name === "multi_edit")
       ) {
         step.type = "editing";
         step.defaultExpanded = true;

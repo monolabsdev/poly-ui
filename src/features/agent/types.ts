@@ -127,6 +127,7 @@ export interface AgentRunStartOptions {
   permissionPreset: PermissionPreset;
   baseUrl?: string | null;
   apiKey?: string | null;
+  headers?: string | null;
   resolvedContext?: AgentResolvedContext;
   debug?: boolean;
 }

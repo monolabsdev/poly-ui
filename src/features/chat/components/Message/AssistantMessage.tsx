@@ -53,7 +53,7 @@ import {
 function agentResultText(agent: NonNullable<MessageProps["agent"]>, content: string): string | undefined {
   const text = content.trim();
   if (!text) return undefined;
-  if (agent.status === "failed") return undefined;
+  if (agent.status === "failed") return text;
   if (agent.editedFiles.length > 0) return text;
   if (agent.approvals.length > 0) return text;
   if (agent.request?.fileEditRequested) return text;
@@ -64,7 +64,7 @@ function agentResultText(agent: NonNullable<MessageProps["agent"]>, content: str
 
 function isFallbackAgentContent(content: string): boolean {
   const trimmed = content.trim();
-  return /^(I tried|I edited|I created|The Poly Agent)/i.test(trimmed);
+  return /^(I tried|I edited|I created|The (Poly|Terax) Agent)/i.test(trimmed);
 }
 
 function looksLikeClarification(text: string) {
@@ -185,7 +185,7 @@ export function AssistantMessage(props: MessageProps) {
     <Box
       className="group/message mr-auto flex w-full max-w-[min(100%,48rem)] flex-col gap-2"
     >
-      <Box className="rounded-3xl rounded-tl-md px-4 py-3 text-card-foreground">
+      <Box className="rounded-3xl rounded-tl-md bg-card px-4 py-3 text-card-foreground">
         {model && !agent && (
           <Typography
             variant="caption"
@@ -196,7 +196,7 @@ export function AssistantMessage(props: MessageProps) {
           </Typography>
         )}
 
-        {status === "error" && (
+         {status === "error" && !agent && (
           <Box
             className="mb-3 flex gap-3 rounded-2xl border border-destructive/25 bg-destructive/10 p-3 text-destructive"
           >

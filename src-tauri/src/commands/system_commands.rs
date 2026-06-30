@@ -1,6 +1,7 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::time::Duration;
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -24,6 +25,38 @@ pub struct ChangedFile {
 pub struct FileDiff {
     path: String,
     diff: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AgentDirEntry {
+    name: String,
+    kind: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AgentGrepHit {
+    path: String,
+    line: usize,
+    text: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AgentCommandOutput {
+    stdout: String,
+    stderr: String,
+    status: i32,
+    timed_out: bool,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AgentCommandRequest {
+    workspace_path: String,
+    command: String,
+    timeout_secs: Option<u64>,
 }
 
 #[tauri::command]
@@ -83,6 +116,163 @@ pub async fn agent_file_diff(workspace_path: String, path: String) -> Result<Fil
     tauri::async_runtime::spawn_blocking(move || file_diff_blocking(workspace_path, path))
         .await
         .map_err(|err| err.to_string())?
+}
+
+#[tauri::command]
+pub async fn agent_prepare_chat_sandbox(chat_id: String) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let safe_id: String = chat_id
+            .chars()
+            .filter(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_'))
+            .collect();
+        let path = std::env::temp_dir()
+            .join("polyui-agent-sandboxes")
+            .join(if safe_id.is_empty() { "chat" } else { &safe_id });
+        std::fs::create_dir_all(&path).map_err(|err| err.to_string())?;
+        Ok(path.to_string_lossy().to_string())
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
+#[tauri::command]
+pub async fn agent_delete_chat_sandbox(chat_id: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let safe_id: String = chat_id
+            .chars()
+            .filter(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_'))
+            .collect();
+        if safe_id.is_empty() {
+            return Ok(());
+        }
+        let path = std::env::temp_dir()
+            .join("polyui-agent-sandboxes")
+            .join(safe_id);
+        if path.exists() {
+            std::fs::remove_dir_all(path).map_err(|err| err.to_string())?;
+        }
+        Ok(())
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
+#[tauri::command]
+pub async fn agent_read_text_file(workspace_path: String, path: String) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let workspace = canonical_workspace(&workspace_path)?;
+        let path = resolve_workspace_path(&workspace, &path)?;
+        std::fs::read_to_string(path).map_err(|err| err.to_string())
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
+#[tauri::command]
+pub async fn agent_write_text_file(
+    workspace_path: String,
+    path: String,
+    content: String,
+) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let workspace = canonical_workspace(&workspace_path)?;
+        let path = resolve_workspace_path(&workspace, &path)?;
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent).map_err(|err| err.to_string())?;
+        }
+        std::fs::write(path, content).map_err(|err| err.to_string())
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
+#[tauri::command]
+pub async fn agent_list_directory(
+    workspace_path: String,
+    path: String,
+) -> Result<Vec<AgentDirEntry>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let workspace = canonical_workspace(&workspace_path)?;
+        let path = resolve_workspace_path(&workspace, &path)?;
+        let mut entries = Vec::new();
+        for entry in std::fs::read_dir(path).map_err(|err| err.to_string())? {
+            let entry = entry.map_err(|err| err.to_string())?;
+            let name = entry.file_name().to_string_lossy().to_string();
+            if name.starts_with('.') {
+                continue;
+            }
+            let kind = entry.file_type().map_err(|err| err.to_string())?;
+            entries.push(AgentDirEntry {
+                name,
+                kind: if kind.is_dir() { "dir" } else { "file" }.to_string(),
+            });
+        }
+        entries.sort_by(|a, b| a.name.cmp(&b.name));
+        Ok(entries)
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
+#[tauri::command]
+pub async fn agent_grep(
+    workspace_path: String,
+    pattern: String,
+    max_results: Option<usize>,
+) -> Result<Vec<AgentGrepHit>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let workspace = canonical_workspace(&workspace_path)?;
+        let limit = max_results.unwrap_or(50).clamp(1, 200);
+        let mut hits = Vec::new();
+        grep_dir(&workspace, &workspace, &pattern, limit, &mut hits)?;
+        Ok(hits)
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
+#[tauri::command]
+pub async fn agent_run_command(request: AgentCommandRequest) -> Result<AgentCommandOutput, String> {
+    let workspace = canonical_workspace(&request.workspace_path)?;
+    let timeout = Duration::from_secs(request.timeout_secs.unwrap_or(60).clamp(1, 300));
+    let command = request.command;
+    tauri::async_runtime::spawn(async move {
+        let mut cmd = if cfg!(target_os = "windows") {
+            let mut c = tokio::process::Command::new("cmd");
+            c.args(["/C", &command]);
+            c
+        } else {
+            let mut c = tokio::process::Command::new("sh");
+            c.args(["-lc", &command]);
+            c
+        };
+        let child = cmd
+            .current_dir(workspace)
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .map_err(|err| err.to_string())?;
+
+        match tokio::time::timeout(timeout, child.wait_with_output()).await {
+            Ok(result) => {
+                let output = result.map_err(|err| err.to_string())?;
+                Ok(AgentCommandOutput {
+                    stdout: String::from_utf8_lossy(&output.stdout).to_string(),
+                    stderr: String::from_utf8_lossy(&output.stderr).to_string(),
+                    status: output.status.code().unwrap_or(-1),
+                    timed_out: false,
+                })
+            }
+            Err(_) => Ok(AgentCommandOutput {
+                stdout: String::new(),
+                stderr: "Command timed out.".to_string(),
+                status: -1,
+                timed_out: true,
+            }),
+        }
+    })
+    .await
+    .map_err(|err| err.to_string())?
 }
 
 fn changed_files_blocking(workspace_path: String) -> Result<Vec<ChangedFile>, String> {
@@ -190,6 +380,83 @@ fn canonical_workspace(workspace_path: &str) -> Result<PathBuf, String> {
         return Err("Workspace path is not a directory.".to_string());
     }
     Ok(canonical)
+}
+
+fn resolve_workspace_path(workspace: &Path, path: &str) -> Result<PathBuf, String> {
+    let clean = path.trim().replace('\\', "/");
+    let relative = if clean == "." || clean.is_empty() {
+        PathBuf::new()
+    } else {
+        PathBuf::from(normalize_git_path(&clean)?)
+    };
+    let joined = workspace.join(relative);
+    let canonical = if joined.exists() {
+        joined
+            .canonicalize()
+            .map_err(|err| format!("Path not found: {err}"))?
+    } else {
+        let parent = joined.parent().unwrap_or(workspace);
+        let canonical_parent = parent
+            .canonicalize()
+            .map_err(|err| format!("Parent path not found: {err}"))?;
+        canonical_parent.join(joined.file_name().unwrap_or_default())
+    };
+    if !canonical.starts_with(workspace) {
+        return Err("Path escapes workspace.".to_string());
+    }
+    Ok(canonical)
+}
+
+fn grep_dir(
+    workspace: &Path,
+    dir: &Path,
+    pattern: &str,
+    limit: usize,
+    hits: &mut Vec<AgentGrepHit>,
+) -> Result<(), String> {
+    if hits.len() >= limit {
+        return Ok(());
+    }
+    for entry in std::fs::read_dir(dir).map_err(|err| err.to_string())? {
+        if hits.len() >= limit {
+            break;
+        }
+        let entry = entry.map_err(|err| err.to_string())?;
+        let path = entry.path();
+        let name = entry.file_name().to_string_lossy().to_string();
+        if name.starts_with('.') || matches!(name.as_str(), "node_modules" | "dist" | "target") {
+            continue;
+        }
+        if path.is_dir() {
+            grep_dir(workspace, &path, pattern, limit, hits)?;
+            continue;
+        }
+        if !path.is_file() {
+            continue;
+        }
+        let Ok(content) = std::fs::read_to_string(&path) else {
+            continue;
+        };
+        for (index, line) in content.lines().enumerate() {
+            if !line.contains(pattern) {
+                continue;
+            }
+            let relative = path
+                .strip_prefix(workspace)
+                .map_err(|err| err.to_string())?
+                .to_string_lossy()
+                .replace('\\', "/");
+            hits.push(AgentGrepHit {
+                path: relative,
+                line: index + 1,
+                text: line.chars().take(400).collect(),
+            });
+            if hits.len() >= limit {
+                break;
+            }
+        }
+    }
+    Ok(())
 }
 
 fn normalize_git_path(path: &str) -> Result<String, String> {

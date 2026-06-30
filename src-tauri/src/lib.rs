@@ -23,7 +23,9 @@ use crate::commands::dictation_commands::{
 };
 use crate::commands::model_commands::{cancel_pull, delete_model, get_local_models, pull_model};
 use crate::commands::system_commands::{
-    agent_changed_files, agent_file_diff, agent_list_workspaces,
+    agent_changed_files, agent_delete_chat_sandbox, agent_file_diff, agent_grep,
+    agent_list_directory, agent_list_workspaces, agent_prepare_chat_sandbox, agent_read_text_file,
+    agent_run_command, agent_write_text_file,
 };
 use crate::updater::{check_for_updates, download_update, install_update};
 use crate::whisper_state::WhisperState;
@@ -113,10 +115,7 @@ pub fn run() {
                 last_update_check: Mutex::new(None),
                 update_download_path: Mutex::new(None),
             });
-            app.manage(poly_agent_tauri::AgentRunManager::new(Some(
-                poly_agent_tauri::tauri_event_sink(app.handle().clone()),
-            )));
-            startup_log::log_phase("agent manager initialized");
+            startup_log::log_phase("agent runtime initialized");
             let app_data_dir = app.path().app_data_dir().map_err(|error| {
                 startup_log::log_error(format!("app data dir failed: {error}"));
                 std::io::Error::other(error)
@@ -196,6 +195,13 @@ pub fn run() {
             agent_list_workspaces,
             agent_changed_files,
             agent_file_diff,
+            agent_prepare_chat_sandbox,
+            agent_delete_chat_sandbox,
+            agent_read_text_file,
+            agent_write_text_file,
+            agent_list_directory,
+            agent_grep,
+            agent_run_command,
             get_whisper_models_status,
             download_whisper_model,
             select_whisper_model,
@@ -207,12 +213,6 @@ pub fn run() {
             log_startup_error,
             log_startup_phase,
             startup_log_path,
-            poly_agent_tauri::agent_run,
-            poly_agent_tauri::agent_cancel,
-            poly_agent_tauri::agent_delete_chat_sandbox,
-            poly_agent_tauri::agent_approve_tool_call,
-            poly_agent_tauri::agent_reject_tool_call,
-            poly_agent_tauri::agent_get_run_state,
         ])
         .run(context);
 
