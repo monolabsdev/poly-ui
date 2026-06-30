@@ -35,7 +35,7 @@ describe("chat screen regression guards", () => {
     expect(userMessage).toContain("ml-auto");
     expect(userMessage).toContain("bg-muted");
     expect(assistantMessage).toContain("mr-auto");
-    expect(assistantMessage).toContain("bg-card");
+    expect(assistantMessage).toContain("text-card-foreground");
     expect(assistantMessage).toContain("action-bar");
   });
 
