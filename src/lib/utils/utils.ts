@@ -6,6 +6,14 @@ export async function loggedInvoke<T>(cmd: string, args: InvokeArgs = {}): Promi
   return invoke<T>(cmd, args);
 }
 
+export function getSessionToken(): string | null {
+  try {
+    return localStorage.getItem("session_token");
+  } catch {
+    return null;
+  }
+}
+
 export function isImageAttachment(type: string): boolean {
   return type.startsWith("image/");
 }

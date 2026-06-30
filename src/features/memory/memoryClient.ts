@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { getSessionToken } from "@/lib/utils/utils";
 import type {
   MemoryForgetMessageInput,
   MemoryListQuery,
@@ -10,26 +11,26 @@ import type {
 } from "./types";
 
 export function memoryGetSettings(ownerId: string) {
-  return invoke<MemorySettings>("memory_get_settings", { ownerId });
+  return invoke<MemorySettings>("memory_get_settings", { ownerId, token: getSessionToken() });
 }
 
 export function memoryUpdateSettings(settings: MemorySettings) {
-  return invoke<MemorySettings>("memory_update_settings", { settings });
+  return invoke<MemorySettings>("memory_update_settings", { settings, token: getSessionToken() });
 }
 
 export function memoryTestConnection(ownerId: string) {
   return invoke<{ ok: boolean; provider: string; locality: string; message: string }>(
     "memory_test_connection",
-    { ownerId },
+    { ownerId, token: getSessionToken() },
   );
 }
 
 export function memoryList(query: MemoryListQuery) {
-  return invoke<MemoryRecord[]>("memory_list", { query });
+  return invoke<MemoryRecord[]>("memory_list", { query, token: getSessionToken() });
 }
 
 export function memorySearch(query: MemorySearchQuery) {
-  return invoke<MemoryRecord[]>("memory_search", { query });
+  return invoke<MemoryRecord[]>("memory_search", { query, token: getSessionToken() });
 }
 
 export function memoryUpdate(input: {
@@ -42,32 +43,38 @@ export function memoryUpdate(input: {
   confidence?: number | null;
   importance?: number | null;
 }) {
-  return invoke<MemoryRecord>("memory_update", { input });
+  return invoke<MemoryRecord>("memory_update", { input, token: getSessionToken() });
 }
 
 export function memoryDelete(ownerId: string, memoryId: string) {
-  return invoke<void>("memory_delete", { ownerId, memoryId });
+  return invoke<void>("memory_delete", { ownerId, memoryId, token: getSessionToken() });
 }
 
 export function memoryClearScope(ownerId: string, scope: MemoryScope, scopeOwnerId?: string | null) {
-  return invoke<void>("memory_clear_scope", { ownerId, scope, scopeOwnerId: scopeOwnerId ?? null });
+  return invoke<void>("memory_clear_scope", {
+    ownerId,
+    scope,
+    scopeOwnerId: scopeOwnerId ?? null,
+    token: getSessionToken(),
+  });
 }
 
 export function memoryClearAll(ownerId: string) {
-  return invoke<void>("memory_clear_all", { ownerId });
+  return invoke<void>("memory_clear_all", { ownerId, token: getSessionToken() });
 }
 
 export function memoryRememberMessage(input: MemoryRememberMessageInput) {
-  return invoke("memory_remember_message", { input });
+  return invoke("memory_remember_message", { input, token: getSessionToken() });
 }
 
 export function memoryForgetMessage(input: MemoryForgetMessageInput) {
-  return invoke<void>("memory_forget_message", { input });
+  return invoke<void>("memory_forget_message", { input, token: getSessionToken() });
 }
 
 export function memoryGetRelated(ownerId: string, messageId: string, query: string) {
   return invoke<MemoryRecord[]>("memory_get_related", {
     query: { ownerId, messageId, query, limit: 8 },
+    token: getSessionToken(),
   });
 }
 

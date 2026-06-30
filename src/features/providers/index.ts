@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { create } from "zustand";
 import { useAuthStore } from "@/store/authStore";
+import { getSessionToken } from "@/lib/utils/utils";
 
 export type ProviderType = "OllamaLocal" | "OpenAICompatible";
 export type ProviderStatus = "Online" | "Offline" | "Reconnecting" | "Unavailable";
@@ -80,6 +81,7 @@ export const useProviderStore = create<ProviderStore>((set) => ({
       try {
         const providers = await invoke<ProviderStatusResponse[]>("get_providers", {
           accountId: getCurrentProviderAccountId(),
+          token: getSessionToken(),
         });
         set({ providers, loading: false, error: null });
       } catch (err) {
@@ -106,35 +108,43 @@ export const useProviderStore = create<ProviderStore>((set) => ({
       model_suggestions?: string;
     }) => {
       const accountId = getCurrentProviderAccountId();
+      const token = getSessionToken();
       const current = (await invoke<ProviderStatusResponse[]>("get_providers", {
         accountId,
+        token,
       })).find((p) => p.config.id === config.id);
       if (!current) throw new Error("Provider not found");
       await invoke("update_provider_config", {
         request: { ...current.config, ...config },
         accountId,
+        token,
       });
       set({ loading: true });
       const providers = await invoke<ProviderStatusResponse[]>("get_providers", {
         accountId,
+        token,
       });
       set({ providers, loading: false, error: null });
     },
     addProvider: async (config: AddProviderRequest) => {
       const accountId = getCurrentProviderAccountId();
-      await invoke("add_provider", { request: config, accountId });
+      const token = getSessionToken();
+      await invoke("add_provider", { request: config, accountId, token });
       set({ loading: true });
       const providers = await invoke<ProviderStatusResponse[]>("get_providers", {
         accountId,
+        token,
       });
       set({ providers, loading: false, error: null });
     },
     deleteProvider: async (id: number) => {
       const accountId = getCurrentProviderAccountId();
-      await invoke("delete_provider", { id, accountId });
+      const token = getSessionToken();
+      await invoke("delete_provider", { id, accountId, token });
       set({ loading: true });
       const providers = await invoke<ProviderStatusResponse[]>("get_providers", {
         accountId,
+        token,
       });
       set({ providers, loading: false, error: null });
     },
