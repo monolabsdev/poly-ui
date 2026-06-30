@@ -185,7 +185,7 @@ export function AssistantMessage(props: MessageProps) {
     <Box
       className="group/message mr-auto flex w-full max-w-[min(100%,48rem)] flex-col gap-2"
     >
-      <Box className="rounded-3xl rounded-tl-md border border-border/60 bg-card px-4 py-3 text-card-foreground shadow-sm">
+      <Box className="rounded-3xl rounded-tl-md px-4 py-3 text-card-foreground">
         {model && !agent && (
           <Typography
             variant="caption"

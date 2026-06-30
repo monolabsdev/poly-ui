@@ -15,7 +15,7 @@ export const SIDEBAR_TOKENS = {
   iconButtonSize: "2.25rem", // 36px collapsed icon hitbox
   iconSize: "1.125rem", // 18px
   itemRadius: "var(--radius-lg)",
-  panelRadius: "var(--radius-lg)",
+  panelRadius: "var(--radius-4xl)",
   sectionGap: "0.5rem", // 8px between sidebar sections
 } as const
 
