@@ -60,7 +60,7 @@ const defaultTts: TtsSettings = {
   },
 };
 
-const SETTINGS_VERSION = 14;
+const SETTINGS_VERSION = 15;
 
 export const defaultDictation: DictationSettings = {
   enabled: true,
@@ -76,8 +76,8 @@ export const defaultPerformance: PerformanceSettings = {
 
 function createDefaultWebSearchSettings(): WebSearchSettings {
   return {
-    provider: "exa",
-    apiKeys: { exa: "", ollama: "", tavily: "" },
+    provider: "local",
+    apiKeys: { local: "", exa: "", ollama: "", tavily: "" },
   };
 }
 
@@ -177,6 +177,17 @@ export const useSettingsStore = create<SettingsState>()(
         }
         if (version < 14 && state?.general) {
           state.general.showModelInEmptyState = false;
+        }
+        if (version < 15 && state?.general) {
+          state.general.webSearch = {
+            ...createDefaultWebSearchSettings(),
+            ...state.general.webSearch,
+            provider: state.general.webSearch?.provider ?? "local",
+            apiKeys: {
+              ...createDefaultWebSearchSettings().apiKeys,
+              ...(state.general.webSearch?.apiKeys ?? {}),
+            },
+          };
         }
         startupPhase("settings migration complete");
         return state as SettingsState;

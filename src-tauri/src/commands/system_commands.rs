@@ -1,9 +1,12 @@
+use crate::models::chat::SearchResultItem;
+use crate::web_search::{
+    create_web_search_client, read_web_results, search_web, ReadWebResultsRequest,
+    ReadWebResultsResponse, SearchWebRequest, SearchWebResponse, WebSearchConfig,
+};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::Duration;
-use crate::models::chat::SearchResultItem;
-use crate::web_search::{create_web_search_client, WebSearchConfig};
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -247,6 +250,24 @@ pub async fn agent_web_search(
     }
     let client = create_web_search_client(&config);
     client.search(&query, &config.api_key).await
+}
+
+#[tauri::command]
+pub async fn agent_search_web(request: SearchWebRequest) -> Result<SearchWebResponse, String> {
+    if request.query.trim().is_empty() {
+        return Err("Search query is empty.".to_string());
+    }
+    Ok(search_web(request).await)
+}
+
+#[tauri::command]
+pub async fn agent_read_web_results(
+    request: ReadWebResultsRequest,
+) -> Result<ReadWebResultsResponse, String> {
+    if request.result_ids.is_empty() {
+        return Err("No result ids provided.".to_string());
+    }
+    Ok(read_web_results(request).await)
 }
 
 #[tauri::command]

@@ -4,6 +4,7 @@ import type { WebSearchConfig } from "./types";
 
 export function getWebSearchConfig(): WebSearchConfig | undefined {
   const { webSearch } = useSettingsStore.getState().general;
+  if (webSearch.provider === "local") return { provider: "local", apiKey: "" };
   const apiKey = webSearch.apiKeys[webSearch.provider]?.trim();
   if (!apiKey) return undefined;
   return { provider: webSearch.provider, apiKey };

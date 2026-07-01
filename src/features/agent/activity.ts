@@ -13,6 +13,8 @@ const PHASE_ORDER: Record<string, number> = {
   thinking: 10,
   workspace_inspection: 20,
   file_search: 30,
+  web_search: 35,
+  web_read: 36,
   file_read: 40,
   editing: 50,
   verifying: 60,
@@ -403,7 +405,7 @@ function activityKey(phase: unknown, title: unknown): string {
 function kindForPhase(phase: unknown): AgentActivityItem["kind"] {
   const key = activityKey(phase, "");
   if (key === "thinking" || key === "summarizing") return "reasoning";
-  if (key === "editing" || key === "file_read" || key === "file_search" || key === "workspace_inspection") return "tool";
+  if (key === "editing" || key === "file_read" || key === "file_search" || key === "workspace_inspection" || key === "web_search" || key === "web_read") return "tool";
   return "status";
 }
 
@@ -416,6 +418,8 @@ function toolKind(toolName: string): AgentActivityItem["kind"] {
 function phaseForTool(toolName: string): string {
   if (toolName === "read_file" || toolName === "read_important_files") return "file_read";
   if (toolName === "search_files" || toolName === "grep" || toolName === "glob") return "file_search";
+  if (toolName === "search_web" || toolName === "web_search") return "web_search";
+  if (toolName === "read_web_results" || toolName === "read_url") return "web_read";
   if (toolName === "list_files" || toolName === "glob_files" || toolName === "list_directory" || toolName === "inspect_project") return "workspace_inspection";
   if (toolName === "apply_patch" || toolName === "write_file" || toolName === "propose_edit" || toolName === "edit" || toolName === "multi_edit") return "editing";
   if (toolName === "run_command" || toolName === "bash_run" || toolName === "bash_background" || toolName === "suggest_command") return `command:${toolName}`;
@@ -427,6 +431,8 @@ function labelForTool(toolName: string): string {
   if (toolName === "bash_background") return "Starting background command";
   if (toolName === "read_file") return "Reading files";
   if (toolName === "search_files" || toolName === "grep" || toolName === "glob") return "Searching files";
+  if (toolName === "search_web" || toolName === "web_search") return "Searching the web";
+  if (toolName === "read_web_results" || toolName === "read_url") return "Reading sources";
   if (toolName === "list_files" || toolName === "glob_files" || toolName === "list_directory") return "Inspecting workspace";
   if (toolName === "apply_patch" || toolName === "write_file" || toolName === "edit" || toolName === "multi_edit") return "Editing files";
   if (toolName === "read_url") return "Reading URL";
@@ -439,6 +445,8 @@ function labelForPhase(phase: string): string {
   if (phase === "responding") return "Responding";
   if (phase === "workspace_inspection") return "Inspecting workspace";
   if (phase === "file_search") return "Searching files";
+  if (phase === "web_search") return "Searching the web";
+  if (phase === "web_read") return "Reading sources";
   if (phase === "file_read") return "Reading files";
   if (phase === "editing") return "Editing files";
   if (phase === "verifying") return "Verifying";
@@ -456,6 +464,8 @@ function plannedSummaryForTool(toolName: string, args?: Record<string, unknown>)
   if (toolName === "search_files" || toolName === "grep" || toolName === "glob") {
     return "Looking for files that reveal dependencies, storage, UI architecture, and app purpose.";
   }
+  if (toolName === "search_web" || toolName === "web_search") return "Searching current web results.";
+  if (toolName === "read_web_results" || toolName === "read_url") return "Opening selected web sources.";
   if (toolName === "read_file" || toolName === "read_important_files") {
     return path ? `Reading ${path} before answering.` : "Reading the most relevant files before writing the response.";
   }

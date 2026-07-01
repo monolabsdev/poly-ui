@@ -42,38 +42,45 @@ export function WebSearchSettings() {
         }
       />
 
-      <SettingCard
-        title={`${provider.name} API key`}
-        description="Stored locally on this device. Sent only to selected search provider."
-      >
-        <Stack spacing={0.75}>
-          <TextField
-            value={apiKey}
-            onChange={(event) => {
-              updateGeneral({
-                webSearch: {
-                  ...webSearch,
-                  apiKeys: {
-                    ...webSearch.apiKeys,
-                    [provider.id]: event.target.value,
+      {provider.requiresApiKey ? (
+        <SettingCard
+          title={`${provider.name} API key`}
+          description="Stored locally on this device. Sent only to selected search provider."
+        >
+          <Stack spacing={0.75}>
+            <TextField
+              value={apiKey}
+              onChange={(event) => {
+                updateGeneral({
+                  webSearch: {
+                    ...webSearch,
+                    apiKeys: {
+                      ...webSearch.apiKeys,
+                      [provider.id]: event.target.value,
+                    },
                   },
-                },
-              });
-            }}
-            placeholder={provider.apiKeyPlaceholder}
-            type="password"
-            autoComplete="off"
-            fullWidth
-            size="small"
-          />
-          <Typography>
-            Need key?{" "}
-            <Link href={provider.dashboardUrl} target="_blank" rel="noreferrer">
-              Open {provider.name} dashboard
-            </Link>
-          </Typography>
-        </Stack>
-      </SettingCard>
+                });
+              }}
+              placeholder={provider.apiKeyPlaceholder}
+              type="password"
+              autoComplete="off"
+              fullWidth
+              size="small"
+            />
+            <Typography>
+              Need key?{" "}
+              <Link href={provider.dashboardUrl} target="_blank" rel="noreferrer">
+                Open {provider.name} dashboard
+              </Link>
+            </Typography>
+          </Stack>
+        </SettingCard>
+      ) : (
+        <SettingCard
+          title="Local search"
+          description="Uses bundled Rust HTML providers. No API key or sidecar required."
+        />
+      )}
     </Stack>
   );
 }

@@ -35,6 +35,30 @@ describe("Poly Agent workflow", () => {
     ]);
   });
 
+  it("maps web search tools into compact web phases", () => {
+    let state = baseAgentState();
+
+    state = appendAgentEvent(state, toolRequested("1", "search_web", { query: "rust reqwest" }));
+    state = appendAgentEvent(state, toolRequested("2", "read_web_results", { result_ids: ["result-1"] }));
+
+    expect(state.activities.map((item) => item.toolCallId)).toEqual([
+      "web_search",
+      "web_read",
+    ]);
+    expect(state.activities.map((item) => item.label)).toEqual([
+      "Searching the web",
+      "Reading sources",
+    ]);
+  });
+
+  it("exposes separate search and read web tools in the SDK runtime", () => {
+    const runtime = readFileSync("src/features/agent/sdkRuntime.ts", "utf8");
+
+    expect(runtime).toContain("search_web: tool");
+    expect(runtime).toContain("read_web_results: tool");
+    expect(runtime).toContain("untrusted evidence");
+  });
+
   it("streams provider reasoning deltas into Poly Agent activity", () => {
     const runtime = readFileSync("src/features/agent/sdkRuntime.ts", "utf8");
 

@@ -14,6 +14,38 @@ export type AgentSearchResult = {
   url: string;
   highlights: string[];
 };
+export type WebSearchResult = {
+  id: string;
+  title: string;
+  url: string;
+  display_url: string;
+  snippet: string;
+  published_at: string | null;
+  providers: string[];
+  score: number;
+};
+export type SearchWebResponse = {
+  query: string;
+  results: WebSearchResult[];
+  providers_used: string[];
+  providers_failed: { provider: string; error: string }[];
+  cached: boolean;
+};
+export type ReadWebResultsResponse = {
+  sources: {
+    source_id: string;
+    result_id: string;
+    title: string;
+    url: string;
+    canonical_url: string;
+    domain: string;
+    published_at: string | null;
+    retrieved_at: string;
+    passages: { text: string; score: number; section: string | null }[];
+    trust: "untrusted_web_content";
+  }[];
+  failed_results: { result_id: string; error: string }[];
+};
 
 export function prepareChatSandbox(chatId: string): Promise<string> {
   return invoke<string>("agent_prepare_chat_sandbox", { chatId });
@@ -47,4 +79,21 @@ export function runCommand(
 
 export function webSearch(query: string, config: WebSearchConfig): Promise<AgentSearchResult[]> {
   return invoke<AgentSearchResult[]>("agent_web_search", { query, config });
+}
+
+export function searchWeb(request: {
+  query: string;
+  max_results?: number;
+  freshness?: "day" | "week" | "month" | "year" | "any";
+  include_domains?: string[];
+  exclude_domains?: string[];
+}): Promise<SearchWebResponse> {
+  return invoke<SearchWebResponse>("agent_search_web", { request });
+}
+
+export function readWebResults(request: {
+  result_ids: string[];
+  max_passages_per_result?: number;
+}): Promise<ReadWebResultsResponse> {
+  return invoke<ReadWebResultsResponse>("agent_read_web_results", { request });
 }

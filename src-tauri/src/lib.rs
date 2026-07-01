@@ -25,7 +25,8 @@ use crate::commands::model_commands::{cancel_pull, delete_model, get_local_model
 use crate::commands::system_commands::{
     agent_changed_files, agent_delete_chat_sandbox, agent_file_diff, agent_grep,
     agent_list_directory, agent_list_workspaces, agent_prepare_chat_sandbox, agent_read_text_file,
-    agent_run_command, agent_web_search, agent_write_text_file,
+    agent_read_web_results, agent_run_command, agent_search_web, agent_web_search,
+    agent_write_text_file,
 };
 use crate::updater::{check_for_updates, download_update, install_update};
 use crate::whisper_state::WhisperState;
@@ -202,6 +203,8 @@ pub fn run() {
             agent_list_directory,
             agent_grep,
             agent_web_search,
+            agent_search_web,
+            agent_read_web_results,
             agent_run_command,
             get_whisper_models_status,
             download_whisper_model,

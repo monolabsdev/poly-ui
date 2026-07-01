@@ -1,5 +1,6 @@
 mod content_results;
 mod exa;
+pub mod local;
 mod ollama;
 mod tavily;
 
@@ -8,12 +9,17 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
 pub use exa::ExaWebSearchClient;
+pub use local::{
+    read_web_results, search_web,
+    types::{ReadWebResultsRequest, ReadWebResultsResponse, SearchWebRequest, SearchWebResponse},
+};
 pub use ollama::OllamaWebSearchClient;
 pub use tavily::TavilyWebSearchClient;
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum WebSearchProvider {
+    Local,
     #[default]
     Exa,
     Ollama,
@@ -29,7 +35,7 @@ pub struct WebSearchConfig {
 
 impl WebSearchConfig {
     pub fn is_configured(&self) -> bool {
-        !self.api_key.trim().is_empty()
+        self.provider == WebSearchProvider::Local || !self.api_key.trim().is_empty()
     }
 }
 
@@ -41,9 +47,47 @@ pub trait WebSearchClient: Send + Sync {
 
 pub fn create_web_search_client(config: &WebSearchConfig) -> Box<dyn WebSearchClient> {
     match config.provider {
+        WebSearchProvider::Local => Box::new(LocalWebSearchClient),
         WebSearchProvider::Exa => Box::new(ExaWebSearchClient),
         WebSearchProvider::Ollama => Box::new(OllamaWebSearchClient),
         WebSearchProvider::Tavily => Box::new(TavilyWebSearchClient),
+    }
+}
+
+pub struct LocalWebSearchClient;
+
+#[async_trait]
+impl WebSearchClient for LocalWebSearchClient {
+    fn provider(&self) -> WebSearchProvider {
+        WebSearchProvider::Local
+    }
+
+    async fn search(&self, query: &str, _api_key: &str) -> Result<Vec<SearchResultItem>, String> {
+        let response = local::search_web(local::types::SearchWebRequest {
+            query: query.to_string(),
+            max_results: Some(8),
+            freshness: None,
+            include_domains: Vec::new(),
+            exclude_domains: Vec::new(),
+        })
+        .await;
+        if response.results.is_empty() && !response.providers_failed.is_empty() {
+            return Err(response
+                .providers_failed
+                .iter()
+                .map(|f| format!("{}: {}", f.provider, f.error))
+                .collect::<Vec<_>>()
+                .join("; "));
+        }
+        Ok(response
+            .results
+            .into_iter()
+            .map(|result| SearchResultItem {
+                title: result.title,
+                url: result.url,
+                highlights: vec![result.snippet],
+            })
+            .collect())
     }
 }
 
