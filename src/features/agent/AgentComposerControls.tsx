@@ -179,7 +179,7 @@ export function AgentComposerControls({
               disabled={disabled}
               icon={<SelectedPresetIcon size={14} />}
               label={
-                <Box>
+                <Box className="flex items-center gap-1 whitespace-nowrap">
                   {selectedPreset.label}
                   <ChevronDown size={12} />
                 </Box>
@@ -229,13 +229,8 @@ export function AgentComposerControls({
               disabled={disabled}
               icon={<Folder size={14} />}
               label={
-                <Box
-                >
-                  <Box
-                    as="span"
-                  >
-                    {workspaceLabel}
-                  </Box>
+                <Box className="flex items-center gap-1 whitespace-nowrap">
+                  <Box as="span">{workspaceLabel}</Box>
                   <ChevronDown size={12} />
                 </Box>
               }
@@ -245,9 +240,10 @@ export function AgentComposerControls({
             align="start"
           >
             <Box
+              className="flex items-center gap-2 rounded-xl px-2 py-1.5"
               onKeyDown={handleWorkspaceKeyDown}
             >
-              <Search size={13} />
+              <Search size={13} className="shrink-0 text-muted-foreground" />
               <InputBase
                 inputRef={searchRef}
                 value={query}
@@ -322,6 +318,7 @@ function ProjectMenuRow({
   return (
     <ButtonBase
       data-workspace-menu-item
+      className="group/dropdown-menu-item relative flex w-full min-h-7 cursor-default items-center gap-2 rounded-xl px-2 py-1.5 text-sm outline-hidden select-none hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
       onKeyDown={(event: React.KeyboardEvent<HTMLElement>) => {
         if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
         event.preventDefault();
@@ -340,16 +337,13 @@ function ProjectMenuRow({
         onClick();
       }}
     >
-      <Box
-      >
+      <Box className="flex shrink-0 items-center text-muted-foreground">
         {icon}
       </Box>
-      <Typography
-      >
+      <Typography className="min-w-0 flex-1 truncate">
         {label}
       </Typography>
-      <Box
-      >
+      <Box className="flex shrink-0 items-center">
         {selected ? <Check size={14} strokeWidth={2.4} /> : trailing}
       </Box>
     </ButtonBase>

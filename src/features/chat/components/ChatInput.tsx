@@ -548,16 +548,12 @@ export const ChatInput = memo(function ChatInput({
         </Box>
 
         {agentEnabled && (
-          <Box
-          >
-            <Box
-            >
-              <AgentComposerControls
-                disabled={isStreaming}
-                chatId={workspaceSelectionKey}
-                mode="workspace"
-              />
-            </Box>
+          <Box className="mt-2 flex items-center gap-1 px-1">
+            <AgentComposerControls
+              disabled={isStreaming}
+              chatId={workspaceSelectionKey}
+              mode="workspace"
+            />
           </Box>
         )}
       </Box>
