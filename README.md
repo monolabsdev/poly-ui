@@ -16,7 +16,7 @@ PolyUI is a small, high performance and user-friendly AI desktop application des
 
 ## Key features of PolyUI
 
-- 🚀 **Effortless Setup**: Intall seamlessly using the setup file for a hassle-free experience with support for Ollama. You **must** have ollama installed first.
+- 🚀 **Effortless Setup**: Install seamlessly using the setup file for a hassle-free experience with support for Ollama. You **must** have ollama installed first.
 - 🤝 **Ollama Integration**: Use ollama models effortlessly through this application.
 - ✒️🔢 **Full Markdown and LaTeX Support**: Elevate the LLM experience with comprehensive Markdown and LaTeX capabilities. (uses LaTeX via KaTeX)
 - 💭 **Multi-model conversations**: Chat with multiple local LLMs simultaneously with real-time, side-by-side streaming responses.
@@ -30,7 +30,26 @@ PolyUI is a small, high performance and user-friendly AI desktop application des
 ## How to Install 🚀
 
 ### Installation via releases
-PolyUI can be installed through the [releases](https://github.com/monolabsdev/openbench-ai/releases) page by downloading and running the installer.
+PolyUI can be installed from the [releases](https://github.com/monolabsdev/openbench-ai/releases) page. Download the file that matches your operating system and CPU:
+
+- **macOS**: download `PolyUI-*-macos-universal.dmg`.
+- **Windows**: download `PolyUI-*-windows-x64-setup.exe` or `PolyUI-*-windows-x64.msi`.
+- **Windows with Ollama setup**: download `PolyUI-*-windows-x64-ollama-setup.exe`.
+- **Linux Debian/Ubuntu**: download `PolyUI-*-linux-x64.deb` or `PolyUI-*-linux-arm64.deb`, then install with:
+  ```bash
+  sudo apt install ./PolyUI-*-linux-*.deb
+  ```
+- **Linux Fedora/RHEL/openSUSE**: download `PolyUI-*-linux-x64.rpm` or `PolyUI-*-linux-arm64.rpm`, then install with:
+  ```bash
+  sudo rpm -i PolyUI-*-linux-*.rpm
+  ```
+- **Other Linux distributions**: download `PolyUI-*-linux-x64.AppImage` or `PolyUI-*-linux-arm64.AppImage`, then run:
+  ```bash
+  chmod +x PolyUI-*-linux-*.AppImage
+  ./PolyUI-*-linux-*.AppImage
+  ```
+
+Use `x64` for most Intel/AMD PCs. Use `arm64` for ARM Linux devices.
 
 ### Using the Dev Branch 🌙
 > [!WARNING]
@@ -54,7 +73,7 @@ git checkout dev
 git pull origin dev
 ```
 
-Install dependenciesd:
+Install dependencies:
 ```bash
 bun install
 ```
