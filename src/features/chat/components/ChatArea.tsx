@@ -24,7 +24,6 @@ import { getMotionPolicy } from "@/lib/performance/policy";
 
 interface ChatAreaProps {
   messages: ChatMessage[];
-  streamingMessagesList: ChatMessage[];
   bottomRef: RefObject<HTMLDivElement | null>;
   onRegenerate?: (messageIndex: number) => void;
   isTemporary?: boolean;
@@ -147,7 +146,6 @@ const TurnItem = memo(function TurnItem({
 
 export const ChatArea = memo(function ChatArea({
   messages,
-  streamingMessagesList,
   bottomRef,
   onRegenerate,
   isTemporary,
@@ -156,6 +154,8 @@ export const ChatArea = memo(function ChatArea({
   const loadMoreMessages = useChatStore(
     (state) => state.actions.loadMoreMessages,
   );
+  const streamingMessages = useChatStore((state) => state.streamingMessages);
+  const activeConvId = useChatStore((state) => state.activeConversationId);
   const scrollRef = useRef<HTMLDivElement>(null);
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const scrollFrameRef = useRef<number | null>(null);
@@ -173,6 +173,10 @@ export const ChatArea = memo(function ChatArea({
   );
 
   const [showScrollButton, setShowScrollButton] = useState(false);
+  const streamingMessagesList = useMemo(
+    () => Object.values(streamingMessages).filter((m) => m.conversationId === activeConvId),
+    [activeConvId, streamingMessages],
+  );
 
   const setScrollRef = useCallback(
     (node: HTMLDivElement | null) => {
@@ -249,32 +253,40 @@ export const ChatArea = memo(function ChatArea({
         showScrollButtonRef.current = shouldShowScrollButton;
         setShowScrollButton(shouldShowScrollButton);
       }
-      setViewportWidth((current) =>
-        Math.abs(current - element.clientWidth) < 1 ? current : element.clientWidth,
-      );
     };
 
     const scheduleScrollStateUpdate = () => {
       if (scrollFrameRef.current !== null) return;
-      scrollFrameRef.current = requestAnimationFrame(() => {
-        scrollFrameRef.current = requestAnimationFrame(updateScrollState);
-      });
+      scrollFrameRef.current = requestAnimationFrame(updateScrollState);
     };
 
-    updateScrollState();
-    const resizeObserver = new ResizeObserver(scheduleScrollStateUpdate);
-    resizeObserver.observe(element);
     element.addEventListener("scroll", scheduleScrollStateUpdate, {
       passive: true,
     });
 
     return () => {
-      resizeObserver.disconnect();
       element.removeEventListener("scroll", scheduleScrollStateUpdate);
       if (scrollFrameRef.current !== null) {
         cancelAnimationFrame(scrollFrameRef.current);
       }
     };
+  }, []);
+
+  useEffect(() => {
+    const element = scrollRef.current;
+    if (!element) return;
+
+    const onResize = () => {
+      setViewportWidth((current) =>
+        Math.abs(current - element.clientWidth) < 1 ? current : element.clientWidth,
+      );
+    };
+
+    const observer = new ResizeObserver(onResize);
+    observer.observe(element);
+    onResize();
+
+    return () => observer.disconnect();
   }, []);
 
   const turns = useMemo(() => {

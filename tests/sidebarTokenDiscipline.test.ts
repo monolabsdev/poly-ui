@@ -68,6 +68,19 @@ describe("sidebar visual tokens", () => {
     expect(guestFooter).toContain("sidebarIconButtonClassName");
   });
 
+  it("shows a divider below the collapsed sidebar trigger only when collapsed", () => {
+    const brand = readFileSync(
+      "src/features/sidebar/components/SidebarBrand.tsx",
+      "utf8",
+    );
+
+    expect(brand).toContain('data-testid="collapsed-sidebar-trigger-divider"');
+    expect(brand).toContain("{isCollapsed && (");
+    expect(brand).toContain("absolute top-[calc(var(--sidebar-icon-button)+var(--sidebar-padding)*0.5)]");
+    expect(brand).toContain("bg-sidebar-border");
+    expect(brand).not.toContain('"flex-col justify-center gap-2"');
+  });
+
   it("supports a persisted collapsible folders section", () => {
     const folders = readFileSync(
       "src/features/sidebar/components/FoldersSection.tsx",

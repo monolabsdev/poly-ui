@@ -2,6 +2,7 @@ import {
   Children,
   cloneElement,
   isValidElement,
+  useState,
   type HTMLAttributes,
   type ReactNode,
 } from "react";
@@ -18,7 +19,7 @@ export type ChainOfThoughtProps = {
 export function ChainOfThought({ children, ...props }: ChainOfThoughtProps) {
   const array = Children.toArray(children);
   return (
-    <div {...props}>
+    <div {...props} className={cn("space-y-0", props.className)}>
       {array.map((child, i) =>
         isValidElement(child)
           ? cloneElement(child as React.ReactElement<ChainOfThoughtStepProps>, {
@@ -36,6 +37,7 @@ export type ChainOfThoughtStepProps = {
   children: ReactNode;
   isActive?: boolean;
   isExpanded?: boolean;
+  defaultExpanded?: boolean;
   onToggle?: () => void;
   isLast?: boolean;
 };
@@ -43,12 +45,16 @@ export type ChainOfThoughtStepProps = {
 export function ChainOfThoughtStep({
   children,
   isActive = false,
-  isExpanded = false,
+  isExpanded,
+  defaultExpanded = false,
   onToggle,
   isLast = false,
 }: ChainOfThoughtStepProps) {
+  const [internalExpanded, setInternalExpanded] = useState(defaultExpanded);
+  const expanded = isExpanded ?? internalExpanded;
   let trigger: ReactNode = null;
   let content: ReactNode = null;
+  const handleToggle = onToggle ?? (() => setInternalExpanded((value) => !value));
 
   Children.forEach(children, (child) => {
     if (!isValidElement(child)) return;
@@ -80,11 +86,11 @@ export function ChainOfThoughtStep({
           isValidElement(trigger) &&
           cloneElement(trigger as React.ReactElement<ChainOfThoughtTriggerProps>, {
             isActive,
-            isExpanded,
-            onToggle,
+            isExpanded: expanded,
+            onToggle: handleToggle,
           })}
-        {content && isExpanded && (
-          <div className="terax-reveal mt-2 ml-0.5 border-l border-border/60 pl-3" data-state="open">
+        {content && expanded && (
+          <div className="poly-reveal mt-2 ml-0.5 border-l border-border/60 pl-3" data-state="open">
             <div>{content}</div>
           </div>
         )}
@@ -148,4 +154,25 @@ export type ChainOfThoughtContentProps = {
 
 export function ChainOfThoughtContent({ children }: ChainOfThoughtContentProps) {
   return <>{children}</>;
+}
+
+/* ─── ChainOfThoughtItem ─── */
+
+export type ChainOfThoughtItemProps = {
+  children: ReactNode;
+} & HTMLAttributes<HTMLDivElement>;
+
+export function ChainOfThoughtItem({
+  children,
+  className,
+  ...props
+}: ChainOfThoughtItemProps) {
+  return (
+    <div
+      className={cn("text-xs leading-relaxed text-muted-foreground", className)}
+      {...props}
+    >
+      {children}
+    </div>
+  );
 }

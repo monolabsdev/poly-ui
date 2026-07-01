@@ -16,7 +16,7 @@ import { useFolderStore } from "@/store/folderStore";
 import { FolderHome } from "@/features/folders/FolderHome";
 import { useOllama } from "@/features/ollama";
 import { useAgentRun } from "@/features/agent/useAgentRun";
-import { DRAFT_WORKSPACE_SELECTION_CHAT_ID, defaultWorkspaceSelection, useAgentStore } from "@/features/agent/agentStore";
+import { DRAFT_WORKSPACE_SELECTION_CHAT_ID, useAgentStore } from "@/features/agent/agentStore";
 import { useSettingsStore } from "@/store/settingsStore";
 import { buildAgentResolvedContext } from "@/features/agent/context";
 import { useViewStore, getViewComponent } from "@/lib/view-registry";
@@ -49,11 +49,10 @@ export default function ChatWorkspace({
   const effectiveSystemPrompt = activeFolder?.systemPrompt
     ? `${systemPromptContent}\n${activeFolder.systemPrompt}`
     : systemPromptContent;
-  const { messages, streamingMessagesList, isStreaming, sendMessage, regenerateMessage, stopStreaming, bottomRef, hasMessages } =
+  const { messages, isStreaming, sendMessage, regenerateMessage, stopStreaming, bottomRef, hasMessages } =
     useChatStream(selectedModelChoices, effectiveSystemPrompt);
   const experimentalFeatures = useSettingsStore((state) => state.general.experimentalFeatures);
   const agentEnabled = useAgentStore((state) => state.enabled) && experimentalFeatures;
-  const workspaces = useAgentStore((state) => state.workspaces);
   const workspaceSelections = useAgentStore((state) => state.workspaceSelections);
   const setWorkspaceSelection = useAgentStore((state) => state.actions.setSelectedWorkspaceSelection);
   const permissionPreset = useAgentStore((state) => state.permissionPreset);
@@ -113,7 +112,7 @@ export default function ChatWorkspace({
     return created.id;
   }, [activeConversationId, activeFolder?.id, createConversation]);
 
-  type SubmitMode = "chat" | "agent" | "agent_requires_workspace";
+  type SubmitMode = "chat" | "agent";
 
   const handleSend = useCallback(
     async (content: string) => {
@@ -123,33 +122,16 @@ export default function ChatWorkspace({
 
       const submitMode: SubmitMode = (() => {
         if (!agentEnabled) return "chat";
-        const ws =
-          workspaceSelections[conversationId] ??
-          workspaceSelections[DRAFT_WORKSPACE_SELECTION_CHAT_ID] ??
-          defaultWorkspaceSelection(workspaces);
-        if (!ws) return "agent_requires_workspace";
         return "agent";
       })();
 
-      if (submitMode === "agent_requires_workspace") {
-        if (!trimmed) return;
-        await addMessage({ conversationId, role: "user", content: trimmed });
-        await addMessage({
-          conversationId,
-          role: "assistant",
-          content: "Poly Agent needs a workspace. Select a project or use a chat sandbox.",
-          model: "Poly Agent",
-          status: "error",
-        });
-        return;
-      }
-
       if (submitMode === "agent") {
         if (!trimmed) return;
-        const ws =
-          workspaceSelections[conversationId] ??
-          workspaceSelections[DRAFT_WORKSPACE_SELECTION_CHAT_ID] ??
-          defaultWorkspaceSelection(workspaces)!;
+        const draftSelection = workspaceSelections[DRAFT_WORKSPACE_SELECTION_CHAT_ID];
+        const ws = workspaceSelections[conversationId] ??
+          (draftSelection?.type === "project"
+            ? draftSelection
+            : { type: "sandbox" as const, chatId: conversationId });
         if (!workspaceSelections[conversationId]) {
           setWorkspaceSelection(
             conversationId,
@@ -195,7 +177,6 @@ export default function ChatWorkspace({
       ensureConversation,
       agentEnabled,
       workspaceSelections,
-      workspaces,
       setWorkspaceSelection,
       permissionPreset,
       storeMessages,
@@ -262,7 +243,6 @@ export default function ChatWorkspace({
         <ChatArea
           key={activeConversationId ?? "no-conv"}
           messages={messages}
-          streamingMessagesList={streamingMessagesList}
           bottomRef={bottomRef}
           onRegenerate={handleRegenerate}
           isTemporary={isTemporary}

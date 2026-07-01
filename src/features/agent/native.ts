@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import type { WebSearchConfig } from "@/features/web-search/types";
 
 export type AgentDirEntry = { name: string; kind: "file" | "dir" };
 export type AgentGrepHit = { path: string; line: number; text: string };
@@ -7,6 +8,11 @@ export type AgentCommandOutput = {
   stderr: string;
   status: number;
   timedOut: boolean;
+};
+export type AgentSearchResult = {
+  title: string;
+  url: string;
+  highlights: string[];
 };
 
 export function prepareChatSandbox(chatId: string): Promise<string> {
@@ -37,4 +43,8 @@ export function runCommand(
   return invoke<AgentCommandOutput>("agent_run_command", {
     request: { workspacePath, command, timeoutSecs },
   });
+}
+
+export function webSearch(query: string, config: WebSearchConfig): Promise<AgentSearchResult[]> {
+  return invoke<AgentSearchResult[]>("agent_web_search", { query, config });
 }

@@ -7,12 +7,14 @@ import {
   AlertTriangle,
   Mic,
   X,
-  LayoutGrid,
+  MoreHorizontal,
+  Globe,
 } from "lucide-react";
 import { useState, memo, useEffect, useCallback, useMemo } from "react";
 import { Box } from "@/components/ui/Box";
 import { InputBase } from "@/components/ui/input-base";
 import { IconButton } from "@/components/ui/icon-button";
+import { Button } from "@/components/ui/button";
 import { Typography } from "@/components/ui/Typography";
 import { TooltipLabel as Tooltip } from "@/components/ui/tooltip-label";
 
@@ -22,7 +24,6 @@ import {
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 
 import { useFeatures, type FeatureDef } from "@/lib/featureRegistry";
@@ -35,7 +36,6 @@ import { useSlashCommand } from "@/features/chat/hooks/useSlashCommand";
 import { Spinner } from "@/components/ui/spinner";
 import { useDictation } from "@/hooks/useDictation";
 import { DictationModelDialog } from "@/features/dictation/DictationModelDialog";
-import { ActiveFeaturesList } from "@/features/chat/components/ChatInput/ActiveFeaturesList";
 import { SlashCommandMenu } from "@/features/chat/components/ChatInput/SlashCommandMenu";
 import { ChatAttachmentsList } from "@/features/chat/components/ChatInput/ChatAttachmentsList";
 import { cn } from "@/lib/utils";
@@ -158,10 +158,8 @@ export const ChatInput = memo(function ChatInput({
     setSlashMenuIndex(0);
   }, [slashQuery]);
 
-  const activeFeatures = useMemo(
-    () => features.filter((feature) => feature.active),
-    [features],
-  );
+  const webSearchFeature = features.find((feature) => feature.id === "web_search");
+  const moreFeatures = features.filter((feature) => feature.id !== "web_search");
 
   const hasContent =
     draft.trim() || currentAttachments.length > 0 || !!pastedPreview;
@@ -242,13 +240,6 @@ export const ChatInput = memo(function ChatInput({
     },
     [closeSlashMenu, textareaRef],
   );
-
-  const openFeaturePicker = useCallback(() => {
-    setDraft((previous) => (previous.trim() ? previous : "/"));
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => textareaRef.current?.focus());
-    });
-  }, [textareaRef]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -350,13 +341,6 @@ export const ChatInput = memo(function ChatInput({
             >
               Drop files to attach
             </Box>
-            {activeFeatures.length > 0 && (
-                <ActiveFeaturesList
-                  activeFeatures={activeFeatures}
-                  hasAttachments={currentAttachments.length > 0}
-                />
-              )}
-
             {currentAttachments.length > 0 && (
                 <ChatAttachmentsList
                   attachments={currentAttachments}
@@ -419,18 +403,19 @@ export const ChatInput = memo(function ChatInput({
                 </Box>
               )}
 
-            <Box className="mt-2 flex items-center justify-between gap-3">
-              <Box className="flex items-center gap-1">
+            <Box className="mt-5 flex items-center justify-between gap-2 px-0 pb-0">
+              <Box className="flex items-center gap-2">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <IconButton
-                      size="small"
+                    <Button
+                      variant="outline"
+                      size="icon"
                       aria-label="Add attachment"
                       disabled={isStreaming}
-                      className="size-8 rounded-full"
+                      className="size-9 rounded-full"
                     >
-                      <Plus size={20} />
-                    </IconButton>
+                      <Plus size={18} />
+                    </Button>
                   </DropdownMenuTrigger>
 
                   <DropdownMenuContent align="start" className="min-w-48">
@@ -451,16 +436,49 @@ export const ChatInput = memo(function ChatInput({
                       <Paperclip />
                       <span>Upload files</span>
                     </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
 
-                    <DropdownMenuSeparator />
+                {webSearchFeature && (
+                  <Button
+                    variant="outline"
+                    disabled={isStreaming}
+                    onClick={() => webSearchFeature.toggle()}
+                    title={webSearchFeature.warning ?? "Search"}
+                    className={cn(
+                      "rounded-full",
+                      webSearchFeature.active && "bg-info-soft text-info hover:bg-info-soft hover:text-info",
+                    )}
+                  >
+                    <Globe size={18} />
+                    Search
+                  </Button>
+                )}
 
-                    {features.map((feature) => {
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      aria-label="More actions"
+                      disabled={isStreaming}
+                      className="size-9 rounded-full"
+                    >
+                      <MoreHorizontal size={18} />
+                    </Button>
+                  </DropdownMenuTrigger>
+
+                  <DropdownMenuContent align="start" className="min-w-48">
+                    {moreFeatures.map((feature) => {
                       const Icon = feature.icon;
 
                       return (
                         <DropdownMenuItem
                           key={feature.id}
-                          className="gap-2 px-3 py-2 whitespace-nowrap"
+                          className={cn(
+                            "gap-2 px-3 py-2 whitespace-nowrap",
+                            feature.active && "bg-info-soft text-info hover:bg-info-soft hover:text-info",
+                          )}
                           onClick={() => feature.toggle()}
                         >
                           <Icon />
@@ -475,7 +493,7 @@ export const ChatInput = memo(function ChatInput({
 
                           {feature.active && (
                             <Box
-                              className="ml-auto size-2 rounded-full bg-primary"
+                              className="ml-auto size-2 rounded-full bg-info"
                             />
                           )}
                         </DropdownMenuItem>
@@ -483,47 +501,34 @@ export const ChatInput = memo(function ChatInput({
                     })}
                   </DropdownMenuContent>
                 </DropdownMenu>
-
-                <IconButton
-                  size="small"
-                  aria-label="Open feature picker"
-                  disabled={isStreaming}
-                  onClick={openFeaturePicker}
-                  className="size-8 rounded-full"
-                >
-                  <LayoutGrid size={16} />
-                </IconButton>
-
-                {agentEnabled && (
-                  <AgentComposerControls
-                    disabled={isStreaming}
-                    chatId={workspaceSelectionKey}
-                    mode="permission"
-                  />
-                )}
               </Box>
 
-              <Box className="flex items-center gap-1">
+              <Box className="flex items-center gap-2">
                 {dictationEnabled && (
-                  <IconButton
-                    onClick={recording ? stop : start}
-                    disabled={isStreaming}
-                    aria-label={recording ? "Stop dictation" : "Start dictation"}
-                    className="size-8 rounded-full"
-                  >
-                    {processing ? (
-                      <Box
-                      >
-                        <Spinner className="size-4 text-muted-foreground" />
-                      </Box>
-                    ) : recording ? (
-                      <StopIcon />
-                    ) : (
-                      <Mic size={18} />
-                    )}
-                  </IconButton>
+                  <Tooltip title="Voice input">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={recording ? stop : start}
+                      disabled={isStreaming}
+                      aria-label={recording ? "Stop dictation" : "Start dictation"}
+                      className="size-9 rounded-full"
+                    >
+                      {processing ? (
+                        <Box
+                        >
+                          <Spinner className="size-4 text-muted-foreground" />
+                        </Box>
+                      ) : recording ? (
+                        <StopIcon />
+                      ) : (
+                        <Mic size={18} />
+                      )}
+                    </Button>
+                  </Tooltip>
                 )}
-                <IconButton
+                <Button
+                  size="icon"
                   onClick={handleAction}
                   disabled={
                     isStreaming
@@ -531,28 +536,25 @@ export const ChatInput = memo(function ChatInput({
                       : !hasContent || (agentEnabled && !hasWorkspace)
                   }
                   aria-label={isStreaming ? "Stop generation" : "Send message"}
-                  className="size-8 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+                  className="size-9 rounded-full"
                 >
-                  <Box
-                  >
-                    {isStreaming ? (
-                      <Square size={14} fill="currentColor" />
-                    ) : (
-                      <ArrowUp size={20} strokeWidth={2.5} />
-                    )}
-                  </Box>
-                </IconButton>
+                  {isStreaming ? (
+                    <Square size={14} fill="currentColor" />
+                  ) : (
+                    <ArrowUp size={18} strokeWidth={2.5} />
+                  )}
+                </Button>
               </Box>
             </Box>
           </Box>
         </Box>
 
         {agentEnabled && (
-          <Box className="mt-2 flex items-center gap-1 px-1">
+          <Box className="mt-2 flex items-center gap-2 px-1">
             <AgentComposerControls
               disabled={isStreaming}
               chatId={workspaceSelectionKey}
-              mode="workspace"
+              mode="all"
             />
           </Box>
         )}

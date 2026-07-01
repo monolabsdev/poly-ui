@@ -1,4 +1,4 @@
-import { Bot, Brain, Globe } from "lucide-react";
+import { Bot, Globe } from "lucide-react";
 import React from "react";
 import { getWebSearchWarning } from "@/features/web-search/useWebSearchConfig";
 import { useSettingsStore } from "@/store/settingsStore";
@@ -56,19 +56,6 @@ export const featureRegistry: FeatureDef[] = [
     },
     getWarning: getWebSearchWarning,
   },
-  {
-    id: "reasoning",
-    name: "Reasoning",
-    kind: "toggle",
-    description: "Enable thinking for reasoning models (DeepSeek, Qwen3)",
-    icon: Brain,
-    useIsActive: () => useSettingsStore((state) => state.general.reasoningEnabled),
-    getIsActive: () => useSettingsStore.getState().general.reasoningEnabled,
-    toggle: () => {
-      const state = useSettingsStore.getState();
-      state.actions.updateGeneral({ reasoningEnabled: !state.general.reasoningEnabled });
-    },
-  },
 ];
 
 export function isFeatureAIActive(featureId: string): boolean {
@@ -79,7 +66,6 @@ export function isFeatureAIActive(featureId: string): boolean {
 
 export function useFeatures() {
   const webSearchEnabled = useSettingsStore((state) => state.general.webSearchEnabled);
-  const reasoningEnabled = useSettingsStore((state) => state.general.reasoningEnabled);
   const agentEnabled = useAgentStore((state) => state.enabled);
   const experimentalEnabled = useSettingsStore((state) => state.general.experimentalFeatures);
 
@@ -88,7 +74,6 @@ export function useFeatures() {
     .map((feature) => {
       let active: boolean;
       if (feature.id === "web_search") active = webSearchEnabled;
-      else if (feature.id === "reasoning") active = reasoningEnabled;
       else if (feature.id === "poly-agent") active = experimentalEnabled && agentEnabled;
       else active = feature.getIsActive();
       return { ...feature, active, warning: feature.getWarning?.() };

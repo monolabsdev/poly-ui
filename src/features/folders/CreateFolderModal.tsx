@@ -149,7 +149,7 @@ export function CreateFolderModal({ open, onOpenChange, onSave, initialData }: C
               onChange={(e) => setName(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter" && name.trim()) handleSave(); }}
               placeholder="My folder"
-              className="h-10 w-full rounded-xl border border-border/60 bg-input/40 px-3 text-[13.5px] text-foreground placeholder:text-muted-foreground/50 outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/20"
+              className="h-10 w-full rounded-xl border border-border/60 bg-input/40 px-3 text-[13.5px] text-foreground placeholder:text-muted-foreground/50 outline-none transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20"
             />
           </div>
 
@@ -189,7 +189,7 @@ export function CreateFolderModal({ open, onOpenChange, onSave, initialData }: C
               onChange={(e) => setSystemPrompt(e.target.value)}
               placeholder="You are a helpful assistant specialized in…"
               rows={3}
-              className="w-full resize-none rounded-xl border border-border/60 bg-input/40 px-3 py-2.5 text-[13.5px] text-foreground placeholder:text-muted-foreground/50 outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/20"
+              className="w-full resize-none rounded-xl border border-border/60 bg-input/40 px-3 py-2.5 text-[13.5px] text-foreground placeholder:text-muted-foreground/50 outline-none transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20"
             />
           </div>
 

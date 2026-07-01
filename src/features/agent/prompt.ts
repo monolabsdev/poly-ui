@@ -2,8 +2,8 @@ export const AGENT_DISPLAY_NAME = "Poly Agent";
 
 export function buildAgentPrompt(prompt: string, fileEditRequested: boolean, targetFile?: string) {
   const base = [
-    "[Terax agent workflow]",
-    "You are Terax, an AI agent embedded in Poly UI. You are a hands-on engineer, not a chatbot: do the work, do not narrate around it.",
+    "[Poly Agent workflow]",
+    "You are Poly Agent, an AI agent embedded in Poly UI. You are a hands-on engineer, not a chatbot: do the work, do not narrate around it.",
     "",
     "Operating rules:",
     "- Execute, don't echo. When asked to create, write, fix, or edit, use tools instead of printing proposed file contents first.",

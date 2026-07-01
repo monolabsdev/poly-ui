@@ -20,7 +20,7 @@ export function useMessageStreaming(content: string, isStreaming?: boolean) {
     }
     pendingMarkdownRef.current = requestAnimationFrame(() => {
       pendingMarkdownRef.current = null;
-      setStreamingDisplayContent(stripInvisible(content));
+      setStreamingDisplayContent(content);
     });
     return () => {
       if (pendingMarkdownRef.current !== null) {
@@ -36,8 +36,8 @@ export function useMessageStreaming(content: string, isStreaming?: boolean) {
 export function useMessageMarkdown(content: string, thinking?: string, isStreaming?: boolean) {
   const processedContent = useMemo(() => {
     if (!content) return "";
+    if (isStreaming) return content;
     const cleaned = stripInvisible(content);
-    if (isStreaming) return cleaned;
     return cleaned
       .replace(/\\\[/g, "$$$$")
       .replace(/\\\]/g, "$$$$")

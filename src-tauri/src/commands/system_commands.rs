@@ -2,6 +2,8 @@ use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::Duration;
+use crate::models::chat::SearchResultItem;
+use crate::web_search::{create_web_search_client, WebSearchConfig};
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -229,6 +231,22 @@ pub async fn agent_grep(
     })
     .await
     .map_err(|err| err.to_string())?
+}
+
+#[tauri::command]
+pub async fn agent_web_search(
+    query: String,
+    config: WebSearchConfig,
+) -> Result<Vec<SearchResultItem>, String> {
+    let query = query.trim().to_string();
+    if query.is_empty() {
+        return Err("Search query is empty.".to_string());
+    }
+    if !config.is_configured() {
+        return Err("Web search is not configured.".to_string());
+    }
+    let client = create_web_search_client(&config);
+    client.search(&query, &config.api_key).await
 }
 
 #[tauri::command]

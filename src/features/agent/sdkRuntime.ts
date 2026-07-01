@@ -5,6 +5,8 @@ import type { AgentRawEvent } from "./agentClient";
 import type { AgentRunStartOptions } from "./types";
 import { checkReadable, checkShellCommand, checkWritable } from "./security";
 import * as native from "./native";
+import { getWebSearchConfig } from "@/features/web-search/useWebSearchConfig";
+import { isFeatureAIActive } from "@/lib/featureRegistry";
 
 type RunStatus = "running" | "waiting_for_approval" | "finished" | "failed" | "cancelled";
 type ApprovalWaiter = { resolve: (approved: boolean) => void; payload: PendingApproval };
@@ -24,9 +26,11 @@ type RunState = {
   status: RunStatus;
   abort: AbortController;
   workspacePath: string;
+  sandbox: boolean;
   permissionPreset: AgentRunStartOptions["permissionPreset"];
   pending?: ApprovalWaiter;
   finalOutput: string;
+  reasoningOutput: string;
   lastError?: string;
 };
 
@@ -47,8 +51,10 @@ export async function startSdkAgent(options: AgentRunStartOptions): Promise<stri
     status: "running",
     abort,
     workspacePath,
+    sandbox: options.workspaceSelection.type === "sandbox",
     permissionPreset: options.permissionPreset,
     finalOutput: "",
+    reasoningOutput: "",
   };
   runs.set(runId, state);
   emit(runId, { kind: "started" });
@@ -124,6 +130,7 @@ async function runSdkAgent(state: RunState, options: AgentRunStartOptions) {
       prompt: options.prompt,
       tools: buildTools(state),
       stopWhen: isStepCount(8),
+      reasoning: "medium",
       abortSignal: state.abort.signal,
       onStepFinish: ({ stepNumber }) => {
         emit(state.runId, { kind: "model_call_finished", value: { step: stepNumber } });
@@ -134,6 +141,18 @@ async function runSdkAgent(state: RunState, options: AgentRunStartOptions) {
       if (part.type === "text-delta") {
         state.finalOutput += part.text;
         emit(state.runId, { kind: "text_delta", value: { text: part.text } });
+      } else if (part.type === "reasoning-delta") {
+        state.reasoningOutput += part.text;
+        emit(state.runId, {
+          kind: "activity",
+          value: {
+            phase: "thinking",
+            title: "Thinking",
+            summary: state.reasoningOutput,
+            details: [],
+            status: "running",
+          },
+        });
       } else if (part.type === "error") {
         throw part.error instanceof Error ? part.error : new Error(String(part.error));
       }
@@ -209,6 +228,7 @@ function formatRunError(error: unknown, options: AgentRunStartOptions) {
 
 function buildTools(state: RunState) {
   const workspace = state.workspacePath;
+  const webSearchConfig = isFeatureAIActive("web_search") ? getWebSearchConfig() : undefined;
 
   return {
     read_file: tool({
@@ -243,9 +263,9 @@ function buildTools(state: RunState) {
       description: "Create or overwrite a file. Requires user approval.",
       inputSchema: z.object({ path: z.string(), content: z.string() }),
       execute: ({ path, content }, ctx) => executeTool(state, ctx.toolCallId, "write_file", { path, content }, async () => {
-        await requireApproval(state, ctx.toolCallId, "write_file", { path, content }, { path, diff: content.slice(0, 4000) });
         const safety = checkWritable(path);
         if (!safety.ok) return { error: safety.reason, path };
+        await requireApproval(state, ctx.toolCallId, "write_file", { path, content }, { path, diff: content.slice(0, 4000) });
         await native.writeTextFile(workspace, path, content);
         return { ok: true, path, bytesWritten: content.length };
       }),
@@ -259,6 +279,8 @@ function buildTools(state: RunState) {
         "edit",
         { path, old_string, new_string, replace_all },
         async () => {
+          const safety = checkWritable(path);
+          if (!safety.ok) return { error: safety.reason, path };
           await requireApproval(state, ctx.toolCallId, "edit", { path, old_string, new_string, replace_all }, { path, diff: new_string.slice(0, 4000) });
           const current = await native.readTextFile(workspace, path);
           const next = replaceExact(current, old_string, new_string, Boolean(replace_all));
@@ -274,6 +296,8 @@ function buildTools(state: RunState) {
         edits: z.array(z.object({ old_string: z.string(), new_string: z.string(), replace_all: z.boolean().optional() })).min(1),
       }),
       execute: ({ path, edits }, ctx) => executeTool(state, ctx.toolCallId, "multi_edit", { path, edits }, async () => {
+        const safety = checkWritable(path);
+        if (!safety.ok) return { error: safety.reason, path };
         await requireApproval(state, ctx.toolCallId, "multi_edit", { path, edits }, { path, diff: `${edits.length} edits` });
         let content = await native.readTextFile(workspace, path);
         for (const edit of edits) {
@@ -293,6 +317,18 @@ function buildTools(state: RunState) {
         return native.runCommand(workspace, command, timeout_secs ?? 60);
       }),
     }),
+    ...(webSearchConfig
+      ? {
+          web_search: tool({
+            description: "Search the web for current or external information.",
+            inputSchema: z.object({ query: z.string().min(1) }),
+            execute: ({ query }, ctx) => executeTool(state, ctx.toolCallId, "web_search", { query }, async () => ({
+              query,
+              results: await native.webSearch(query, webSearchConfig),
+            })),
+          }),
+        }
+      : {}),
   };
 }
 
@@ -341,6 +377,13 @@ function requireApproval(
   preview: { path?: string; command?: string; diff?: string },
 ): Promise<void> {
   if (state.status === "cancelled") return Promise.reject(new Error("Run cancelled."));
+  if (state.sandbox) {
+    emit(state.runId, {
+      kind: "tool_auto_approved",
+      value: { tool_call_id: approvalId, tool_name: toolName, reason: "Sandbox workspace." },
+    });
+    return Promise.resolve();
+  }
   if (state.permissionPreset === "full-access") {
     emit(state.runId, {
       kind: "tool_auto_approved",
@@ -396,7 +439,7 @@ function emit(runId: string, data: AgentRawEvent["data"]) {
   for (const listener of listeners) listener(event);
 }
 
-const SYSTEM_PROMPT = `You are Poly Agent, a Terax-style AI coding agent inside Poly UI.
+const SYSTEM_PROMPT = `You are Poly Agent, an AI coding agent inside Poly UI.
 
 Core rules:
 - Execute, don't echo. When asked to create/fix/edit, use tools.

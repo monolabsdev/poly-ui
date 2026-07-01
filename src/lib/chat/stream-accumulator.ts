@@ -9,7 +9,7 @@ export class StreamAccumulator {
   private pending: Record<string, string> = {};
   private hasScheduledFlush = false;
   private flushCallback: ((updates: BatchUpdate) => void) | null = null;
-  private flushTimer: ReturnType<typeof setTimeout> | null = null;
+  private flushRaf: number | null = null;
   private disposed = false;
 
   onFlush(cb: (updates: BatchUpdate) => void) {
@@ -25,17 +25,17 @@ export class StreamAccumulator {
   private scheduleFlush() {
     if (this.hasScheduledFlush || this.disposed) return;
     this.hasScheduledFlush = true;
-    this.flushTimer = setTimeout(() => {
-      this.flushTimer = null;
+    this.flushRaf = requestAnimationFrame(() => {
+      this.flushRaf = null;
       this.flush();
-    }, 175);
+    });
   }
 
   flush() {
     this.hasScheduledFlush = false;
-    if (this.flushTimer) {
-      clearTimeout(this.flushTimer);
-      this.flushTimer = null;
+    if (this.flushRaf !== null) {
+      cancelAnimationFrame(this.flushRaf);
+      this.flushRaf = null;
     }
     if (this.disposed) return;
     const batches = this.pending;
@@ -46,8 +46,8 @@ export class StreamAccumulator {
 
   dispose() {
     this.disposed = true;
-    if (this.flushTimer) clearTimeout(this.flushTimer);
-    this.flushTimer = null;
+    if (this.flushRaf !== null) cancelAnimationFrame(this.flushRaf);
+    this.flushRaf = null;
     this.flushCallback = null;
     this.hasScheduledFlush = false;
     this.pending = {};
@@ -66,8 +66,8 @@ export class StreamAccumulator {
       this.content = {};
       this.thinking = {};
     }
-    if (this.flushTimer) clearTimeout(this.flushTimer);
-    this.flushTimer = null;
+    if (this.flushRaf !== null) cancelAnimationFrame(this.flushRaf);
+    this.flushRaf = null;
     this.hasScheduledFlush = false;
     this.pending = {};
   }

@@ -36,7 +36,7 @@ export function AdvancedTab() {
 
       <SettingCard
         title="Enable experimental features"
-        description="Unlocks in-development features like Poly Agent, memory, and advanced reasoning controls."
+        description="Unlocks in-development features like Poly Agent and memory."
         action={
           <Switch
             checked={general.experimentalFeatures}

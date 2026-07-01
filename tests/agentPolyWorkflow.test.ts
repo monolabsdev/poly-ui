@@ -2,12 +2,13 @@ import { appendAgentEvent } from "../src/features/agent/activity";
 import { buildAgentPrompt } from "../src/features/agent/prompt";
 import type { AgentMessageState } from "../src/features/agent/types";
 import type { AgentRawEvent } from "../src/features/agent/agentClient";
+import { readFileSync } from "node:fs";
 
-describe("Terax agent workflow", () => {
-  it("builds a Terax-style execution prompt for file edits", () => {
+describe("Poly Agent workflow", () => {
+  it("builds a Poly Agent execution prompt for file edits", () => {
     const prompt = buildAgentPrompt("Fix the header", true, "src/App.tsx");
 
-    expect(prompt).toContain("You are Terax");
+    expect(prompt).toContain("You are Poly Agent");
     expect(prompt).toContain("Execute, don't echo");
     expect(prompt).toContain("read -> understand -> change -> verify");
     expect(prompt).toContain("Prefer apply_patch for targeted edits");
@@ -15,7 +16,7 @@ describe("Terax agent workflow", () => {
     expect(prompt).toContain("Do not answer as complete unless the file tool succeeds");
   });
 
-  it("maps Terax tool names into Poly activity phases", () => {
+  it("maps agent tool names into Poly activity phases", () => {
     let state = baseAgentState();
 
     state = appendAgentEvent(state, toolRequested("1", "grep", { pattern: "Agent", path: "src" }));
@@ -32,6 +33,14 @@ describe("Terax agent workflow", () => {
       "Editing files",
       "Running command",
     ]);
+  });
+
+  it("streams provider reasoning deltas into Poly Agent activity", () => {
+    const runtime = readFileSync("src/features/agent/sdkRuntime.ts", "utf8");
+
+    expect(runtime).toContain("reasoning: \"medium\"");
+    expect(runtime).toContain("reasoning-delta");
+    expect(runtime).toContain("part.text");
   });
 });
 

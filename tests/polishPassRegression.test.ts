@@ -3,9 +3,11 @@ import { describe, expect, it } from "vitest";
 
 const read = (path: string) => readFileSync(path, "utf8");
 
-describe("Terax polish pass guards", () => {
+describe("Poly polish pass guards", () => {
   it("defines global motion, radius, scrollbar, reveal, and shimmer primitives", () => {
     const css = read("src/App.css");
+    const textShimmer = read("src/components/ui/text-shimmer.tsx");
+    const shimmerBlock = css.match(/\.poly-shimmer \{[\s\S]*?\n\}/)?.[0] ?? "";
 
     expect(css).toContain("--dur-fast: 160ms");
     expect(css).toContain("--dur-base: 240ms");
@@ -16,10 +18,17 @@ describe("Terax polish pass guards", () => {
     expect(css).toContain("scrollbar-width: none");
     expect(css).toContain("html *::-webkit-scrollbar");
     expect(css).toContain("--dur-slow: 0.01ms");
-    expect(css).toContain(".terax-reveal");
+    expect(css).toContain(".poly-reveal");
     expect(css).toContain("grid-template-rows: 0fr");
-    expect(css).toContain("@keyframes terax-shimmer");
-    expect(css).toContain(".terax-shimmer");
+    expect(css).toContain("@keyframes poly-shimmer");
+    expect(css).toContain(".poly-shimmer");
+    expect(shimmerBlock).toContain("var(--color-foreground)");
+    expect(shimmerBlock).toContain("var(--color-muted-foreground)");
+    expect(shimmerBlock).not.toContain("var(--color-background)");
+    expect(css).toContain("html.reduce-motion .poly-shimmer");
+    expect(textShimmer).toContain("\"poly-shimmer bg-clip-text font-medium text-transparent\"");
+    expect(textShimmer).toContain("--shimmer-duration");
+    expect(textShimmer).toContain("--shimmer-spread");
     expect(css).toContain(".zoom-content");
     expect(css).toContain(".zoom-exempt");
   });
@@ -107,6 +116,41 @@ describe("Terax polish pass guards", () => {
       const source = read(file);
       expect(source, file).not.toContain("duration-200");
       expect(source, file).not.toContain("ease-out");
+    }
+  });
+
+  it("keeps focus rings keyboard-only", () => {
+    const css = read("src/App.css");
+    const badge = read("src/components/ui/badge.tsx");
+    const button = read("src/components/ui/button.tsx");
+    const chip = read("src/components/ui/chip.tsx");
+    const dropdown = read("src/components/ui/dropdown-menu.tsx");
+    const select = read("src/components/ui/select.tsx");
+    const command = read("src/components/ui/command.tsx");
+    const files = [
+      "src/components/ui/dropdown-menu.tsx",
+      "src/components/ui/select.tsx",
+      "src/features/agent/AgentComposerControls.tsx",
+      "src/features/folders/CreateFolderModal.tsx",
+    ];
+
+    expect(css).toContain(":focus:not(:focus-visible)");
+    expect(css).toContain("box-shadow: none");
+    expect(css).toContain("button:focus-visible");
+    expect(css).toContain("[data-slot=\"dropdown-menu-trigger\"]:focus-visible > [data-slot=\"badge\"]");
+    expect(badge).toContain("focus-visible:ring-1");
+    expect(button).toContain("focus-visible:ring-1");
+    expect(chip).toContain("hover:bg-white/[0.06]");
+    expect(dropdown).toContain("data-[highlighted]:bg-white/[0.06]");
+    expect(select).toContain("data-[highlighted]:bg-white/[0.06]");
+    expect(command).toContain("data-selected:bg-white/[0.06]");
+
+    for (const file of files) {
+      const source = read(file);
+      expect(source, file).not.toMatch(/\bfocus:bg-(accent|muted|white|primary|secondary)/);
+      expect(source, file).not.toMatch(/\bfocus:(text|border)-/);
+      expect(source, file).not.toMatch(/\bfocus:ring-[1-9]/);
+      expect(source, file).not.toContain("focus-visible:ring-3");
     }
   });
 });

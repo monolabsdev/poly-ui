@@ -223,11 +223,11 @@ export const Header = memo(function Header({
       <Box className="flex items-center gap-2">
         {ollama.state !== "online" && (
           <Tooltip title={ollama.state === "reconnecting" ? "Reconnecting to providers..." : "Providers offline"}>
-            <Box>
+            <Box className="inline-flex items-center gap-1.5 text-muted-foreground">
               {ollama.state === "reconnecting" ? (
                 <CircularProgress size={12} color="inherit" />
               ) : (
-                <Box as="span">
+                <Box as="span" className="flex size-4 items-center justify-center">
                   <AlertCircle size={14} />
                 </Box>
               )}

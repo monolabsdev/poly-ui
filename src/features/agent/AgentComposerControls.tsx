@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Box } from "@/components/ui/Box";
 import { ButtonBase } from "@/components/ui/button-base";
-import { Chip } from "@/components/ui/chip";
+import { Button } from "@/components/ui/button";
 import { InputBase } from "@/components/ui/input-base";
 import { Typography } from "@/components/ui/Typography";
 import {
@@ -127,6 +127,8 @@ export function AgentComposerControls({
     selectedSelection?.type === "sandbox"
       ? "No project"
       : (selectedWorkspace?.name ?? "Select project");
+  const permissionLabel =
+    selectedPreset.value === "default" ? "Default permissions" : selectedPreset.label;
 
   const selectWorkspace = (workspace: (typeof workspaces)[number]) => {
     if (!chatId) return;
@@ -168,23 +170,19 @@ export function AgentComposerControls({
   }, [actions, workspaces.length]);
 
   return (
-    <Box
-    >
+    <Box className="flex flex-wrap items-center gap-2">
       {(mode === "all" || mode === "permission") && (
         <DropdownMenu>
-          <DropdownMenuTrigger>
-            <Chip
-              size="small"
-              clickable
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
               disabled={disabled}
-              icon={<SelectedPresetIcon size={14} />}
-              label={
-                <Box className="flex items-center gap-1 whitespace-nowrap">
-                  {selectedPreset.label}
-                  <ChevronDown size={12} />
-                </Box>
-              }
-            />
+              className="h-8 rounded-full bg-transparent px-3 text-muted-foreground hover:bg-white/[0.06] hover:text-foreground"
+            >
+              <SelectedPresetIcon size={14} />
+              <span className="whitespace-nowrap">{permissionLabel}</span>
+              <ChevronDown size={12} />
+            </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent
             align="start"
@@ -222,19 +220,16 @@ export function AgentComposerControls({
             if (!open) setQuery("");
           }}
         >
-          <DropdownMenuTrigger>
-            <Chip
-              size="small"
-              clickable
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
               disabled={disabled}
-              icon={<Folder size={14} />}
-              label={
-                <Box className="flex items-center gap-1 whitespace-nowrap">
-                  <Box as="span">{workspaceLabel}</Box>
-                  <ChevronDown size={12} />
-                </Box>
-              }
-            />
+              className="h-8 rounded-full bg-transparent px-3 text-muted-foreground hover:bg-white/[0.06] hover:text-foreground"
+            >
+              <Folder size={14} />
+              <span className="whitespace-nowrap">{workspaceLabel}</span>
+              <ChevronDown size={12} />
+            </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent
             align="start"
@@ -318,7 +313,7 @@ function ProjectMenuRow({
   return (
     <ButtonBase
       data-workspace-menu-item
-      className="group/dropdown-menu-item relative flex w-full min-h-7 cursor-default items-center gap-2 rounded-xl px-2 py-1.5 text-sm outline-hidden select-none hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+      className="group/dropdown-menu-item relative flex w-full min-h-7 cursor-default items-center gap-2 rounded-xl px-2 py-1.5 text-sm outline-hidden select-none hover:bg-white/[0.06] hover:text-foreground data-[highlighted]:bg-white/[0.06] data-[highlighted]:text-foreground focus-visible:bg-white/[0.06] focus-visible:text-foreground"
       onKeyDown={(event: React.KeyboardEvent<HTMLElement>) => {
         if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
         event.preventDefault();

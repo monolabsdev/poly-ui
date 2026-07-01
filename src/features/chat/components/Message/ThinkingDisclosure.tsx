@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { Box } from "@/components/ui/Box";
-import { Typography } from "@/components/ui/Typography";
-import { Brain } from "lucide-react";
-import { TextShimmer } from "@/components/ui/text-shimmer";
 import {
   Reasoning,
   ReasoningTrigger,
   ReasoningContent,
 } from "@/components/ui/reasoning";
+import { TextShimmer } from "@/components/ui/text-shimmer";
+
+// TODO: npx shadcn add "https://prompt-kit.com/c/thinking-bar.json"
 
 interface ThinkingDisclosureProps {
   thinking?: string;
@@ -71,44 +70,31 @@ export const ThinkingDisclosure = React.memo(
     if (!hasThinking && !isThinking) return null;
 
     return (
-      <Box>
-        <Reasoning
-          open={expanded}
-          onOpenChange={setExpanded}
-          isStreaming={isThinking}
-        >
-          <ReasoningTrigger>
-            <Box>
-              <Box
-                as="span"
-              >
-                <Brain size={13} />
-              </Box>
-              {isThinking ? (
-                <TextShimmer as="span" duration={2} spread={15} className="text-sm leading-normal text-foreground">
-                  {displayIndicator}
-                </TextShimmer>
-              ) : (
-                <Typography
-                  as="span"
-                >
-                  {displayIndicator}
-                </Typography>
-              )}
-            </Box>
-          </ReasoningTrigger>
-          {hasThinking && (
-            <ReasoningContent
-            >
-              <Typography
-                as="div"
-              >
-                {processedThinking}
-              </Typography>
-            </ReasoningContent>
+      <Reasoning
+        open={expanded}
+        onOpenChange={setExpanded}
+        isStreaming={isThinking}
+        className="my-2"
+      >
+        <ReasoningTrigger className="text-sm text-muted-foreground hover:text-foreground">
+          {isThinking ? (
+            <TextShimmer duration={2} spread={15}>
+              {displayIndicator}
+            </TextShimmer>
+          ) : (
+            displayIndicator
           )}
-        </Reasoning>
-      </Box>
+        </ReasoningTrigger>
+        {hasThinking && (
+          <ReasoningContent
+            markdown
+            className="mt-2"
+            contentClassName="border-l border-border/60 pl-3 text-xs leading-relaxed"
+          >
+            {processedThinking}
+          </ReasoningContent>
+        )}
+      </Reasoning>
     );
   },
 );

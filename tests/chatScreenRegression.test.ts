@@ -16,6 +16,25 @@ describe("chat screen regression guards", () => {
     expect(source).not.toContain("ring-ring/30");
   });
 
+  it("uses prompt-kit style action buttons in the composer", () => {
+    const source = read("src/features/chat/components/ChatInput.tsx");
+
+    expect(source).toContain("import { Button } from \"@/components/ui/button\"");
+    expect(source).toContain("MoreHorizontal");
+    expect(source).toContain("Globe");
+    expect(source).toContain("rounded-full");
+    expect(source).toContain("variant=\"outline\"");
+    expect(source).toContain("Search");
+    expect(source).toContain("More actions");
+    expect(source).toContain("bg-info-soft");
+    expect(source).toContain("text-info");
+    expect(source).not.toContain("ActiveFeaturesList");
+    expect(source).not.toContain("bg-white/[0.08]");
+    expect(source).toContain("mode=\"all\"");
+    expect(source).not.toContain("mode=\"permission\"");
+    expect(source).not.toContain("mode=\"workspace\"");
+  });
+
   it("keeps the prompt preset picker as a floating icon popover", () => {
     const source = read("src/features/chat/components/Header.tsx");
 
@@ -23,6 +42,26 @@ describe("chat screen regression guards", () => {
     expect(source).toContain("aria-label=\"Switch prompt preset\"");
     expect(source).toContain("ScrollText");
     expect(source).not.toContain("from \"@/components/ui/native-select\"");
+  });
+
+  it("keeps header icon labels centered and borderless chrome painted", () => {
+    const header = read("src/features/chat/components/Header.tsx");
+    const css = read("src/App.css");
+
+    expect(header).toContain("inline-flex items-center gap-1.5");
+    expect(header).toContain("flex size-4 items-center justify-center");
+    expect(css).toContain("vertical-align: middle;");
+    expect(css).toContain("min-height: 100vh;");
+    expect(css).toContain("html[data-chrome=\"borderless\"] #root {\n    overflow: hidden;\n    border: 1px solid var(--border);\n    background: var(--sidebar);");
+    expect(css).toContain(".app-root-shell {\n    background: var(--sidebar);");
+  });
+
+  it("resets composer textarea before empty placeholder paints", () => {
+    const hook = read("src/features/chat/hooks/useAutoResizeTextarea.ts");
+
+    expect(hook).toContain("useLayoutEffect");
+    expect(hook).toContain("if (!draft.trim())");
+    expect(hook).toContain("el.scrollTop = 0");
   });
 
   it("keeps active chats in a scroll container with styled role bubbles", () => {
@@ -61,5 +100,14 @@ describe("chat screen regression guards", () => {
     expect(chatInput).toContain("whitespace-nowrap");
     expect(profile).toContain("flex min-w-0 items-center gap-2");
     expect(profile).toContain("flex min-w-0 flex-1 flex-col");
+  });
+
+  it("keeps the thinking indicator on Prompt Kit shimmer with deep reasoning deferred", () => {
+    const thinking = read("src/features/chat/components/Message/ThinkingDisclosure.tsx");
+
+    expect(thinking).toContain("TODO: npx shadcn add \"https://prompt-kit.com/c/thinking-bar.json\"");
+    expect(thinking).toContain("TextShimmer");
+    expect(thinking).toContain("duration={2}");
+    expect(thinking).toContain("spread={15}");
   });
 });

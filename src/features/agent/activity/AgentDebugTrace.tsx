@@ -25,7 +25,7 @@ export function AgentDebugTrace({ agent }: { agent: AgentMessageState }) {
         endIcon={open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
         className="h-6 justify-start rounded-none px-2 text-xs text-muted-foreground [&_[data-icon=inline-end]]:ml-auto"
       >
-        Debug · {events.length} events
+        Raw trace · {events.length} events
       </Button>
       <Collapse in={open}>
         <Box

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useShallow } from "zustand/react/shallow";
-import type { ChatMessage, Attachment, Message } from "@/types/chat";
+import type { Attachment, Message } from "@/types/chat";
 import { useChatStore } from "@/store/chatStore";
 import { sanitizeOutput } from "@/lib/chat/sanitize";
 import { loggedInvoke, getSessionToken } from "@/lib/utils/utils";
@@ -60,10 +60,9 @@ async function enqueueMemoryProcessing(conversationId: string, assistantMessageI
 }
 
 export function useChatStream(modelChoices: ModelChoice[], systemPrompt = "") {
-  const { messages, streamingMessages, activeConversationId } = useChatStore(
+  const { messages, activeConversationId } = useChatStore(
     useShallow((s) => ({
       messages: s.messages,
-      streamingMessages: s.streamingMessages,
       activeConversationId: s.activeConversationId,
     }))
   );
@@ -92,11 +91,6 @@ export function useChatStream(modelChoices: ModelChoice[], systemPrompt = "") {
   useEffect(() => {
     activeConversationIdRef.current = activeConversationId;
   }, [activeConversationId]);
-
-  const streamingMessagesList = useMemo<ChatMessage[]>(
-    () => Object.values(streamingMessages).filter((m) => m.conversationId === activeConversationId),
-    [activeConversationId, streamingMessages],
-  );
 
   // Wire accumulator flush → store
   useEffect(() => {
@@ -252,7 +246,6 @@ export function useChatStream(modelChoices: ModelChoice[], systemPrompt = "") {
 
       const webSearchConfig = getWebSearchConfig();
       const webSearchAI = isFeatureAIActive("web_search");
-      const reasoningAI = isFeatureAIActive("reasoning");
       const activeWebSearchConfig = webSearchAI ? webSearchConfig : undefined;
       const system = buildSystemPrompt(systemPrompt, Boolean(activeWebSearchConfig), webSearchAI);
 
@@ -282,7 +275,7 @@ export function useChatStream(modelChoices: ModelChoice[], systemPrompt = "") {
               messages: history,
               systemPrompt: system,
               webSearchConfig: activeWebSearchConfig ?? null,
-              reasoningEnabled: reasoningAI,
+              reasoningEnabled: true,
               providerType: provider,
               providerConfigId: providerConfigId ?? null,
               accountId: getCurrentProviderAccountId(),
@@ -431,17 +424,15 @@ export function useChatStream(modelChoices: ModelChoice[], systemPrompt = "") {
     () => messageQueue.filter((m) => m.conversationId === activeConversationId).length,
     [messageQueue, activeConversationId],
   );
-  const activeConversationIsStreaming = streamingMessagesList.length > 0;
 
   return {
     messages,
-    streamingMessagesList,
-    isStreaming: activeConversationIsStreaming,
+    isStreaming,
     sendMessage,
     regenerateMessage,
     stopStreaming,
     bottomRef,
-    hasMessages: messages.length > 0 || streamingMessagesList.length > 0,
+    hasMessages: messages.length > 0 || isStreaming,
     queuedCount,
     processNextInQueue,
   };

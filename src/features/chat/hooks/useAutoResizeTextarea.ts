@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "react";
+import { useRef, useLayoutEffect } from "react";
 import { estimateTextareaHeight } from "@/lib/utils/pretext";
 
 const FONT_SIZE = 17;
@@ -11,9 +11,15 @@ export const MAX_HEIGHT = Math.ceil(LINE_PX * MAX_LINES + 16);
 export function useAutoResizeTextarea(draft: string) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
+
+    if (!draft.trim()) {
+      el.style.height = `${MIN_HEIGHT}px`;
+      el.scrollTop = 0;
+      return;
+    }
 
     const frameId = requestAnimationFrame(() => {
       const estimatedHeight = estimateTextareaHeight({

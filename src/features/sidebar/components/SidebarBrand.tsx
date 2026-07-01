@@ -30,7 +30,7 @@ export function SidebarBrand() {
 
   return (
     <div
-      className={`flex w-full items-center ${isCollapsed ? "justify-center" : "justify-between"}`}
+      className={`relative flex w-full items-center ${isCollapsed ? "justify-center" : "justify-between"}`}
     >
       <div
         className={`flex items-center gap-2 overflow-hidden ${
@@ -46,6 +46,12 @@ export function SidebarBrand() {
         </button>
       </div>
       <SidebarTrigger />
+      {isCollapsed && (
+        <div
+          data-testid="collapsed-sidebar-trigger-divider"
+          className="absolute top-[calc(var(--sidebar-icon-button)+var(--sidebar-padding)*0.5)] h-px w-(--sidebar-icon-button) bg-sidebar-border"
+        />
+      )}
     </div>
   );
 }

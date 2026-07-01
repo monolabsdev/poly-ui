@@ -247,6 +247,11 @@ body {
     -webkit-user-select: none;
 }
 
+#root {
+    background: var(--background);
+    min-height: 100vh;
+}
+
 .zoom-content {
     zoom: var(--app-zoom);
 }
@@ -256,6 +261,7 @@ body {
 }
 
 .app-root-shell {
+    background: var(--sidebar);
     display: flex;
     flex-direction: column;
     height: 100vh;
@@ -382,7 +388,8 @@ html.reduce-transparency[data-chrome="borderless"] body {
 html[data-chrome="borderless"] #root {
     overflow: hidden;
     border: 1px solid var(--border);
-    background: var(--background);
+    background: var(--sidebar);
+    min-height: 100vh;
 }
 
 html.reduce-transparency[data-chrome="borderless"] #root {
@@ -398,6 +405,10 @@ html[data-chrome="borderless"].maximized #root {
 *::before,
 *::after {
     box-sizing: border-box;
+}
+
+svg {
+    vertical-align: middle;
 }
 
 html,
@@ -623,7 +634,7 @@ code {
     }
 }
 
-@keyframes terax-shimmer {
+@keyframes poly-shimmer {
     from {
         background-position: 100% center;
     }
@@ -638,24 +649,24 @@ code {
     }
 }
 
-.terax-shimmer {
+.poly-shimmer {
     background-repeat: no-repeat, padding-box;
     background-size: 250% 100%, auto;
     background-image:
         linear-gradient(
             90deg,
             transparent calc(50% - var(--shimmer-spread, 20%)),
-            var(--color-background),
+            var(--color-foreground),
             transparent calc(50% + var(--shimmer-spread, 20%))
         ),
         linear-gradient(
             var(--color-muted-foreground),
             var(--color-muted-foreground)
         );
-    animation: terax-shimmer var(--shimmer-duration, 2s) linear infinite;
+    animation: poly-shimmer var(--shimmer-duration, 2s) linear infinite;
 }
 
-.terax-reveal {
+.poly-reveal {
     display: grid;
     grid-template-rows: 0fr;
     opacity: 0;
@@ -664,21 +675,21 @@ code {
         opacity var(--dur-base) var(--ease-premium);
 }
 
-.terax-reveal[data-state="open"] {
+.poly-reveal[data-state="open"] {
     grid-template-rows: 1fr;
     opacity: 1;
 }
 
-.terax-reveal > * {
+.poly-reveal > * {
     min-height: 0;
     overflow: hidden;
 }
 
-.terax-bg-surface {
+.poly-bg-surface {
     background: var(--background);
 }
 
-html[data-chrome="borderless"] .terax-bg-surface {
+html[data-chrome="borderless"] .poly-bg-surface {
     border-radius: inherit;
 }
 
@@ -759,7 +770,7 @@ html.reduce-motion .animate-toast-in,
 html.reduce-motion .animate-spin,
 html.reduce-motion .animate-thinking,
 html.reduce-motion .animate-pulse,
-html.reduce-motion .terax-shimmer,
+html.reduce-motion .poly-shimmer,
 html.reduce-motion .animate-in,
 html.reduce-motion .animate-out,
 html.reduce-motion .fade-in-0,
@@ -769,6 +780,10 @@ html.reduce-motion .zoom-out-95,
 html.reduce-motion [class*="slide-in-from-"],
 html.reduce-motion [class*="slide-out-to-"] {
   animation: none !important;
+}
+
+html.reduce-motion .poly-shimmer {
+    background-image: linear-gradient(var(--color-muted-foreground), var(--color-muted-foreground));
 }
 
 @layer base {
@@ -781,11 +796,30 @@ html.reduce-motion [class*="slide-out-to-"] {
   button:not(:disabled), [role="button"]:not(:disabled) {
     cursor: pointer;
     }
+  :where(button, [role="button"], a, input, textarea, select, summary, [tabindex]:not([tabindex="-1"])):focus:not(:focus-visible) {
+    border-color: transparent;
+    box-shadow: none;
+    outline: none;
+    }
+  [data-slot="dropdown-menu-trigger"]:focus-visible > [data-slot="badge"],
+  [data-slot="popover-trigger"]:focus-visible > [data-slot="badge"] {
+    border-color: transparent;
+    box-shadow: 0 0 0 1px color-mix(in oklch, white 20%, transparent);
+    outline: none;
+    }
+  [data-slot="dropdown-menu-trigger"][data-state="open"] > [data-slot="badge"],
+  [data-slot="popover-trigger"][data-state="open"] > [data-slot="badge"] {
+    background-color: rgb(255 255 255 / 0.08);
+    }
+  [data-slot="dropdown-menu-trigger"][data-state="closed"] > [data-slot="badge"],
+  [data-slot="popover-trigger"][data-state="closed"] > [data-slot="badge"] {
+    background-color: transparent;
+    }
   button:focus-visible,
   [role="button"]:focus-visible,
   a:focus-visible {
     border-color: var(--ring);
-    box-shadow: 0 0 0 3px color-mix(in oklch, var(--ring) 30%, transparent);
+    box-shadow: 0 0 0 1px color-mix(in oklch, white 20%, transparent);
     outline: none;
     }
   html {

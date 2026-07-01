@@ -64,7 +64,7 @@ function agentResultText(agent: NonNullable<MessageProps["agent"]>, content: str
 
 function isFallbackAgentContent(content: string): boolean {
   const trimmed = content.trim();
-  return /^(I tried|I edited|I created|The (Poly|Terax) Agent)/i.test(trimmed);
+  return /^(I tried|I edited|I created|The Poly Agent)/i.test(trimmed);
 }
 
 function looksLikeClarification(text: string) {

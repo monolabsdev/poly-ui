@@ -18,6 +18,7 @@ const DIRECT_OPTION_KEYS: &[&str] = &[
     "top_p",
     "max_tokens",
     "max_completion_tokens",
+    "reasoning_effort",
 ];
 
 pub struct OpenAICompatibleProvider {
@@ -256,6 +257,14 @@ fn append_chat_options(body: &mut Map<String, Value>, options: Option<Value>) {
             body.insert((*key).to_string(), value.clone());
         }
     }
+    if options
+        .get("reasoning_enabled")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+        && !body.contains_key("reasoning_effort")
+    {
+        body.insert("reasoning_effort".to_string(), Value::String("medium".to_string()));
+    }
     if let Some(format) = options.get("format").and_then(openai_response_format) {
         body.insert("response_format".to_string(), format);
     }
@@ -405,12 +414,15 @@ fn parse_stream_event(
 
     let mut payloads = Vec::new();
     for choice in chunk.choices {
-        append_tool_call_deltas(pending_tool_calls, choice.delta.tool_calls);
-        if let Some(content) = choice.delta.content.filter(|content| !content.is_empty()) {
+        let delta = choice.delta;
+        let thinking = delta.reasoning_text();
+        let content = delta.content.unwrap_or_default();
+        append_tool_call_deltas(pending_tool_calls, delta.tool_calls);
+        if !content.is_empty() || thinking.as_deref().is_some_and(|value| !value.is_empty()) {
             payloads.push(StreamPayload {
                 request_id: String::new(),
                 content,
-                thinking: None,
+                thinking,
                 done: false,
                 metadata: None,
                 tool_calls: None,
@@ -635,8 +647,30 @@ struct ChatCompletionChoice {
 #[derive(Default, Deserialize)]
 struct ChatCompletionDelta {
     content: Option<String>,
+    reasoning: Option<Value>,
+    reasoning_content: Option<String>,
+    reasoning_delta: Option<String>,
     #[serde(default)]
     tool_calls: Vec<ToolCallDelta>,
+}
+
+impl ChatCompletionDelta {
+    fn reasoning_text(&self) -> Option<String> {
+        self.reasoning_content
+            .as_ref()
+            .or(self.reasoning_delta.as_ref())
+            .cloned()
+            .or_else(|| match &self.reasoning {
+                Some(Value::String(value)) => Some(value.clone()),
+                Some(Value::Object(object)) => object
+                    .get("content")
+                    .or_else(|| object.get("text"))
+                    .and_then(Value::as_str)
+                    .map(ToString::to_string),
+                _ => None,
+            })
+            .filter(|value| !value.is_empty())
+    }
 }
 
 #[derive(Deserialize)]
@@ -788,6 +822,20 @@ mod tests {
     }
 
     #[test]
+    fn maps_reasoning_enabled_to_chat_completion_reasoning_effort() {
+        let request = build_chat_request(
+            "gpt-test",
+            Vec::new(),
+            None,
+            Some(serde_json::json!({ "reasoning_enabled": true })),
+            None,
+        );
+
+        assert_eq!(request["reasoning_effort"], "medium");
+        assert!(request.get("reasoning_enabled").is_none());
+    }
+
+    #[test]
     fn parses_fragmented_sse_events() {
         let mut parser = SseParser::default();
 
@@ -866,6 +914,24 @@ mod tests {
         let done = done_payload("gpt-test", &pending_tool_calls, metadata);
         assert!(done.done);
         assert_eq!(done.metadata.unwrap().eval_count, Some(5));
+    }
+
+    #[test]
+    fn parses_openai_compatible_reasoning_deltas() {
+        let mut pending_tool_calls = BTreeMap::new();
+        let mut metadata = None;
+
+        let payloads = parse_stream_event(
+            r#"{"choices":[{"delta":{"reasoning_content":"checked the constraints","content":"Answer"}}]}"#,
+            "gpt-test",
+            &mut pending_tool_calls,
+            &mut metadata,
+        )
+        .unwrap();
+
+        assert_eq!(payloads.len(), 1);
+        assert_eq!(payloads[0].thinking.as_deref(), Some("checked the constraints"));
+        assert_eq!(payloads[0].content, "Answer");
     }
 
     #[test]

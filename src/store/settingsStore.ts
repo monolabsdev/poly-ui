@@ -11,7 +11,6 @@ export type GeneralSettings = {
   systemPrompt: string;
   webSearch: WebSearchSettings;
   webSearchEnabled: boolean;
-  reasoningEnabled: boolean;
   experimentalFeatures: boolean;
   showModelInEmptyState: boolean;
 };
@@ -90,7 +89,6 @@ function defaultSettingsState(): Omit<SettingsState, "actions"> {
       systemPrompt: "",
       webSearch: createDefaultWebSearchSettings(),
       webSearchEnabled: false,
-      reasoningEnabled: false,
       experimentalFeatures: false,
       showModelInEmptyState: false,
     },
@@ -164,7 +162,6 @@ export const useSettingsStore = create<SettingsState>()(
         }
         if (version < 10 && state?.general) {
           state.general.experimentalFeatures = Boolean(state.general.experimentalFeatures);
-          state.general.reasoningEnabled = Boolean(state.general.reasoningEnabled);
         }
         if (version < 11 && state?.performance) {
           delete state.performance.autoOptimize;

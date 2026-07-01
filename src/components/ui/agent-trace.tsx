@@ -148,7 +148,7 @@ export function AgentTraceStep({
           {trigger}
           {hasContent && (
             <div
-              className="terax-reveal"
+              className="poly-reveal"
               data-state={expanded ? "open" : "closed"}
             >
               <div className="mt-2 flex flex-col gap-2">

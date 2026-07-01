@@ -16,7 +16,7 @@ export function Collapse({
   return (
     <div
       className={cn(
-        "terax-reveal",
+        "poly-reveal",
         className,
       )}
       data-state={open ? "open" : "closed"}

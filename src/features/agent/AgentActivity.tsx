@@ -1,10 +1,15 @@
 import { useState } from "react";
 import { Box } from "@/components/ui/Box";
 import { Typography } from "@/components/ui/Typography";
-import { useDevStore } from "@/store/devStore";
 import type { AgentApproval, AgentMessageState } from "./types";
 import { AgentReviewPanel } from "./AgentReviewPanel";
-import { AgentTrace, AgentTraceContent, AgentTraceItem, AgentTraceStep, AgentTraceTrigger } from "@/components/ui/agent-trace";
+import {
+  ChainOfThought,
+  ChainOfThoughtContent,
+  ChainOfThoughtItem,
+  ChainOfThoughtStep,
+  ChainOfThoughtTrigger,
+} from "@/components/ui/chain-of-thought";
 import { TextShimmer } from "@/components/ui/text-shimmer";
 import { AgentDebugTrace } from "./activity/AgentDebugTrace";
 import { buildSteps, hasDisclosureContent } from "./activity/buildSteps";
@@ -34,7 +39,6 @@ export function AgentActivity({ agent, resultText, onResolveApproval, onRetry }:
   const waitMsg = useHeaderStatus(agent, steps);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [reviewPath, setReviewPath] = useState<string | undefined>();
-  const devMode = useDevStore((state) => state.devMode);
 
   const handleReview = (path?: string) => {
     setReviewPath(path);
@@ -54,43 +58,68 @@ export function AgentActivity({ agent, resultText, onResolveApproval, onRetry }:
       )}
 
       {steps.length > 0 && (
-        <AgentTrace>
+        <ChainOfThought>
           {steps.map((step) => (
-            <AgentTraceStep
+            <ChainOfThoughtStep
               key={step.id}
-              status={step.status}
+              isActive={step.status === "running"}
               defaultExpanded={step.defaultExpanded}
-              hasContent={hasDisclosureContent(step)}
             >
-              <AgentTraceTrigger>{step.label}</AgentTraceTrigger>
+              <ChainOfThoughtTrigger>{step.label}</ChainOfThoughtTrigger>
               {hasDisclosureContent(step) && (
-                <AgentTraceContent>
+                <ChainOfThoughtContent>
                   {step.summary && (
-                    <AgentTraceItem>
+                    <ChainOfThoughtItem>
                       {step.status === "running" ? <TextShimmer duration={3} spread={15}>{step.summary}</TextShimmer> : step.summary}
-                    </AgentTraceItem>
+                    </ChainOfThoughtItem>
                   )}
-                  {step.details?.map((detail) => <AgentTraceItem key={detail}>{detail}</AgentTraceItem>)}
+                  {step.details?.map((detail) => <ChainOfThoughtItem key={detail}>{detail}</ChainOfThoughtItem>)}
                   {step.type === "editing" && step.files && <EditingContent files={step.files} onReview={handleReview} />}
                   {step.type === "approval" && step.approval && (
                     <ApprovalContent agent={agent} approval={step.approval} onResolveApproval={onResolveApproval} onReview={handleReview} />
                   )}
                   {step.type === "error" && step.errorDetail && <ErrorContent error={step.errorDetail} onRetry={onRetry} />}
                   {step.type === "command" && step.command && <CommandContent call={step.command} />}
-                </AgentTraceContent>
+                  <RawStepTrace agent={agent} stepId={step.id} />
+                </ChainOfThoughtContent>
               )}
-            </AgentTraceStep>
+            </ChainOfThoughtStep>
           ))}
-        </AgentTrace>
+        </ChainOfThought>
       )}
 
       {agent.editedFiles.length > 0 && !hasFileStep && <EditedFilesSummaryCard files={agent.editedFiles} onReview={handleReview} />}
 
       <AgentReviewPanel open={reviewOpen} workspacePath={agent.workspacePath} initialPath={reviewPath} fallbackFiles={agent.editedFiles} toolCalls={agent.toolCalls} onClose={() => setReviewOpen(false)} />
 
-      {import.meta.env.DEV && devMode && <AgentDebugTrace agent={agent} />}
+      <AgentDebugTrace agent={agent} />
     </Box>
   );
+}
+
+function RawStepTrace({ agent, stepId }: { agent: AgentMessageState; stepId: string }) {
+  const events = (agent.debugEvents ?? []).filter((event) => rawEventKey(event.value) === stepId);
+  const call = agent.toolCalls[stepId];
+  if (!events.length && !call) return null;
+
+  return (
+    <ChainOfThoughtItem className="mt-2">
+      <details className="rounded-lg border border-border/60 bg-muted/30">
+        <summary className="cursor-pointer px-2 py-1 text-[11px] font-medium text-muted-foreground">
+          Raw trace
+        </summary>
+        <pre className="max-h-64 overflow-auto border-t border-border/60 p-2 text-[11px] leading-relaxed text-muted-foreground">
+          {JSON.stringify({ toolCall: call, events }, null, 2)}
+        </pre>
+      </details>
+    </ChainOfThoughtItem>
+  );
+}
+
+function rawEventKey(value: unknown) {
+  if (!value || typeof value !== "object") return undefined;
+  const record = value as Record<string, unknown>;
+  return typeof record.tool_call_id === "string" ? record.tool_call_id : undefined;
 }
 function AgentRunHeader({
   elapsed,
