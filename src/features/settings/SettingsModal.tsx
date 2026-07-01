@@ -120,7 +120,7 @@ function SettingsNavButton({
 
 export function SettingsModal({ isOpen, onClose, initialTab = "general" }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
-  const [allMounted, setAllMounted] = useState(false);
+  const [visitedTabs, setVisitedTabs] = useState<Set<SettingsTab>>(() => new Set([initialTab]));
   const devMode = useDevStore((s) => s.devMode);
   const experimentalEnabled = useSettingsStore((state) => state.general.experimentalFeatures);
   const sidebarItems = devMode
@@ -134,24 +134,23 @@ export function SettingsModal({ isOpen, onClose, initialTab = "general" }: Setti
   const activeItem = [...sidebarItems, ADVANCED_ITEM].find((item) => item.id === activeTab);
   const panelItems = [...sidebarItems, ADVANCED_ITEM];
 
+  const selectTab = (tab: SettingsTab) => {
+    setActiveTab(tab);
+    setVisitedTabs((prev) => (prev.has(tab) ? prev : new Set(prev).add(tab)));
+  };
+
   useEffect(() => {
     if (!isOpen) return;
     const validIds = new Set([...sidebarItems, ADVANCED_ITEM].map((i) => i.id));
-    if (validIds.has(initialTab)) {
-      setActiveTab(initialTab);
-    } else {
-      setActiveTab(sidebarItems[0]?.id ?? "general");
-    }
+    const nextTab = validIds.has(initialTab) ? initialTab : (sidebarItems[0]?.id ?? "general");
+    selectTab(nextTab);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialTab, isOpen]);
 
   useEffect(() => {
-    if (!experimentalEnabled && activeTab === "memory") setActiveTab("advanced");
+    if (!experimentalEnabled && activeTab === "memory") selectTab("advanced");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, experimentalEnabled]);
-
-  useEffect(() => {
-    const frame = requestAnimationFrame(() => setAllMounted(true));
-    return () => cancelAnimationFrame(frame);
-  }, []);
 
   return (
     <AppDialogFrame open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -171,7 +170,7 @@ export function SettingsModal({ isOpen, onClose, initialTab = "general" }: Setti
                   key={item.id}
                   item={item}
                   isActive={isActive}
-                  onClick={() => setActiveTab(item.id)}
+                  onClick={() => selectTab(item.id)}
                 />
               );
             })}
@@ -182,7 +181,7 @@ export function SettingsModal({ isOpen, onClose, initialTab = "general" }: Setti
               const isActive = activeTab === ADVANCED_ITEM.id;
               return (
                 <SettingsNavButton
-                  onClick={() => setActiveTab(ADVANCED_ITEM.id)}
+                  onClick={() => selectTab(ADVANCED_ITEM.id)}
                   item={ADVANCED_ITEM}
                   isActive={isActive}
                 />
@@ -210,7 +209,7 @@ export function SettingsModal({ isOpen, onClose, initialTab = "general" }: Setti
                   item={item}
                   isActive={isActive}
                   mobile
-                  onClick={() => setActiveTab(item.id)}
+                  onClick={() => selectTab(item.id)}
                 />
               );
             })}
@@ -219,15 +218,15 @@ export function SettingsModal({ isOpen, onClose, initialTab = "general" }: Setti
           <AppDialogBody>
             <Box className="min-h-[400px] w-full">
               <Box className={activeTab !== "general" ? "hidden" : ""}><GeneralTab /></Box>
-              {(allMounted || activeTab === "profile") && <Box className={activeTab !== "profile" ? "hidden" : ""}><ProfileTab /></Box>}
-              {(allMounted || activeTab === "connections") && <Box className={activeTab !== "connections" ? "hidden" : ""}><ConnectionsTab /></Box>}
-              {(allMounted || activeTab === "personalisation") && <Box className={activeTab !== "personalisation" ? "hidden" : ""}><PersonalisationTab /></Box>}
-              {(allMounted || activeTab === "speech") && <Box className={activeTab !== "speech" ? "hidden" : ""}><SpeechTab /></Box>}
-              {(allMounted || activeTab === "data-controls") && <Box className={activeTab !== "data-controls" ? "hidden" : ""}><DataControlsTab /></Box>}
-              {(allMounted || activeTab === "about") && <Box className={activeTab !== "about" ? "hidden" : ""}><AboutTab /></Box>}
-              {experimentalEnabled && (allMounted || activeTab === "memory") && <Box className={activeTab !== "memory" ? "hidden" : ""}><MemoryTab /></Box>}
-              {(allMounted || activeTab === "advanced") && <Box className={activeTab !== "advanced" ? "hidden" : ""}><AdvancedTab /></Box>}
-              {(allMounted || activeTab === "developer") && <Box className={activeTab !== "developer" ? "hidden" : ""}><DeveloperTab onClose={onClose} /></Box>}
+              {visitedTabs.has("profile") && <Box className={activeTab !== "profile" ? "hidden" : ""}><ProfileTab /></Box>}
+              {visitedTabs.has("connections") && <Box className={activeTab !== "connections" ? "hidden" : ""}><ConnectionsTab /></Box>}
+              {visitedTabs.has("personalisation") && <Box className={activeTab !== "personalisation" ? "hidden" : ""}><PersonalisationTab /></Box>}
+              {visitedTabs.has("speech") && <Box className={activeTab !== "speech" ? "hidden" : ""}><SpeechTab /></Box>}
+              {visitedTabs.has("data-controls") && <Box className={activeTab !== "data-controls" ? "hidden" : ""}><DataControlsTab /></Box>}
+              {visitedTabs.has("about") && <Box className={activeTab !== "about" ? "hidden" : ""}><AboutTab /></Box>}
+              {experimentalEnabled && visitedTabs.has("memory") && <Box className={activeTab !== "memory" ? "hidden" : ""}><MemoryTab /></Box>}
+              {visitedTabs.has("advanced") && <Box className={activeTab !== "advanced" ? "hidden" : ""}><AdvancedTab /></Box>}
+              {visitedTabs.has("developer") && <Box className={activeTab !== "developer" ? "hidden" : ""}><DeveloperTab onClose={onClose} /></Box>}
             </Box>
           </AppDialogBody>
         </Box>

@@ -10,7 +10,7 @@ export const SIDEBAR_TOKENS = {
   expandedWidth: "17rem", // ~272px, within the 260–280px target
   collapsedWidth: "4rem", // 64px
   mobileWidth: "18rem",
-  sidebarPadding: "0.375rem", // 6px
+  sidebarPadding: "0.625rem", // 10px
   itemHeight: "2.5rem", // 40px nav/folder/chat rows
   iconButtonSize: "2.25rem", // 36px collapsed icon hitbox
   iconSize: "1.125rem", // 18px

@@ -8,6 +8,7 @@ import { DialogTitle } from "@/components/ui/dialog-panel";
 import { LinearProgress } from "@/components/ui/linear-progress";
 import { Stack } from "@/components/ui/Stack";
 import { Typography } from "@/components/ui/Typography";
+import { cn } from "@/lib/utils";
 import type { WhisperModelInfo } from "@/hooks/useDictation";
 
 interface DictationModelDialogProps {
@@ -40,7 +41,7 @@ export function DictationModelDialog({
     >
       <DialogTitle>Install dictation model</DialogTitle>
       <DialogContent>
-        <Typography variant="body2">
+        <Typography variant="body2" color="muted" className="mb-4">
           Dictation runs locally. Choose a Whisper model to download before recording.
         </Typography>
 
@@ -53,13 +54,14 @@ export function DictationModelDialog({
             return (
               <Box
                 key={model.id}
-                className={selected ? "border-primary" : undefined}
+                className={cn(
+                  "rounded-xl border border-border/60 p-3",
+                  selected && "border-primary",
+                )}
               >
-                <Box
-                >
-                  <Box>
-                    <Box
-                    >
+                <Box className="flex items-start justify-between gap-3">
+                  <Box className="min-w-0 flex-1">
+                    <Box className="flex flex-wrap items-center gap-1.5">
                       <Typography variant="subtitle2">
                         {model.name}
                       </Typography>
@@ -75,14 +77,10 @@ export function DictationModelDialog({
                         <Chip label="Installed" size="small" />
                       )}
                     </Box>
-                    <Typography
-                      variant="body2"
-                    >
+                    <Typography variant="body2" color="muted" className="mt-0.5">
                       {model.description}
                     </Typography>
-                    <Typography
-                      variant="caption"
-                    >
+                    <Typography variant="caption" color="muted" className="mt-1 block">
                       {model.sizeLabel} / {model.speedLabel} /{" "}
                       {model.qualityLabel}
                     </Typography>
@@ -103,7 +101,7 @@ export function DictationModelDialog({
                 </Box>
 
                 {installing && (
-                  <Box>
+                  <Box className="mt-3">
                     <LinearProgress
                       variant={
                         downloadPercent === null
@@ -112,9 +110,7 @@ export function DictationModelDialog({
                       }
                       value={downloadPercent ?? undefined}
                     />
-                    <Typography
-                      variant="caption"
-                    >
+                    <Typography variant="caption" color="muted" className="mt-1 block">
                       {downloadPercent === null
                         ? "Starting download..."
                         : `${downloadPercent}% downloaded`}
