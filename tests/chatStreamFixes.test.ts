@@ -1,15 +1,26 @@
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { sanitizeOutput } from "@/lib/chat/sanitize";
 import { StreamSession } from "@/lib/chat/stream-session";
 import { StreamAccumulator } from "@/lib/chat/stream-accumulator";
 
+// No vi.* helpers here — CI runs this under `bun test`, whose vitest shim
+// lacks stubGlobal/useFakeTimers. Plain assignment works in both runners.
+const g = globalThis as Record<string, unknown>;
+const realNow = Date.now;
+
 beforeAll(() => {
   // Node env has no rAF; accumulator schedules flushes with it
-  vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => {
+  g.requestAnimationFrame = (cb: (t: number) => void) => {
     cb(0);
     return 0;
-  });
-  vi.stubGlobal("cancelAnimationFrame", () => {});
+  };
+  g.cancelAnimationFrame = () => {};
+});
+
+afterAll(() => {
+  Date.now = realNow;
+  delete g.requestAnimationFrame;
+  delete g.cancelAnimationFrame;
 });
 
 describe("sanitizeOutput", () => {
@@ -39,14 +50,15 @@ describe("StreamSession", () => {
   }
 
   it("thinking duration excludes answer generation time", () => {
-    vi.useFakeTimers();
+    let now = 1_000_000;
+    Date.now = () => now;
     const session = makeSession();
     session.applyThinking({ request_id: "r1", thinking: "hmm", is_thinking: true });
-    vi.advanceTimersByTime(3000);
-    session.applyThinking({ request_id: "r1", thinking: " done", is_thinking: false });
-    vi.advanceTimersByTime(60000); // long answer afterwards
+    now += 3000;
+    session.applyThinking({ request_id: "r1", thinking: "hmm done", is_thinking: false });
+    now += 60000; // long answer afterwards
     expect(session.thinkingDuration("r1")).toBe(3);
-    vi.useRealTimers();
+    Date.now = realNow;
   });
 
   it("thinking events carry full text — latest payload wins, no duplication", () => {
@@ -76,9 +88,13 @@ describe("StreamAccumulator partial reset", () => {
     acc.onFlush((updates) => flushed.push(updates));
 
     // Simulate a sibling with a queued update, without letting rAF fire yet
-    vi.stubGlobal("requestAnimationFrame", () => 1);
+    g.requestAnimationFrame = () => 1;
     acc.queueTokenBatch("m2", "sibling content");
     acc.reset(["r1"]); // one stream finished
+    g.requestAnimationFrame = (cb: (t: number) => void) => {
+      cb(0);
+      return 0;
+    };
 
     acc.flush();
     expect(flushed).toEqual([{ m2: "sibling content" }]);
