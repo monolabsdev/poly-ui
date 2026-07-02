@@ -5,7 +5,8 @@ const FIM_PATTERNS = [
 
 const TOOL_LEAK_PATTERNS = [
   /commentary\s+to=functions\.\w+/gi,
-  /<\|?(?:assistant|system|user|tool)(?:\|[^\n>]*)?>?/gi,
+  // require the template pipe (<|user|>) so legit markup like <user> in code survives
+  /<\|(?:assistant|system|user|tool)(?:\|[^\n>]*)?>?/gi,
   /<!--\s*(?:Assistant|System|Tool)\s+(?:greeting|instruction|note).*?-->/gi,
 ];
 
@@ -26,7 +27,9 @@ export function sanitizeOutput(text: string): string {
 
   result = result.trim();
 
-  if (!result || result.length < 10) {
+  // Fall back only when sanitization gutted a non-empty response —
+  // short legit answers ("4", "Yes.") must pass through untouched.
+  if (!result && text.trim()) {
     return FALLBACK_TEXT;
   }
 

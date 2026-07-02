@@ -208,6 +208,7 @@ impl ToolLoop {
                 .map_err(|e| AppError::Provider(format!("Generation failed: {e}")))?;
 
             let mut tool_calls_opt: Option<Vec<ToolCallInfo>> = None;
+            let mut restart_for_tool_call = false;
 
             while let Some(result) = stream.next().await {
                 if is_cancelled() {
@@ -251,6 +252,8 @@ impl ToolLoop {
                     tool_calls_opt = Some(tcs);
                 }
 
+                // Thinking events carry the full accumulated text (O(n²) IPC, but
+                // self-healing: a dropped event can't corrupt the disclosure)
                 if let Some(tc) = chunk.thinking.as_ref().filter(|tc| !tc.is_empty()) {
                     thinking_acc.push_str(tc);
                     emitter
@@ -392,6 +395,7 @@ impl ToolLoop {
                             thinking_acc.clear();
                             final_metadata = None;
                             thinking_parser = ThinkingTagParser::new(reasoning_enabled);
+                            restart_for_tool_call = true;
                             break;
                         }
                     }
@@ -422,6 +426,25 @@ impl ToolLoop {
                         metadata: final_metadata,
                     });
                 }
+            }
+
+            // Stream exhausted without a done marker (connection dropped) and no
+            // tool call requested a restart — finalize instead of re-issuing the
+            // same request forever.
+            if !restart_for_tool_call {
+                let err = "Stream ended unexpectedly".to_string();
+                emitter
+                    .emit_chunk(&StreamPayload {
+                        request_id: request_id.to_string(),
+                        content: String::new(),
+                        thinking: None,
+                        done: true,
+                        metadata: final_metadata.clone(),
+                        tool_calls: None,
+                        error: Some(err.clone()),
+                    })
+                    .await;
+                return Err(AppError::Provider(err));
             }
         }
     }

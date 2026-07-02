@@ -27,6 +27,7 @@ export class StreamSession {
   private requestIdToMessageId: Record<string, string> = {};
   private requestIdToConversationId: Record<string, string> = {};
   private thinkingStartTime: Record<string, number> = {};
+  private thinkingEndTime: Record<string, number> = {};
   private pendingStreams = 0;
   private cancelled = false;
 
@@ -84,9 +85,18 @@ export class StreamSession {
     const messageId = this.requestIdToMessageId[payload.request_id];
     if (!messageId) return null;
 
+    // Backend sends full accumulated thinking each event — replace, don't append
     this.accumulator.thinking[payload.request_id] = payload.thinking;
     if (payload.is_thinking && !this.thinkingStartTime[payload.request_id]) {
       this.thinkingStartTime[payload.request_id] = Date.now();
+    }
+    // Capture when thinking stops — duration must not include answer generation
+    if (
+      !payload.is_thinking &&
+      this.thinkingStartTime[payload.request_id] &&
+      !this.thinkingEndTime[payload.request_id]
+    ) {
+      this.thinkingEndTime[payload.request_id] = Date.now();
     }
 
     return {
@@ -125,6 +135,9 @@ export class StreamSession {
   }
 
   finish(requestId: string) {
+    // Idempotent: error paths can settle the same request twice (done-chunk with
+    // error + rejected invoke). A second finish must not decrement pendingStreams.
+    if (!(requestId in this.requestIdToMessageId)) return this.pendingStreams;
     delete this.requestIdToMessageId[requestId];
     delete this.requestIdToConversationId[requestId];
     this.accumulator.reset([requestId]);
@@ -141,6 +154,7 @@ export class StreamSession {
     this.requestIdToMessageId = {};
     this.requestIdToConversationId = {};
     this.thinkingStartTime = {};
+    this.thinkingEndTime = {};
     this.pendingStreams = 0;
     this.cancelled = true;
   }
@@ -150,6 +164,7 @@ export class StreamSession {
     this.requestIdToMessageId = {};
     this.requestIdToConversationId = {};
     this.thinkingStartTime = {};
+    this.thinkingEndTime = {};
     this.pendingStreams = 0;
     this.cancelled = false;
   }
@@ -173,6 +188,7 @@ export class StreamSession {
   thinkingDuration(requestId?: string) {
     if (!requestId) return undefined;
     const startedAt = this.thinkingStartTime[requestId];
-    return startedAt ? (Date.now() - startedAt) / 1000 : undefined;
+    if (!startedAt) return undefined;
+    return ((this.thinkingEndTime[requestId] ?? Date.now()) - startedAt) / 1000;
   }
 }
