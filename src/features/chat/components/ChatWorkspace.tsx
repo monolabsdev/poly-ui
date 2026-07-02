@@ -195,7 +195,35 @@ export default function ChatWorkspace({
       if (targetMessage?.role !== "assistant") return;
 
       await deleteMessagesAfter(activeConversationId, targetMessage.id);
-      regenerateMessage(activeConversationId);
+
+      if (targetMessage.agent) {
+        const userMessage = messages
+          .slice(0, messageIndex)
+          .reverse()
+          .find((m) => m.role === "user");
+        const prompt = userMessage?.content ?? targetMessage.agent.request?.prompt ?? "";
+        if (!prompt) return;
+        const ws = workspaceSelections[activeConversationId] ??
+          (targetMessage.agent.workspaceSelection
+            ? { ...targetMessage.agent.workspaceSelection }
+            : { type: "sandbox" as const, chatId: activeConversationId });
+        const workspacePath = targetMessage.agent.workspacePath;
+        const resolvedContext = targetMessage.agent.context ?? buildAgentResolvedContext({
+          messages: storeMessages,
+          prompt,
+          workspacePath: workspacePath ?? `sandbox:${activeConversationId}`,
+        });
+        await startAgentRun({
+          conversationId: activeConversationId,
+          prompt,
+          workspacePath,
+          workspaceSelection: ws,
+          permissionPreset: targetMessage.agent.permissionPreset ?? permissionPreset,
+          resolvedContext,
+        });
+      } else {
+        regenerateMessage(activeConversationId);
+      }
     },
     [
       activeConversationId,
@@ -203,6 +231,10 @@ export default function ChatWorkspace({
       effectiveStreaming,
       messages,
       regenerateMessage,
+      startAgentRun,
+      workspaceSelections,
+      storeMessages,
+      permissionPreset,
     ],
   );
 
