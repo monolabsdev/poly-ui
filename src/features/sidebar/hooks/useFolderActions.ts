@@ -8,32 +8,21 @@ function slugifyFilename(name: string): string {
 }
 
 export interface UseFolderActions {
-  folderEditingId: string | null;
-  folderEditValue: string;
   editingFolder: Folder | null;
   folderParentId: string | undefined;
   isFolderModalOpen: boolean;
   openCreateModal: () => void;
   openCreateInFolder: (folderId: string) => void;
   closeModal: (open: boolean) => void;
-  onStartRename: (folder: Folder) => void;
-  onConfirmRename: () => Promise<void>;
-  onCancelRename: () => void;
   onOpenEdit: (folder: Folder) => void;
   onDelete: (folder: { id: string; name: string }) => Promise<void>;
   onExport: (folder: { id: string; name: string }) => void;
-  setFolderEditValue: (value: string) => void;
 }
 
 export function useFolderActions(conversations: Conversation[]): UseFolderActions {
   const folders = useFolderStore((s) => s.folders);
-  const updateFolder = useFolderStore((s) => s.actions.updateFolder);
   const deleteFolder = useFolderStore((s) => s.actions.deleteFolder);
 
-  const [folderEditingId, setFolderEditingId] = React.useState<string | null>(
-    null,
-  );
-  const [folderEditValue, setFolderEditValue] = React.useState("");
   const [editingFolder, setEditingFolder] = React.useState<Folder | null>(null);
   const [folderParentId, setFolderParentId] = React.useState<
     string | undefined
@@ -53,24 +42,6 @@ export function useFolderActions(conversations: Conversation[]): UseFolderAction
   const closeModal = (open: boolean) => {
     setIsFolderModalOpen(open);
     if (!open) setEditingFolder(null);
-  };
-
-  const onStartRename = (folder: Folder) => {
-    setFolderEditingId(folder.id);
-    setFolderEditValue(folder.name);
-  };
-
-  const onConfirmRename = async () => {
-    if (!folderEditingId) return;
-    const trimmed = folderEditValue.trim();
-    if (trimmed) {
-      await updateFolder(folderEditingId, { name: trimmed });
-    }
-    setFolderEditingId(null);
-  };
-
-  const onCancelRename = () => {
-    setFolderEditingId(null);
   };
 
   const onOpenEdit = (folder: Folder) => {
@@ -122,20 +93,14 @@ export function useFolderActions(conversations: Conversation[]): UseFolderAction
   };
 
   return {
-    folderEditingId,
-    folderEditValue,
     editingFolder,
     folderParentId,
     isFolderModalOpen,
     openCreateModal,
     openCreateInFolder,
     closeModal,
-    onStartRename,
-    onConfirmRename,
-    onCancelRename,
     onOpenEdit,
     onDelete,
     onExport,
-    setFolderEditValue,
   };
 }

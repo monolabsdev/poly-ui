@@ -8,14 +8,13 @@ import {
   Edit2,
   Download,
   Trash2,
-  Check,
-  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ConversationItem } from "@/features/chat/components/ConversationItem";
@@ -68,7 +67,6 @@ export function FolderTree({
     containsActiveFolder(folder.id) ||
     chats.some((conversation) => conversation.id === activeConversationId);
   const FolderIcon = isOpen ? FolderOpen : Folder;
-  const isEditing = folderActions.folderEditingId === folder.id;
 
   return (
     <React.Fragment key={folder.id}>
@@ -76,7 +74,6 @@ export function FolderTree({
         isActive={activeFolderId === folder.id && !activeConversationId}
         tooltip={folder.name}
         onClick={() => {
-          if (isEditing) return;
           setActiveFolderId(folder.id);
           setActiveConversationId(null);
           if (isMobile) setOpenMobile(false);
@@ -93,66 +90,9 @@ export function FolderTree({
           }}
         />
         <FolderIcon size={16} style={{ flexShrink: 0, opacity: 0.7 }} />
-        {isEditing ? (
-          <div className="flex flex-1 items-center gap-1">
-            <input
-              autoFocus
-              value={folderActions.folderEditValue}
-              onChange={(e) => folderActions.setFolderEditValue(e.target.value)}
-              onClick={(e) => e.stopPropagation()}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.stopPropagation();
-                  folderActions.onConfirmRename();
-                }
-                if (e.key === "Escape") {
-                  e.stopPropagation();
-                  folderActions.onCancelRename();
-                }
-              }}
-              style={{
-                flex: 1,
-                background: "transparent",
-                border: "none",
-                color: "inherit",
-                outline: "none",
-                fontSize: "inherit",
-                padding: 0,
-                width: "100%",
-              }}
-            />
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              aria-label="Confirm rename"
-              onClick={(e) => {
-                e.stopPropagation();
-                folderActions.onConfirmRename();
-              }}
-              className={sidebarIconButtonClassName}
-            >
-              <Check />
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              aria-label="Cancel rename"
-              onClick={(e) => {
-                e.stopPropagation();
-                folderActions.onCancelRename();
-              }}
-              className={sidebarIconButtonClassName}
-            >
-              <X />
-            </Button>
-          </div>
-        ) : (
-          <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-sm font-medium">
-            {folder.name}
-          </span>
-        )}
+        <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-sm font-medium">
+          {folder.name}
+        </span>
         <div className="folder-actions ml-auto flex opacity-0 transition-opacity duration-[var(--dur-fast)] ease-[var(--ease-soft)]">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -167,19 +107,24 @@ export function FolderTree({
                 <MoreHorizontal />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="min-w-[170px]">
-              <DropdownMenuItem onClick={() => folderActions.onStartRename(folder)}>
-                <Edit2 size={14} /> Rename
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => folderActions.onOpenEdit(folder)}>
-                <FolderPlus size={14} /> Edit
-              </DropdownMenuItem>
+            <DropdownMenuContent
+              align="end"
+              className="min-w-[170px]"
+            >
               <DropdownMenuItem
                 onClick={() => folderActions.openCreateInFolder(folder.id)}
               >
                 <FolderPlus size={14} /> Create Folder
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => folderActions.onExport(folder)}>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => folderActions.onOpenEdit(folder)}
+              >
+                <Edit2 size={14} /> Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => folderActions.onExport(folder)}
+              >
                 <Download size={14} /> Export
               </DropdownMenuItem>
               <DropdownMenuItem
