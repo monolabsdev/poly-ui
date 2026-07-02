@@ -186,6 +186,9 @@ pub fn run() {
             commands::memory_commands::memory_remember_message,
             commands::memory_commands::memory_forget_message,
             commands::memory_commands::memory_get_related,
+            commands::memory_commands::memory_extract_user_message,
+            commands::memory_commands::memory_list_for_chat,
+            commands::memory_commands::memory_debug_extract_last_turn,
             commands::memory_commands::memory_enqueue_completed_turn,
             execute_sql,
             #[cfg(feature = "dev-sql-console")]

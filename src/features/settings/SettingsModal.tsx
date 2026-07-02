@@ -128,10 +128,10 @@ export function SettingsModal({ isOpen, onClose, initialTab = "general" }: Setti
       devMode
         ? [
             ...SIDEBAR_ITEMS,
-            ...(experimentalEnabled ? [MEMORY_ITEM] : []),
+            ...(experimentalEnabled && import.meta.env.DEV ? [MEMORY_ITEM] : []),
             { id: "developer" as const, label: "Developer", icon: Terminal },
           ]
-        : [...SIDEBAR_ITEMS, ...(experimentalEnabled ? [MEMORY_ITEM] : [])],
+        : [...SIDEBAR_ITEMS, ...(experimentalEnabled && import.meta.env.DEV ? [MEMORY_ITEM] : [])],
     [devMode, experimentalEnabled],
   );
 
@@ -227,7 +227,7 @@ export function SettingsModal({ isOpen, onClose, initialTab = "general" }: Setti
               {visitedTabs.has("speech") && <Box className={activeTab !== "speech" ? "hidden" : ""}><SpeechTab /></Box>}
               {visitedTabs.has("data-controls") && <Box className={activeTab !== "data-controls" ? "hidden" : ""}><DataControlsTab /></Box>}
               {visitedTabs.has("about") && <Box className={activeTab !== "about" ? "hidden" : ""}><AboutTab /></Box>}
-              {experimentalEnabled && visitedTabs.has("memory") && <Box className={activeTab !== "memory" ? "hidden" : ""}><MemoryTab /></Box>}
+              {import.meta.env.DEV && experimentalEnabled && visitedTabs.has("memory") && <Box className={activeTab !== "memory" ? "hidden" : ""}><MemoryTab /></Box>}
               {visitedTabs.has("advanced") && <Box className={activeTab !== "advanced" ? "hidden" : ""}><AdvancedTab /></Box>}
               {visitedTabs.has("developer") && <Box className={activeTab !== "developer" ? "hidden" : ""}><DeveloperTab onClose={onClose} /></Box>}
             </Box>

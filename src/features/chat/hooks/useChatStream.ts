@@ -34,28 +34,41 @@ function validModelChoices(choices: ModelChoice[]): ModelChoice[] {
   return choices.filter((item) => Boolean(item.model && item.provider));
 }
 
-async function enqueueMemoryProcessing(conversationId: string, assistantMessageId: string) {
+// Summaries extracted from the current turn's user message, waiting to be
+// attached to the assistant message(s) when they complete. Keyed by conversation.
+const pendingMemoryUpdates = new Map<string, string[]>();
+
+/**
+ * Runs in parallel with the response stream: extracts memories from the
+ * just-sent user message and shows the "Memory updated" disclosure as soon
+ * as extraction lands — usually while the model is still responding.
+ */
+async function extractUserMessageMemory(conversationId: string, userMessageId: string) {
+  pendingMemoryUpdates.delete(conversationId);
   if (!useSettingsStore.getState().general.experimentalFeatures) return;
   const ownerId = getCurrentProviderAccountId();
   if (!ownerId) return;
 
-  const userMessage = [...useChatStore.getState().messages]
-    .reverse()
-    .find((message) => message.conversationId === conversationId && message.role === "user");
-  if (!userMessage) return;
-
   try {
-    await invoke("memory_enqueue_completed_turn", {
-      input: {
-        ownerId,
-        conversationId,
-        userMessageId: userMessage.id,
-        assistantMessageId,
-      },
+    const summaries = await invoke<string[]>("memory_extract_user_message", {
+      ownerId,
+      conversationId,
+      userMessageId,
       token: getSessionToken(),
     });
+    console.info(`[Memory] extracted ${summaries.length} memories from user message`);
+    if (summaries.length === 0) return;
+    pendingMemoryUpdates.set(conversationId, summaries);
+
+    // Show live on any assistant message already streaming for this turn.
+    const { streamingMessages, actions } = useChatStore.getState();
+    for (const message of Object.values(streamingMessages)) {
+      if (message.conversationId === conversationId) {
+        actions.patchStreamingMessage(message.id, { memoryUpdates: summaries });
+      }
+    }
   } catch (error) {
-    console.warn("[Memory] Completed turn enqueue skipped", error);
+    console.warn("[Memory] user message extraction skipped", error);
   }
 }
 
@@ -168,8 +181,9 @@ export function useChatStream(modelChoices: ModelChoice[], systemPrompt = "") {
           provider: completedProvider,
           status: "complete",
           webSearch: finalizedWebSearch,
+          memoryUpdates:
+            existing.memoryUpdates ?? pendingMemoryUpdates.get(completed.conversationId),
         });
-        void enqueueMemoryProcessing(completed.conversationId, completed.messageId);
       }
 
       setStreamingMessage(completed.messageId, null);
@@ -323,12 +337,15 @@ export function useChatStream(modelChoices: ModelChoice[], systemPrompt = "") {
 
       useChatStore.getState().actions.dequeueMessage(next.id);
       cancelRef.current = false;
+      const userMessageId = crypto.randomUUID();
       await addMessage({
+        id: userMessageId,
         conversationId: next.conversationId,
         role: "user",
         content: next.content,
         attachments: next.attachments,
       });
+      void extractUserMessageMemory(next.conversationId, userMessageId);
 
       startStream(next.conversationId, models);
     } catch (err) {
@@ -368,7 +385,15 @@ export function useChatStream(modelChoices: ModelChoice[], systemPrompt = "") {
       }
 
       cancelRef.current = false;
-      await addMessage({ conversationId, role: "user", content: processed, attachments });
+      const userMessageId = crypto.randomUUID();
+      await addMessage({
+        id: userMessageId,
+        conversationId,
+        role: "user",
+        content: processed,
+        attachments,
+      });
+      void extractUserMessageMemory(conversationId, userMessageId);
 
       startStream(conversationId, models);
     },

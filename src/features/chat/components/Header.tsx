@@ -20,11 +20,19 @@ import {
   AlertCircle,
   ScrollText,
   Check,
+  Brain,
 } from "lucide-react";
 import { PROMPT_PRESETS, type PromptPresetId } from "@/lib/constants/promptPresets";
 import { useSettingsStore } from "@/store/settingsStore";
+import { useChatStore } from "@/store/chatStore";
 import { ModelSelector } from "@/features/chat/components/ModelSelector";
 import type { ModelChoice } from "@/lib/models/model-choice";
+import {
+  MemoryPanel,
+  setMemoryPanelOpen,
+  useMemoryPanelOpen,
+} from "@/features/memory/MemoryPanel";
+import { useConversationMemoryCount } from "@/features/memory/useConversationMemoryCount";
 
 
 interface HeaderProps {
@@ -64,6 +72,11 @@ export const Header = memo(function Header({
     })),
   );
   const ollama = useOllama();
+  const activeConversationId = useChatStore((state) => state.activeConversationId);
+  const memoryPanelOpen = useMemoryPanelOpen();
+  const { count: memoryCount, refresh: refreshMemoryCount } = useConversationMemoryCount(
+    activeConversationId ?? undefined,
+  );
 
   const pullCompleted = ollama.pullProgress?.completed ?? 0;
   const pullTotal = ollama.pullProgress?.total ?? 0;
@@ -221,6 +234,19 @@ export const Header = memo(function Header({
       </Box>
 
       <Box className="flex items-center gap-2">
+        {memoryCount > 0 && (
+          <Tooltip title={`${memoryCount} ${memoryCount === 1 ? "memory" : "memories"} in this conversation`}>
+            <IconButton
+              aria-label="View conversation memories"
+              size="small"
+              onClick={() => setMemoryPanelOpen(true)}
+              className="gap-1"
+            >
+              <Brain size={15} />
+              <Typography variant="caption">{memoryCount}</Typography>
+            </IconButton>
+          </Tooltip>
+        )}
         {ollama.state !== "online" && (
           <Tooltip title={ollama.state === "reconnecting" ? "Reconnecting to providers..." : "Providers offline"}>
             <Box className="inline-flex items-center gap-1.5 text-muted-foreground">
@@ -274,6 +300,18 @@ export const Header = memo(function Header({
         </Tooltip>
 
       </Box>
+
+      {activeConversationId && (
+        <MemoryPanel
+          open={memoryPanelOpen}
+          onClose={() => {
+            setMemoryPanelOpen(false);
+            refreshMemoryCount();
+          }}
+          conversationId={activeConversationId}
+          onChanged={refreshMemoryCount}
+        />
+      )}
     </Box>
   );
 });

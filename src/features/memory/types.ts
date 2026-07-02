@@ -96,6 +96,20 @@ export type MemoryRememberMessageInput = {
   sourceMessageIds: string[];
 };
 
+export type MemoryProcessingRecord = {
+  turnId: string;
+  ownerId: string;
+  conversationId: string;
+  userMessageId: string;
+  assistantMessageId: string;
+  state: "pending" | "processing" | "completed" | "failed" | "skipped";
+  attempts: number;
+  lastError: string | null;
+  createdAt: string;
+  updatedAt: string;
+  completedAt: string | null;
+};
+
 export type MemoryForgetMessageInput = {
   ownerId: string;
   memoryId?: string | null;

@@ -88,8 +88,7 @@ export const ThinkingDisclosure = React.memo(
         {hasThinking && (
           <ReasoningContent
             markdown
-            className="mt-2"
-            contentClassName="border-l border-border/60 pl-3 text-xs leading-relaxed"
+            contentClassName="border-l border-border/60 pl-3 pt-2 text-xs leading-relaxed"
           >
             {processedThinking}
           </ReasoningContent>

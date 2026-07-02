@@ -17,14 +17,15 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   forgetMessageMemory,
-  isMemoryUiEnabled,
-  relatedMessageMemory,
   rememberMessageMemory,
 } from "@/features/memory/messageMemoryActions";
+import { openMemoryPanel } from "@/features/memory/MemoryPanel";
+import { useSettingsStore } from "@/store/settingsStore";
 
 export function UserMessage({ id, conversationId, content, attachments }: MessageProps) {
   const [copied, setCopied] = useState(false);
   const notify = useNotify();
+  const memoryUiEnabled = useSettingsStore((state) => state.general.experimentalFeatures);
 
   useEffect(() => {
     if (!copied) return;
@@ -61,17 +62,6 @@ export function UserMessage({ id, conversationId, content, attachments }: Messag
     }
   };
 
-  const handleRelated = async () => {
-    try {
-      const related = await relatedMessageMemory({ messageId: id, content });
-      notify.info(
-        related.length ? `${related.length} related ${related.length === 1 ? "memory" : "memories"}` : "No related memories",
-        related.slice(0, 3).map((record) => record.summary).join("\n"),
-      );
-    } catch (error) {
-      notify.error("Memory lookup failed", String(error));
-    }
-  };
 
   return (
     <Box
@@ -156,7 +146,7 @@ export function UserMessage({ id, conversationId, content, attachments }: Messag
             </Box>
           </IconButton>
         </Tooltip>
-        {isMemoryUiEnabled() && (
+        {memoryUiEnabled && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <IconButton
@@ -175,7 +165,7 @@ export function UserMessage({ id, conversationId, content, attachments }: Messag
                 <Trash2 size={14} />
                 Forget this
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleRelated}>
+              <DropdownMenuItem onClick={openMemoryPanel}>
                 <Search size={14} />
                 View related memories
               </DropdownMenuItem>

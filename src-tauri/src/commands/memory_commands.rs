@@ -201,6 +201,48 @@ pub async fn memory_get_related(
 }
 
 #[tauri::command]
+pub async fn memory_extract_user_message(
+    state: tauri::State<'_, AppState>,
+    owner_id: String,
+    conversation_id: String,
+    user_message_id: String,
+    token: Option<String>,
+) -> Result<Vec<String>, String> {
+    check_owner(&state, token.as_deref(), &owner_id).await?;
+    service(&state)
+        .extract_user_message(&owner_id, &conversation_id, &user_message_id)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub async fn memory_list_for_chat(
+    state: tauri::State<'_, AppState>,
+    owner_id: String,
+    conversation_id: String,
+    token: Option<String>,
+) -> Result<Vec<MemoryRecord>, String> {
+    check_owner(&state, token.as_deref(), &owner_id).await?;
+    service(&state)
+        .list_for_chat(&owner_id, &conversation_id)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub async fn memory_debug_extract_last_turn(
+    state: tauri::State<'_, AppState>,
+    owner_id: String,
+    token: Option<String>,
+) -> Result<MemoryProcessingRecord, String> {
+    check_owner(&state, token.as_deref(), &owner_id).await?;
+    service(&state)
+        .debug_extract_last_turn(&owner_id)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
 pub async fn memory_enqueue_completed_turn(
     state: tauri::State<'_, AppState>,
     input: MemoryCompletedTurnInput,

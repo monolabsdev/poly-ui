@@ -130,8 +130,15 @@ impl ProviderSelector {
     }
 
     pub async fn get_active_provider(&self) -> Result<Box<dyn ChatProvider>, String> {
-        let configs = self.get_provider_configs(None).await?;
-        let health = self.check_all_providers(None).await;
+        self.get_active_provider_for_account(None).await
+    }
+
+    pub async fn get_active_provider_for_account(
+        &self,
+        account_id: Option<&str>,
+    ) -> Result<Box<dyn ChatProvider>, String> {
+        let configs = self.get_provider_configs(account_id).await?;
+        let health = self.check_all_providers(account_id).await;
 
         for config in configs {
             if !config.enabled {

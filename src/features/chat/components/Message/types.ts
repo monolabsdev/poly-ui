@@ -19,4 +19,5 @@ export interface MessageProps {
   webSearch?: WebSearchEvent;
   agent?: AgentMessageState;
   isLastMessage?: boolean;
+  memoryUpdates?: string[];
 }

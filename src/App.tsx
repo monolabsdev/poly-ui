@@ -149,7 +149,7 @@ function App() {
   }, [selectedPromptPreset, general.systemPrompt]);
 
   useEffect(() => {
-    if (general.experimentalFeatures) return;
+    if (import.meta.env.DEV && general.experimentalFeatures) return;
     void disableMemoryForOwner(getCurrentProviderAccountId()).catch(
       () => undefined,
     );

@@ -1,5 +1,5 @@
 import { useNotificationStore, type ToastType } from "@/store/notificationStore";
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { useSettingsStore } from "@/store/settingsStore";
 
 export function useNotify() {
@@ -50,5 +50,10 @@ export function useNotify() {
     [notificationsEnabled, add, update]
   );
 
-  return { notify, success, error, warn, info, promise, dismiss: remove };
+  // Stable identity: effects that list the returned object as a dependency
+  // must not re-run (cancelling in-flight fetches) on every render.
+  return useMemo(
+    () => ({ notify, success, error, warn, info, promise, dismiss: remove }),
+    [notify, success, error, warn, info, promise, remove],
+  );
 }

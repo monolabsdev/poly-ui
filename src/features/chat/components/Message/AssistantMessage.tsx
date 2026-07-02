@@ -26,6 +26,7 @@ import {
 import { useNotify } from "@/hooks/useNotify";
 
 import { ThinkingDisclosure } from "./ThinkingDisclosure";
+import { MemoryDisclosure } from "./MemoryDisclosure";
 import { WebSearchDisclosure } from "./WebSearchDisclosure";
 import { Source, SourceTrigger, SourceContent } from "@/components/ui/source";
 
@@ -45,10 +46,10 @@ import {
 import type { AgentApproval } from "@/features/agent/types";
 import {
   forgetMessageMemory,
-  isMemoryUiEnabled,
-  relatedMessageMemory,
   rememberMessageMemory,
 } from "@/features/memory/messageMemoryActions";
+import { openMemoryPanel } from "@/features/memory/MemoryPanel";
+import { useSettingsStore } from "@/store/settingsStore";
 
 function agentResultText(agent: NonNullable<MessageProps["agent"]>, content: string): string | undefined {
   const text = content.trim();
@@ -88,11 +89,13 @@ export function AssistantMessage(props: MessageProps) {
     webSearch,
     agent,
     isLastMessage,
+    memoryUpdates,
   } = props;
 
   const [copied, setCopied] = useState(false);
   const [webSearchExpanded, setWebSearchExpanded] = useState(false);
   const notify = useNotify();
+  const memoryUiEnabled = useSettingsStore((state) => state.general.experimentalFeatures);
 
   const streamingDisplayContent = useMessageStreaming(content, isStreaming);
   const { processedContent, processedThinking } = useMessageMarkdown(
@@ -169,17 +172,6 @@ export function AssistantMessage(props: MessageProps) {
     }
   };
 
-  const handleRelated = async () => {
-    try {
-      const related = await relatedMessageMemory({ messageId: id, content });
-      notify.info(
-        related.length ? `${related.length} related ${related.length === 1 ? "memory" : "memories"}` : "No related memories",
-        related.slice(0, 3).map((record) => record.summary).join("\n"),
-      );
-    } catch (error) {
-      notify.error("Memory lookup failed", String(error));
-    }
-  };
 
   return (
     <Box
@@ -242,6 +234,8 @@ export function AssistantMessage(props: MessageProps) {
             </Typography>
           </Box>
         )}
+
+        <MemoryDisclosure summaries={memoryUpdates} />
 
         <ThinkingDisclosure
           thinking={thinking}
@@ -380,7 +374,7 @@ export function AssistantMessage(props: MessageProps) {
               </IconButton>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              {isMemoryUiEnabled() && (
+              {memoryUiEnabled && (
                 <>
                   <DropdownMenuItem onClick={handleRemember}>
                     <Brain size={14} />
@@ -390,7 +384,7 @@ export function AssistantMessage(props: MessageProps) {
                     <Trash2 size={14} />
                     Forget this
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleRelated}>
+                  <DropdownMenuItem onClick={openMemoryPanel}>
                     <Search size={14} />
                     View related memories
                   </DropdownMenuItem>

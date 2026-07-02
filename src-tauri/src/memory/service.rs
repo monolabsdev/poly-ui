@@ -1,7 +1,7 @@
 use crate::memory::context::DefaultMemoryContextBuilder;
 use crate::memory::context::MemoryContextBuilder;
 use crate::memory::error::MemoryError;
-use crate::memory::extractor::{DisabledMemoryExtractor, MemoryExtractor};
+use crate::memory::extractor::{resolve_extraction_target, LlmMemoryExtractor, MemoryExtractor};
 use crate::memory::filter::{DeterministicSensitiveDataFilter, SensitiveDataFilter};
 use crate::memory::processing::completed_turn_id;
 use crate::memory::repository::{MemoryRepository, SqliteMemoryRepository};
@@ -22,17 +22,17 @@ pub struct MemoryService {
     repository: SqliteMemoryRepository,
     sensitive_filter: DeterministicSensitiveDataFilter,
     context_builder: DefaultMemoryContextBuilder,
-    extractor: DisabledMemoryExtractor,
+    extractor: LlmMemoryExtractor,
 }
 
 impl MemoryService {
     pub fn new(pool: SqlitePool) -> Self {
         Self {
             repository: SqliteMemoryRepository::new(pool.clone()),
+            extractor: LlmMemoryExtractor::new(pool.clone()),
             pool,
             sensitive_filter: DeterministicSensitiveDataFilter,
             context_builder: DefaultMemoryContextBuilder,
-            extractor: DisabledMemoryExtractor,
         }
     }
 
@@ -272,13 +272,10 @@ impl MemoryService {
             Ok(operations) => operations,
             Err(error) => {
                 log::warn!("Memory extraction failed for turn {turn_id}: {error}");
+                let detail = format!("memory extraction failed: {error}");
                 return self
                     .repository
-                    .finish_processing_turn(
-                        turn_id,
-                        ProcessingState::Failed,
-                        Some("memory extraction failed"),
-                    )
+                    .finish_processing_turn(turn_id, ProcessingState::Failed, Some(&detail))
                     .await;
             }
         };
@@ -311,6 +308,75 @@ impl MemoryService {
         self.repository
             .finish_processing_turn(turn_id, ProcessingState::Completed, None)
             .await
+    }
+
+    /// Extract memories from a just-sent user message, before the assistant
+    /// responds. Returns the summaries of what was saved.
+    pub async fn extract_user_message(
+        &self,
+        owner_id: &str,
+        conversation_id: &str,
+        user_message_id: &str,
+    ) -> Result<Vec<String>, MemoryError> {
+        let settings = self.get_settings(owner_id).await?;
+        if !settings.enabled || !settings.automatic_extraction {
+            return Ok(Vec::new());
+        }
+        // Temporary/unpersisted chats never write memories automatically.
+        let Some(conversation) = self.load_conversation(conversation_id).await? else {
+            return Ok(Vec::new());
+        };
+        let Some(user) = self
+            .load_message(conversation_id, user_message_id)
+            .await?
+        else {
+            return Ok(Vec::new());
+        };
+        if user.role != "user"
+            || user.content.chars().filter(|c| !c.is_whitespace()).count() < 3
+        {
+            return Ok(Vec::new());
+        }
+        if self.reject_sensitive_text(&user.content).is_err() {
+            return Ok(Vec::new());
+        }
+
+        let scopes = self.enabled_scopes(
+            owner_id,
+            conversation.folder_id.as_deref(),
+            Some(conversation.id.as_str()),
+            None,
+            &settings,
+        );
+        if scopes.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let operations = self
+            .extractor
+            .extract(MemoryTurnInput {
+                owner_id: owner_id.to_string(),
+                conversation_id: conversation_id.to_string(),
+                user_message_id: user_message_id.to_string(),
+                assistant_message_id: user_message_id.to_string(),
+                user_content: user.content,
+                assistant_content: String::new(),
+                scopes,
+            })
+            .await?;
+        if operations.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let summaries = operations
+            .iter()
+            .filter_map(|operation| operation.summary.clone())
+            .collect();
+        let provider = self.sync_provider_for_owner(owner_id).await?;
+        self.repository
+            .apply_operations(owner_id, operations, provider.as_deref())
+            .await?;
+        Ok(summaries)
     }
 
     pub async fn build_context_for_chat(
@@ -375,17 +441,100 @@ impl MemoryService {
         owner_id: &str,
     ) -> Result<MemoryConnectionTestResult, MemoryError> {
         let settings = self.get_settings(owner_id).await?;
-        let ok = !settings.enabled || settings.provider == "disabled";
+
+        if settings.enabled && settings.provider != "disabled" {
+            return Ok(MemoryConnectionTestResult {
+                ok: false,
+                provider: settings.provider,
+                locality: settings.locality,
+                message: "External memory provider is not implemented in this build".to_string(),
+            });
+        }
+
+        let count: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM memory_records WHERE owner_id = ?1 AND is_active = 1 AND deleted_at IS NULL",
+        )
+        .bind(owner_id)
+        .fetch_one(&self.pool)
+        .await?;
+
+        let (ok, message) = if !settings.enabled {
+            (true, format!("Storage ready ({count} active memories). Memory is disabled."))
+        } else if !settings.automatic_extraction {
+            (true, format!("Storage ready ({count} active memories). Automatic extraction is off."))
+        } else {
+            match resolve_extraction_target(&self.pool, &settings, owner_id).await {
+                Ok((provider, model)) => (
+                    true,
+                    format!(
+                        "Storage ready ({count} active memories). Extraction uses {} model `{model}`.",
+                        provider.get_provider_name()
+                    ),
+                ),
+                Err(error) => (
+                    false,
+                    format!("Storage ready ({count} active memories), but extraction provider failed: {error}"),
+                ),
+            }
+        };
+
         Ok(MemoryConnectionTestResult {
             ok,
             provider: settings.provider,
             locality: settings.locality,
-            message: if ok {
-                "Native memory storage ready".to_string()
-            } else {
-                "External memory provider is not implemented in this build".to_string()
-            },
+            message,
         })
+    }
+
+    pub async fn list_for_chat(
+        &self,
+        owner_id: &str,
+        conversation_id: &str,
+    ) -> Result<Vec<MemoryRecord>, MemoryError> {
+        self.repository
+            .list_for_chat(owner_id, conversation_id)
+            .await
+    }
+
+    /// Debug helper: re-run extraction on the most recent completed turn.
+    pub async fn debug_extract_last_turn(
+        &self,
+        owner_id: &str,
+    ) -> Result<MemoryProcessingRecord, MemoryError> {
+        let assistant = sqlx::query(
+            "SELECT id, conversationId, rowid AS row_order FROM messages WHERE role = 'assistant' AND status = 'complete' ORDER BY rowid DESC LIMIT 1",
+        )
+        .fetch_optional(&self.pool)
+        .await?
+        .ok_or_else(|| MemoryError::NotFound("no completed assistant message".to_string()))?;
+        let assistant_id: String = assistant.get("id");
+        let conversation_id: String = assistant.get("conversationId");
+        let row_order: i64 = assistant.get("row_order");
+
+        let user = sqlx::query(
+            "SELECT id FROM messages WHERE conversationId = ?1 AND role = 'user' AND rowid < ?2 ORDER BY rowid DESC LIMIT 1",
+        )
+        .bind(&conversation_id)
+        .bind(row_order)
+        .fetch_optional(&self.pool)
+        .await?
+        .ok_or_else(|| MemoryError::NotFound("no user message before last assistant message".to_string()))?;
+        let user_message_id: String = user.get("id");
+
+        // Drop any previous queue entry so the debug run actually re-extracts.
+        let turn_id = completed_turn_id(&conversation_id, &user_message_id, &assistant_id);
+        sqlx::query("DELETE FROM memory_processing_queue WHERE turn_id = ?1")
+            .bind(&turn_id)
+            .execute(&self.pool)
+            .await?;
+
+        self.process_completed_turn(MemoryCompletedTurnInput {
+            owner_id: owner_id.to_string(),
+            conversation_id,
+            user_message_id,
+            assistant_message_id: assistant_id,
+        })
+        .await
     }
 
     async fn sync_provider_for_owner(&self, owner_id: &str) -> Result<Option<String>, MemoryError> {

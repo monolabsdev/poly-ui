@@ -3,6 +3,7 @@ import { getSessionToken } from "@/lib/utils/utils";
 import type {
   MemoryForgetMessageInput,
   MemoryListQuery,
+  MemoryProcessingRecord,
   MemoryRecord,
   MemoryRememberMessageInput,
   MemoryScope,
@@ -74,6 +75,21 @@ export function memoryForgetMessage(input: MemoryForgetMessageInput) {
 export function memoryGetRelated(ownerId: string, messageId: string, query: string) {
   return invoke<MemoryRecord[]>("memory_get_related", {
     query: { ownerId, messageId, query, limit: 8 },
+    token: getSessionToken(),
+  });
+}
+
+export function memoryListForChat(ownerId: string, conversationId: string) {
+  return invoke<MemoryRecord[]>("memory_list_for_chat", {
+    ownerId,
+    conversationId,
+    token: getSessionToken(),
+  });
+}
+
+export function memoryDebugExtractLastTurn(ownerId: string) {
+  return invoke<MemoryProcessingRecord>("memory_debug_extract_last_turn", {
+    ownerId,
     token: getSessionToken(),
   });
 }

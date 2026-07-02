@@ -59,6 +59,8 @@ export interface ChatMessage {
   errorMessage?: string;
   webSearch?: WebSearchEvent;
   agent?: AgentMessageState;
+  /** Summaries of memories saved from this turn. In-memory only, not persisted. */
+  memoryUpdates?: string[];
 }
 
 export interface Message extends ChatMessage {}

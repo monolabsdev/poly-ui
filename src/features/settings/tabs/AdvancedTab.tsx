@@ -45,14 +45,16 @@ export function AdvancedTab() {
         }
       />
 
-      <SettingCard
-        title="Memory"
-        description="Persistent memory UI and background processing stay inactive unless experimental features are enabled."
-      >
-        <Typography>
-          Open the Memory tab after enabling experimental features. Turning this switch off disables memory processing for current profile.
-        </Typography>
-      </SettingCard>
+      {import.meta.env.DEV && (
+        <SettingCard
+          title="Memory"
+          description="Persistent memory UI and background processing stay inactive unless experimental features are enabled."
+        >
+          <Typography>
+            Open the Memory tab after enabling experimental features. Turning this switch off disables memory processing for current profile.
+          </Typography>
+        </SettingCard>
+      )}
 
       <SettingCard
         title="Poly Agent"

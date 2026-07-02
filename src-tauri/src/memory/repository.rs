@@ -80,6 +80,23 @@ impl SqliteMemoryRepository {
         Self { pool }
     }
 
+    /// Active memories that came from a conversation or are scoped to it.
+    pub async fn list_for_chat(
+        &self,
+        owner_id: &str,
+        conversation_id: &str,
+    ) -> Result<Vec<MemoryRecord>, MemoryError> {
+        let owner_id = normalize_owner_id(owner_id)?;
+        let rows = sqlx::query(
+            "SELECT * FROM memory_records WHERE owner_id = ?1 AND is_active = 1 AND deleted_at IS NULL AND (source_chat_id = ?2 OR (scope = 'chat' AND scope_owner_id = ?2)) ORDER BY created_at DESC LIMIT 200",
+        )
+        .bind(owner_id)
+        .bind(conversation_id)
+        .fetch_all(&self.pool)
+        .await?;
+        rows.into_iter().map(row_to_record).collect()
+    }
+
     async fn apply_operation_tx(
         tx: &mut Transaction<'_, Sqlite>,
         owner_id: &str,
@@ -723,10 +740,11 @@ impl MemoryRepository for SqliteMemoryRepository {
             }
             sql.push_str("(scope = ? AND scope_owner_id = ?)");
         }
-        sql.push_str(
-            ") AND (? = '' OR summary LIKE ? OR canonical_key LIKE ? OR value_json LIKE ?)",
-        );
-        sql.push_str(" ORDER BY importance DESC, confidence DESC, COALESCE(last_used_at, updated_at) DESC LIMIT ?");
+        sql.push_str(")");
+        // ponytail: naive LIKE match is a ranking boost, not a gate — a whole
+        // user message almost never appears verbatim inside a stored memory,
+        // so gating on it returned nothing. Embedding-based relevance later.
+        sql.push_str(" ORDER BY (CASE WHEN ? != '' AND (summary LIKE ? OR canonical_key LIKE ? OR value_json LIKE ?) THEN 1 ELSE 0 END) DESC, importance DESC, confidence DESC, COALESCE(last_used_at, updated_at) DESC LIMIT ?");
 
         let needle = if query.query.trim().is_empty() {
             String::new()

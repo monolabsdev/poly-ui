@@ -60,10 +60,7 @@ export const WebSearchDisclosure = React.memo(
           </span>
         </ReasoningTrigger>
         {hasResults && (
-          <ReasoningContent
-            className="mt-2"
-            contentClassName="border-l border-border/60 pl-3 text-xs leading-relaxed"
-          >
+          <ReasoningContent contentClassName="border-l border-border/60 pl-3 pt-2 text-xs leading-relaxed">
             <div className="flex flex-col gap-2.5">
               {results?.map((result, i) => (
                 <div key={`${result.url}-${i}`} className="flex flex-col gap-0.5">

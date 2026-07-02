@@ -8,7 +8,6 @@ import { DialogContent } from "@/components/ui/dialog-panel";
 import { DialogTitle } from "@/components/ui/dialog-panel";
 import { Divider } from "@/components/ui/divider";
 import { FormControl } from "@/components/ui/native-select";
-import { InputLabel } from "@/components/ui/native-select";
 import { MenuItem } from "@/components/ui/native-select";
 import { Select } from "@/components/ui/native-select";
 import { Slider } from "@/components/ui/slider";
@@ -16,14 +15,13 @@ import { Stack } from "@/components/ui/Stack";
 import { Switch } from "@/components/ui/switch";
 import { TextField } from "@/components/ui/text-field";
 import { Typography } from "@/components/ui/Typography";
-import type { SelectChangeEvent } from "@/components/ui/native-select";
-import { RefreshCcw, Search, Trash2 } from "lucide-react";
+import { FlaskConical, RefreshCcw, Search, Trash2 } from "lucide-react";
 import { EmptyState, SectionHeader, SettingCard } from "@/features/settings/SettingComponents";
 import { useNotify } from "@/hooks/useNotify";
 import { getCurrentProviderAccountId } from "@/features/providers";
 import {
   memoryClearAll,
-  memoryClearScope,
+  memoryDebugExtractLastTurn,
   memoryDelete,
   memoryGetSettings,
   memoryList,
@@ -32,19 +30,7 @@ import {
   memoryUpdate,
   memoryUpdateSettings,
 } from "./memoryClient";
-import type { MemoryCategory, MemoryRecord, MemoryScope, MemorySettings } from "./types";
-
-const scopes: MemoryScope[] = ["user", "project", "chat", "agent"];
-const categories: MemoryCategory[] = [
-  "identity",
-  "preference",
-  "goal",
-  "project",
-  "relationship",
-  "event",
-  "instruction",
-  "other",
-];
+import type { MemoryRecord, MemorySettings } from "./types";
 
 function localityLabel(settings: MemorySettings | null) {
   if (!settings?.enabled) return "Disabled";
@@ -102,9 +88,9 @@ export function MemoryTab() {
   const [records, setRecords] = useState<MemoryRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [extracting, setExtracting] = useState(false);
   const [query, setQuery] = useState("");
-  const [scope, setScope] = useState<MemoryScope | "all">("all");
-  const [category, setCategory] = useState<MemoryCategory | "all">("all");
   const [includeInactive, setIncludeInactive] = useState(false);
   const [editing, setEditing] = useState<MemoryRecord | null>(null);
   const [confirm, setConfirm] = useState<null | { title: string; body: string; run: () => Promise<void> }>(null);
@@ -119,9 +105,9 @@ export function MemoryTab() {
     if (!ownerId) return;
     const base = {
       ownerId,
-      scope: scope === "all" ? null : scope,
+      scope: null,
       scopeOwnerId: null,
-      category: category === "all" ? null : category,
+      category: null,
       includeInactive,
       includeDeleted: false,
       limit: 100,
@@ -130,7 +116,7 @@ export function MemoryTab() {
       ? await memorySearch({ ...base, query: query.trim() })
       : await memoryList({ ...base, includeSuperseded: includeInactive, offset: 0 });
     setRecords(next);
-  }, [category, includeInactive, ownerId, query, scope]);
+  }, [includeInactive, ownerId, query]);
 
   useEffect(() => {
     let cancelled = false;
@@ -164,11 +150,29 @@ export function MemoryTab() {
 
   const testConnection = async () => {
     if (!ownerId) return;
+    setTesting(true);
     try {
       const result = await memoryTestConnection(ownerId);
       notify[result.ok ? "success" : "error"]("Memory connection", result.message);
     } catch (error) {
       notify.error("Memory connection failed", String(error));
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  const runDebugExtraction = async () => {
+    if (!ownerId) return;
+    setExtracting(true);
+    try {
+      const record = await memoryDebugExtractLastTurn(ownerId);
+      const detail = record.lastError ? `${record.state}: ${record.lastError}` : record.state;
+      notify[record.state === "completed" ? "success" : "info"]("Extraction run", detail);
+      await loadRecords();
+    } catch (error) {
+      notify.error("Extraction failed", String(error));
+    } finally {
+      setExtracting(false);
     }
   };
 
@@ -179,19 +183,6 @@ export function MemoryTab() {
       run: async () => {
         await memoryDelete(ownerId, record.id);
         notify.success("Memory deleted");
-        await loadRecords();
-      },
-    });
-  };
-
-  const clearCurrentScope = () => {
-    if (scope === "all") return;
-    setConfirm({
-      title: `Clear ${scope} memories`,
-      body: "Deletes active memories in this scope for current profile.",
-      run: async () => {
-        await memoryClearScope(ownerId, scope, null);
-        notify.success("Scope cleared");
         await loadRecords();
       },
     });
@@ -230,104 +221,97 @@ export function MemoryTab() {
         action={<Switch checked={settingsReady.enabled} disabled={saving} onChange={(e) => saveSettings({ enabled: e.target.checked })} />}
       />
       <SettingCard
-        title="Memory provider"
-        description="Native local storage is active. Mem0 adapter lands in next phase."
-        action={
-          <FormControl size="small">
-            <Select value={settingsReady.provider} onChange={(event) => saveSettings({ provider: event.target.value, locality: event.target.value === "disabled" ? "local" : "remote" })}>
-              <MenuItem value="disabled">Disabled</MenuItem>
-              <MenuItem value="mem0" disabled>Mem0</MenuItem>
-            </Select>
-          </FormControl>
-        }
-      />
-      <SettingCard
         title="Automatic extraction"
         description="Runs after completed persisted turns. Temporary chats are skipped."
         action={<Switch checked={settingsReady.automaticExtraction} disabled={!settingsReady.enabled || saving} onChange={(e) => saveSettings({ automaticExtraction: e.target.checked })} />}
       />
-      <SettingCard
-        title="Require sensitive confirmation"
-        description="Deterministic filter rejects keys, tokens, private credentials and similar secrets."
-        action={<Switch checked={settingsReady.requireSensitiveConfirmation} disabled={!settingsReady.enabled || saving} onChange={(e) => saveSettings({ requireSensitiveConfirmation: e.target.checked })} />}
-      />
-
-      <SectionHeader title="Scopes" description="Scope ownership stays explicit. Project and agent memory never become global automatically." />
-      {[
-        ["enableUserMemory", "User memory", "Across chats for current profile."],
-        ["enableProjectMemory", "Project memory", "Only inside relevant workspace or folder."],
-        ["enableChatMemory", "Chat memory", "Only inside originating conversation."],
-        ["enableAgentMemory", "Agent memory", "Only for matching agent configuration."],
-      ].map(([key, title, description]) => (
-        <SettingCard
-          key={key}
-          title={title}
-          description={description}
-          action={<Switch checked={Boolean(settingsReady[key as keyof MemorySettings])} disabled={!settingsReady.enabled || saving} onChange={(e) => saveSettings({ [key]: e.target.checked } as Partial<MemorySettings>)} />}
-        />
-      ))}
-      <SettingCard
-        title="Temporary chat recall"
-        description="Off by default. Temporary chats never write persistent memories automatically."
-        action={<Switch checked={settingsReady.allowTemporaryRecall} disabled={!settingsReady.enabled || saving} onChange={(e) => saveSettings({ allowTemporaryRecall: e.target.checked })} />}
-      />
-
-      <SectionHeader title="Retrieval" description="Only bounded active canonical memories are injected as untrusted context." />
-      <SettingCard title="Memory retrieval limit" description={`${settingsReady.retrievalLimit} memories maximum`}>
-        <Slider min={1} max={20} value={settingsReady.retrievalLimit} disabled={!settingsReady.enabled || saving} onChange={(_, value) => saveSettings({ retrievalLimit: value as number })} />
-      </SettingCard>
-      <SettingCard title="Memory token budget" description={`${settingsReady.tokenBudget} approximate tokens`}>
-        <Slider min={100} max={2000} step={50} value={settingsReady.tokenBudget} disabled={!settingsReady.enabled || saving} onChange={(_, value) => saveSettings({ tokenBudget: value as number })} />
-      </SettingCard>
 
       <SectionHeader
         title="Your memories"
-        description={`${activeCount} active shown. Superseded memories appear when inactive records are enabled.`}
+        description={`${activeCount} active shown.`}
         action={
           <Stack direction="row" spacing={1}>
             <Button size="small" startIcon={<RefreshCcw size={14} />} onClick={loadRecords}>Refresh</Button>
-            <Button size="small" onClick={testConnection}>Test</Button>
+            <Button size="small" disabled={testing} onClick={testConnection}>{testing ? "Testing..." : "Test"}</Button>
           </Stack>
         }
       />
-      <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-        <TextField value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search memories" size="small" fullWidth InputProps={{ startAdornment: <Search size={14} /> }} />
-        <FilterSelect label="Scope" value={scope} values={["all", ...scopes]} onChange={(value) => setScope(value as MemoryScope | "all")} />
-        <FilterSelect label="Category" value={category} values={["all", ...categories]} onChange={(value) => setCategory(value as MemoryCategory | "all")} />
-      </Stack>
-      <SettingCard
-        title="Show superseded memories"
-        description="Includes inactive historical values for inspection."
-        action={<Switch checked={includeInactive} onChange={(e) => setIncludeInactive(e.target.checked)} />}
-      />
+      <TextField value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search memories" size="small" fullWidth InputProps={{ startAdornment: <Search size={14} /> }} />
       <Stack spacing={1}>
         {loading ? <EmptyState>Loading memories...</EmptyState> : records.length === 0 ? <EmptyState>No memories found.</EmptyState> : records.map((record) => (
           <MemoryRow key={record.id} record={record} onEdit={setEditing} onDelete={removeMemory} />
         ))}
       </Stack>
       <Stack direction="row" spacing={1}>
-        <Button size="small" color="error" variant="outlined" disabled={scope === "all"} onClick={clearCurrentScope} startIcon={<Trash2 size={14} />}>
-          Clear scope
-        </Button>
-        <Button size="small" color="error" variant="text" onClick={clearAll}>
+        <Button size="small" color="error" variant="text" onClick={clearAll} startIcon={<Trash2 size={14} />}>
           Clear all
         </Button>
       </Stack>
 
+      <details>
+        <summary style={{ cursor: "pointer", fontSize: 13, padding: "12px 0" }}>Advanced settings</summary>
+        <Stack spacing={0}>
+          <SettingCard
+            title="Memory provider"
+            description="Native local storage is active. Mem0 adapter lands in next phase."
+            action={
+              <FormControl size="small">
+                <Select value={settingsReady.provider} onChange={(event) => saveSettings({ provider: event.target.value, locality: event.target.value === "disabled" ? "local" : "remote" })}>
+                  <MenuItem value="disabled">Disabled</MenuItem>
+                  <MenuItem value="mem0" disabled>Mem0</MenuItem>
+                </Select>
+              </FormControl>
+            }
+          />
+          <SettingCard
+            title="Require sensitive confirmation"
+            description="Deterministic filter rejects keys, tokens, private credentials and similar secrets."
+            action={<Switch checked={settingsReady.requireSensitiveConfirmation} disabled={!settingsReady.enabled || saving} onChange={(e) => saveSettings({ requireSensitiveConfirmation: e.target.checked })} />}
+          />
+          {[
+            ["enableUserMemory", "User memory", "Across chats for current profile."],
+            ["enableProjectMemory", "Project memory", "Only inside relevant workspace or folder."],
+            ["enableChatMemory", "Chat memory", "Only inside originating conversation."],
+            ["enableAgentMemory", "Agent memory", "Only for matching agent configuration."],
+          ].map(([key, title, description]) => (
+            <SettingCard
+              key={key}
+              title={title}
+              description={description}
+              action={<Switch checked={Boolean(settingsReady[key as keyof MemorySettings])} disabled={!settingsReady.enabled || saving} onChange={(e) => saveSettings({ [key]: e.target.checked } as Partial<MemorySettings>)} />}
+            />
+          ))}
+          <SettingCard
+            title="Temporary chat recall"
+            description="Off by default. Temporary chats never write persistent memories automatically."
+            action={<Switch checked={settingsReady.allowTemporaryRecall} disabled={!settingsReady.enabled || saving} onChange={(e) => saveSettings({ allowTemporaryRecall: e.target.checked })} />}
+          />
+          <SettingCard title="Memory retrieval limit" description={`${settingsReady.retrievalLimit} memories maximum`}>
+            <Slider min={1} max={20} value={settingsReady.retrievalLimit} disabled={!settingsReady.enabled || saving} onChange={(_, value) => saveSettings({ retrievalLimit: value as number })} />
+          </SettingCard>
+          <SettingCard title="Memory token budget" description={`${settingsReady.tokenBudget} approximate tokens`}>
+            <Slider min={100} max={2000} step={50} value={settingsReady.tokenBudget} disabled={!settingsReady.enabled || saving} onChange={(_, value) => saveSettings({ tokenBudget: value as number })} />
+          </SettingCard>
+          <SettingCard
+            title="Show superseded memories"
+            description="Includes inactive historical values for inspection."
+            action={<Switch checked={includeInactive} onChange={(e) => setIncludeInactive(e.target.checked)} />}
+          />
+          <SettingCard
+            title="Run extraction on last turn"
+            description="Debug: re-runs memory extraction against the most recent completed turn."
+            action={
+              <Button size="small" startIcon={<FlaskConical size={14} />} disabled={extracting || !settingsReady.enabled} onClick={runDebugExtraction}>
+                {extracting ? "Running..." : "Run"}
+              </Button>
+            }
+          />
+        </Stack>
+      </details>
+
       <EditMemoryDialog record={editing} ownerId={ownerId} onClose={() => setEditing(null)} onSaved={loadRecords} />
       <ConfirmDialog confirm={confirm} onClose={() => setConfirm(null)} />
     </Stack>
-  );
-}
-
-function FilterSelect({ label, value, values, onChange }: { label: string; value: string; values: string[]; onChange: (value: string) => void }) {
-  return (
-    <FormControl size="small">
-      <InputLabel>{label}</InputLabel>
-      <Select label={label} value={value} onChange={(event: SelectChangeEvent) => onChange(event.target.value)}>
-        {values.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}
-      </Select>
-    </FormControl>
   );
 }
 
