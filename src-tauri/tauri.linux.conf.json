@@ -4,7 +4,8 @@
       {
         "label": "main",
         "decorations": true,
-        "visible": false
+        "visible": false,
+        "dragDropEnabled": true
       }
     ]
   }

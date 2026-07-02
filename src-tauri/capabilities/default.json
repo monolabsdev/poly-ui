@@ -32,6 +32,11 @@
     "window-state:default",
     "notification:default",
     "dialog:default",
-    "fs:allow-write-text-file"
+    "fs:allow-write-text-file",
+    "fs:allow-read-file",
+    {
+      "identifier": "fs:scope",
+      "allow": ["**"]
+    }
   ]
 }

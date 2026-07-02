@@ -7,7 +7,7 @@ type ValidationOptions = {
   maxFiles?: number;
 };
 
-const extensions: Record<string, readonly string[]> = {
+export const extensions: Record<string, readonly string[]> = {
   "image/jpeg": [".jpg", ".jpeg"],
   "image/png": [".png"],
   "image/webp": [".webp"],
