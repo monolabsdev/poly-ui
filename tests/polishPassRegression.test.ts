@@ -46,13 +46,13 @@ describe("Poly polish pass guards", () => {
     expect(button).toContain("active:not-aria-[haspopup]:translate-y-px");
     expect(select).toContain("duration-[var(--dur-base)]");
     expect(select).toContain("ease-[var(--ease-soft)]");
-    expect(select).toContain("bg-popover/95");
-    expect(select).toContain("backdrop-blur-xl");
+    expect(select).toContain("bg-popover");
+    expect(select).not.toContain("backdrop-blur");
     expect(scrollArea).toContain("data-horizontal:h-2.5");
     expect(scrollArea).toContain("data-vertical:w-2.5");
     expect(scrollArea).toContain("bg-border");
-    expect(popover).toContain("bg-popover/95");
-    expect(popover).toContain("backdrop-blur-xl");
+    expect(popover).toContain("bg-popover");
+    expect(popover).not.toContain("backdrop-blur");
     expect(dropdown).toContain("bg-popover");
     expect(dropdown).toContain("dropdown-menu-content");
     expect(tooltip).toContain("bg-foreground");

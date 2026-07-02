@@ -13,7 +13,7 @@ export function ModalRoot({
   if (!open) return null;
   return (
     <div
-      className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center bg-background/70 backdrop-blur-sm"
+      className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center bg-background/70"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose?.();
       }}

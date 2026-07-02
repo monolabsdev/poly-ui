@@ -20,7 +20,6 @@ import {
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
-  useSidebar,
 } from "@/components/ui/sidebar"
 import type { SettingsTab } from "@/features/settings/SettingsModal"
 import type { Conversation } from "@/types/chat"
@@ -38,8 +37,6 @@ function AppSidebarBody({
   onNewChat,
   conversations,
 }: AppSidebarBodyProps) {
-  const { state } = useSidebar()
-  const isCollapsed = state === "collapsed"
   const conversationsLoading = useChatStore(
     (state) => state.conversationsLoading,
   )
@@ -70,20 +67,19 @@ function AppSidebarBody({
       <SidebarContent>
         <NavMain onNewChat={onNewChat} onSearch={onOpenCommandPalette} />
 
-        {!isCollapsed && (
+        {/* Stays mounted through collapse so it fades with the width animation instead of popping out */}
+        <div className="flex min-h-0 flex-col gap-(--sidebar-section-gap) transition-[opacity,visibility] duration-[var(--dur-fast)] ease-[var(--ease-soft)] group-data-[collapsible=icon]:invisible group-data-[collapsible=icon]:opacity-0">
           <FoldersSection
             folderConversations={folderConversations}
             streamingConversationId={streamingConversationId}
           />
-        )}
 
-        {!isCollapsed && (
           <ConversationList
             groupedConversations={groupedConversations}
             conversationsLoading={conversationsLoading}
             streamingConversationId={streamingConversationId}
           />
-        )}
+        </div>
       </SidebarContent>
 
       <SidebarFooter>

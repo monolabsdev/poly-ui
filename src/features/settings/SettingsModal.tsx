@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Box } from "@/components/ui/Box";
 import { Button } from "@/components/ui/button";
 import { ButtonBase } from "@/components/ui/button-base";
@@ -123,34 +123,37 @@ export function SettingsModal({ isOpen, onClose, initialTab = "general" }: Setti
   const [visitedTabs, setVisitedTabs] = useState<Set<SettingsTab>>(() => new Set([initialTab]));
   const devMode = useDevStore((s) => s.devMode);
   const experimentalEnabled = useSettingsStore((state) => state.general.experimentalFeatures);
-  const sidebarItems = devMode
-    ? [
-        ...SIDEBAR_ITEMS,
-        ...(experimentalEnabled ? [MEMORY_ITEM] : []),
-        { id: "developer" as const, label: "Developer", icon: Terminal },
-      ]
-    : [...SIDEBAR_ITEMS, ...(experimentalEnabled ? [MEMORY_ITEM] : [])];
+  const sidebarItems = useMemo(
+    () =>
+      devMode
+        ? [
+            ...SIDEBAR_ITEMS,
+            ...(experimentalEnabled ? [MEMORY_ITEM] : []),
+            { id: "developer" as const, label: "Developer", icon: Terminal },
+          ]
+        : [...SIDEBAR_ITEMS, ...(experimentalEnabled ? [MEMORY_ITEM] : [])],
+    [devMode, experimentalEnabled],
+  );
 
-  const activeItem = [...sidebarItems, ADVANCED_ITEM].find((item) => item.id === activeTab);
-  const panelItems = [...sidebarItems, ADVANCED_ITEM];
+  const activeItem = useMemo(() => [...sidebarItems, ADVANCED_ITEM].find((item) => item.id === activeTab), [sidebarItems, activeTab]);
+  const panelItems = useMemo(() => [...sidebarItems, ADVANCED_ITEM], [sidebarItems]);
 
-  const selectTab = (tab: SettingsTab) => {
+  const selectTab = useCallback((tab: SettingsTab) => {
     setActiveTab(tab);
     setVisitedTabs((prev) => (prev.has(tab) ? prev : new Set(prev).add(tab)));
-  };
+  }, []);
 
   useEffect(() => {
     if (!isOpen) return;
-    const validIds = new Set([...sidebarItems, ADVANCED_ITEM].map((i) => i.id));
-    const nextTab = validIds.has(initialTab) ? initialTab : (sidebarItems[0]?.id ?? "general");
+    const allItems = [...sidebarItems, ADVANCED_ITEM];
+    const validIds = new Set(allItems.map((i) => i.id));
+    const nextTab = validIds.has(initialTab) ? initialTab : (allItems[0]?.id ?? "general");
     selectTab(nextTab);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialTab, isOpen]);
+  }, [initialTab, isOpen, sidebarItems, selectTab]);
 
   useEffect(() => {
     if (!experimentalEnabled && activeTab === "memory") selectTab("advanced");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, experimentalEnabled]);
+  }, [activeTab, experimentalEnabled, selectTab]);
 
   return (
     <AppDialogFrame open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -217,7 +220,7 @@ export function SettingsModal({ isOpen, onClose, initialTab = "general" }: Setti
 
           <AppDialogBody>
             <Box className="min-h-[400px] w-full">
-              <Box className={activeTab !== "general" ? "hidden" : ""}><GeneralTab /></Box>
+              {visitedTabs.has("general") && <Box className={activeTab !== "general" ? "hidden" : ""}><GeneralTab /></Box>}
               {visitedTabs.has("profile") && <Box className={activeTab !== "profile" ? "hidden" : ""}><ProfileTab /></Box>}
               {visitedTabs.has("connections") && <Box className={activeTab !== "connections" ? "hidden" : ""}><ConnectionsTab /></Box>}
               {visitedTabs.has("personalisation") && <Box className={activeTab !== "personalisation" ? "hidden" : ""}><PersonalisationTab /></Box>}

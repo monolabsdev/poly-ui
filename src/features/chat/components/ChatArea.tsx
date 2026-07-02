@@ -416,7 +416,7 @@ export const ChatArea = memo(function ChatArea({
             size="small"
             aria-label="Scroll to latest messages"
             onClick={handleScrollToBottom}
-            className="pointer-events-auto rounded-full border border-border/60 bg-background/90 shadow-md backdrop-blur"
+            className="pointer-events-auto rounded-full border border-border/60 bg-background/90 shadow-md"
           >
             <ChevronDown size={18} />
           </IconButton>

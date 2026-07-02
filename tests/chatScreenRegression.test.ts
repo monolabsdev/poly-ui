@@ -93,9 +93,9 @@ describe("chat screen regression guards", () => {
     expect(dropdown).toContain("z-50");
     expect(popover).toContain("z-[var(--z-popover)]");
     expect(tooltip).toContain("z-[var(--z-tooltip)]");
-    expect(slashMenu).toContain("bg-popover/95");
+    expect(slashMenu).toContain("bg-popover");
     expect(slashMenu).toContain("role=\"listbox\"");
-    expect(slashMenu).toContain("backdrop-blur-xl");
+    expect(slashMenu).not.toContain("backdrop-blur");
     expect(slashMenu).not.toContain("style={{ color:");
     expect(chatInput).toContain("whitespace-nowrap");
     expect(profile).toContain("flex min-w-0 items-center gap-2");

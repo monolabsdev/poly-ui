@@ -32,7 +32,7 @@ const ToastItem = ({ toast }: { toast: ToastType }) => {
   return (
     <div
       className={cn(
-        "animate-toast-in pointer-events-auto relative mb-3 flex w-[calc(100vw-32px)] max-w-[380px] items-start gap-3.5 rounded-xl border bg-card/95 px-4 py-3.5 shadow-xl backdrop-blur-sm sm:w-[380px]",
+        "animate-toast-in pointer-events-auto relative mb-3 flex w-[calc(100vw-32px)] max-w-[380px] items-start gap-3.5 rounded-xl border bg-card px-4 py-3.5 shadow-xl sm:w-[380px]",
         tone,
       )}
     >

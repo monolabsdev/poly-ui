@@ -296,7 +296,7 @@ function updateContextFromTool(
   state.context.activeFile = path;
   state.context.lastToolCall = { toolName, targetPath: path };
   if (toolName === "read_file") pushUnique(state.context.recentlyViewedFiles, path);
-  if (toolName === "apply_patch" || toolName === "write_file") {
+  if (["apply_patch", "write_file", "edit", "multi_edit"].includes(toolName)) {
     pushUnique(state.context.recentlyEditedFiles, path);
   }
 }
@@ -314,9 +314,14 @@ function activity(
 }
 
 function upsertActivity(state: AgentMessageState, key: string, item: AgentActivityItem) {
+  // Reasoning summaries are growing snapshots of the same text: replace the
+  // detail, never accumulate the snapshots as separate detail entries.
+  const accumulate = item.kind !== "reasoning";
   const index = state.activities.findIndex((existing) => existing.toolCallId === key);
   if (index >= 0) {
-    const details = mergeDetails(state.activities[index].details, item.details, item.detail);
+    const details = accumulate
+      ? mergeDetails(state.activities[index].details, item.details, item.detail)
+      : state.activities[index].details;
     state.activities[index] = {
       ...state.activities[index],
       ...item,
@@ -328,7 +333,11 @@ function upsertActivity(state: AgentMessageState, key: string, item: AgentActivi
     normalizeActivityOrder(state);
     return;
   }
-  state.activities.push({ ...item, toolCallId: key, details: mergeDetails(undefined, item.details, item.detail) });
+  state.activities.push({
+    ...item,
+    toolCallId: key,
+    details: accumulate ? mergeDetails(undefined, item.details, item.detail) : item.details,
+  });
   normalizeActivityOrder(state);
 }
 

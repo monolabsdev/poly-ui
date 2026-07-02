@@ -34,7 +34,7 @@ export function Popover({
   if (!open) return null;
   return (
     <div
-      className={cn("fixed z-[var(--z-popover)] rounded-lg border border-border/60 bg-popover/95 text-popover-foreground shadow-md backdrop-blur-xl", className)}
+      className={cn("fixed z-[var(--z-popover)] rounded-lg border border-border/60 bg-popover text-popover-foreground shadow-md", className)}
       style={getAnchorStyle(anchorEl)}
       {...props}
     >

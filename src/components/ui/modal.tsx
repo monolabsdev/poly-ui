@@ -49,7 +49,7 @@ export function Modal({
       <DialogContent
         showCloseButton={false}
         className={cn(
-          "flex max-w-none grid-cols-none flex-col gap-0 overflow-hidden rounded-[min(var(--radius-4xl),24px)] border-border/60 bg-card/95 p-0 shadow-2xl backdrop-blur-xl",
+          "flex max-w-none grid-cols-none flex-col gap-0 overflow-hidden rounded-[min(var(--radius-4xl),24px)] border-border/60 bg-card p-0 shadow-2xl",
           className,
         )}
         style={{ width, maxWidth, height, maxHeight: "calc(100vh - var(--titlebar-height) - 32px)" }}

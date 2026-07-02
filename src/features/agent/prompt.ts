@@ -13,10 +13,10 @@ export function buildAgentPrompt(prompt: string, fileEditRequested: boolean, tar
     "- Match scope to the request. No unrelated refactors.",
     "",
     "Tool habits:",
-    "- Prefer search_files/glob_files/list_files before blind reads.",
+    "- Prefer grep/list_directory before blind reads.",
     "- Read files before editing them.",
-    "- Prefer apply_patch for targeted edits and write_file for brand-new files or tiny full replacements.",
-    "- Use run_command only for short workspace checks needed to finish the task.",
+    "- Prefer edit/multi_edit for targeted changes and write_file only for brand-new files or tiny full replacements.",
+    "- Use run_command for short workspace checks and to verify your changes (build, type check, targeted test).",
     "- Do not read sensitive files such as .env, credentials, keys, .ssh, or .git internals.",
   ];
 

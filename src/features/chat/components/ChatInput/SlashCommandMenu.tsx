@@ -34,7 +34,7 @@ export function SlashCommandMenu({
 
   return (
     <div className="absolute bottom-full left-0 right-0 mb-2 z-50">
-      <div className="w-[min(calc(100vw-2rem),22rem)] overflow-hidden rounded-2xl border border-border/60 bg-popover/95 shadow-md backdrop-blur-xl">
+      <div className="w-[min(calc(100vw-2rem),22rem)] overflow-hidden rounded-2xl border border-border/60 bg-popover shadow-md">
         <Box className="max-h-72 overflow-y-auto overscroll-contain p-1">
           {filtered.length === 0 ? (
             <Box className="flex items-center justify-center gap-2 py-6 text-muted-foreground">

@@ -72,7 +72,6 @@ export function useAgentRun({ selectedModelChoices }: UseAgentRunArgs) {
 
       const kind = event.data.kind;
       const value = eventValue(event.data);
-      const isDelta = kind === "final_response_delta" || kind === "text_delta";
       const isTerminal = kind === "finished" || kind === "failed" || kind === "cancelled";
 
       if (kind === "final_response_delta") {
@@ -99,19 +98,10 @@ export function useAgentRun({ selectedModelChoices }: UseAgentRunArgs) {
           errorMessage: nextAgent.error,
         });
         void finish(active, nextAgent);
-      } else if (isDelta) {
-        scheduleFlush();
       } else {
-        if (rafId !== null) {
-          cancelAnimationFrame(rafId);
-          rafId = null;
-        }
-        patchStreamingMessage(active.messageId, {
-          content: outputRef.current.displayedText,
-          agent: nextAgent,
-          status: nextAgent.status === "failed" ? "error" : "streaming",
-          errorMessage: nextAgent.error,
-        });
+        // All non-terminal events batch through rAF: high-frequency streams
+        // (reasoning/tool activity) must not trigger one store update each.
+        scheduleFlush();
       }
     }).then((unlisten) => {
       if (mounted) cleanup = unlisten;

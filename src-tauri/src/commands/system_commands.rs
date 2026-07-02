@@ -8,6 +8,23 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::Duration;
 
+const MAX_READ_BYTES: usize = 256 * 1024;
+const MAX_COMMAND_OUTPUT_BYTES: usize = 64 * 1024;
+
+fn truncate_output(mut value: String, limit: usize) -> String {
+    if value.len() <= limit {
+        return value;
+    }
+    let total = value.len();
+    let mut cut = limit;
+    while cut > 0 && !value.is_char_boundary(cut) {
+        cut -= 1;
+    }
+    value.truncate(cut);
+    value.push_str(&format!("\n… [truncated {} of {} bytes]", total - cut, total));
+    value
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AgentWorkspace {
@@ -167,7 +184,8 @@ pub async fn agent_read_text_file(workspace_path: String, path: String) -> Resul
     tauri::async_runtime::spawn_blocking(move || {
         let workspace = canonical_workspace(&workspace_path)?;
         let path = resolve_workspace_path(&workspace, &path)?;
-        std::fs::read_to_string(path).map_err(|err| err.to_string())
+        let content = std::fs::read_to_string(path).map_err(|err| err.to_string())?;
+        Ok(truncate_output(content, MAX_READ_BYTES))
     })
     .await
     .map_err(|err| err.to_string())?
@@ -289,6 +307,9 @@ pub async fn agent_run_command(request: AgentCommandRequest) -> Result<AgentComm
             .current_dir(workspace)
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped())
+            // ponytail: kills the shell on timeout; orphaned grandchildren can
+            // survive — add process-group/job-object kill if that bites.
+            .kill_on_drop(true)
             .spawn()
             .map_err(|err| err.to_string())?;
 
@@ -296,15 +317,21 @@ pub async fn agent_run_command(request: AgentCommandRequest) -> Result<AgentComm
             Ok(result) => {
                 let output = result.map_err(|err| err.to_string())?;
                 Ok(AgentCommandOutput {
-                    stdout: String::from_utf8_lossy(&output.stdout).to_string(),
-                    stderr: String::from_utf8_lossy(&output.stderr).to_string(),
+                    stdout: truncate_output(
+                        String::from_utf8_lossy(&output.stdout).to_string(),
+                        MAX_COMMAND_OUTPUT_BYTES,
+                    ),
+                    stderr: truncate_output(
+                        String::from_utf8_lossy(&output.stderr).to_string(),
+                        MAX_COMMAND_OUTPUT_BYTES,
+                    ),
                     status: output.status.code().unwrap_or(-1),
                     timed_out: false,
                 })
             }
             Err(_) => Ok(AgentCommandOutput {
                 stdout: String::new(),
-                stderr: "Command timed out.".to_string(),
+                stderr: format!("Command timed out after {}s and was killed.", timeout.as_secs()),
                 status: -1,
                 timed_out: true,
             }),

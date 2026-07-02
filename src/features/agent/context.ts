@@ -118,7 +118,7 @@ function targetPathForTool(call: AgentToolCall): string | undefined {
 }
 
 function isEditTool(toolName: string): boolean {
-  return toolName === "apply_patch" || toolName === "write_file";
+  return ["apply_patch", "write_file", "edit", "multi_edit"].includes(toolName);
 }
 
 function pushUnique(items: string[], value: string) {

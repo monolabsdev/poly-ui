@@ -11,7 +11,7 @@ describe("Poly Agent workflow", () => {
     expect(prompt).toContain("You are Poly Agent");
     expect(prompt).toContain("Execute, don't echo");
     expect(prompt).toContain("read -> understand -> change -> verify");
-    expect(prompt).toContain("Prefer apply_patch for targeted edits");
+    expect(prompt).toContain("Prefer edit/multi_edit for targeted changes");
     expect(prompt).toContain("Target file for this current request: src/App.tsx");
     expect(prompt).toContain("Do not answer as complete unless the file tool succeeds");
   });

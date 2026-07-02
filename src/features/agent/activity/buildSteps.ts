@@ -213,6 +213,7 @@ function deterministicCompletedSummary(label: string): string {
   if (label.includes("verify")) return "Verified the changes.";
   if (label.includes("complete")) return "Finished.";
   if (label.includes("cancel")) return "Stopped the agent run.";
+  if (label.includes("fail") || label.includes("error")) return "The run stopped with an error.";
   return "Completed the task.";
 }
 

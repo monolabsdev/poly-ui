@@ -44,7 +44,7 @@ export function Dialog({
       <BaseDialogContent
         showCloseButton={false}
         className={cn(
-          "max-w-[calc(100vw-32px)] rounded-[28px] bg-card/95 p-0 backdrop-blur-xl",
+          "max-w-[calc(100vw-32px)] rounded-[28px] bg-card p-0",
           fullWidth && "w-[calc(100vw-32px)]",
           maxWidth && maxWidthClass[maxWidth],
         )}

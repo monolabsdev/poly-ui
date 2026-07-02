@@ -26,7 +26,7 @@ export function AppDialogFrame({
       onOpenChange={onOpenChange}
       maxWidth={APP_DIALOG_WIDTH}
       showCloseButton={false}
-      className="h-[calc(100dvh_-_var(--titlebar-height))] w-screen rounded-none border-border/60 bg-card/95 shadow-2xl backdrop-blur-xl outline-none sm:h-[min(680px,calc(100dvh_-_var(--titlebar-height)_-_48px))] sm:w-[min(920px,calc(100vw_-_32px))] sm:rounded-[min(var(--radius-4xl),24px)]"
+      className="h-[calc(100dvh_-_var(--titlebar-height))] w-screen rounded-none border-border/60 bg-card shadow-2xl outline-none sm:h-[min(680px,calc(100dvh_-_var(--titlebar-height)_-_48px))] sm:w-[min(920px,calc(100vw_-_32px))] sm:rounded-[min(var(--radius-4xl),24px)]"
       contentClassName="p-0"
     >
       {children}

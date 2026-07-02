@@ -30,7 +30,7 @@ export function ConfirmDialog({
 }: ConfirmDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex w-[min(400px,calc(100vw-32px))] max-w-none flex-col gap-3 rounded-[28px] border border-border/60 bg-card/95 p-6 text-card-foreground backdrop-blur-xl">
+      <DialogContent className="flex w-[min(400px,calc(100vw-32px))] max-w-none flex-col gap-3 rounded-[28px] border border-border/60 bg-card p-6 text-card-foreground">
         <DialogTitle className="text-[17px] font-medium leading-[1.3]">
           {title}
         </DialogTitle>
