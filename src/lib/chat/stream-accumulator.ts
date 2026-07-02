@@ -56,16 +56,18 @@ export class StreamAccumulator {
   }
 
   reset(requestIds?: string[]) {
-    this.disposed = false;
     if (requestIds) {
+      // Partial reset: one stream finished (its updates already force-flushed).
+      // Leave pending/rAF alone — sibling streams may have a flush in flight.
       for (const rid of requestIds) {
         delete this.content[rid];
         delete this.thinking[rid];
       }
-    } else {
-      this.content = {};
-      this.thinking = {};
+      return;
     }
+    this.disposed = false;
+    this.content = {};
+    this.thinking = {};
     if (this.flushRaf !== null) cancelAnimationFrame(this.flushRaf);
     this.flushRaf = null;
     this.hasScheduledFlush = false;

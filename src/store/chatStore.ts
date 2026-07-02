@@ -85,7 +85,7 @@ type ChatStore = {
     clearCurrentAttachments: () => void;
     enqueueMessage: (msg: QueuedMessage) => void;
     dequeueMessage: (id: string) => void;
-    clearQueue: (conversationId: string) => void;
+    clearQueue: () => void;
     getNextQueued: (conversationId: string) => QueuedMessage | undefined;
     clearFolderAssignments: (folderIds: Set<string>) => void;
   };
@@ -427,12 +427,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       set((state) => ({
         messageQueue: state.messageQueue.filter((m) => m.id !== id),
       })),
-    clearQueue: (conversationId) =>
-      set((state) => ({
-        messageQueue: state.messageQueue.filter(
-          (m) => m.conversationId !== conversationId,
-        ),
-      })),
+    // Stop kills the whole session, so no queued message anywhere should fire later
+    clearQueue: () => set({ messageQueue: [] }),
     getNextQueued: (conversationId) => {
       return getNextQueuedMessage(get().messageQueue, conversationId);
     },

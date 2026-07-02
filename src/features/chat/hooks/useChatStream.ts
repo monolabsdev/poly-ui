@@ -25,6 +25,7 @@ import {
   type WebSearchPayload,
 } from "@/lib/chat/event-bus";
 import { StreamSession } from "@/lib/chat/stream-session";
+import { getRepository } from "@/lib/repositories";
 import { getWebSearchConfig } from "@/features/web-search/useWebSearchConfig";
 import { getCurrentProviderAccountId } from "@/features/providers";
 import { useSettingsStore } from "@/store/settingsStore";
@@ -190,6 +191,8 @@ export function useChatStream(modelChoices: ModelChoice[], systemPrompt = "") {
       settlePending(completed.requestId);
 
       if (sessionRef.current.isComplete()) {
+        // Turn is over — drop pending memories so a later regenerate doesn't re-attach them
+        pendingMemoryUpdates.delete(completed.conversationId);
         if (completedModel && !completed.error) triggerTitleGeneration(titleStore, completed.conversationId);
         processNextInQueueRef.current?.(completed.conversationId);
       }
@@ -242,12 +245,18 @@ export function useChatStream(modelChoices: ModelChoice[], systemPrompt = "") {
   }, []);
 
   const startStream = useCallback(
-    (conversationId: string, models: ModelChoice[]) => {
+    async (conversationId: string, models: ModelChoice[]) => {
       if (!conversationId || !models.length) return;
 
-      const history = useChatStore.getState().messages
-        .filter((m) => m.conversationId === conversationId)
-        .map((m) => ({
+      // Store only holds the active conversation's messages. Queued sends can
+      // target a background conversation — load its history from the repository
+      // (temporary chats aren't persisted, but they're only usable while active).
+      const { messages: storeMessages, activeConversationId: activeId } = useChatStore.getState();
+      const source =
+        conversationId === activeId
+          ? storeMessages.filter((m) => m.conversationId === conversationId)
+          : await getRepository().getMessages(conversationId, 50, 0);
+      const history = source.map((m) => ({
           role: m.role,
           content: m.content,
           attachments: m.attachments ?? [],
@@ -327,7 +336,10 @@ export function useChatStream(modelChoices: ModelChoice[], systemPrompt = "") {
     const conversationId = completedConversationId ?? activeConversationIdRef.current;
     if (!conversationId) return;
 
-    const next = useChatStore.getState().actions.getNextQueued(conversationId);
+    // Prefer the completed conversation's queue, but fall back to any queued
+    // message — otherwise sends queued from another conversation starve.
+    const store = useChatStore.getState();
+    const next = store.actions.getNextQueued(conversationId) ?? store.messageQueue[0];
     if (!next) return;
 
     processingQueueRef.current = true;
@@ -347,7 +359,7 @@ export function useChatStream(modelChoices: ModelChoice[], systemPrompt = "") {
       });
       void extractUserMessageMemory(next.conversationId, userMessageId);
 
-      startStream(next.conversationId, models);
+      await startStream(next.conversationId, models);
     } catch (err) {
       console.error("processNextInQueue failed — message may be lost", err);
     } finally {
@@ -395,7 +407,7 @@ export function useChatStream(modelChoices: ModelChoice[], systemPrompt = "") {
       });
       void extractUserMessageMemory(conversationId, userMessageId);
 
-      startStream(conversationId, models);
+      await startStream(conversationId, models);
     },
     [modelChoices, isStreaming, activeConversationId, addMessage, startStream],
   );
@@ -418,18 +430,14 @@ export function useChatStream(modelChoices: ModelChoice[], systemPrompt = "") {
         ...msg,
         content: sanitizeOutput(msg.content || ""),
         isThinking: false,
+        isStreaming: false,
         thinkingDuration: sessionRef.current.thinkingDuration(rid),
         status: "aborted",
       });
       setStreamingMessage(mid, null);
     }
 
-    const queueConversationId =
-      useChatStore.getState().streamingConversationId ??
-      activeConversationIdRef.current;
-    if (queueConversationId) {
-      clearQueue(queueConversationId);
-    }
+    clearQueue();
     resetStreamState();
     setIsStreaming(false);
     setStreamingConversationId(null);
@@ -439,7 +447,7 @@ export function useChatStream(modelChoices: ModelChoice[], systemPrompt = "") {
     (conversationId: string) => {
       const models = validModelChoices(modelChoices);
       if (isStreaming || !models.length || !conversationId) return;
-      startStream(conversationId, models);
+      void startStream(conversationId, models);
     },
     [modelChoices, isStreaming, startStream],
   );

@@ -1,36 +1,12 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useMemo } from "react";
 import { useTtsStore } from "@/store/ttsStore";
 import { useNotify } from "@/hooks/useNotify";
 import { stripInvisible } from "./utils";
 
 export function useMessageStreaming(content: string, isStreaming?: boolean) {
-  const pendingMarkdownRef = useRef<number | null>(null);
-  const lastMarkdownContentRef = useRef("");
-  const [streamingDisplayContent, setStreamingDisplayContent] = useState("");
-
-  useEffect(() => {
-    if (!isStreaming || !content) {
-      setStreamingDisplayContent("");
-      return;
-    }
-    if (content === lastMarkdownContentRef.current) return;
-    lastMarkdownContentRef.current = content;
-    if (pendingMarkdownRef.current !== null) {
-      cancelAnimationFrame(pendingMarkdownRef.current);
-    }
-    pendingMarkdownRef.current = requestAnimationFrame(() => {
-      pendingMarkdownRef.current = null;
-      setStreamingDisplayContent(content);
-    });
-    return () => {
-      if (pendingMarkdownRef.current !== null) {
-        cancelAnimationFrame(pendingMarkdownRef.current);
-        pendingMarkdownRef.current = null;
-      }
-    };
-  }, [content, isStreaming]);
-
-  return streamingDisplayContent;
+  // Content updates are already rAF-batched by StreamAccumulator — a second
+  // rAF buffer here only added a frame of latency per token flush.
+  return isStreaming && content ? content : "";
 }
 
 export function useMessageMarkdown(content: string, thinking?: string, isStreaming?: boolean) {
