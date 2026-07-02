@@ -1,4 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { readFile } from "@tauri-apps/plugin-fs";
+import { extensions as imageExtensions } from "@/lib/image-upload/validation";
 
 type UseFileDragDetectionOptions = {
   onFilesDropped?: (files: File[]) => void;
@@ -6,14 +9,52 @@ type UseFileDragDetectionOptions = {
   debug?: boolean;
 };
 
-function hasFileDrag(dataTransfer: DataTransfer | null) {
-  if (!dataTransfer) return false;
-  return Array.from(dataTransfer.types ?? []).includes("Files");
+const FILE_DRAG_TYPES = new Set(["files", "text/uri-list", "application/x-moz-file"]);
+
+const mimeByExtension = Object.entries(imageExtensions).reduce<Record<string, string>>(
+  (acc, [mime, exts]) => {
+    exts.forEach((ext) => {
+      acc[ext] = mime;
+    });
+    return acc;
+  },
+  {},
+);
+
+function nameFromPath(path: string) {
+  return path.split(/[\\/]/).pop() || path;
 }
 
-function filesFromTransfer(dataTransfer: DataTransfer | null) {
-  if (!dataTransfer?.files?.length) return [];
-  return Array.from(dataTransfer.files);
+function mimeFromPath(path: string) {
+  const name = nameFromPath(path).toLowerCase();
+  const ext = name.slice(name.lastIndexOf("."));
+  return mimeByExtension[ext] ?? "";
+}
+
+// WebKitGTK on Linux does not populate DataTransfer with real File objects on
+// drop, so dropped paths are read via Tauri's native window drag-drop event
+// (see tauri.linux.conf.json: dragDropEnabled) and turned into File objects.
+async function fileFromPath(path: string) {
+  const bytes = await readFile(path);
+  return new File([bytes], nameFromPath(path), { type: mimeFromPath(path) });
+}
+
+function hasFileDrag(dataTransfer: DataTransfer | null) {
+  if (!dataTransfer) return false;
+  return Array.from(dataTransfer.types ?? []).some((type) =>
+    FILE_DRAG_TYPES.has(type.toLowerCase()),
+  );
+}
+
+export function filesFromTransfer(dataTransfer: DataTransfer | null) {
+  if (!dataTransfer) return [];
+  const files = Array.from(dataTransfer.files);
+  if (files.length > 0) return files;
+
+  return Array.from(dataTransfer.items ?? [])
+    .filter((item) => item.kind === "file")
+    .map((item) => item.getAsFile())
+    .filter((file): file is File => file !== null);
 }
 
 export function useFileDragDetection({
@@ -113,6 +154,39 @@ export function useFileDragDetection({
       window.removeEventListener("blur", resetDragState, true);
     };
   }, [debug, enabled, resetDragState]);
+
+  // Only fires when native window drag-drop is enabled (Linux); the browser
+  // dragDropEnabled=false path above handles other platforms.
+  useEffect(() => {
+    if (!enabled) return;
+    let cancelled = false;
+    let unlisten: (() => void) | undefined;
+
+    getCurrentWindow()
+      .onDragDropEvent((event) => {
+        const payload = event.payload;
+        if (payload.type === "drop") {
+          resetDragState();
+          Promise.all(payload.paths.map(fileFromPath)).then((files) => {
+            if (files.length > 0) onFilesDroppedRef.current?.(files);
+          });
+        } else if (payload.type === "enter" || payload.type === "over") {
+          setIsDraggingFiles(true);
+        } else {
+          resetDragState();
+        }
+      })
+      .then((fn) => {
+        if (cancelled) fn();
+        else unlisten = fn;
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
+  }, [enabled, resetDragState]);
 
   return {
     isDraggingFiles,

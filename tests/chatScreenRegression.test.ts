@@ -16,6 +16,26 @@ describe("chat screen regression guards", () => {
     expect(source).not.toContain("ring-ring/30");
   });
 
+  it("recognizes Linux file drag payloads for the composer drop state", () => {
+    const source = read("src/features/chat/hooks/useFileDragDetection.ts");
+
+    expect(source).toContain("text/uri-list");
+    expect(source).toContain("application/x-moz-file");
+  });
+
+  it("reads dropped files via Tauri's native drag-drop event for WebKitGTK", () => {
+    const source = read("src/features/chat/hooks/useFileDragDetection.ts");
+
+    expect(source).toContain("onDragDropEvent");
+    expect(source).toContain("readFile");
+  });
+
+  it("enables native window drag-drop on Linux", () => {
+    const source = read("src-tauri/tauri.linux.conf.json");
+
+    expect(source).toContain("\"dragDropEnabled\": true");
+  });
+
   it("uses prompt-kit style action buttons in the composer", () => {
     const source = read("src/features/chat/components/ChatInput.tsx");
 
