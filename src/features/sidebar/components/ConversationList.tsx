@@ -99,7 +99,7 @@ export function ConversationList({
   if (groupedConversations.length === 0) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-1.5 px-4 text-center text-muted-foreground">
-        <MessageSquare size={16} style={{ opacity: 0.5 }} />
+        <MessageSquare size={16} className="opacity-50" />
         <p className="text-xs leading-[1.4] opacity-75">
           No chats yet
         </p>

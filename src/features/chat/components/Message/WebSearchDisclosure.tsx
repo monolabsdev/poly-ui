@@ -47,7 +47,7 @@ export const WebSearchDisclosure = React.memo(
         isStreaming={isSearching}
         className="my-2"
       >
-        <ReasoningTrigger className="text-sm text-muted-foreground hover:text-foreground">
+        <ReasoningTrigger>
           <span className="inline-flex items-center gap-1.5">
             <Globe size={13} />
             {isSearching ? (
@@ -60,7 +60,7 @@ export const WebSearchDisclosure = React.memo(
           </span>
         </ReasoningTrigger>
         {hasResults && (
-          <ReasoningContent contentClassName="border-l border-border/60 pl-3 pt-2 text-xs leading-relaxed">
+          <ReasoningContent>
             <div className="flex flex-col gap-2.5">
               {results?.map((result, i) => (
                 <div key={`${result.url}-${i}`} className="flex flex-col gap-0.5">

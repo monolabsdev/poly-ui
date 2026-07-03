@@ -32,11 +32,11 @@ export function Chip({
       className={cn(
         "gap-1 rounded-full",
         size === "small" && "px-2 py-0 text-xs",
-        clickable && "cursor-pointer select-none bg-transparent hover:bg-white/[0.06]",
+        clickable && "cursor-pointer select-none bg-transparent hover:bg-foreground/[0.06]",
         disabled && "pointer-events-none opacity-50",
-        color === "success" && "bg-[var(--success-soft)] text-[var(--success)]",
+        color === "success" && "bg-[var(--success-soft)] text-success",
         color === "error" && "bg-destructive/10 text-destructive",
-        color === "warning" && "bg-[var(--warning-soft)] text-[var(--warning)]",
+        color === "warning" && "bg-[var(--warning-soft)] text-warning",
         color === "primary" && "bg-primary text-primary-foreground",
         className,
       )}

@@ -121,7 +121,7 @@ export function ChainOfThoughtTrigger({
       onClick={onToggle}
       disabled={isActive}
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full bg-transparent p-0 font-inherit text-[13px] font-medium text-muted-foreground transition-colors duration-[var(--dur-fast)] ease-[var(--ease-soft)] focus-visible:rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground",
+        "inline-flex items-center gap-1.5 rounded-full bg-transparent p-0 font-inherit text-sm font-medium text-muted-foreground transition-colors duration-[var(--dur-fast)] ease-[var(--ease-soft)] focus-visible:rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground",
         isActive ? "cursor-default" : "cursor-pointer hover:text-foreground",
       )}
     >

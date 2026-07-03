@@ -30,15 +30,11 @@ export function ConfirmDialog({
 }: ConfirmDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex w-[min(400px,calc(100vw-32px))] max-w-none flex-col gap-3 rounded-[28px] border border-border/60 bg-card p-6 text-card-foreground">
-        <DialogTitle className="text-[17px] font-medium leading-[1.3]">
-          {title}
-        </DialogTitle>
+      <DialogContent className="flex w-[min(400px,calc(100vw-2rem))] max-w-none flex-col gap-3">
+        <DialogTitle>{title}</DialogTitle>
 
         {description ? (
-          <DialogDescription className="text-[13px] font-normal leading-5 text-muted-foreground">
-            {description}
-          </DialogDescription>
+          <DialogDescription>{description}</DialogDescription>
         ) : null}
 
         <div className="mt-1 flex gap-2">
@@ -46,7 +42,7 @@ export function ConfirmDialog({
             type="button"
             variant="secondary"
             onClick={() => onOpenChange(false)}
-            className="h-9 flex-1 rounded-full text-[13px] font-medium"
+            className="flex-1"
           >
             {cancelLabel}
           </Button>
@@ -54,7 +50,7 @@ export function ConfirmDialog({
             type="button"
             variant={destructive ? "destructive" : "default"}
             onClick={() => { onConfirm(); onOpenChange(false); }}
-            className="h-9 flex-1 rounded-full text-[13px] font-medium"
+            className="flex-1"
           >
             {confirmLabel}
           </Button>

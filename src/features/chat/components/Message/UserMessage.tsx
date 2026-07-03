@@ -1,67 +1,24 @@
-import { useState, useEffect } from "react";
 import { Box } from "@/components/ui/Box";
 import { Typography } from "@/components/ui/Typography";
 import { IconButton } from "@/components/ui/icon-button";
 import { TooltipLabel as Tooltip } from "@/components/ui/tooltip-label";
 
-import { Paperclip, Copy, Check, MoreHorizontal, Brain, Trash2, Search } from "lucide-react";
+import { Paperclip, Copy, Check, MoreHorizontal } from "lucide-react";
 import { isImageAttachment, createDataUrl, formatFileSize } from "@/lib/utils/utils";
-import { useNotify } from "@/hooks/useNotify";
 import { cn } from "@/lib/utils";
 import type { MessageProps } from "./types";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  forgetMessageMemory,
-  rememberMessageMemory,
-} from "@/features/memory/messageMemoryActions";
-import { openMemoryPanel } from "@/features/memory/MemoryPanel";
+import { useCopyMessage } from "./hooks";
+import { MemoryMenuItems } from "./MemoryMenuItems";
 import { useSettingsStore } from "@/store/settingsStore";
 
 export function UserMessage({ id, conversationId, content, attachments }: MessageProps) {
-  const [copied, setCopied] = useState(false);
-  const notify = useNotify();
+  const { copied, handleCopy } = useCopyMessage(content);
   const memoryUiEnabled = useSettingsStore((state) => state.general.experimentalFeatures);
-
-  useEffect(() => {
-    if (!copied) return;
-    const timeout = setTimeout(() => setCopied(false), 2000);
-    return () => clearTimeout(timeout);
-  }, [copied]);
-
-  const handleCopy = () => {
-    if (!content) return;
-    navigator.clipboard
-      ?.writeText(content)
-      .then(() => {
-        setCopied(true);
-        notify.success("Copied to clipboard");
-      })
-      .catch(() => {
-        notify.error("Failed to copy");
-      });
-  };
-
-  const handleRemember = async () => {
-    try {
-      notify.success(await rememberMessageMemory({ messageId: id, conversationId, content }));
-    } catch (error) {
-      notify.error("Memory save failed", String(error));
-    }
-  };
-
-  const handleForget = async () => {
-    try {
-      notify.success(await forgetMessageMemory({ messageId: id, content }));
-    } catch (error) {
-      notify.error("Memory delete failed", String(error));
-    }
-  };
-
 
   return (
     <Box
@@ -83,11 +40,7 @@ export function UserMessage({ id, conversationId, content, attachments }: Messag
                 <img
                   src={createDataUrl(att.type, att.content || "")}
                   alt={att.name}
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    objectFit: "cover",
-                  }}
+                  className="size-full object-cover"
                 />
               ) : (
                 <>
@@ -133,17 +86,7 @@ export function UserMessage({ id, conversationId, content, attachments }: Messag
             onClick={handleCopy}
             className="size-7 rounded-full"
           >
-            <Box
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: 14,
-                height: 14,
-              }}
-            >
-              {copied ? <Check size={14} /> : <Copy size={14} />}
-            </Box>
+            {copied ? <Check size={14} /> : <Copy size={14} />}
           </IconButton>
         </Tooltip>
         {memoryUiEnabled && (
@@ -157,18 +100,7 @@ export function UserMessage({ id, conversationId, content, attachments }: Messag
               </IconButton>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={handleRemember}>
-                <Brain size={14} />
-                Remember this
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleForget}>
-                <Trash2 size={14} />
-                Forget this
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={openMemoryPanel}>
-                <Search size={14} />
-                View related memories
-              </DropdownMenuItem>
+              <MemoryMenuItems messageId={id} conversationId={conversationId} content={content} />
             </DropdownMenuContent>
           </DropdownMenu>
         )}

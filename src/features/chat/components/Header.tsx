@@ -280,7 +280,7 @@ export const Header = memo(function Header({
               viewBox="0 0 24 24"
               strokeWidth="1.5"
               stroke="currentColor"
-              style={{ width: 18, height: 18 }}
+              className="size-4.5"
             >
               {isTemporary ? (
                 <path

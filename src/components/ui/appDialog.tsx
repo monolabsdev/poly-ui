@@ -80,5 +80,5 @@ export function AppDialogBody({ children }: { children: ReactNode }) {
 }
 
 export const appPanelClassName = "rounded-lg bg-transparent transition-colors duration-[var(--dur-fast)] ease-[var(--ease-soft)]";
-export const appInputClassName = "rounded-lg border-0 bg-transparent text-[13px]";
+export const appInputClassName = "rounded-lg border-0 bg-transparent text-sm";
 export const appFadeInClassName = "animate-[app-dialog-fade_var(--dur-fast)_var(--ease-premium)]";

@@ -105,13 +105,13 @@ function SettingsNavButton({
     <ButtonBase
       onClick={onClick}
       className={cn(
-        "flex h-9 w-full items-center gap-2 rounded-lg px-3 text-left text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+        "flex h-9 w-full items-center gap-2 rounded-lg px-3 text-left text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
         isActive && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground",
         mobile && "h-8 w-auto shrink-0 whitespace-nowrap px-3",
       )}
     >
       {!mobile && <Icon size={16} />}
-      <Typography as="span" color="inherit" className="text-[13px] font-medium">
+      <Typography as="span" color="inherit" className="text-sm font-medium">
         {item.label}
       </Typography>
     </ButtonBase>

@@ -1,14 +1,18 @@
 import * as React from "react";
 import { Upload, X, FileText, Image } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Alert } from "@/components/ui/alert";
 import { Attachment } from "@/types/chat";
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
+  DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { cn } from "@/lib/utils";
 
 const MAX_CONTEXT_FILES = 5;
 const MAX_CONTEXT_FILE_SIZE = 1024 * 1024;
@@ -38,6 +42,15 @@ interface CreateFolderModalProps {
     systemPrompt?: string;
     contextFiles?: Attachment[];
   };
+}
+
+function FieldLabel({ children, optional }: { children: React.ReactNode; optional?: boolean }) {
+  return (
+    <Label>
+      {children}
+      {optional && <span className="font-normal text-muted-foreground/60">(optional)</span>}
+    </Label>
+  );
 }
 
 export function CreateFolderModal({ open, onOpenChange, onSave, initialData }: CreateFolderModalProps) {
@@ -115,103 +128,85 @@ export function CreateFolderModal({ open, onOpenChange, onSave, initialData }: C
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        showCloseButton={false}
-        className="flex w-[min(520px,calc(100vw-32px))] max-w-none flex-col gap-0 rounded-[28px] border border-border/60 bg-card p-0 text-card-foreground shadow-2xl"
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 pt-6 pb-5">
-          <DialogTitle className="text-[17px] font-semibold">
-            {initialData ? "Edit folder" : "Create folder"}
-          </DialogTitle>
-          <button
-            onClick={() => onOpenChange(false)}
-            className="flex size-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-          >
-            <X size={15} />
-          </button>
-        </div>
+      <DialogContent className="w-[min(520px,calc(100vw-2rem))] max-w-none gap-5">
+        <DialogHeader>
+          <DialogTitle>{initialData ? "Edit folder" : "Create folder"}</DialogTitle>
+        </DialogHeader>
 
-        {/* Body */}
-        <div className="flex flex-col gap-5 overflow-y-auto px-6 pb-6">
-          {fileError && (
-            <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[12px] text-amber-400">
-              {fileError}
-            </div>
-          )}
+        <div className="flex max-h-[65vh] flex-col gap-5 overflow-y-auto">
+          {fileError && <Alert severity="warning">{fileError}</Alert>}
 
           {/* Folder name */}
-          <div className="flex flex-col gap-1.5">
-            <Label className="text-[13px] font-medium text-foreground/80">Folder name</Label>
-            <input
+          <div className="flex flex-col gap-2">
+            <FieldLabel>Folder name</FieldLabel>
+            <Input
               autoFocus
               value={name}
               onChange={(e) => setName(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter" && name.trim()) handleSave(); }}
               placeholder="My folder"
-              className="h-10 w-full rounded-xl border border-border/60 bg-input/40 px-3 text-[13.5px] text-foreground placeholder:text-muted-foreground/50 outline-none transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20"
             />
           </div>
 
           {/* Background image */}
-          <div className="flex flex-col gap-1.5">
-            <Label className="text-[13px] font-medium text-foreground/80">Background image <span className="text-muted-foreground/50 font-normal">(optional)</span></Label>
+          <div className="flex flex-col gap-2">
+            <FieldLabel optional>Background image</FieldLabel>
             <input ref={bgInputRef} type="file" accept="image/*" onChange={handleBackgroundUpload} className="hidden" />
             {backgroundImage ? (
               <div className="flex items-center gap-3">
                 <div
-                  className="h-14 w-24 shrink-0 rounded-xl border border-border/60 bg-cover bg-center"
+                  className="h-14 w-24 shrink-0 rounded-xl border bg-cover bg-center"
                   style={{ backgroundImage: `url(${backgroundImage})` }}
                 />
-                <button
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => setBackgroundImage("")}
-                  className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12px] text-muted-foreground hover:text-destructive transition-colors"
+                  className="text-muted-foreground hover:text-destructive"
                 >
-                  <X size={13} /> Remove
-                </button>
+                  <X /> Remove
+                </Button>
               </div>
             ) : (
-              <button
+              <Button
+                variant="outline"
                 onClick={() => bgInputRef.current?.click()}
-                className="flex h-10 items-center gap-2.5 rounded-xl border border-dashed border-border/60 px-3 text-[13px] text-muted-foreground transition-colors hover:border-border hover:text-foreground"
+                className="justify-start border-dashed font-normal text-muted-foreground"
               >
-                <Image size={15} />
+                <Image />
                 Choose image…
-              </button>
+              </Button>
             )}
           </div>
 
           {/* System prompt */}
-          <div className="flex flex-col gap-1.5">
-            <Label className="text-[13px] font-medium text-foreground/80">System prompt <span className="text-muted-foreground/50 font-normal">(optional)</span></Label>
-            <textarea
+          <div className="flex flex-col gap-2">
+            <FieldLabel optional>System prompt</FieldLabel>
+            <Textarea
               value={systemPrompt}
               onChange={(e) => setSystemPrompt(e.target.value)}
               placeholder="You are a helpful assistant specialized in…"
               rows={3}
-              className="w-full resize-none rounded-xl border border-border/60 bg-input/40 px-3 py-2.5 text-[13.5px] text-foreground placeholder:text-muted-foreground/50 outline-none transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20"
             />
           </div>
 
           {/* Context files */}
-          <div className="flex flex-col gap-1.5">
-            <Label className="text-[13px] font-medium text-foreground/80">
-              Context files <span className="text-muted-foreground/50 font-normal">(optional)</span>
-            </Label>
+          <div className="flex flex-col gap-2">
+            <FieldLabel optional>Context files</FieldLabel>
 
             {contextFiles.length > 0 && (
-              <div className="flex flex-col gap-1.5 rounded-xl border border-border/60 bg-input/20 p-2">
+              <div className="flex flex-col gap-1 rounded-xl border bg-input/20 p-2">
                 {contextFiles.map((file) => (
                   <div key={file.id} className="flex items-center gap-2 rounded-lg px-2 py-1.5">
-                    <FileText size={13} className="shrink-0 text-muted-foreground" />
-                    <span className="min-w-0 flex-1 truncate text-[12.5px] text-foreground/80">{file.name}</span>
-                    <span className="shrink-0 text-[11px] text-muted-foreground/60">{(file.size / 1024).toFixed(0)} KB</span>
+                    <FileText className="size-3.5 shrink-0 text-muted-foreground" />
+                    <span className="min-w-0 flex-1 truncate text-sm">{file.name}</span>
+                    <span className="shrink-0 text-xs text-muted-foreground/60">{(file.size / 1024).toFixed(0)} KB</span>
                     <button
                       onClick={() => setContextFiles((prev) => prev.filter((f) => f.id !== file.id))}
                       aria-label={`Remove ${file.name}`}
-                      className="shrink-0 rounded-md p-0.5 text-muted-foreground hover:text-destructive transition-colors"
+                      className="shrink-0 rounded-md p-0.5 text-muted-foreground transition-colors hover:text-destructive"
                     >
-                      <X size={13} />
+                      <X className="size-3.5" />
                     </button>
                   </div>
                 ))}
@@ -226,31 +221,29 @@ export function CreateFolderModal({ open, onOpenChange, onSave, initialData }: C
               onChange={handleFileUpload}
               className="hidden"
             />
-            <button
+            <Button
+              variant="outline"
               onClick={() => filesInputRef.current?.click()}
-              className={cn(
-                "flex h-10 items-center gap-2.5 rounded-xl border border-dashed border-border/60 px-3 text-[13px] text-muted-foreground transition-colors hover:border-border hover:text-foreground",
-                contextFiles.length >= MAX_CONTEXT_FILES && "pointer-events-none opacity-40",
-              )}
+              disabled={contextFiles.length >= MAX_CONTEXT_FILES}
+              className="justify-start border-dashed font-normal text-muted-foreground"
             >
-              <Upload size={15} />
+              <Upload />
               {contextFiles.length === 0 ? "Choose files…" : "Add more files…"}
-            </button>
-            <p className="text-[11.5px] text-muted-foreground/50">
+            </Button>
+            <p className="text-xs text-muted-foreground/60">
               Up to {MAX_CONTEXT_FILES} files, {MAX_CONTEXT_FILE_SIZE / 1024 / 1024} MB each, {MAX_CONTEXT_TOTAL_SIZE / 1024 / 1024} MB total. Text, Markdown, CSV, JSON.
             </p>
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-end gap-2 border-t border-border/40 px-6 py-4">
-          <Button variant="ghost" onClick={() => onOpenChange(false)} className="h-9 rounded-full px-4 text-[13px]">
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={!name.trim()} className="h-9 rounded-full px-5 text-[13px]">
+          <Button onClick={handleSave} disabled={!name.trim()}>
             Save
           </Button>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

@@ -170,7 +170,7 @@ export function CommandPalette({ open, onOpenChange, items }: CommandPaletteProp
         aria-modal="true"
         aria-label="Command palette"
         onKeyDown={onKeyDown}
-        className="relative z-10 mx-4 flex w-full max-w-[600px] flex-col overflow-hidden rounded-[24px] bg-popover shadow-2xl"
+        className="relative z-10 mx-4 flex w-full max-w-[600px] flex-col overflow-hidden rounded-[min(var(--radius-4xl),24px)] bg-popover shadow-2xl ring-1 ring-foreground/5 dark:ring-foreground/10"
         style={{ maxHeight: "min(560px, 72vh)" }}
       >
         {/* Search */}
@@ -182,14 +182,14 @@ export function CommandPalette({ open, onOpenChange, items }: CommandPaletteProp
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Type a command or search…"
             aria-label="Search commands"
-            className="min-w-0 flex-1 bg-transparent text-[14px] text-foreground placeholder:text-muted-foreground/60 outline-none"
+            className="min-w-0 flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/60 outline-none"
           />
         </div>
 
         {/* Intent */}
         {showIntent && parsedIntent ? (
           <div className={cn(
-            "flex items-center gap-2 px-5 py-2 text-[12px]",
+            "flex items-center gap-2 px-5 py-2 text-xs",
             parsedIntent.destructive ? "text-destructive" : "text-muted-foreground",
           )}>
             {parsedIntent.destructive ? <AlertTriangle size={12} /> : <Sparkles size={12} />}
@@ -223,7 +223,7 @@ export function CommandPalette({ open, onOpenChange, items }: CommandPaletteProp
                   >
                     {row.type === "header" ? (
                       <div className="flex h-9 items-end px-3 pb-1">
-                        <span className="text-[12px] text-muted-foreground/60">{row.label}</span>
+                        <span className="text-xs text-muted-foreground/60">{row.label}</span>
                       </div>
                     ) : (
                       <CmdRow
@@ -269,12 +269,12 @@ function CmdRow({ item, active, onMouseEnter, onClick }: {
       <span className="shrink-0 text-muted-foreground [&>svg]:size-[15px]">
         {item.icon ?? catIcon(item.category)}
       </span>
-      <span className="min-w-0 flex-1 truncate text-[13.5px] text-foreground">{title}</span>
+      <span className="min-w-0 flex-1 truncate text-sm text-foreground">{title}</span>
       {item.shortcut ? (
-        <span className="shrink-0 text-[12px] text-muted-foreground/70">{item.shortcut}</span>
+        <span className="shrink-0 text-xs text-muted-foreground/70">{item.shortcut}</span>
       ) : null}
       {isFeature ? (
-        <span className={isOn ? "text-green-400" : "text-muted-foreground/40"}>
+        <span className={isOn ? "text-success" : "text-muted-foreground/40"}>
           {isOn ? <Check size={13} /> : <X size={13} />}
         </span>
       ) : null}

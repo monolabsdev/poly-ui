@@ -14,13 +14,13 @@ export const MemoryDisclosure = React.memo(
 
     return (
       <Reasoning open={expanded} onOpenChange={setExpanded} className="my-2">
-        <ReasoningTrigger className="text-sm text-muted-foreground hover:text-foreground">
+        <ReasoningTrigger>
           <span className="inline-flex items-center gap-1.5">
             <BookOpen size={14} />
             Memory updated
           </span>
         </ReasoningTrigger>
-        <ReasoningContent contentClassName="border-l border-border/60 pl-3 pt-2 text-xs leading-relaxed">
+        <ReasoningContent>
           {summaries.map((summary, index) => (
             <div key={index}>{summary}</div>
           ))}

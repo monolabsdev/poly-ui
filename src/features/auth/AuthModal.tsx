@@ -160,12 +160,12 @@ function AuthForm({
             />
           </Field>
           {passwordMismatch && (
-            <p className="text-[13px] font-semibold text-destructive">
+            <p className="text-sm font-semibold text-destructive">
               Passwords do not match
             </p>
           )}
           {error && (
-            <p className="text-[13px] font-semibold text-destructive">{error}</p>
+            <p className="text-sm font-semibold text-destructive">{error}</p>
           )}
           <div className="flex gap-2">
             <Button
@@ -208,7 +208,7 @@ function AuthForm({
             />
           </Field>
           {error && (
-            <p className="text-[13px] font-semibold text-destructive">{error}</p>
+            <p className="text-sm font-semibold text-destructive">{error}</p>
           )}
           <Button type="submit" className="h-11" disabled={isLoading} fullWidth>
             {isLoading ? "Working..." : "Sign in"}
@@ -216,12 +216,12 @@ function AuthForm({
         </>
       )}
 
-      <p className="text-center text-[13px] text-muted-foreground">
+      <p className="text-center text-sm text-muted-foreground">
         {tab === "login" ? "New here?" : "Already have account?"}{" "}
         <Button
           type="button"
           variant="link"
-          className="h-auto p-0 align-baseline text-[13px] font-bold"
+          className="h-auto p-0 align-baseline text-sm font-bold"
           onClick={() => onTabChange(tab === "login" ? "signup" : "login")}
         >
           {tab === "login" ? "Sign up" : "Sign in"}
@@ -280,7 +280,7 @@ export const AuthModal: React.FC = () => {
           <Button
             type="button"
             variant="link"
-            className="mx-auto h-auto p-0 text-[13px] font-semibold"
+            className="mx-auto h-auto p-0 text-sm font-semibold"
             onClick={skipAuth}
           >
             Continue as guest

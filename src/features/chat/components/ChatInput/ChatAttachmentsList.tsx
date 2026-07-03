@@ -29,14 +29,10 @@ export const ChatAttachmentsList = memo(function ChatAttachmentsList({
             <img
               src={att.previewUrl ?? createDataUrl(att.type, att.content || "")}
               alt={att.name}
-              style={{
-                width: "100%",
-                height: "100%",
-                objectFit: "cover",
-              }}
+              className="size-full object-cover"
             />
           ) : (
-            <Paperclip size={24} style={{ color: "text.secondary" }} />
+            <Paperclip size={24} className="m-auto text-muted-foreground" />
           )}
           <IconButton
             size="small"

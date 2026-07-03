@@ -32,7 +32,7 @@ export function SettingCard({
       <Stack spacing={children ? 2 : 0}>
         <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={3}>
           <Box className="min-w-0">
-            <Typography className="text-[13px] font-medium">
+            <Typography className="text-sm font-medium">
               {title}
             </Typography>
             {description && (
@@ -82,7 +82,7 @@ export function Badge({ label, color: _color }: { label: string; color: string }
     <Box
       className="inline-flex rounded-full bg-muted px-2 py-0.5"
     >
-      <Typography className="text-[11px] font-semibold text-muted-foreground">
+      <Typography className="text-xs font-semibold text-muted-foreground">
         {label}
       </Typography>
     </Box>
@@ -97,4 +97,4 @@ export function EmptyState({ children }: { children: React.ReactNode }) {
   );
 }
 
-export const selectClassName = "border-0 bg-transparent text-[13px] font-medium text-muted-foreground hover:text-foreground";
+export const selectClassName = "border-0 bg-transparent text-sm font-medium text-muted-foreground hover:text-foreground";

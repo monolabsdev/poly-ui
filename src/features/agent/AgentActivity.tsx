@@ -105,10 +105,10 @@ function RawStepTrace({ agent, stepId }: { agent: AgentMessageState; stepId: str
   return (
     <ChainOfThoughtItem className="mt-2">
       <details className="rounded-lg border border-border/60 bg-muted/30">
-        <summary className="cursor-pointer px-2 py-1 text-[11px] font-medium text-muted-foreground">
+        <summary className="cursor-pointer px-2 py-1 text-xs font-medium text-muted-foreground">
           Raw trace
         </summary>
-        <pre className="max-h-64 overflow-auto border-t border-border/60 p-2 text-[11px] leading-relaxed text-muted-foreground">
+        <pre className="max-h-64 overflow-auto border-t border-border/60 p-2 text-xs leading-relaxed text-muted-foreground">
           {JSON.stringify({ toolCall: call, events }, null, 2)}
         </pre>
       </details>

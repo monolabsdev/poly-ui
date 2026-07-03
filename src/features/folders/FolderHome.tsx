@@ -234,7 +234,7 @@ export function FolderHome({ folder, onSubmit, onStop, isStreaming, providerOnli
 
           {chats.length === 0 ? (
             <Box className="flex flex-col items-center text-center">
-              <MessageSquare size={32} style={{ opacity: 0.3, marginBottom: 12 }} />
+              <MessageSquare size={32} className="mb-3 opacity-30" />
               <Typography>Start a chat in this folder</Typography>
               <Typography>New conversations will stay grouped in {folder.name}.</Typography>
             </Box>

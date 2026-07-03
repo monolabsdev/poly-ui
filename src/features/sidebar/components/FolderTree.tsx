@@ -20,6 +20,7 @@ import {
 import { ConversationItem } from "@/features/chat/components/ConversationItem";
 import { SidebarMenuButton } from "@/components/ui/sidebar";
 import { sidebarIconButtonClassName } from "@/features/sidebar/components/sidebar-utils";
+import { cn } from "@/lib/utils";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useSidebarActions } from "@/features/sidebar/hooks/useSidebarActions";
 import { useFolderStore } from "@/store/folderStore";
@@ -83,13 +84,13 @@ export function FolderTree({
       >
         <ChevronRight
           size={14}
-          style={{
-            flexShrink: 0,
-            opacity: hasChildren ? 0.5 : 0,
-            transform: isOpen ? "rotate(90deg)" : undefined,
-          }}
+          className={cn(
+            "shrink-0 transition-transform duration-[var(--dur-fast)]",
+            hasChildren ? "opacity-50" : "opacity-0",
+            isOpen && "rotate-90",
+          )}
         />
-        <FolderIcon size={16} style={{ flexShrink: 0, opacity: 0.7 }} />
+        <FolderIcon size={16} className="shrink-0 opacity-70" />
         <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-sm font-medium">
           {folder.name}
         </span>

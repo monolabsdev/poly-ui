@@ -74,9 +74,9 @@ function StatusIcon({ status }: { status: StepStatus }) {
 function statusColor(status: StepStatus): string {
   switch (status) {
     case "running": return "text-primary";
-    case "complete": return "text-[var(--success)]";
+    case "complete": return "text-success";
     case "error": return "text-destructive";
-    case "waiting": return "text-[var(--warning)]";
+    case "waiting": return "text-warning";
     default: return "text-muted-foreground/50";
   }
 }
@@ -183,7 +183,7 @@ export function AgentTraceTrigger({ children, leftIcon }: AgentTraceTriggerProps
         hasContent ? "cursor-pointer px-1" : "cursor-default px-1",
         status === "running" ? "font-semibold text-foreground" : "font-medium",
         status === "error" && "text-destructive",
-        status === "waiting" && "text-[var(--warning)]",
+        status === "waiting" && "text-warning",
         status !== "running" && status !== "error" && status !== "waiting" && "text-muted-foreground",
       )}
     >
@@ -229,11 +229,11 @@ export type AgentTraceItemProps = {
 export function AgentTraceItem({ children, secondary }: AgentTraceItemProps) {
   return (
     <div className="flex items-baseline gap-2 py-px">
-      <div className="min-w-0 flex-1 text-[13px] leading-5 text-muted-foreground">
+      <div className="min-w-0 flex-1 text-sm leading-5 text-muted-foreground">
         {children}
       </div>
       {secondary && (
-        <div className="shrink-0 text-[11px] text-muted-foreground/55">{secondary}</div>
+        <div className="shrink-0 text-xs text-muted-foreground/55">{secondary}</div>
       )}
     </div>
   );
@@ -249,7 +249,7 @@ export type AgentTraceBadgeProps = {
 export function AgentTraceBadge({ children, color }: AgentTraceBadgeProps) {
   return (
     <span
-      className="inline-flex max-w-80 items-center overflow-hidden truncate rounded-[5px] border border-border/60 bg-accent px-1 py-px font-mono text-[10.5px] font-semibold leading-normal text-muted-foreground"
+      className="inline-flex max-w-80 items-center overflow-hidden truncate rounded-[5px] border border-border/60 bg-accent px-1 py-px font-mono text-xs font-semibold leading-normal text-muted-foreground"
       style={color ? { color } : undefined}
     >
       {children}

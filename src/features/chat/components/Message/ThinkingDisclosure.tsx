@@ -76,7 +76,7 @@ export const ThinkingDisclosure = React.memo(
         isStreaming={isThinking}
         className="my-2"
       >
-        <ReasoningTrigger className="text-sm text-muted-foreground hover:text-foreground">
+        <ReasoningTrigger>
           {isThinking ? (
             <TextShimmer duration={2} spread={15}>
               {displayIndicator}
@@ -88,7 +88,7 @@ export const ThinkingDisclosure = React.memo(
         {hasThinking && (
           <ReasoningContent
             markdown
-            contentClassName="border-l border-border/60 pl-3 pt-2 text-xs leading-relaxed"
+           
           >
             {processedThinking}
           </ReasoningContent>

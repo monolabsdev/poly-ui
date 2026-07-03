@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Copy,
   MoreHorizontal,
@@ -8,9 +8,6 @@ import {
   StopCircle,
   Volume2,
   Square,
-  Brain,
-  Trash2,
-  Search,
 } from "lucide-react";
 import { Box } from "@/components/ui/Box";
 import { Typography } from "@/components/ui/Typography";
@@ -32,10 +29,12 @@ import { Source, SourceTrigger, SourceContent } from "@/components/ui/source";
 
 import type { MessageProps } from "./types";
 import {
+  useCopyMessage,
   useMessageStreaming,
   useMessageMarkdown,
   useMessageTts,
 } from "./hooks";
+import { MemoryMenuItems } from "./MemoryMenuItems";
 import { MarkdownProse } from "./MarkdownProse";
 import { AgentActivity } from "@/features/agent/AgentActivity";
 import {
@@ -44,11 +43,6 @@ import {
   rejectAgentToolCall,
 } from "@/features/agent/agentClient";
 import type { AgentApproval } from "@/features/agent/types";
-import {
-  forgetMessageMemory,
-  rememberMessageMemory,
-} from "@/features/memory/messageMemoryActions";
-import { openMemoryPanel } from "@/features/memory/MemoryPanel";
 import { useSettingsStore } from "@/store/settingsStore";
 
 function agentResultText(agent: NonNullable<MessageProps["agent"]>, content: string): string | undefined {
@@ -92,7 +86,7 @@ export function AssistantMessage(props: MessageProps) {
     memoryUpdates,
   } = props;
 
-  const [copied, setCopied] = useState(false);
+  const { copied, handleCopy } = useCopyMessage(content);
   const [webSearchExpanded, setWebSearchExpanded] = useState(false);
   const notify = useNotify();
   const memoryUiEnabled = useSettingsStore((state) => state.general.experimentalFeatures);
@@ -119,25 +113,6 @@ export function AssistantMessage(props: MessageProps) {
     Boolean(thinking?.trim());
   const agentBodyText = agent ? agentResultText(agent, content) : undefined;
 
-  useEffect(() => {
-    if (!copied) return;
-    const timeout = setTimeout(() => setCopied(false), 2000);
-    return () => clearTimeout(timeout);
-  }, [copied]);
-
-  const handleCopy = () => {
-    if (!content) return;
-    navigator.clipboard
-      ?.writeText(content)
-      .then(() => {
-        setCopied(true);
-        notify.success("Copied to clipboard");
-      })
-      .catch(() => {
-        notify.error("Failed to copy");
-      });
-  };
-
   const handleAgentApproval = async (kind: "approve" | "reject", approval: AgentApproval) => {
     if (!agent?.runId) return;
     try {
@@ -155,23 +130,6 @@ export function AssistantMessage(props: MessageProps) {
       throw err;
     }
   };
-
-  const handleRemember = async () => {
-    try {
-      notify.success(await rememberMessageMemory({ messageId: id, conversationId, content }));
-    } catch (error) {
-      notify.error("Memory save failed", String(error));
-    }
-  };
-
-  const handleForget = async () => {
-    try {
-      notify.success(await forgetMessageMemory({ messageId: id, content }));
-    } catch (error) {
-      notify.error("Memory delete failed", String(error));
-    }
-  };
-
 
   return (
     <Box
@@ -319,17 +277,7 @@ export function AssistantMessage(props: MessageProps) {
               onClick={handleCopy}
               className="size-7 rounded-full"
             >
-                <Box
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    width: 14,
-                    height: 14,
-                  }}
-                >
-                  {copied ? <Check size={14} /> : <Copy size={14} />}
-                </Box>
+              {copied ? <Check size={14} /> : <Copy size={14} />}
             </IconButton>
           </Tooltip>
 
@@ -375,20 +323,7 @@ export function AssistantMessage(props: MessageProps) {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               {memoryUiEnabled && (
-                <>
-                  <DropdownMenuItem onClick={handleRemember}>
-                    <Brain size={14} />
-                    Remember this
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleForget}>
-                    <Trash2 size={14} />
-                    Forget this
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={openMemoryPanel}>
-                    <Search size={14} />
-                    View related memories
-                  </DropdownMenuItem>
-                </>
+                <MemoryMenuItems messageId={id} conversationId={conversationId} content={content} />
               )}
               <DropdownMenuItem onClick={handleCopy}>
                 <Copy size={14} />

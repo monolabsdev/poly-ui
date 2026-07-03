@@ -396,26 +396,23 @@ export const ChatInput = memo(function ChatInput({
             />
 
             {pastedPreview && (
-                <Box
-                  className="animate-fade-in"
-                >
-                  <Box>
-                    <Box
-                    >
+                <Box className="animate-fade-in mb-2 flex items-start justify-between gap-2 rounded-2xl border border-border/60 bg-muted/40 px-3 py-2">
+                  <Box className="min-w-0">
+                    <Box className="flex items-baseline gap-2">
                       <Typography
                         variant="caption"
+                        className="font-semibold tracking-wide text-muted-foreground"
                       >
                         PASTED
                       </Typography>
-                      <Typography
-                        variant="caption"
-                      >
+                      <Typography variant="caption" color="text.secondary">
                         {pastedPreview.lines} lines · {pastedPreview.chars}{" "}
                         chars
                       </Typography>
                     </Box>
                     <Typography
                       variant="body2"
+                      className="mt-1 line-clamp-3 font-mono text-xs whitespace-pre-wrap text-muted-foreground"
                     >
                       {pastedPreview.preview}
                     </Typography>
@@ -424,6 +421,7 @@ export const ChatInput = memo(function ChatInput({
                     size="small"
                     onClick={dismissPastedPreview}
                     aria-label="Remove pasted content"
+                    className="shrink-0"
                   >
                     <X size={14} />
                   </IconButton>
@@ -513,7 +511,7 @@ export const ChatInput = memo(function ChatInput({
                           {feature.warning && (
                             <Tooltip title={feature.warning} arrow>
                               <AlertTriangle
-                                className="text-[var(--warning)]"
+                                className="text-warning"
                               />
                             </Tooltip>
                           )}
@@ -542,10 +540,7 @@ export const ChatInput = memo(function ChatInput({
                       className="size-9 rounded-full"
                     >
                       {processing ? (
-                        <Box
-                        >
-                          <Spinner className="size-4 text-muted-foreground" />
-                        </Box>
+                        <Spinner className="size-4 text-muted-foreground" />
                       ) : recording ? (
                         <StopIcon />
                       ) : (

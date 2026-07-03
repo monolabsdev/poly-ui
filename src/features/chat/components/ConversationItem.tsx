@@ -81,16 +81,7 @@ export const ConversationItem = React.memo(function ConversationItem({
           if (e.key === "Enter") handleConfirmRename?.(e as any, conv.id);
           if (e.key === "Escape") handleCancelRename?.(e as any);
         }}
-        style={{
-          flex: 1,
-          background: "transparent",
-          border: "none",
-          color: "inherit",
-          outline: "none",
-          fontSize: "inherit",
-          padding: 0,
-          width: "100%",
-        }}
+        className="w-full min-w-0 flex-1 border-none bg-transparent p-0 text-inherit outline-none"
       />
       <IconButton
         size="small"

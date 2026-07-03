@@ -53,6 +53,9 @@ const PRESETS: Array<{
   },
 ];
 
+const composerPillClassName =
+  "h-8 rounded-full bg-transparent px-3 text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground";
+
 export function AgentComposerControls({
   disabled,
   chatId,
@@ -177,7 +180,7 @@ export function AgentComposerControls({
             <Button
               variant="outline"
               disabled={disabled}
-              className="h-8 rounded-full bg-transparent px-3 text-muted-foreground hover:bg-white/[0.06] hover:text-foreground"
+              className={composerPillClassName}
             >
               <SelectedPresetIcon size={14} />
               <span className="whitespace-nowrap">{permissionLabel}</span>
@@ -196,11 +199,11 @@ export function AgentComposerControls({
                   onClick={() => actions.setPermissionPreset(preset.value)}
                 >
                   <Icon size={16} />
-                  <Box>
-                    <Typography>
+                  <Box className="min-w-0">
+                    <Typography variant="body2" weight="medium">
                       {preset.label}
                     </Typography>
-                    <Typography>
+                    <Typography variant="caption" color="text.secondary">
                       {preset.description}
                     </Typography>
                   </Box>
@@ -224,7 +227,7 @@ export function AgentComposerControls({
             <Button
               variant="outline"
               disabled={disabled}
-              className="h-8 rounded-full bg-transparent px-3 text-muted-foreground hover:bg-white/[0.06] hover:text-foreground"
+              className={composerPillClassName}
             >
               <Folder size={14} />
               <span className="whitespace-nowrap">{workspaceLabel}</span>
@@ -313,7 +316,7 @@ function ProjectMenuRow({
   return (
     <ButtonBase
       data-workspace-menu-item
-      className="group/dropdown-menu-item relative flex w-full min-h-7 cursor-default items-center gap-2 rounded-xl px-2 py-1.5 text-sm outline-hidden select-none hover:bg-white/[0.06] hover:text-foreground data-[highlighted]:bg-white/[0.06] data-[highlighted]:text-foreground focus-visible:bg-white/[0.06] focus-visible:text-foreground"
+      className="group/dropdown-menu-item relative flex w-full min-h-7 cursor-default items-center gap-2 rounded-xl px-2 py-1.5 text-sm outline-hidden select-none hover:bg-foreground/[0.06] hover:text-foreground data-[highlighted]:bg-foreground/[0.06] data-[highlighted]:text-foreground focus-visible:bg-foreground/[0.06] focus-visible:text-foreground"
       onKeyDown={(event: React.KeyboardEvent<HTMLElement>) => {
         if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
         event.preventDefault();

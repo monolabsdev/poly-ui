@@ -23,7 +23,7 @@ export function EmptyState({
 
   const heading = showModelInEmptyState && selectedModels.length > 0
     ? selectedModels.join(", ")
-    : `Hello, ${userName || "Theo Slater"}`;
+    : userName ? `Hello, ${userName}` : "Hello";
 
   return (
     <Box className="flex min-h-0 flex-1 items-center justify-center px-6 py-10">

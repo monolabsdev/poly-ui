@@ -23,16 +23,16 @@ export function UpdateChip() {
       {isBusy ? (
         <>
           <Spinner className="size-3" />
-          <span className="text-[11px] font-semibold text-inherit">
+          <span className="text-xs font-semibold text-inherit">
             {status === "installing" ? "Installing..." : `${progress}%`}
           </span>
         </>
       ) : status === "downloaded" ? (
-        <span className="text-[11px] font-semibold text-inherit">
+        <span className="text-xs font-semibold text-inherit">
           Install Update
         </span>
       ) : (
-        <span className="text-[11px] font-semibold text-inherit">
+        <span className="text-xs font-semibold text-inherit">
           Update failed
         </span>
       )}

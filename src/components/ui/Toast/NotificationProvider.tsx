@@ -16,11 +16,11 @@ const ToastItem = ({ toast }: { toast: ToastType }) => {
   const Icon = typeIcon[toast.type] || Info;
   const tone =
     toast.type === "success"
-      ? "border-[var(--success-soft)] text-[var(--success)]"
+      ? "border-[var(--success-soft)] text-success"
       : toast.type === "error"
         ? "border-destructive/25 text-destructive"
         : toast.type === "warning"
-          ? "border-[var(--warning-soft)] text-[var(--warning)]"
+          ? "border-[var(--warning-soft)] text-warning"
           : "border-border/60 text-muted-foreground";
 
   useEffect(() => {

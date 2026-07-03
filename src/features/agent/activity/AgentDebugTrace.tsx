@@ -30,7 +30,7 @@ export function AgentDebugTrace({ agent }: { agent: AgentMessageState }) {
       <Collapse in={open}>
         <Box
           as="pre"
-          className="max-h-72 overflow-auto bg-muted/40 p-3 text-[11px] leading-relaxed text-muted-foreground"
+          className="max-h-72 overflow-auto bg-muted/40 p-3 text-xs leading-relaxed text-muted-foreground"
         >
           {JSON.stringify(
             {

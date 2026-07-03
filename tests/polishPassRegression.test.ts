@@ -140,10 +140,10 @@ describe("Poly polish pass guards", () => {
     expect(css).toContain("[data-slot=\"dropdown-menu-trigger\"]:focus-visible > [data-slot=\"badge\"]");
     expect(badge).toContain("focus-visible:ring-1");
     expect(button).toContain("focus-visible:ring-1");
-    expect(chip).toContain("hover:bg-white/[0.06]");
-    expect(dropdown).toContain("data-[highlighted]:bg-white/[0.06]");
-    expect(select).toContain("data-[highlighted]:bg-white/[0.06]");
-    expect(command).toContain("data-selected:bg-white/[0.06]");
+    expect(chip).toContain("hover:bg-foreground/[0.06]");
+    expect(dropdown).toContain("data-[highlighted]:bg-foreground/[0.06]");
+    expect(select).toContain("data-[highlighted]:bg-foreground/[0.06]");
+    expect(command).toContain("data-selected:bg-foreground/[0.06]");
 
     for (const file of files) {
       const source = read(file);

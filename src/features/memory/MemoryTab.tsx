@@ -249,7 +249,7 @@ export function MemoryTab() {
       </Stack>
 
       <details>
-        <summary style={{ cursor: "pointer", fontSize: 13, padding: "12px 0" }}>Advanced settings</summary>
+        <summary className="cursor-pointer py-3 text-sm">Advanced settings</summary>
         <Stack spacing={0}>
           <SettingCard
             title="Memory provider"
@@ -333,7 +333,7 @@ function MemoryRow({ record, onEdit, onDelete }: { record: MemoryRecord; onEdit:
         {formatValue(record.value)}
       </Typography>
       <details>
-        <summary style={{ cursor: "pointer", fontSize: 12, marginTop: 8 }}>Metadata</summary>
+        <summary className="mt-2 cursor-pointer text-xs">Metadata</summary>
         <Typography>
           confidence {record.confidence.toFixed(2)} · importance {record.importance.toFixed(2)} · sync {record.syncStatus}
           <br />

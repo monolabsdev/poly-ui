@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTtsStore } from "@/store/ttsStore";
 import { useNotify } from "@/hooks/useNotify";
 import { stripInvisible } from "./utils";
@@ -63,4 +63,30 @@ export function useMessageTts(messageIndex?: number, content?: string) {
   };
 
   return { isSpeaking, isGenerating, isActiveTts, handleSpeak };
+}
+
+export function useCopyMessage(content: string) {
+  const notify = useNotify();
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (!copied) return;
+    const timeout = setTimeout(() => setCopied(false), 2000);
+    return () => clearTimeout(timeout);
+  }, [copied]);
+
+  const handleCopy = () => {
+    if (!content) return;
+    navigator.clipboard
+      ?.writeText(content)
+      .then(() => {
+        setCopied(true);
+        notify.success("Copied to clipboard");
+      })
+      .catch(() => {
+        notify.error("Failed to copy");
+      });
+  };
+
+  return { copied, handleCopy };
 }

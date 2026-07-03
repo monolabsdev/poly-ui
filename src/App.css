@@ -439,7 +439,6 @@ html *::-webkit-scrollbar {
     }
 }
 
-/* Inline code fallback when MUI components aren't available */
 code {
     font-family: "JetBrains Mono Variable", monospace;
     font-size: 0.9em;
@@ -856,12 +855,12 @@ html.reduce-motion .poly-shimmer {
   [data-slot="dropdown-menu-trigger"]:focus-visible > [data-slot="badge"],
   [data-slot="popover-trigger"]:focus-visible > [data-slot="badge"] {
     border-color: transparent;
-    box-shadow: 0 0 0 1px color-mix(in oklch, white 20%, transparent);
+    box-shadow: 0 0 0 1px var(--ring);
     outline: none;
     }
   [data-slot="dropdown-menu-trigger"][data-state="open"] > [data-slot="badge"],
   [data-slot="popover-trigger"][data-state="open"] > [data-slot="badge"] {
-    background-color: rgb(255 255 255 / 0.08);
+    background-color: color-mix(in oklch, var(--foreground) 8%, transparent);
     }
   [data-slot="dropdown-menu-trigger"][data-state="closed"] > [data-slot="badge"],
   [data-slot="popover-trigger"][data-state="closed"] > [data-slot="badge"] {
@@ -871,7 +870,7 @@ html.reduce-motion .poly-shimmer {
   [role="button"]:focus-visible,
   a:focus-visible {
     border-color: var(--ring);
-    box-shadow: 0 0 0 1px color-mix(in oklch, white 20%, transparent);
+    box-shadow: 0 0 0 1px var(--ring);
     outline: none;
     }
   html {
