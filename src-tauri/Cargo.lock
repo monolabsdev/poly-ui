@@ -3542,6 +3542,7 @@ dependencies = [
  "hound",
  "log",
  "ollama-rs",
+ "percent-encoding",
  "raw-window-handle",
  "reqwest 0.12.28",
  "semver",

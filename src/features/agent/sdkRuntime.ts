@@ -3,8 +3,18 @@ import { isStepCount, streamText, tool, type LanguageModel } from "ai";
 import { z } from "zod";
 import type { AgentRawEvent } from "./agentClient";
 import type { AgentRunStartOptions } from "./types";
-import { checkReadable, checkShellCommand, checkWritable } from "./security";
+import { checkBrowserUrl, checkReadable, checkShellCommand, checkWritable } from "./security";
 import * as native from "./native";
+import {
+  closeViewport,
+  closeViewportForRun,
+  openViewportFile,
+  openViewportUrl,
+  reloadViewport,
+  useViewportStore,
+  waitForViewportReady,
+} from "./viewportStore";
+import { inspectViewport, resetViewportRuntime, snapshotViewport } from "./viewportRuntime";
 import { isFeatureAIActive } from "@/lib/featureRegistry";
 import {
   canTransition,
@@ -54,6 +64,7 @@ type RunState = {
   runId: string;
   status: SdkRunStatus;
   abort: AbortController;
+  chatId: string | null;
   workspacePath: string;
   sandbox: boolean;
   permissionPreset: AgentRunStartOptions["permissionPreset"];
@@ -92,6 +103,7 @@ export async function startSdkAgent(options: AgentRunStartOptions): Promise<stri
     runId,
     status: "running",
     abort: new AbortController(),
+    chatId: options.chatId ?? null,
     workspacePath: "",
     sandbox: options.workspaceSelection.type === "sandbox",
     permissionPreset: options.permissionPreset,
@@ -166,6 +178,9 @@ function finalize(
     state.pending = undefined;
     waiter.resolve(false);
   }
+  // Cancelled/failed runs take their viewport with them; a finished run
+  // leaves it open so the user can inspect the result.
+  if (status !== "finished") closeViewportForRun(state.runId);
   if (status === "finished") emit(state.runId, { kind: "finished", value: value as never });
   else if (status === "failed") emit(state.runId, { kind: "failed", value: value as never });
   else emit(state.runId, { kind: "cancelled" });
@@ -465,6 +480,88 @@ function buildTools(state: RunState) {
         return { data: { command, ...output }, summary: `Command ${outcome}.` };
       }),
     }),
+    browser_open: tool({
+      description:
+        "Open the viewport (a live preview panel the user sees) on a page. Pass `path` for a file in the workspace (e.g. an HTML file you just wrote). Pass `url` ONLY for a server that is already running — never guess or assume a localhost URL, but if command output or the user mentions a dev server URL (e.g. \"Local: http://localhost:5173\"), open it directly. Provide exactly one of `path` or `url`. Reuses the existing viewport.",
+      inputSchema: z.object({
+        path: z.string().optional().describe("Workspace-relative file to preview, e.g. hello.html"),
+        url: z.string().optional().describe("Full http(s) URL of a running server or webpage, e.g. http://localhost:3000"),
+        reason: z.string().optional().describe("Short user-facing reason for opening this page"),
+      }),
+      execute: ({ path, url, reason }, ctx) => executeTool(state, ctx.toolCallId, "browser_open", { path, url, reason }, async () => {
+        if (Boolean(path) === Boolean(url)) {
+          throw new ToolExecError("invalid_arguments", "Provide exactly one of `path` (workspace file) or `url` (http/https).", true);
+        }
+        resetViewportRuntime();
+        if (path) {
+          assertSafe(checkReadable(path));
+          await openViewportFile({ runId: state.runId, chatId: state.chatId, workspacePath: workspace(), path, reason: reason ?? null });
+          return { data: { path }, summary: `Opened viewport on ${path}.` };
+        }
+        assertSafe(checkBrowserUrl(url!));
+        await openViewportUrl({ runId: state.runId, chatId: state.chatId, url: url!, reason: reason ?? null });
+        return { data: { url }, summary: `Opened viewport at ${url}.` };
+      }),
+    }),
+    browser_close: tool({
+      description: "Close the viewport and discard its page state.",
+      inputSchema: z.object({}),
+      execute: (_args, ctx) => executeTool(state, ctx.toolCallId, "browser_close", {}, async () => {
+        const wasOpen = useViewportStore.getState().session !== null;
+        resetViewportRuntime();
+        await closeViewport();
+        return { data: { closed: wasOpen }, summary: wasOpen ? "Closed the viewport." : "No viewport was open." };
+      }),
+    }),
+    browser_reload: tool({
+      description: "Reload the current page in the viewport.",
+      inputSchema: z.object({}),
+      execute: (_args, ctx) => executeTool(state, ctx.toolCallId, "browser_reload", {}, async () => {
+        await reloadViewport();
+        return { data: {}, summary: "Reloading the page." };
+      }),
+    }),
+    browser_wait: tool({
+      description: "Wait until the viewport page finishes loading (or the timeout passes). Call after browser_open or browser_reload, before browser_snapshot.",
+      inputSchema: z.object({
+        seconds: z.number().int().min(1).max(15).default(8).describe("Maximum seconds to wait"),
+      }),
+      execute: ({ seconds }, ctx) => executeTool(state, ctx.toolCallId, "browser_wait", { seconds }, async () => {
+        const status = await waitForViewportReady(seconds * 1000);
+        if (status === "closed") throw new ToolExecError("viewport_closed", "No viewport is open.", true);
+        return {
+          data: { status },
+          summary: status === "ready" ? "Page finished loading." : "Page is still loading after the wait.",
+        };
+      }),
+    }),
+    browser_snapshot: tool({
+      description:
+        "Compact structured observation of the current viewport page: title, headings, buttons, inputs, focus, visible text summary, console/network summary. Cheap to call repeatedly — if nothing changed it returns \"No DOM changes.\", otherwise only the differences. Use this instead of reading HTML.",
+      inputSchema: z.object({}),
+      execute: (_args, ctx) => executeTool(state, ctx.toolCallId, "browser_snapshot", {}, async () => {
+        const result = await snapshotViewport(state.runId);
+        const summary =
+          result.kind === "unchanged"
+            ? "No DOM changes."
+            : result.kind === "diff"
+              ? `${result.changes.length} change${result.changes.length === 1 ? "" : "s"} on ${result.title || result.url}.`
+              : `Observed ${result.observation.title || result.observation.url}.`;
+        return { data: result, summary };
+      }),
+    }),
+    browser_inspect: tool({
+      description:
+        "Inspect elements matching a CSS selector in the viewport page: tag, role, text, value, href, visibility, and position for up to 10 matches. Use for details browser_snapshot doesn't cover; do not use it to dump whole documents.",
+      inputSchema: z.object({
+        selector: z.string().min(1).describe("CSS selector, e.g. \"form .error\" or \"#submit\""),
+      }),
+      execute: ({ selector }, ctx) => executeTool(state, ctx.toolCallId, "browser_inspect", { selector }, async () => {
+        const result = await inspectViewport(selector);
+        const matches = typeof result.matches === "number" ? result.matches : 0;
+        return { data: result, summary: `Found ${matches} match${matches === 1 ? "" : "es"} for "${selector}".` };
+      }),
+    }),
     ...(webSearchEnabled
       ? {
           search_web: tool({
@@ -645,7 +742,9 @@ function emit(runId: string, data: AgentRawEvent["data"]) {
 
 const SYSTEM_PROMPT = `You are Poly Agent, an AI coding agent inside Poly UI.
 
-Your tools: read_file, list_directory, grep, write_file, edit, multi_edit, run_command (and search_web/read_web_results when available). There are no other tools.
+Your tools: read_file, list_directory, grep, write_file, edit, multi_edit, run_command, open_browser, close_browser (and search_web/read_web_results when available). There are no other tools.
+
+open_browser shows the user a visible native preview window; you cannot read the page content yourself. To show a file in the workspace (like an HTML file you created), pass its workspace-relative path — do NOT invent a localhost URL for it. Only pass a url when a server is already confirmed running at it (e.g. the user said so, or you started one). Only open the preview when it clearly helps the request.
 
 Workflow — observe, plan, act, verify:
 - Execute, don't echo. When asked to create/fix/edit, use tools.

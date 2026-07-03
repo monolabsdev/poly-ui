@@ -2,7 +2,9 @@ import { useState } from "react";
 import { Box } from "@/components/ui/Box";
 import { Typography } from "@/components/ui/Typography";
 import type { AgentApproval, AgentMessageState } from "./types";
+import { AgentBrowserCard } from "./AgentBrowserCard";
 import { AgentReviewPanel } from "./AgentReviewPanel";
+import { openViewportFile } from "./viewportStore";
 import {
   ChainOfThought,
   ChainOfThoughtContent,
@@ -45,6 +47,17 @@ export function AgentActivity({ agent, resultText, onResolveApproval, onRetry }:
     setReviewOpen(true);
   };
 
+  const handlePreview = (path: string) => {
+    if (!agent.workspacePath) return;
+    void openViewportFile({
+      runId: agent.runId ?? `manual:${agent.startedAt}`,
+      chatId: null,
+      workspacePath: agent.workspacePath,
+      path,
+      reason: "Opened manually",
+    });
+  };
+
   return (
     <Box>
       <AgentRunHeader elapsed={elapsed} status={status} waitingMessage={waitMsg} />
@@ -74,7 +87,13 @@ export function AgentActivity({ agent, resultText, onResolveApproval, onRetry }:
                     </ChainOfThoughtItem>
                   )}
                   {step.details?.map((detail) => <ChainOfThoughtItem key={detail}>{detail}</ChainOfThoughtItem>)}
-                  {step.type === "editing" && step.files && <EditingContent files={step.files} onReview={handleReview} />}
+                  {step.type === "editing" && step.files && (
+                    <EditingContent
+                      files={step.files}
+                      onReview={handleReview}
+                      onPreview={agent.workspacePath ? handlePreview : undefined}
+                    />
+                  )}
                   {step.type === "approval" && step.approval && (
                     <ApprovalContent agent={agent} approval={step.approval} onResolveApproval={onResolveApproval} onReview={handleReview} />
                   )}
@@ -88,7 +107,15 @@ export function AgentActivity({ agent, resultText, onResolveApproval, onRetry }:
         </ChainOfThought>
       )}
 
-      {agent.editedFiles.length > 0 && !hasFileStep && <EditedFilesSummaryCard files={agent.editedFiles} onReview={handleReview} />}
+      <AgentBrowserCard runId={agent.runId} />
+
+      {agent.editedFiles.length > 0 && !hasFileStep && (
+        <EditedFilesSummaryCard
+          files={agent.editedFiles}
+          onReview={handleReview}
+          onPreview={agent.workspacePath ? handlePreview : undefined}
+        />
+      )}
 
       <AgentReviewPanel open={reviewOpen} workspacePath={agent.workspacePath} initialPath={reviewPath} fallbackFiles={agent.editedFiles} toolCalls={agent.toolCalls} onClose={() => setReviewOpen(false)} />
 

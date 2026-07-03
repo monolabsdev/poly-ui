@@ -1,3 +1,4 @@
+mod agent_viewport;
 mod auth;
 mod commands;
 mod db;
@@ -14,6 +15,10 @@ mod web_search;
 mod whisper_state;
 mod window_state_recovery;
 
+use crate::agent_viewport::{
+    agent_viewport_close, agent_viewport_hide, agent_viewport_observe, agent_viewport_open,
+    agent_viewport_open_file, agent_viewport_reload, agent_viewport_set_bounds,
+};
 use crate::commands::chat_commands::{chat, chat_stream, generate_chat_title};
 use crate::commands::config_commands::cancel_chat;
 use crate::commands::db_commands::execute_sql;
@@ -79,6 +84,7 @@ pub fn run() {
     startup_log::log_phase("plugins registered");
 
     let result = builder
+        .manage(agent_viewport::ViewportState::default())
         .setup(|app| {
             startup_log::log_phase("setup hook entered");
             match app.path().app_data_dir() {
@@ -209,6 +215,13 @@ pub fn run() {
             agent_search_web,
             agent_read_web_results,
             agent_run_command,
+            agent_viewport_open,
+            agent_viewport_open_file,
+            agent_viewport_close,
+            agent_viewport_hide,
+            agent_viewport_reload,
+            agent_viewport_set_bounds,
+            agent_viewport_observe,
             get_whisper_models_status,
             download_whisper_model,
             select_whisper_model,

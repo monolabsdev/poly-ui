@@ -77,6 +77,34 @@ export function runCommand(
   });
 }
 
+export function agentViewportOpen(url: string): Promise<string> {
+  return invoke<string>("agent_viewport_open", { url });
+}
+
+export function agentViewportOpenFile(workspacePath: string, path: string): Promise<string> {
+  return invoke<string>("agent_viewport_open_file", { workspacePath, path });
+}
+
+export function agentViewportClose(): Promise<void> {
+  return invoke("agent_viewport_close");
+}
+
+export function agentViewportHide(): Promise<void> {
+  return invoke("agent_viewport_hide");
+}
+
+export function agentViewportReload(): Promise<void> {
+  return invoke("agent_viewport_reload");
+}
+
+export function agentViewportSetBounds(bounds: { x: number; y: number; width: number; height: number }): Promise<void> {
+  return invoke("agent_viewport_set_bounds", bounds);
+}
+
+export function agentViewportObserve(kind: "snapshot" | "inspect", selector?: string): Promise<unknown> {
+  return invoke("agent_viewport_observe", { kind, selector: selector ?? null });
+}
+
 export function webSearch(query: string, config: WebSearchConfig): Promise<AgentSearchResult[]> {
   return invoke<AgentSearchResult[]>("agent_web_search", { query, config });
 }

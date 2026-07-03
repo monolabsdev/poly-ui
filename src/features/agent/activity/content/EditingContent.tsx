@@ -2,8 +2,9 @@ import { useMemo, useState } from "react";
 import { Box } from "@/components/ui/Box";
 import { Button } from "@/components/ui/button";
 import { Typography } from "@/components/ui/Typography";
-import { ChevronDown, FileDiff } from "lucide-react";
+import { ChevronDown, FileDiff, Monitor } from "lucide-react";
 import { AgentTraceBadge } from "@/components/ui/agent-trace";
+import { IconButton } from "@/components/ui/icon-button";
 import type { AgentEditedFile } from "../../types";
 import { DiffStat } from "../primitives";
 import { fileName } from "../summaries";
@@ -11,9 +12,11 @@ import { fileName } from "../summaries";
 export function EditingContent({
   files,
   onReview,
+  onPreview,
 }: {
   files: AgentEditedFile[];
   onReview: (path: string) => void;
+  onPreview?: (path: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const additions = files.reduce((s, f) => s + f.additions, 0);
@@ -22,15 +25,21 @@ export function EditingContent({
   if (files.length === 1) {
     const f = files[0];
     return (
-      <Box
-        as="button"
-        className="flex w-full items-center justify-between rounded-lg border border-border/60 bg-background/50 px-3 py-2 text-left transition-colors hover:bg-muted/40"
-        onClick={() => onReview(f.path)}
-      >
-        <Box className="min-w-0">
+      <Box className="flex w-full items-center justify-between gap-2 rounded-lg border border-border/60 bg-background/50 px-3 py-2">
+        <button className="min-w-0 text-left" onClick={() => onReview(f.path)}>
           <AgentTraceBadge>{fileName(f.path)}</AgentTraceBadge>
-        </Box>
+        </button>
         <DiffStat additions={f.additions} deletions={f.deletions} />
+        {onPreview && (
+          <IconButton
+            size="small"
+            aria-label={`Preview ${f.path}`}
+            title="Preview file"
+            onClick={() => onPreview(f.path)}
+          >
+            <Monitor size={14} />
+          </IconButton>
+        )}
       </Box>
     );
   }
@@ -48,15 +57,23 @@ export function EditingContent({
       </Box>
       {visible.map((f) => (
         <Box
-          as="button"
           key={f.path}
-          className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left hover:bg-muted/40"
-          onClick={() => onReview(f.path)}
+          className="flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 hover:bg-muted/40"
         >
-          <Box className="min-w-0">
+          <button className="min-w-0 text-left" onClick={() => onReview(f.path)}>
             <AgentTraceBadge>{fileName(f.path)}</AgentTraceBadge>
-          </Box>
+          </button>
           <DiffStat additions={f.additions} deletions={f.deletions} />
+          {onPreview && (
+            <IconButton
+              size="small"
+              aria-label={`Preview ${f.path}`}
+              title="Preview file"
+              onClick={() => onPreview(f.path)}
+            >
+              <Monitor size={14} />
+            </IconButton>
+          )}
         </Box>
       ))}
       {hidden > 0 && (
@@ -76,9 +93,11 @@ export function EditingContent({
 export function EditedFilesSummaryCard({
   files,
   onReview,
+  onPreview,
 }: {
   files: AgentEditedFile[];
   onReview: (path?: string) => void;
+  onPreview?: (path: string) => void;
 }) {
   const totals = useMemo(
     () => ({
@@ -103,6 +122,16 @@ export function EditedFilesSummaryCard({
           </Box>
         </Box>
         <Box>
+          {onPreview && files[0] && (
+            <Button
+              size="small"
+              color="inherit"
+              variant="ghost"
+              onClick={() => onPreview(files[0].path)}
+            >
+              Preview
+            </Button>
+          )}
           <Button
             size="small"
             color="inherit"
@@ -116,17 +145,27 @@ export function EditedFilesSummaryCard({
       <Box className="mt-3 space-y-1">
         {files.map((file) => (
           <Box
-            as="button"
             key={file.path}
-            className="flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left hover:bg-muted/40"
-            onClick={() => onReview(file.path)}
+            className="flex w-full items-center justify-between gap-2 rounded-lg px-2 py-1.5 hover:bg-muted/40"
           >
-            <Typography
-              className="truncate font-mono text-xs text-muted-foreground"
-            >
-              {file.path}
-            </Typography>
+            <button className="min-w-0 text-left" onClick={() => onReview(file.path)}>
+              <Typography
+                className="truncate font-mono text-xs text-muted-foreground"
+              >
+                {file.path}
+              </Typography>
+            </button>
             <DiffStat additions={file.additions} deletions={file.deletions} />
+            {onPreview && (
+              <IconButton
+                size="small"
+                aria-label={`Preview ${file.path}`}
+                title="Preview file"
+                onClick={() => onPreview(file.path)}
+              >
+                <Monitor size={14} />
+              </IconButton>
+            )}
           </Box>
         ))}
       </Box>
