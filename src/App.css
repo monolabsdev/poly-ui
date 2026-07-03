@@ -484,37 +484,89 @@ code {
         opacity var(--dur-fast) var(--ease-soft);
 }
 
-.chat-file-drop-target--active {
-    background-color: var(--app-drop-bg) !important;
-    background-image: none !important;
-    border: 1.5px dashed var(--app-drop-border) !important;
-    box-shadow: 0 0 0 4px var(--app-drop-ring) !important;
-}
-
-.chat-file-drop-label {
-    position: absolute;
-    top: 10px;
-    right: 14px;
-    z-index: 3;
+.chat-file-drop-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-modal);
+    display: grid;
+    place-items: center;
     pointer-events: none;
-    border: 1px solid var(--app-drop-label-border);
-    border-radius: 9999px;
-    background: var(--app-drop-label-bg);
-    color: var(--info);
-    font-size: 12px;
-    font-weight: 700;
-    line-height: 1;
-    opacity: 0;
-    padding: 6px 9px;
-    transform: translateY(-2px);
-    transition:
-        opacity var(--dur-fast) var(--ease-soft),
-        transform var(--dur-fast) var(--ease-soft);
+    overflow: hidden;
+    background: rgb(0 0 0 / 0.72);
+    color: white;
 }
 
-.chat-file-drop-target--active .chat-file-drop-label {
-    opacity: 1;
-    transform: translateY(0);
+.chat-file-drop-overlay__content {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    justify-items: center;
+    gap: 12px;
+    transform: translateY(-2vh);
+}
+
+.chat-file-drop-overlay__icons {
+    position: relative;
+    width: 140px;
+    height: 110px;
+}
+
+.chat-file-drop-overlay__file {
+    position: absolute;
+    display: grid;
+    place-items: center;
+    color: #0b1020;
+    box-shadow: 0 18px 48px rgb(0 0 0 / 0.24);
+}
+
+.chat-file-drop-overlay__file--image {
+    left: 40px;
+    bottom: 0;
+    z-index: 2;
+    width: 62px;
+    height: 54px;
+    border-radius: 16px;
+    background: #4258ff;
+    color: #030712;
+}
+
+.chat-file-drop-overlay__file--text {
+    right: 12px;
+    top: 0;
+    width: 54px;
+    height: 70px;
+    border-radius: 8px 14px 8px 8px;
+    background: #7587ff;
+    transform: rotate(12deg);
+}
+
+.chat-file-drop-overlay__file--clip {
+    left: 6px;
+    top: 24px;
+    width: 56px;
+    height: 48px;
+    border-radius: 18px;
+    background: #a8b7ff;
+    transform: rotate(-14deg);
+}
+
+.chat-file-drop-overlay__title {
+    margin: 0;
+    color: white;
+    font-size: clamp(30px, 4vw, 44px);
+    font-weight: 700;
+    line-height: 1.05;
+    letter-spacing: 0;
+    text-align: center;
+}
+
+.chat-file-drop-overlay__copy {
+    margin: 0;
+    color: rgb(255 255 255 / 0.78);
+    font-size: clamp(16px, 2vw, 22px);
+    line-height: 1.35;
+    letter-spacing: 0;
+    text-align: center;
 }
 
 /* Spin animation for refresh icon */

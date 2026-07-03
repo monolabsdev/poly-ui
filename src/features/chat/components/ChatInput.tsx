@@ -3,6 +3,7 @@ import {
   Plus,
   ArrowUp,
   Paperclip,
+  FileText,
   Image as ImageIcon,
   AlertTriangle,
   Mic,
@@ -11,6 +12,7 @@ import {
   Globe,
 } from "lucide-react";
 import { useState, memo, useEffect, useCallback, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { Box } from "@/components/ui/Box";
 import { InputBase } from "@/components/ui/input-base";
 import { IconButton } from "@/components/ui/icon-button";
@@ -103,6 +105,36 @@ export const ChatInput = memo(function ChatInput({
   const { isDraggingFiles } = useFileDragDetection({
     onFilesDropped: processFiles,
   });
+  const dropOverlay =
+    isDraggingFiles && typeof document !== "undefined"
+      ? createPortal(
+          <Box
+            className="chat-file-drop-overlay"
+            aria-hidden="true"
+          >
+            <Box className="chat-file-drop-overlay__content">
+              <Box className="chat-file-drop-overlay__icons">
+                <Box className="chat-file-drop-overlay__file chat-file-drop-overlay__file--image">
+                  <ImageIcon size={32} strokeWidth={2.5} />
+                </Box>
+                <Box className="chat-file-drop-overlay__file chat-file-drop-overlay__file--text">
+                  <FileText size={34} strokeWidth={2.6} />
+                </Box>
+                <Box className="chat-file-drop-overlay__file chat-file-drop-overlay__file--clip">
+                  <Paperclip size={28} strokeWidth={2.7} />
+                </Box>
+              </Box>
+              <h2 className="chat-file-drop-overlay__title">
+                Add anything
+              </h2>
+              <p className="chat-file-drop-overlay__copy">
+                Drop any file here to add it to the conversation
+              </p>
+            </Box>
+          </Box>,
+          document.body,
+        )
+      : null;
 
   const handleTextPaste = useCallback((e: React.ClipboardEvent) => {
     const text = e.clipboardData.getData("text/plain");
@@ -305,6 +337,7 @@ export const ChatInput = memo(function ChatInput({
         style={{ display: "none" }}
         onChange={handleFileChange}
       />
+      {dropOverlay}
 
       <Box className="relative w-full">
         {showSlashMenu && (
@@ -322,7 +355,6 @@ export const ChatInput = memo(function ChatInput({
             isTemporary
               ? "border-dashed border-border/60"
               : "border-transparent hover:border-border/60 focus-within:border-border/60",
-            isDraggingFiles && "chat-file-drop-target--active",
           )}
           aria-label="Chat message composer. Drop files here to attach them."
           aria-describedby={isDraggingFiles ? "chat-file-drop-status" : undefined}
@@ -331,15 +363,10 @@ export const ChatInput = memo(function ChatInput({
           <Box className="relative flex min-h-16 flex-col">
             <Box
               id="chat-file-drop-status"
+              className="sr-only"
               aria-live="polite"
             >
               {isDraggingFiles ? "Drop files to attach them to this message." : ""}
-            </Box>
-            <Box
-              className="chat-file-drop-label"
-              aria-hidden="true"
-            >
-              Drop files to attach
             </Box>
             {currentAttachments.length > 0 && (
                 <ChatAttachmentsList

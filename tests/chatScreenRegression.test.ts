@@ -36,6 +36,28 @@ describe("chat screen regression guards", () => {
     expect(source).toContain("\"dragDropEnabled\": true");
   });
 
+  it("uses a centered overlay instead of an active composer outline for file drops", () => {
+    const source = read("src/features/chat/components/ChatInput.tsx");
+    const css = read("src/App.css");
+
+    expect(source).toContain("createPortal");
+    expect(source).toContain("document.body");
+    expect(source).toContain("chat-file-drop-overlay");
+    expect(source).toContain("className=\"sr-only\"");
+    expect(source).toContain("<h2 className=\"chat-file-drop-overlay__title\">");
+    expect(source).toContain("<p className=\"chat-file-drop-overlay__copy\">");
+    expect(source).toContain("Add anything");
+    expect(source).toContain("Drop any file here to add it to the conversation");
+    expect(source).not.toContain("chat-file-drop-target--active");
+    expect(css).toContain(".chat-file-drop-overlay");
+    expect(css).toContain("inset: 0");
+    expect(css).toContain("z-index: 1");
+    expect(css).toContain("color: white");
+    expect(css).toContain("background: rgb(0 0 0 / 0.72)");
+    expect(css).not.toContain("top: calc(var(--titlebar-height)");
+    expect(css).not.toContain(".chat-file-drop-target--active");
+  });
+
   it("uses prompt-kit style action buttons in the composer", () => {
     const source = read("src/features/chat/components/ChatInput.tsx");
 
