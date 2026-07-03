@@ -4,6 +4,7 @@ import { useUpdateStore } from "@/store/updateStore";
 export function UpdateChip() {
   const status = useUpdateStore((s) => s.status);
   const progress = useUpdateStore((s) => s.progress);
+  const error = useUpdateStore((s) => s.error);
   const install = useUpdateStore((s) => s.actions.install);
 
   if (status === "idle" || status === "checking" || status === "available") return null;
@@ -16,6 +17,7 @@ export function UpdateChip() {
       onClick={isBusy ? undefined : install}
       onMouseDown={(e: React.MouseEvent) => e.stopPropagation()}
       onDoubleClick={(e: React.MouseEvent) => e.stopPropagation()}
+      title={status === "error" && error ? error : undefined}
       className={`inline-flex select-none items-center gap-2 whitespace-nowrap rounded-full px-3 py-0.5 text-xs font-semibold text-primary-foreground ${
         status === "error" ? "bg-destructive" : "bg-primary"
       } ${isBusy ? "cursor-default" : "cursor-pointer hover:opacity-85"}`}
@@ -32,8 +34,8 @@ export function UpdateChip() {
           Install Update
         </span>
       ) : (
-        <span className="text-xs font-semibold text-inherit">
-          Update failed
+        <span className="max-w-80 truncate text-xs font-semibold text-inherit">
+          {error ? `Update failed: ${error}` : "Update failed"}
         </span>
       )}
     </button>

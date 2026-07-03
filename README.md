@@ -30,7 +30,19 @@ PolyUI is a small, high performance and user-friendly AI desktop application des
 ## How to Install 🚀
 
 ### Installation via releases
-PolyUI can be installed from the [releases](https://github.com/monolabsdev/openbench-ai/releases) page. Download the file that matches your operating system and CPU:
+PolyUI can be installed from the [releases](https://github.com/monolabsdev/poly-ui/releases) page. Download the file that matches your operating system and CPU:
+
+### Command line install
+
+Linux and macOS:
+```bash
+curl -fsSL https://raw.githubusercontent.com/monolabsdev/poly-ui/main/scripts/install.sh | sh
+```
+
+Windows PowerShell:
+```powershell
+irm https://raw.githubusercontent.com/monolabsdev/poly-ui/main/scripts/install.ps1 | iex
+```
 
 - **macOS**: download `PolyUI-*-macos-universal.dmg`.
 - **Windows**: download `PolyUI-*-windows-x64-setup.exe` or `PolyUI-*-windows-x64.msi`.

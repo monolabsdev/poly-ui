@@ -113,6 +113,10 @@ fn select_update_asset<'a>(
     os: &str,
     arch: &str,
 ) -> Option<&'a GithubAsset> {
+    if os == "linux" {
+        return select_linux_update_asset(assets, arch, &linux_asset_suffixes());
+    }
+
     let arch_aliases: &[&str] = match arch {
         "x86_64" => &["x64", "amd64", "x86_64"],
         "aarch64" => &["aarch64", "arm64"],
@@ -153,6 +157,78 @@ fn select_update_asset<'a>(
         })
 }
 
+fn matching_arch_assets<'a>(
+    assets: &'a [GithubAsset],
+    arch: &str,
+    matches_platform: impl Fn(&GithubAsset) -> bool,
+) -> Vec<&'a GithubAsset> {
+    let arch_aliases: &[&str] = match arch {
+        "x86_64" => &["x64", "amd64", "x86_64"],
+        "aarch64" => &["aarch64", "arm64"],
+        _ => &[arch],
+    };
+    let known_arches = ["x64", "amd64", "x86_64", "aarch64", "arm64"];
+    let matching_assets: Vec<&GithubAsset> =
+        assets.iter().filter(|a| matches_platform(a)).collect();
+    let arch_matches: Vec<&GithubAsset> = matching_assets
+        .iter()
+        .copied()
+        .filter(|a| {
+            let name = a.name.to_lowercase();
+            arch_aliases.iter().any(|alias| name.contains(alias))
+        })
+        .collect();
+
+    if !arch_matches.is_empty() {
+        return arch_matches;
+    }
+
+    matching_assets
+        .into_iter()
+        .filter(|a| {
+            let name = a.name.to_lowercase();
+            !known_arches.iter().any(|arch| name.contains(arch))
+        })
+        .collect()
+}
+
+fn command_exists(command: &str) -> bool {
+    std::env::var_os("PATH")
+        .is_some_and(|paths| std::env::split_paths(&paths).any(|path| path.join(command).is_file()))
+}
+
+fn linux_asset_suffixes() -> Vec<&'static str> {
+    if command_exists("apt") || command_exists("dpkg") {
+        vec![".deb", ".appimage", ".rpm"]
+    } else if command_exists("dnf") || command_exists("zypper") || command_exists("rpm") {
+        vec![".rpm", ".appimage", ".deb"]
+    } else {
+        vec![".appimage", ".deb", ".rpm"]
+    }
+}
+
+fn select_linux_update_asset<'a>(
+    assets: &'a [GithubAsset],
+    arch: &str,
+    suffixes: &[&str],
+) -> Option<&'a GithubAsset> {
+    let candidates = matching_arch_assets(assets, arch, |asset| {
+        let name = asset.name.to_lowercase();
+        !name.contains("ollama")
+            && (name.ends_with(".appimage") || name.ends_with(".deb") || name.ends_with(".rpm"))
+    });
+
+    suffixes
+        .iter()
+        .find_map(|suffix| {
+            candidates
+                .iter()
+                .copied()
+                .find(|asset| asset.name.to_lowercase().ends_with(&suffix.to_lowercase()))
+        })
+        .or_else(|| candidates.first().copied())
+}
+
 fn is_newer_version(remote: &str, current: &str) -> Result<bool, String> {
     let remote = semver::Version::parse(remote.trim_start_matches('v'))
         .map_err(|e| format!("Invalid release version '{}': {}", remote, e))?;
@@ -165,14 +241,70 @@ fn is_newer_version(remote: &str, current: &str) -> Result<bool, String> {
 enum LinuxInstallKind {
     AppImage,
     Deb,
+    Rpm,
 }
 
 fn linux_install_kind(path: &Path) -> Option<LinuxInstallKind> {
-    match path.extension().and_then(|extension| extension.to_str()) {
-        Some("AppImage") => Some(LinuxInstallKind::AppImage),
-        Some("deb") => Some(LinuxInstallKind::Deb),
-        _ => None,
+    let name = path.file_name()?.to_str()?;
+    let lower_name = name.to_lowercase();
+
+    if lower_name.ends_with(".appimage") {
+        Some(LinuxInstallKind::AppImage)
+    } else if lower_name.ends_with(".deb") {
+        Some(LinuxInstallKind::Deb)
+    } else if lower_name.ends_with(".rpm") {
+        Some(LinuxInstallKind::Rpm)
+    } else {
+        None
     }
+}
+
+fn shell_quote(value: &str) -> String {
+    format!("'{}'", value.replace('\'', "'\\''"))
+}
+
+fn linux_install_script(path: &Path) -> Result<String, String> {
+    let package = shell_quote(&path.to_string_lossy());
+    let kind =
+        linux_install_kind(path).ok_or_else(|| "Unsupported Linux update package".to_string())?;
+    let install = match kind {
+        LinuxInstallKind::AppImage => format!("chmod +x {package}\nexec {package} --no-sandbox\n"),
+        LinuxInstallKind::Deb => format!(
+            r#"if command -v apt >/dev/null 2>&1; then
+  $AS_ROOT DEBIAN_FRONTEND=noninteractive apt install -y {package}
+else
+  $AS_ROOT dpkg -i {package}
+fi
+"#
+        ),
+        LinuxInstallKind::Rpm => format!(
+            r#"if command -v dnf >/dev/null 2>&1; then
+  $AS_ROOT dnf install -y {package}
+elif command -v zypper >/dev/null 2>&1; then
+  $AS_ROOT zypper install -y {package}
+else
+  $AS_ROOT rpm -Uvh {package}
+fi
+"#
+        ),
+    };
+
+    Ok(format!(
+        r#"#!/bin/sh
+set -eu
+sleep 2
+if command -v pkexec >/dev/null 2>&1; then
+  AS_ROOT="pkexec env"
+elif [ "$(id -u)" -eq 0 ]; then
+  AS_ROOT="env"
+elif command -v sudo >/dev/null 2>&1; then
+  AS_ROOT="sudo env"
+else
+  echo "Install needs pkexec, sudo, or root." >&2
+  exit 1
+fi
+{install}"#
+    ))
 }
 
 #[tauri::command]
@@ -286,29 +418,16 @@ rm -- "$0"
                 .map_err(|e| format!("Failed to start installer: {}", e))?;
         }
         "linux" => {
-            if linux_install_kind(&file_path) == Some(LinuxInstallKind::AppImage) {
-                std::process::Command::new("chmod")
-                    .args(["+x", fp.as_ref()])
-                    .spawn()
-                    .map_err(|e| e.to_string())?;
-                std::process::Command::new(fp.as_ref())
-                    .arg("--no-sandbox")
-                    .spawn()
-                    .map_err(|e| format!("Failed to start installer: {}", e))?;
-            } else if linux_install_kind(&file_path) == Some(LinuxInstallKind::Deb) {
-                let install_script = format!("sleep 2\npkexec dpkg -i '{}'\n", fp);
-                let script_path = std::env::temp_dir()
-                    .join("polyui-update")
-                    .join("install.sh");
-                std::fs::create_dir_all(script_path.parent().unwrap()).ok();
-                std::fs::write(&script_path, &install_script).map_err(|e| e.to_string())?;
-                std::process::Command::new("sh")
-                    .arg(&script_path)
-                    .spawn()
-                    .map_err(|e| format!("Failed to start installer: {}", e))?;
-            } else {
-                return Err("Unsupported Linux update package".to_string());
-            }
+            let install_script = linux_install_script(&file_path)?;
+            let script_path = std::env::temp_dir()
+                .join("polyui-update")
+                .join("install.sh");
+            std::fs::create_dir_all(script_path.parent().unwrap()).ok();
+            std::fs::write(&script_path, &install_script).map_err(|e| e.to_string())?;
+            std::process::Command::new("sh")
+                .arg(&script_path)
+                .spawn()
+                .map_err(|e| format!("Failed to start installer: {}", e))?;
         }
         _ => return Err("Unsupported OS".to_string()),
     }
@@ -392,10 +511,64 @@ mod tests {
     }
 
     #[test]
+    fn linux_updater_prefers_requested_package_type() {
+        let assets = vec![
+            asset("PolyUI_0.16.0_linux_x64.deb"),
+            asset("PolyUI_0.16.0_linux_x64.rpm"),
+            asset("PolyUI_0.16.0_linux_x64.AppImage"),
+        ];
+
+        assert_eq!(
+            select_linux_update_asset(&assets, "x86_64", &[".rpm", ".appimage", ".deb"])
+                .map(|asset| asset.name.as_str()),
+            Some("PolyUI_0.16.0_linux_x64.rpm")
+        );
+    }
+
+    #[test]
+    fn linux_updater_falls_back_to_appimage() {
+        let assets = vec![
+            asset("PolyUI_0.16.0_linux_x64.deb"),
+            asset("PolyUI_0.16.0_linux_x64.AppImage"),
+        ];
+
+        assert_eq!(
+            select_linux_update_asset(&assets, "x86_64", &[".rpm", ".appimage", ".deb"])
+                .map(|asset| asset.name.as_str()),
+            Some("PolyUI_0.16.0_linux_x64.AppImage")
+        );
+    }
+
+    #[test]
     fn linux_updater_rejects_unknown_package_type() {
         assert_eq!(
             linux_install_kind(std::path::Path::new("PolyUI.tar.gz")),
             None
         );
+    }
+
+    #[test]
+    fn linux_updater_supports_rpm_packages() {
+        assert_eq!(
+            linux_install_kind(std::path::Path::new("PolyUI-0.16.0-linux-x64.rpm")),
+            Some(LinuxInstallKind::Rpm)
+        );
+    }
+
+    #[test]
+    fn linux_deb_installer_prefers_apt_over_dpkg() {
+        let script = linux_install_script(std::path::Path::new("/tmp/PolyUI.deb")).unwrap();
+
+        assert!(script.contains("apt install -y"));
+        assert!(script.contains("dpkg -i"));
+    }
+
+    #[test]
+    fn linux_rpm_installer_supports_common_package_managers() {
+        let script = linux_install_script(std::path::Path::new("/tmp/PolyUI.rpm")).unwrap();
+
+        assert!(script.contains("dnf install -y"));
+        assert!(script.contains("zypper install -y"));
+        assert!(script.contains("rpm -Uvh"));
     }
 }
