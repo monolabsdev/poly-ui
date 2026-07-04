@@ -10,22 +10,22 @@
 ![GitHub last commit](https://img.shields.io/github/last-commit/theoslater/openbench?color=red)
 ![GitHub stars](https://img.shields.io/github/stars/theoslater/openbench?style=social)
 
-PolyUI is a small, high performance and user-friendly AI desktop application designed to be able to operate entirely offline. One calm window for your models — use Ollama, OpenAI-compatible APIs, and more from a simple interface built for private, everyday conversations with local LLMs.
+PolyUI is a desktop AI chat app that runs entirely offline. One calm window for your models - use Ollama, OpenAI-compatible APIs, and more. Built for private, everyday conversations with local LLMs.
 
 ![polyui demo](public/PolyUI_Demo.png)
 
 ## Key features of PolyUI
 
-- 🚀 **Effortless Setup**: Install seamlessly using the setup file for a hassle-free experience with support for Ollama. You **must** have ollama installed first.
+- 🚀 **Effortless Setup**: Install via the setup file. You'll need Ollama installed first.
 - 🤝 **Ollama Integration**: Use ollama models effortlessly through this application.
 - ✒️🔢 **Full Markdown and LaTeX Support**: Elevate the LLM experience with comprehensive Markdown and LaTeX capabilities. (uses LaTeX via KaTeX)
 - 💭 **Multi-model conversations**: Chat with multiple local LLMs simultaneously with real-time, side-by-side streaming responses.
-- 🧍**Guest mode**: Skip the login / signup process and enter guest mode for temporary chats that will not be saved to disk.
+- 🧍 **Guest mode**: Skip signup and chat without saving anything to disk.
 - 📚 **Archived conversations**: Keep your chat history organised by archiving old conversations.
-- 🤖 **Installing models**: Install ollama models directly from the application (can't browse models)
+- 🤖 **Install models**: Install Ollama models directly from the app.
 - 📜 **System prompts**: Choose from 4 different AI personas or use a custom system prompt.
-- 🔐 **Account Authentication**: Create accounts locally that you can log into.
-- 🔒**Privacy first**: All conversations and models stay on your machine, nothing leaves your computer without your explicit action
+- 🔐 **Account Authentication**: Create local accounts for secure sign-in.
+- 🔒 **Privacy first**: Everything stays on your machine. Nothing leaves without your say-so.
 
 ## How to Install 🚀
 
@@ -68,7 +68,7 @@ Use `x64` for most Intel/AMD PCs. Use `arm64` for ARM Linux devices.
 > The `:dev` branch contains the latest unstable features and changes. Use it at your own risk as it may have bugs or incomplete features.
 
 > [!NOTE]
-> This repository includes AI generated code aswell as manually written code (don't be scared!!)
+> This repo includes both AI-generated and hand-written code.
 
 ### Setup (dev)
 Make sure you've got the essentials installed:
@@ -76,13 +76,12 @@ Make sure you've got the essentials installed:
 - Bun
 - Tauri prerequisites (Rust, system deps, etc)
 
-**Clone the repo**: `git clone https://github.com/monolabsdev/openbench-ai.git`
-
-Then switch to the `:dev` branch or just use `:main`
+**Clone the repo** and switch to the dev branch:
 
 ```bash
+git clone https://github.com/monolabsdev/openbench-ai.git
+cd openbench-ai
 git checkout dev
-git pull origin dev
 ```
 
 Install dependencies:
@@ -112,15 +111,13 @@ bun run ollama-setup
 
 ###  How is PolyUI different from Open WebUI?
 
-PolyUI focuses on simplicity and ease of setup.
-
-Unlike platforms that commonly rely on Python, Docker, Kubernetes, or more complex deployment infrastructure, PolyUI is designed to be lightweight and straightforward to install and run locally.
+PolyUI is built for simplicity. No Python, Docker, or Kubernetes required — just install and run.
 
 ## What's next? 🌟
-Discover upcoming features on our [roadmap](https://sites.plane.so/issues/df577f6cf07948c492b06948e45a79c7)
+Check out our [roadmap](https://linear.app/poly-ui/view/roadmap-fa502b4506c7?layout=list&ordering=priority&grouping=workflowState&subGrouping=none&showCompletedIssues=all&showSubIssues=true&showTriageIssues=true)
 
 ## License
-This project contains licenced code. Please refer to [LICENSE](LICENSE.md)
+This project contains licensed code. See [LICENSE](LICENSE.md).
 
 ## Star History
 
