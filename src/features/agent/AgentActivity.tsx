@@ -3,15 +3,8 @@ import { Box } from "@/components/ui/Box";
 import { Typography } from "@/components/ui/Typography";
 import type { AgentApproval, AgentMessageState } from "./types";
 import { AgentReviewPanel } from "./AgentReviewPanel";
-import {
-  ChainOfThought,
-  ChainOfThoughtContent,
-  ChainOfThoughtItem,
-  ChainOfThoughtStep,
-  ChainOfThoughtTrigger,
-} from "@/components/ui/chain-of-thought";
+import { Steps, StepsContent, StepsItem, StepsTrigger } from "@/components/ui/steps";
 import { TextShimmer } from "@/components/ui/text-shimmer";
-import { AgentDebugTrace } from "./activity/AgentDebugTrace";
 import { buildSteps, hasDisclosureContent } from "./activity/buildSteps";
 import { ApprovalContent } from "./activity/content/ApprovalContent";
 import { CommandContent } from "./activity/content/CommandContent";
@@ -19,6 +12,8 @@ import { EditingContent, EditedFilesSummaryCard } from "./activity/content/Editi
 import { ErrorContent } from "./activity/content/ErrorContent";
 import { agentResult } from "./activity/summaries";
 import { statusMeta, useElapsed, useHeaderStatus } from "./activity/status";
+import { AlertTriangle, Check, Circle, LoaderCircle, ShieldAlert } from "lucide-react";
+import type { StepStatus } from "@/components/ui/agent-trace";
 
 type AgentActivityProps = {
   agent: AgentMessageState;
@@ -58,68 +53,59 @@ export function AgentActivity({ agent, resultText, onResolveApproval, onRetry }:
       )}
 
       {steps.length > 0 && (
-        <ChainOfThought>
+        <Box className="flex flex-col gap-3">
           {steps.map((step) => (
-            <ChainOfThoughtStep
+            <Steps
               key={step.id}
-              isActive={step.status === "running"}
-              defaultExpanded={step.defaultExpanded}
+              defaultOpen={step.defaultExpanded || step.status === "running" || step.status === "waiting" || step.status === "error"}
+              className="group/step"
             >
-              <ChainOfThoughtTrigger>{step.label}</ChainOfThoughtTrigger>
-              {hasDisclosureContent(step) && (
-                <ChainOfThoughtContent>
+              <StepsTrigger
+                leftIcon={<StepStatusIcon status={step.status} />}
+                swapIconOnHover={hasDisclosureContent(step)}
+                className="w-fit max-w-full gap-1.5 rounded-md px-0 py-0 text-[15px] leading-6"
+              >
+                <span className={step.status === "running" ? "font-medium text-foreground" : "text-muted-foreground"}>
+                  {step.label}
+                </span>
+              </StepsTrigger>
+              {hasDisclosureContent(step) ? (
+                <StepsContent
+                  bar={false}
+                  className="mt-2 rounded-lg border border-border/70 bg-background/30 px-3 py-2 shadow-sm"
+                >
                   {step.summary && (
-                    <ChainOfThoughtItem>
+                    <StepsItem className="px-1 text-[15px] leading-6">
                       {step.status === "running" ? <TextShimmer duration={3} spread={15}>{step.summary}</TextShimmer> : step.summary}
-                    </ChainOfThoughtItem>
+                    </StepsItem>
                   )}
-                  {step.details?.map((detail) => <ChainOfThoughtItem key={detail}>{detail}</ChainOfThoughtItem>)}
+                  {step.details?.map((detail) => <StepsItem className="px-1 text-[15px] leading-6" key={detail}>{detail}</StepsItem>)}
                   {step.type === "editing" && step.files && <EditingContent files={step.files} onReview={handleReview} />}
                   {step.type === "approval" && step.approval && (
                     <ApprovalContent agent={agent} approval={step.approval} onResolveApproval={onResolveApproval} onReview={handleReview} />
                   )}
                   {step.type === "error" && step.errorDetail && <ErrorContent error={step.errorDetail} onRetry={onRetry} />}
                   {step.type === "command" && step.command && <CommandContent call={step.command} />}
-                  <RawStepTrace agent={agent} stepId={step.id} />
-                </ChainOfThoughtContent>
-              )}
-            </ChainOfThoughtStep>
+                </StepsContent>
+              ) : null}
+            </Steps>
           ))}
-        </ChainOfThought>
+        </Box>
       )}
 
       {agent.editedFiles.length > 0 && !hasFileStep && <EditedFilesSummaryCard files={agent.editedFiles} onReview={handleReview} />}
 
       <AgentReviewPanel open={reviewOpen} workspacePath={agent.workspacePath} initialPath={reviewPath} fallbackFiles={agent.editedFiles} toolCalls={agent.toolCalls} onClose={() => setReviewOpen(false)} />
-
-      <AgentDebugTrace agent={agent} />
     </Box>
   );
 }
 
-function RawStepTrace({ agent, stepId }: { agent: AgentMessageState; stepId: string }) {
-  const events = (agent.debugEvents ?? []).filter((event) => rawEventKey(event.value) === stepId);
-  const call = agent.toolCalls[stepId];
-  if (!events.length && !call) return null;
-
-  return (
-    <ChainOfThoughtItem className="mt-2">
-      <details className="rounded-lg border border-border/60 bg-muted/30">
-        <summary className="cursor-pointer px-2 py-1 text-xs font-medium text-muted-foreground">
-          Raw trace
-        </summary>
-        <pre className="max-h-64 overflow-auto border-t border-border/60 p-2 text-xs leading-relaxed text-muted-foreground">
-          {JSON.stringify({ toolCall: call, events }, null, 2)}
-        </pre>
-      </details>
-    </ChainOfThoughtItem>
-  );
-}
-
-function rawEventKey(value: unknown) {
-  if (!value || typeof value !== "object") return undefined;
-  const record = value as Record<string, unknown>;
-  return typeof record.tool_call_id === "string" ? record.tool_call_id : undefined;
+function StepStatusIcon({ status }: { status: StepStatus }) {
+  if (status === "running") return <LoaderCircle size={16} className="animate-spin" aria-label="Running" />;
+  if (status === "complete") return <Check size={16} aria-label="Completed" />;
+  if (status === "error") return <AlertTriangle size={16} aria-label="Failed" />;
+  if (status === "waiting") return <ShieldAlert size={16} aria-label="Waiting" />;
+  return <Circle size={16} aria-label="Pending" />;
 }
 function AgentRunHeader({
   elapsed,
@@ -131,22 +117,22 @@ function AgentRunHeader({
   waitingMessage?: string;
 }) {
   return (
-    <Box className="mb-3 rounded-2xl border border-border/70 bg-muted/30 px-3 py-2">
+    <Box className="mb-4 px-0 py-1">
       <Box className="flex items-center gap-3">
-        <Box className="flex size-7 items-center justify-center rounded-full bg-background/70 text-muted-foreground">
+        <Box className="flex size-6 items-center justify-center text-muted-foreground">
           {status.icon}
         </Box>
       <Box className="min-w-0 flex-1">
-        <Typography className="text-sm font-medium text-foreground">
+        <Typography className="text-[15px] font-medium text-muted-foreground">
           {elapsed ? `Worked for ${elapsed}` : "Working"}
         </Typography>
         {waitingMessage && (
-          <Typography className="text-xs text-muted-foreground">
+          <Typography className="text-sm text-muted-foreground/80">
             {waitingMessage}
           </Typography>
         )}
       </Box>
-        <Box className="rounded-full bg-background/70 px-2 py-1 text-xs text-muted-foreground">
+        <Box className="text-xs text-muted-foreground">
           {status.label}
         </Box>
       </Box>

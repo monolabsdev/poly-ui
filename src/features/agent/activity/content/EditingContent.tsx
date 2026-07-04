@@ -2,8 +2,7 @@ import { useMemo, useState } from "react";
 import { Box } from "@/components/ui/Box";
 import { Button } from "@/components/ui/button";
 import { Typography } from "@/components/ui/Typography";
-import { ChevronDown, FileDiff } from "lucide-react";
-import { AgentTraceBadge } from "@/components/ui/agent-trace";
+import { ChevronDown, ChevronRight, FileDiff } from "lucide-react";
 import type { AgentEditedFile } from "../../types";
 import { DiffStat } from "../primitives";
 import { fileName } from "../summaries";
@@ -24,13 +23,14 @@ export function EditingContent({
     return (
       <Box
         as="button"
-        className="flex w-full items-center justify-between rounded-lg border border-border/60 bg-background/50 px-3 py-2 text-left transition-colors hover:bg-muted/40"
+        className="flex w-full items-center justify-between gap-3 rounded-md px-3 py-1.5 text-left text-sm text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
         onClick={() => onReview(f.path)}
       >
-        <Box className="min-w-0">
-          <AgentTraceBadge>{fileName(f.path)}</AgentTraceBadge>
+        <Box className="flex min-w-0 items-center gap-1.5">
+          <span className="truncate font-medium">{fileName(f.path)}</span>
+          <DiffStat additions={f.additions} deletions={f.deletions} />
         </Box>
-        <DiffStat additions={f.additions} deletions={f.deletions} />
+        <ChevronRight size={14} className="shrink-0 text-muted-foreground/60" />
       </Box>
     );
   }
@@ -39,9 +39,9 @@ export function EditingContent({
   const hidden = files.length - visible.length;
 
   return (
-    <Box className="rounded-lg border border-border/60 bg-background/50 p-2">
-      <Box className="mb-2 flex items-center justify-between px-1">
-        <Box className="text-xs font-medium text-muted-foreground">
+    <Box className="flex flex-col py-1">
+      <Box className="mb-1 flex items-center justify-between gap-3 px-3 py-1">
+        <Box className="text-sm font-medium text-muted-foreground">
           Edited {files.length} files
         </Box>
         <DiffStat additions={additions} deletions={deletions} />
@@ -50,19 +50,20 @@ export function EditingContent({
         <Box
           as="button"
           key={f.path}
-          className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left hover:bg-muted/40"
+          className="flex w-full items-center justify-between gap-3 rounded-md px-3 py-1.5 text-left text-sm text-muted-foreground hover:bg-muted/40 hover:text-foreground"
           onClick={() => onReview(f.path)}
         >
-          <Box className="min-w-0">
-            <AgentTraceBadge>{fileName(f.path)}</AgentTraceBadge>
+          <Box className="flex min-w-0 items-center gap-1.5">
+            <span className="truncate font-medium">{fileName(f.path)}</span>
+            <DiffStat additions={f.additions} deletions={f.deletions} />
           </Box>
-          <DiffStat additions={f.additions} deletions={f.deletions} />
+          <ChevronRight size={14} className="shrink-0 text-muted-foreground/60" />
         </Box>
       ))}
       {hidden > 0 && (
         <Box
           as="button"
-          className="mt-1 flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-muted/40"
+          className="mt-1 flex items-center gap-1 rounded-md px-3 py-1 text-xs text-muted-foreground hover:bg-muted/40"
           onClick={() => setExpanded(true)}
         >
           Show {hidden} more {hidden === 1 ? "file" : "files"}{" "}
