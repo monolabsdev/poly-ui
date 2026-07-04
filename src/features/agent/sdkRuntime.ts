@@ -22,13 +22,13 @@ import {
   type ToolResult,
 } from "./runCore";
 
-const MAX_STEPS = 24;
+const MAX_STEPS = 16;
 const STALL_TIMEOUT_MS = 180_000;
 const RUN_TIME_BUDGET_MS = 15 * 60_000;
 const MAX_RETAINED_TERMINAL_RUNS = 20;
-const READ_FILE_LIMIT = 256 * 1024;
-const REASONING_SUMMARY_LIMIT = 2000;
-const REASONING_EMIT_INTERVAL_MS = 150;
+const READ_FILE_LIMIT = 96 * 1024;
+const REASONING_SUMMARY_LIMIT = 320;
+const REASONING_EMIT_INTERVAL_MS = 500;
 const GUIDANCE_LIMIT = 6000;
 
 type ApprovalWaiter = { resolve: (approved: boolean) => void; payload: PendingApproval };
@@ -247,7 +247,7 @@ async function runSdkAgent(state: RunState, options: AgentRunStartOptions) {
       prompt: options.prompt,
       tools: buildTools(state),
       stopWhen: isStepCount(MAX_STEPS),
-      reasoning: "medium",
+      reasoning: "low",
       abortSignal: state.abort.signal,
       onStepFinish: ({ stepNumber }) => {
         state.stats.steps = stepNumber;
@@ -651,6 +651,7 @@ Workflow — observe, plan, act, verify:
 - Execute, don't echo. When asked to create/fix/edit, use tools.
 - Inspect first: grep/list_directory to locate code, read_file before editing.
 - Keep changes scoped to the request; no unrelated refactors.
+- Report progress as short steps, not hidden reasoning or chain-of-thought.
 - Every tool returns { ok: true, data, summary } or { ok: false, error }. Check ok before proceeding; never assume success.
 - If a tool fails with a recoverable error, correct the input and retry once. If the user declines an approval, do not retry that action; adjust or finish.
 - After code changes, verify when possible using the project's own commands (build, type check, a targeted test). Do not claim success without verification.

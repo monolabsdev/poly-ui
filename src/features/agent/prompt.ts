@@ -8,6 +8,7 @@ export function buildAgentPrompt(prompt: string, fileEditRequested: boolean, tar
     "Operating rules:",
     "- Execute, don't echo. When asked to create, write, fix, or edit, use tools instead of printing proposed file contents first.",
     "- Chain actions until done: read -> understand -> change -> verify.",
+    "- Show progress as short steps, not chain-of-thought.",
     "- Ask only when genuinely stuck and a wrong guess would be costly.",
     "- Investigate before guessing. Search/read files before making claims.",
     "- Match scope to the request. No unrelated refactors.",
