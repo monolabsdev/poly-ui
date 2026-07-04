@@ -11,7 +11,7 @@ import {
   MoreHorizontal,
   Globe,
 } from "lucide-react";
-import { useState, memo, useEffect, useCallback, useMemo } from "react";
+import { useState, memo, useEffect, useCallback, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 import { Box } from "@/components/ui/Box";
 import { InputBase } from "@/components/ui/input-base";
@@ -48,6 +48,8 @@ import {
 } from "@/features/agent/agentStore";
 import { useSettingsStore } from "@/store/settingsStore";
 import { AgentComposerControls } from "@/features/agent/AgentComposerControls";
+import { useChatStore } from "@/store/chatStore";
+import type { ConversationMetadata } from "@/types/chat";
 
 interface ChatInputProps {
   onSubmit: (value: string) => void | Promise<void>;
@@ -74,11 +76,18 @@ export const ChatInput = memo(function ChatInput({
     lines: number;
     chars: number;
   } | null>(null);
+  const restoringChatIdRef = useRef<string | null>(null);
   const experimentalFeatures = useSettingsStore(
     (state) => state.general.experimentalFeatures,
   );
   const agentEnabled =
     useAgentStore((state) => state.enabled) && experimentalFeatures;
+  const activeConversation = useChatStore((state) =>
+    conversationId ? state.conversations.find((c) => c.id === conversationId) : undefined,
+  );
+  const updateConversationMetadata = useChatStore(
+    (state) => state.actions.updateConversationMetadata,
+  );
   const dictationEnabled = useSettingsStore(
     (state) => state.dictation.enabled,
   );
@@ -87,6 +96,11 @@ export const ChatInput = memo(function ChatInput({
     conversationId ?? DRAFT_WORKSPACE_SELECTION_CHAT_ID;
 
   const hasWorkspace = !!useAgentStore((state) =>
+    workspaceSelectionKey
+      ? state.workspaceSelections[workspaceSelectionKey]
+      : undefined,
+  );
+  const workspaceSelection = useAgentStore((state) =>
     workspaceSelectionKey
       ? state.workspaceSelections[workspaceSelectionKey]
       : undefined,
@@ -192,6 +206,54 @@ export const ChatInput = memo(function ChatInput({
 
   const webSearchFeature = features.find((feature) => feature.id === "web_search");
   const moreFeatures = features.filter((feature) => feature.id !== "web_search");
+  const activeFeatureIds = useMemo(
+    () => features.filter((feature) => feature.active).map((feature) => feature.id).sort(),
+    [features],
+  );
+  const activeFeatureKey = activeFeatureIds.join(",");
+
+  useEffect(() => {
+    if (!conversationId || !activeConversation?.metadata) return;
+    restoringChatIdRef.current = conversationId;
+    const ids = new Set(activeConversation.metadata.activeFeatureIds ?? []);
+    const settings = useSettingsStore.getState();
+    const agent = useAgentStore.getState();
+
+    settings.actions.updateGeneral({
+      webSearchEnabled: ids.has("web_search"),
+    });
+    if (settings.general.experimentalFeatures) {
+      agent.actions.setEnabled(ids.has("poly-agent"));
+    }
+    const savedSelection = activeConversation.metadata.agent?.workspaceSelection;
+    if (savedSelection) {
+      agent.actions.setSelectedWorkspaceSelection(conversationId, savedSelection);
+    }
+    requestAnimationFrame(() => {
+      if (restoringChatIdRef.current === conversationId) restoringChatIdRef.current = null;
+    });
+  }, [activeConversation?.metadata, conversationId]);
+
+  useEffect(() => {
+    if (!conversationId || !activeConversation) return;
+    if (restoringChatIdRef.current === conversationId) return;
+    const next: ConversationMetadata = {
+      ...activeConversation.metadata,
+      activeFeatureIds,
+      agent: workspaceSelection
+        ? { ...activeConversation.metadata?.agent, workspaceSelection }
+        : activeConversation.metadata?.agent,
+    };
+    if (JSON.stringify(next) === JSON.stringify(activeConversation.metadata ?? {})) return;
+    void updateConversationMetadata(conversationId, next);
+  }, [
+    activeConversation,
+    activeFeatureKey,
+    activeFeatureIds,
+    conversationId,
+    updateConversationMetadata,
+    workspaceSelection,
+  ]);
 
   const hasContent =
     draft.trim() || currentAttachments.length > 0 || !!pastedPreview;

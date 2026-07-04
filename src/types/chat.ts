@@ -1,5 +1,5 @@
 import type { ModelProvider } from "@/store/modelStore";
-import type { AgentMessageState } from "@/features/agent/types";
+import type { AgentMessageState, AgentWorkspaceSelection } from "@/features/agent/types";
 
 export type Role = "user" | "assistant";
 
@@ -11,9 +11,24 @@ export interface Conversation {
   isArchived: boolean;
   isTemporary?: boolean;
   folderId?: string;
+  metadata?: ConversationMetadata;
   titleSource?: "default" | "generated" | "manual";
   titleGeneratedAt?: string;
   titleGenerationStatus?: "idle" | "generating" | "done" | "failed";
+}
+
+export interface ConversationMetadata {
+  activeFeatureIds?: string[];
+  agent?: {
+    workspaceSelection?: AgentWorkspaceSelection;
+  };
+  surfaces?: Array<{
+    kind: string;
+    id: string;
+    title?: string;
+    url?: string;
+    openedAt?: string;
+  }>;
 }
 
 export interface Attachment {

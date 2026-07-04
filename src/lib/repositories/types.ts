@@ -1,9 +1,9 @@
-import { Message, Conversation, Folder } from "@/types/chat";
+import { Message, Conversation, Folder, ConversationMetadata } from "@/types/chat";
 
 export interface ConversationRepository {
   getConversations(userId?: string): Promise<Conversation[]>;
   createConversation(id: string, title: string, userId?: string, folderId?: string): Promise<void>;
-  updateConversation(id: string, updates: { title?: string; updatedAt?: string; isArchived?: boolean; folderId?: string | null }): Promise<void>;
+  updateConversation(id: string, updates: { title?: string; updatedAt?: string; isArchived?: boolean; folderId?: string | null; metadata?: ConversationMetadata | null }): Promise<void>;
   deleteConversation(id: string): Promise<void>;
   deleteConversations(ids: string[]): Promise<void>;
   deleteAllConversations(userId: string): Promise<void>;
@@ -21,7 +21,7 @@ export interface ConversationRepository {
   deleteFolder(id: string): Promise<void>;
 }
 
-export function mapRowToConversation(row: { id: string; title: string; createdAt: string; updatedAt: string; isArchived: number; folderId?: string }): Conversation {
+export function mapRowToConversation(row: { id: string; title: string; createdAt: string; updatedAt: string; isArchived: number; folderId?: string; metadata?: string }): Conversation {
   return {
     id: row.id,
     title: row.title,
@@ -29,6 +29,7 @@ export function mapRowToConversation(row: { id: string; title: string; createdAt
     updatedAt: row.updatedAt,
     isArchived: Boolean(row.isArchived),
     folderId: row.folderId || undefined,
+    metadata: row.metadata ? JSON.parse(row.metadata) : undefined,
   };
 }
 

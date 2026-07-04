@@ -1,6 +1,6 @@
 import Database from "@tauri-apps/plugin-sql";
 import { ConversationRepository, mapRowToConversation, mapRowToMessage } from "./types";
-import { Message, Conversation, Folder } from "@/types/chat";
+import { Message, Conversation, Folder, ConversationMetadata } from "@/types/chat";
 
 export type { ConversationRepository } from "./types";
 
@@ -8,7 +8,7 @@ class SqliteConversationRepository implements ConversationRepository {
   constructor(private db: Database) {}
 
   async getConversations(userId?: string): Promise<Conversation[]> {
-    const rows = await this.db.select<{ id: string; title: string; createdAt: string; updatedAt: string; isArchived: number }[]>(
+    const rows = await this.db.select<{ id: string; title: string; createdAt: string; updatedAt: string; isArchived: number; folderId?: string; metadata?: string }[]>(
       userId
         ? "SELECT * FROM conversations WHERE userId = ? ORDER BY updatedAt DESC"
         : "SELECT * FROM conversations ORDER BY updatedAt DESC",
@@ -27,13 +27,14 @@ class SqliteConversationRepository implements ConversationRepository {
     );
   }
 
-  async updateConversation(id: string, updates: { title?: string; updatedAt?: string; isArchived?: boolean; folderId?: string | null }): Promise<void> {
+  async updateConversation(id: string, updates: { title?: string; updatedAt?: string; isArchived?: boolean; folderId?: string | null; metadata?: ConversationMetadata | null }): Promise<void> {
     const clauses: string[] = [];
     const vals: unknown[] = [];
     if (updates.title !== undefined) { clauses.push("title = ?"); vals.push(updates.title); }
     if (updates.updatedAt !== undefined) { clauses.push("updatedAt = ?"); vals.push(updates.updatedAt); }
     if (updates.isArchived !== undefined) { clauses.push("isArchived = ?"); vals.push(updates.isArchived ? 1 : 0); }
     if (updates.folderId !== undefined) { clauses.push("folderId = ?"); vals.push(updates.folderId); }
+    if (updates.metadata !== undefined) { clauses.push("metadata = ?"); vals.push(updates.metadata ? JSON.stringify(updates.metadata) : null); }
     if (clauses.length === 0) return;
     vals.push(id);
     await this.db.execute(`UPDATE conversations SET ${clauses.join(", ")} WHERE id = ?`, vals);
@@ -155,7 +156,7 @@ class SqliteConversationRepository implements ConversationRepository {
 }
 
 export class InMemoryConversationRepository implements ConversationRepository {
-  private conversations: Record<string, { id: string; title: string; createdAt: string; updatedAt: string; isArchived: boolean; userId?: string; folderId?: string }> = {};
+  private conversations: Record<string, { id: string; title: string; createdAt: string; updatedAt: string; isArchived: boolean; userId?: string; folderId?: string; metadata?: ConversationMetadata }> = {};
   private messages: Record<string, Message[]> = {};
   private folders: Record<string, Folder & { userId?: string }> = {};
 
@@ -171,13 +172,14 @@ export class InMemoryConversationRepository implements ConversationRepository {
     this.messages[id] = [];
   }
 
-  async updateConversation(id: string, updates: { title?: string; updatedAt?: string; isArchived?: boolean; folderId?: string | null }): Promise<void> {
+  async updateConversation(id: string, updates: { title?: string; updatedAt?: string; isArchived?: boolean; folderId?: string | null; metadata?: ConversationMetadata | null }): Promise<void> {
     const conv = this.conversations[id];
     if (!conv) return;
     if (updates.title !== undefined) conv.title = updates.title;
     if (updates.updatedAt !== undefined) conv.updatedAt = updates.updatedAt;
     if (updates.isArchived !== undefined) conv.isArchived = updates.isArchived;
     if (updates.folderId !== undefined) conv.folderId = updates.folderId ?? undefined;
+    if (updates.metadata !== undefined) conv.metadata = updates.metadata ?? undefined;
   }
 
   async deleteConversation(id: string): Promise<void> {

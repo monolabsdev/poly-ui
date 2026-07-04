@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { getRepository } from "@/lib/repositories";
-import { Message, Conversation, Attachment, WebSearchEvent } from "@/types/chat";
+import { Message, Conversation, Attachment, WebSearchEvent, ConversationMetadata } from "@/types/chat";
 import { getNextQueuedMessage } from "@/lib/chat/queue";
 
 async function getRepo() {
@@ -75,6 +75,7 @@ type ChatStore = {
     archiveConversation: (id: string) => Promise<void>;
     unarchiveConversation: (id: string) => Promise<void>;
     renameConversation: (id: string, newTitle: string, titleSource?: "default" | "generated" | "manual") => Promise<void>;
+    updateConversationMetadata: (id: string, metadata: ConversationMetadata) => Promise<void>;
     setTitleGenerationStatus: (id: string, status: "idle" | "generating" | "done" | "failed") => void;
     deleteMessagesAfter: (
       conversationId: string,
@@ -396,6 +397,18 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           console.warn("Failed to persist renamed title", e);
         }
       }
+    },
+    updateConversationMetadata: async (id, metadata) => {
+      const conversation = useChatStore.getState().conversations.find((c) => c.id === id);
+      if (!conversation) return;
+      set((state) => ({
+        conversations: state.conversations.map((c) =>
+          c.id === id ? { ...c, metadata } : c,
+        ),
+      }));
+      if (conversation.isTemporary) return;
+      const r = await getRepo();
+      await r.updateConversation(id, { metadata });
     },
     setTitleGenerationStatus: (id, status) => set((state) => ({
       conversations: state.conversations.map((c) =>
