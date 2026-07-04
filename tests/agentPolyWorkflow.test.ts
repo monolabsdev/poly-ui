@@ -11,6 +11,7 @@ describe("Poly Agent workflow", () => {
     expect(prompt).toContain("You are Poly Agent");
     expect(prompt).toContain("Execute, don't echo");
     expect(prompt).toContain("read -> understand -> change -> verify");
+    expect(prompt).toContain("Show progress as short steps");
     expect(prompt).toContain("Prefer edit/multi_edit for targeted changes");
     expect(prompt).toContain("Target file for this current request: src/App.tsx");
     expect(prompt).toContain("Do not answer as complete unless the file tool succeeds");
@@ -62,7 +63,7 @@ describe("Poly Agent workflow", () => {
   it("streams provider reasoning deltas into Poly Agent activity", () => {
     const runtime = readFileSync("src/features/agent/sdkRuntime.ts", "utf8");
 
-    expect(runtime).toContain("reasoning: \"medium\"");
+    expect(runtime).toContain("reasoning: \"low\"");
     expect(runtime).toContain("reasoning-delta");
     expect(runtime).toContain("part.text");
   });
