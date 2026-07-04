@@ -102,7 +102,8 @@ async fn ensure_conversations_schema(pool: &SqlitePool) -> Result<(), String> {
             updatedAt TEXT,
             isArchived INTEGER DEFAULT 0,
             userId TEXT DEFAULT '',
-            folderId TEXT
+            folderId TEXT,
+            metadata TEXT
         )",
     )
     .execute(pool)
@@ -120,6 +121,22 @@ async fn ensure_conversations_schema(pool: &SqlitePool) -> Result<(), String> {
 
     if !has_folder_id {
         sqlx::query("ALTER TABLE conversations ADD COLUMN folderId TEXT")
+            .execute(pool)
+            .await
+            .map_err(|e| e.to_string())?;
+    }
+
+    let has_metadata = sqlx::query(
+        "SELECT COUNT(*) FROM pragma_table_info('conversations') WHERE name = 'metadata'",
+    )
+    .fetch_one(pool)
+    .await
+    .map_err(|e| e.to_string())?
+    .get::<i64, _>(0)
+        > 0;
+
+    if !has_metadata {
+        sqlx::query("ALTER TABLE conversations ADD COLUMN metadata TEXT")
             .execute(pool)
             .await
             .map_err(|e| e.to_string())?;
