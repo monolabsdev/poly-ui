@@ -2,8 +2,10 @@ import { useState } from "react";
 import { Box } from "@/components/ui/Box";
 import { Typography } from "@/components/ui/Typography";
 import type { AgentApproval, AgentMessageState } from "./types";
+import { AgentBrowserCard } from "./AgentBrowserCard";
 import { AgentReviewPanel } from "./AgentReviewPanel";
 import { Steps, StepsContent, StepsItem, StepsTrigger } from "@/components/ui/steps";
+import { openViewportFile } from "./viewportStore";
 import { TextShimmer } from "@/components/ui/text-shimmer";
 import { buildSteps, hasDisclosureContent } from "./activity/buildSteps";
 import { ApprovalContent } from "./activity/content/ApprovalContent";
@@ -38,6 +40,17 @@ export function AgentActivity({ agent, resultText, onResolveApproval, onRetry }:
   const handleReview = (path?: string) => {
     setReviewPath(path);
     setReviewOpen(true);
+  };
+
+  const handlePreview = (path: string) => {
+    if (!agent.workspacePath) return;
+    void openViewportFile({
+      runId: agent.runId ?? `manual:${agent.startedAt}`,
+      chatId: null,
+      workspacePath: agent.workspacePath,
+      path,
+      reason: "Opened manually",
+    });
   };
 
   return (
@@ -80,7 +93,13 @@ export function AgentActivity({ agent, resultText, onResolveApproval, onRetry }:
                     </StepsItem>
                   )}
                   {step.details?.map((detail) => <StepsItem className="px-1 text-[15px] leading-6" key={detail}>{detail}</StepsItem>)}
-                  {step.type === "editing" && step.files && <EditingContent files={step.files} onReview={handleReview} />}
+                  {step.type === "editing" && step.files && (
+                    <EditingContent
+                      files={step.files}
+                      onReview={handleReview}
+                      onPreview={agent.workspacePath ? handlePreview : undefined}
+                    />
+                  )}
                   {step.type === "approval" && step.approval && (
                     <ApprovalContent agent={agent} approval={step.approval} onResolveApproval={onResolveApproval} onReview={handleReview} />
                   )}
@@ -93,7 +112,15 @@ export function AgentActivity({ agent, resultText, onResolveApproval, onRetry }:
         </Box>
       )}
 
-      {agent.editedFiles.length > 0 && !hasFileStep && <EditedFilesSummaryCard files={agent.editedFiles} onReview={handleReview} />}
+      <AgentBrowserCard runId={agent.runId} />
+
+      {agent.editedFiles.length > 0 && !hasFileStep && (
+        <EditedFilesSummaryCard
+          files={agent.editedFiles}
+          onReview={handleReview}
+          onPreview={agent.workspacePath ? handlePreview : undefined}
+        />
+      )}
 
       <AgentReviewPanel open={reviewOpen} workspacePath={agent.workspacePath} initialPath={reviewPath} fallbackFiles={agent.editedFiles} toolCalls={agent.toolCalls} onClose={() => setReviewOpen(false)} />
     </Box>

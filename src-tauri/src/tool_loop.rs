@@ -1,7 +1,7 @@
 use crate::error::AppError;
 use crate::models::chat::{
     ChatMessage, SearchResultItem, StreamMetadata, StreamPayload, ThinkingPayload, ToolCallInfo,
-    ToolDefinition, WebSearchEvent,
+    ToolDefinition, ViewportOpenEvent, WebSearchEvent,
 };
 use crate::providers::base::ChatProvider;
 use crate::stream_emitter::StreamEmitter;
@@ -182,6 +182,30 @@ impl ToolLoop {
                 "required": ["query"]
             }),
         };
+        let show_webpage_tool = ToolDefinition {
+            name: "show_webpage".into(),
+            description: "Display a webpage to the user in the app's side viewport panel. Use when the user asks to see or open a page, or when showing a page visually helps more than describing it. http/https URLs only.".into(),
+            parameters: serde_json::json!({
+                "type": "object",
+                "properties": { "url": { "type": "string", "description": "Full http(s) URL of the page to display" } },
+                "required": ["url"]
+            }),
+        };
+
+        // Models deny capabilities the prompt doesn't mention, so tell the
+        // model about the viewport exactly when the tool is actually sent.
+        let tools_enabled = web_search
+            .filter(|(_, config)| config.is_configured())
+            .is_some();
+        let system_prompt = if tools_enabled {
+            const VIEWPORT_HINT: &str = "You can display any http(s) webpage to the user in a side viewport panel by calling the show_webpage tool. When the user asks you to show, open, or display a webpage, call it instead of only giving the link.";
+            Some(match system_prompt {
+                Some(prompt) if !prompt.trim().is_empty() => format!("{prompt}\n\n{VIEWPORT_HINT}"),
+                _ => VIEWPORT_HINT.to_string(),
+            })
+        } else {
+            system_prompt
+        };
 
         let mut messages = initial_messages;
         let mut content_acc = String::new();
@@ -192,9 +216,11 @@ impl ToolLoop {
         loop {
             let reasoning_opt = serde_json::json!({"reasoning_enabled": reasoning_enabled});
 
-            let tools = web_search
-                .filter(|(_, config)| config.is_configured())
-                .map(|_| vec![web_search_tool.clone()]);
+            // ponytail: tools only sent when web search is configured — the
+            // pre-existing gate that keeps non-tool-capable models working.
+            // show_webpage rides along; decouple if viewport-without-search matters.
+            let tools = tools_enabled
+                .then(|| vec![web_search_tool.clone(), show_webpage_tool.clone()]);
 
             let mut stream = provider
                 .chat_completion(
@@ -321,83 +347,112 @@ impl ToolLoop {
                     }
 
                     if let Some(Some(tc)) = tool_calls_opt.map(|tcs| tcs.into_iter().next()) {
-                        if tc.name == "web_search" {
-                            let query = tc
-                                .arguments
-                                .get("query")
-                                .and_then(|v| v.as_str())
-                                .unwrap_or("")
-                                .to_string();
+                        let tool_result = match tc.name.as_str() {
+                            "web_search" => {
+                                let query = tc
+                                    .arguments
+                                    .get("query")
+                                    .and_then(|v| v.as_str())
+                                    .unwrap_or("")
+                                    .to_string();
 
-                            emitter
-                                .emit_web_search(&WebSearchEvent {
-                                    request_id: request_id.to_string(),
-                                    query: query.clone(),
-                                    status: "searching".into(),
-                                    results: None,
-                                })
-                                .await;
+                                emitter
+                                    .emit_web_search(&WebSearchEvent {
+                                        request_id: request_id.to_string(),
+                                        query: query.clone(),
+                                        status: "searching".into(),
+                                        results: None,
+                                    })
+                                    .await;
 
-                            let (search_results, search_error) = match web_search
-                                .filter(|(_, config)| config.is_configured())
-                            {
-                                Some((client, config)) => match client
-                                    .search(&query, &config.api_key)
-                                    .await
+                                let (search_results, search_error) = match web_search
+                                    .filter(|(_, config)| config.is_configured())
                                 {
-                                    Ok(r) => (r, None),
-                                    Err(e) => {
-                                        eprintln!("[WebSearch] {:?} error: {e}", client.provider());
-                                        (Vec::new(), Some(e))
-                                    }
-                                },
-                                None => {
-                                    (Vec::new(), Some("No web search provider configured".into()))
-                                }
-                            };
-
-                            let results_clone = search_results.clone();
-                            emitter
-                                .emit_web_search(&WebSearchEvent {
-                                    request_id: request_id.to_string(),
-                                    query: query.clone(),
-                                    status: if search_error.is_some() {
-                                        "error".into()
-                                    } else {
-                                        "complete".into()
+                                    Some((client, config)) => match client
+                                        .search(&query, &config.api_key)
+                                        .await
+                                    {
+                                        Ok(r) => (r, None),
+                                        Err(e) => {
+                                            eprintln!(
+                                                "[WebSearch] {:?} error: {e}",
+                                                client.provider()
+                                            );
+                                            (Vec::new(), Some(e))
+                                        }
                                     },
-                                    results: Some(search_results),
-                                })
-                                .await;
+                                    None => (
+                                        Vec::new(),
+                                        Some("No web search provider configured".into()),
+                                    ),
+                                };
 
-                            let tool_result = format_search_results(
-                                &query,
-                                &results_clone,
-                                search_error.as_deref(),
-                            );
+                                let results_clone = search_results.clone();
+                                emitter
+                                    .emit_web_search(&WebSearchEvent {
+                                        request_id: request_id.to_string(),
+                                        query: query.clone(),
+                                        status: if search_error.is_some() {
+                                            "error".into()
+                                        } else {
+                                            "complete".into()
+                                        },
+                                        results: Some(search_results),
+                                    })
+                                    .await;
 
-                            messages.push(ChatMessage {
-                                role: "assistant".into(),
-                                content: content_acc.clone(),
-                                attachments: None,
-                                tool_calls: Some(vec![tc.clone()]),
-                                tool_call_id: None,
-                            });
-                            messages.push(ChatMessage {
-                                role: "tool".into(),
-                                content: tool_result,
-                                attachments: None,
-                                tool_calls: None,
-                                tool_call_id: tc.id,
-                            });
+                                format_search_results(
+                                    &query,
+                                    &results_clone,
+                                    search_error.as_deref(),
+                                )
+                            }
+                            "show_webpage" => {
+                                let url = tc
+                                    .arguments
+                                    .get("url")
+                                    .and_then(|v| v.as_str())
+                                    .unwrap_or("");
+                                match crate::agent_viewport::validate_url(url) {
+                                    Ok(valid) => {
+                                        let valid = valid.to_string();
+                                        emitter
+                                            .emit_viewport_open(&ViewportOpenEvent {
+                                                request_id: request_id.to_string(),
+                                                url: valid.clone(),
+                                            })
+                                            .await;
+                                        format!("Now displaying {valid} to the user in the viewport panel.")
+                                    }
+                                    Err(e) => format!("Could not display the page: {e}"),
+                                }
+                            }
+                            other => format!(
+                                "Unknown tool \"{other}\". Available tools: web_search, show_webpage."
+                            ),
+                        };
 
-                            content_acc.clear();
-                            thinking_acc.clear();
-                            final_metadata = None;
-                            thinking_parser = ThinkingTagParser::new(reasoning_enabled);
-                            restart_for_tool_call = true;
-                            break;
-                        }
+                        messages.push(ChatMessage {
+                            role: "assistant".into(),
+                            content: content_acc.clone(),
+                            attachments: None,
+                            tool_calls: Some(vec![tc.clone()]),
+                            tool_call_id: None,
+                        });
+                        messages.push(ChatMessage {
+                            role: "tool".into(),
+                            content: tool_result,
+                            attachments: None,
+                            tool_calls: None,
+                            tool_call_id: tc.id,
+                        });
+
+                        content_acc.clear();
+                        thinking_acc.clear();
+                        final_metadata = None;
+                        thinking_parser = ThinkingTagParser::new(reasoning_enabled);
+                        restart_for_tool_call = true;
+                        break;
                     }
 
                     if !thinking_acc.is_empty() && content_acc.is_empty() {

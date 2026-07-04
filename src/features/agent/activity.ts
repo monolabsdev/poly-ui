@@ -432,6 +432,7 @@ function phaseForTool(toolName: string): string {
   if (toolName === "list_files" || toolName === "glob_files" || toolName === "list_directory" || toolName === "inspect_project") return "workspace_inspection";
   if (toolName === "apply_patch" || toolName === "write_file" || toolName === "propose_edit" || toolName === "edit" || toolName === "multi_edit") return "editing";
   if (toolName === "run_command" || toolName === "bash_run" || toolName === "bash_background" || toolName === "suggest_command") return `command:${toolName}`;
+  if (toolName === "open_browser" || toolName === "close_browser") return `browser:${toolName}`;
   return `tool:${toolName}`;
 }
 
@@ -444,6 +445,8 @@ function labelForTool(toolName: string): string {
   if (toolName === "read_web_results" || toolName === "read_url") return "Reading sources";
   if (toolName === "list_files" || toolName === "glob_files" || toolName === "list_directory") return "Inspecting workspace";
   if (toolName === "apply_patch" || toolName === "write_file" || toolName === "edit" || toolName === "multi_edit") return "Editing files";
+  if (toolName === "open_browser") return "Opening preview";
+  if (toolName === "close_browser") return "Closing preview";
   if (toolName === "read_url") return "Reading URL";
   return toolName.replace(/_/g, " ");
 }
@@ -482,14 +485,21 @@ function plannedSummaryForTool(toolName: string, args?: Record<string, unknown>)
     return path ? `Preparing a targeted file change for ${path}.` : "Preparing a targeted file change.";
   }
   if (toolName === "run_command" || toolName === "bash_run" || toolName === "bash_background") return "Preparing to run a workspace command.";
+  if (toolName === "open_browser") {
+    const target = typeof args?.url === "string" ? args.url : typeof args?.path === "string" ? args.path : undefined;
+    return target ? `Opening a preview window at ${target}.` : "Opening a preview window.";
+  }
+  if (toolName === "close_browser") return "Closing the preview window.";
   return "Preparing a tool action for this request.";
 }
 
 function detailForTool(toolName: string, args?: Record<string, unknown>): string[] | undefined {
   const path = typeof args?.path === "string" ? args.path : undefined;
   const query = typeof args?.query === "string" ? args.query : undefined;
+  const url = typeof args?.url === "string" ? args.url : undefined;
   if (path) return [`Target: ${path}`];
   if (query) return [`Search: ${query}`];
+  if (url) return [`URL: ${url}`];
   if (toolName === "read_important_files") return ["Target: key project files"];
   return undefined;
 }

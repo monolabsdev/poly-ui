@@ -226,6 +226,7 @@ export function useAgentRun({ selectedModelChoices }: UseAgentRunArgs) {
       try {
         const runId = await runAgent({
           prompt: buildAgentPrompt(input.prompt, fileEditRequested, targetFile),
+          chatId: input.conversationId,
           model,
           provider,
           workspacePath: input.workspacePath,

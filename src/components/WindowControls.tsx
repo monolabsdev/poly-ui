@@ -1,7 +1,7 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useEffect, useState } from "react";
 import { Minus, Square, X } from "lucide-react";
-import { USE_CUSTOM_WINDOW_CONTROLS } from "@/lib/utils/platform";
+import { USE_CUSTOM_WINDOW_CONTROLS, IS_LINUX } from "@/lib/utils/platform";
 
 export function WindowControls({ closeOnly = false }: { closeOnly?: boolean }) {
   const [maximized, setMaximized] = useState(false);
@@ -21,7 +21,7 @@ export function WindowControls({ closeOnly = false }: { closeOnly?: boolean }) {
 
   const w = getCurrentWindow();
   return (
-    <div className="flex h-full shrink-0 items-center gap-0.5 pr-0">
+    <div className={`flex h-full shrink-0 items-center pr-0 ${IS_LINUX ? "gap-1.5" : "gap-0.5"}`}>
       {!closeOnly && (
         <>
           <WinButton onClick={() => void w.minimize()} title="Minimize">
@@ -52,9 +52,15 @@ function WinButton({ children, onClick, title, close = false }: {
       title={title}
       onMouseDown={(e: React.MouseEvent) => e.stopPropagation()}
       onDoubleClick={(e: React.MouseEvent) => e.stopPropagation()}
-      className={`flex h-full w-[46px] cursor-pointer items-center justify-center rounded-none text-muted-foreground ${
-        close ? "hover:bg-destructive/15 hover:text-destructive" : "hover:bg-accent hover:text-foreground"
-      }`}
+      className={
+        IS_LINUX
+          ? `flex h-7 w-7 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors ${
+              close ? "hover:bg-destructive hover:text-destructive-foreground" : "hover:bg-accent hover:text-foreground"
+            }`
+          : `flex h-full w-[46px] cursor-pointer items-center justify-center rounded-none text-muted-foreground ${
+              close ? "hover:bg-destructive/15 hover:text-destructive" : "hover:bg-accent hover:text-foreground"
+            }`
+      }
     >
       {children}
     </button>

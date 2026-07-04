@@ -51,6 +51,24 @@ export function checkShellCommand(command: string): SafetyResult {
   return { ok: true };
 }
 
+export function checkBrowserUrl(url: string): SafetyResult {
+  const raw = url.trim();
+  if (!raw) return { ok: false, reason: "Refused: empty URL." };
+  let parsed: URL;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    return { ok: false, reason: `Refused: "${raw}" is not a valid URL.` };
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    return {
+      ok: false,
+      reason: `Refused: URL scheme "${parsed.protocol.replace(/:$/, "")}" is blocked. Only http and https are allowed.`,
+    };
+  }
+  return { ok: true };
+}
+
 function basename(path: string) {
   const i = Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"));
   return i >= 0 ? path.slice(i + 1) : path;

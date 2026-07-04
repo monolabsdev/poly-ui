@@ -26,6 +26,7 @@ import { ThinkingDisclosure } from "./ThinkingDisclosure";
 import { MemoryDisclosure } from "./MemoryDisclosure";
 import { WebSearchDisclosure } from "./WebSearchDisclosure";
 import { Source, SourceTrigger, SourceContent } from "@/components/ui/source";
+import { viewportLinkClickCapture } from "@/features/agent/viewportStore";
 
 import type { MessageProps } from "./types";
 import {
@@ -254,6 +255,7 @@ export function AssistantMessage(props: MessageProps) {
         {!isStreaming && webSearch?.results && webSearch.results.length > 0 && (
             <Box
               className="mt-3 flex flex-wrap gap-2"
+              onClickCapture={viewportLinkClickCapture}
             >
               {webSearch.results.map((result) => (
                 <Source key={result.url} href={result.url}>

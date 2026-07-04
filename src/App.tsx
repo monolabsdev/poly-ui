@@ -39,6 +39,7 @@ import ChatWorkspace from "@/features/chat/components/ChatWorkspace";
 import { GlobalConfirmDialog } from "./components/ui/GlobalConfirmDialog";
 import { useDevStore } from "@/store/devStore";
 import { getDevComponentGalleryAction } from "@/features/dev/componentGalleryAction";
+import { AgentViewportDrawer } from "@/features/agent/AgentViewportDrawer";
 
 const AuthModalLazy = lazy(() =>
   import("@/features/auth/AuthModal").then((module) => ({
@@ -279,6 +280,7 @@ function App() {
               onStopStreamingReady={handleStopStreamingReady}
               onOpenConnections={handleOpenConnections}
             />
+            <AgentViewportDrawer />
           </main>
         </ChatPanel>
       </SidebarInset>

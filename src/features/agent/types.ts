@@ -120,6 +120,7 @@ export interface AgentMessageState {
 
 export interface AgentRunStartOptions {
   prompt: string;
+  chatId?: string | null;
   model: string;
   provider: ModelProvider;
   workspacePath?: string;

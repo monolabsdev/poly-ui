@@ -7,6 +7,7 @@ import { setTtsBrowserSettings, useTtsStore } from "./ttsStore";
 import { setUpdateInstallSimulation } from "./updateStore";
 import { getRepository } from "@/lib/repositories";
 import { deleteAgentChatSandbox } from "@/features/agent/agentClient";
+import { bindViewportOpenRequests, closeViewportForChat } from "@/features/agent/viewportStore";
 import { useAgentStore } from "@/features/agent/agentStore";
 import { useProviderStore } from "@/features/providers";
 
@@ -29,6 +30,7 @@ async function refreshProviders() {
 }
 
 async function cleanupDeletedConversation(id: string) {
+  closeViewportForChat(id);
   await deleteAgentChatSandbox(id).catch((error) => {
     console.warn("Failed to delete agent sandbox:", error);
   });
@@ -38,6 +40,11 @@ async function cleanupDeletedConversation(id: string) {
 export function initStoreCoordinator() {
   if (initialized) return;
   initialized = true;
+
+  // Chat model's show_webpage tool → open the viewport on the active chat.
+  void bindViewportOpenRequests(() => useChatStore.getState().activeConversationId)
+    .then((unlisten) => unsubscribeFns.push(unlisten))
+    .catch(() => undefined);
 
   const initialAuth = useAuthStore.getState();
   const initialAccountId = accountIdFromAuth(initialAuth);

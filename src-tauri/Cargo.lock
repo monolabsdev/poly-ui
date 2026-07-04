@@ -3539,9 +3539,11 @@ dependencies = [
  "cpal",
  "dirs",
  "futures",
+ "gtk",
  "hound",
  "log",
  "ollama-rs",
+ "percent-encoding",
  "raw-window-handle",
  "reqwest 0.12.28",
  "semver",
@@ -3565,6 +3567,7 @@ dependencies = [
  "uuid",
  "whisper-rs",
  "windows-sys 0.59.0",
+ "wry",
 ]
 
 [[package]]
