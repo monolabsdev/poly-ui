@@ -1,6 +1,13 @@
-//! Agent viewport: a native child WebView embedded in the main window
-//! (right-side drawer) that the agent opens as a visual inspection surface.
+//! Agent viewport: a native WebView embedded in the main window (right-side
+//! drawer) that the agent opens as a visual inspection surface.
 //!
+//! - macOS/Windows: a child webview of the main window (`Window::add_child`).
+//! - Linux: Tauri's `add_child` packs children into the window's GtkBox, which
+//!   splits the layout vertically and makes `set_bounds` a no-op, so the
+//!   webview is built directly with wry inside a GtkFixed overlaid on the
+//!   window content (`mod embed`). wry positions webviews correctly inside a
+//!   GtkFixed, and as a raw wry webview it receives no Tauri IPC or plugin
+//!   shims at all.
 //! - Only http/https URLs load; `file://`, `javascript:` and custom schemes
 //!   are refused.
 //! - Workspace files are served over a loopback HTTP server so every page in
@@ -14,16 +21,31 @@
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::time::Duration;
-use tauri::webview::PageLoadEvent;
+use tauri::{AppHandle, Emitter, Manager, Url};
+#[cfg(not(target_os = "linux"))]
 use tauri::{
-    AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, Rect, Url, WebviewUrl, Window,
+    webview::PageLoadEvent, LogicalPosition, LogicalSize, Rect, WebviewUrl, Window,
 };
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
+#[cfg(not(target_os = "linux"))]
 pub const VIEWPORT_LABEL: &str = "agent-viewport";
 const STATUS_EVENT: &str = "agent-viewport-status";
 const OBSERVE_TIMEOUT: Duration = Duration::from_secs(5);
 const COLLECTOR_SCRIPT: &str = include_str!("agent_viewport_collector.js");
+
+/// Tauri plugin shims (e.g. Notification) are injected into child webviews
+/// but have no IPC permission there; replace them with an inert
+/// standard-shaped API so remote pages don't hit capability rejections.
+#[cfg(not(target_os = "linux"))]
+const NOTIFICATION_STUB: &str = r#"(() => {
+  try {
+    const inert = function Notification() { throw new TypeError("Notifications are disabled in this viewport."); };
+    inert.permission = "denied";
+    inert.requestPermission = () => Promise.resolve("denied");
+    Object.defineProperty(window, "Notification", { value: inert, configurable: true });
+  } catch (_) { /* leave the page's own API untouched */ }
+})();"#;
 
 #[derive(Default)]
 pub struct ViewportState {
@@ -41,7 +63,7 @@ fn emit_status(app: &AppHandle, url: String, phase: &'static str) {
     let _ = app.emit(STATUS_EVENT, ViewportStatus { url, phase });
 }
 
-fn validate_url(raw: &str) -> Result<Url, String> {
+pub(crate) fn validate_url(raw: &str) -> Result<Url, String> {
     let url = Url::parse(raw).map_err(|e| format!("Invalid URL: {e}"))?;
     match url.scheme() {
         "http" | "https" => Ok(url),
@@ -51,20 +73,21 @@ fn validate_url(raw: &str) -> Result<Url, String> {
     }
 }
 
+// ─── Embedded webview backend: macOS/Windows (Tauri child webview) ───
+
+#[cfg(not(target_os = "linux"))]
 fn main_window(app: &AppHandle) -> Result<Window, String> {
     app.get_window("main")
         .ok_or("Main window not found.".to_string())
 }
 
+#[cfg(not(target_os = "linux"))]
 fn viewport(app: &AppHandle) -> Option<tauri::Webview> {
-    main_window(app)
-        .ok()?
-        .webviews()
-        .into_iter()
-        .find(|w| w.label() == VIEWPORT_LABEL)
+    app.webviews().remove(VIEWPORT_LABEL)
 }
 
-fn show_url(app: &AppHandle, url: Url) -> Result<(), String> {
+#[cfg(not(target_os = "linux"))]
+fn open_in_viewport(app: &AppHandle, url: Url) -> Result<(), String> {
     if let Some(existing) = viewport(app) {
         emit_status(app, url.to_string(), "loading");
         existing.navigate(url).map_err(|e| e.to_string())?;
@@ -74,6 +97,7 @@ fn show_url(app: &AppHandle, url: Url) -> Result<(), String> {
     let load_handle = app.clone();
     let builder =
         tauri::webview::WebviewBuilder::new(VIEWPORT_LABEL, WebviewUrl::External(url.clone()))
+            .initialization_script(NOTIFICATION_STUB)
             .initialization_script(COLLECTOR_SCRIPT)
             .on_page_load(move |_webview, payload| {
                 let phase = match payload.event() {
@@ -97,11 +121,220 @@ fn show_url(app: &AppHandle, url: Url) -> Result<(), String> {
     Ok(())
 }
 
+#[cfg(not(target_os = "linux"))]
+async fn eval_viewport(app: &AppHandle, js: String) -> Result<String, String> {
+    let webview = viewport(app).ok_or("No viewport is open.")?;
+    let (tx, rx) = tokio::sync::oneshot::channel::<String>();
+    let tx = Mutex::new(Some(tx));
+    webview
+        .eval_with_callback(js, move |result| {
+            if let Some(tx) = tx.lock().unwrap().take() {
+                let _ = tx.send(result);
+            }
+        })
+        .map_err(|e| e.to_string())?;
+    await_eval(rx).await
+}
+
+async fn await_eval(rx: tokio::sync::oneshot::Receiver<String>) -> Result<String, String> {
+    tokio::time::timeout(OBSERVE_TIMEOUT, rx)
+        .await
+        .map_err(|_| "The page did not respond in time; it may still be loading.".to_string())?
+        .map_err(|_| "Observation was cancelled.".to_string())
+}
+
+// ─── Embedded webview backend: Linux (wry webview in a GtkFixed overlay) ───
+
+#[cfg(target_os = "linux")]
+mod embed {
+    use super::{await_eval, emit_status, COLLECTOR_SCRIPT};
+    use gtk::prelude::*;
+    use std::cell::RefCell;
+    use std::sync::Mutex;
+    use tauri::{AppHandle, Manager};
+    use wry::{WebViewBuilderExtUnix, WebViewExtUnix};
+
+    // GTK objects are main-thread only; every entry point below hops onto the
+    // GTK main thread via `on_main` and the state lives in thread-locals.
+    thread_local! {
+        static WEBVIEW: RefCell<Option<wry::WebView>> = const { RefCell::new(None) };
+        static FIXED: RefCell<Option<gtk::Fixed>> = const { RefCell::new(None) };
+    }
+
+    /// Run `f` on the GTK main thread and wait for its result.
+    fn on_main<T: Send + 'static>(
+        app: &AppHandle,
+        f: impl FnOnce() -> T + Send + 'static,
+    ) -> Result<T, String> {
+        let (tx, rx) = std::sync::mpsc::channel();
+        app.run_on_main_thread(move || {
+            let _ = tx.send(f());
+        })
+        .map_err(|e| e.to_string())?;
+        rx.recv()
+            .map_err(|_| "The viewport task was dropped by the main thread.".to_string())
+    }
+
+    /// Wrap the main window's content in a GtkOverlay (once) and return the
+    /// GtkFixed layer the viewport webview lives in.
+    fn ensure_fixed(app: &AppHandle) -> Result<gtk::Fixed, String> {
+        if let Some(fixed) = FIXED.with(|f| f.borrow().clone()) {
+            return Ok(fixed);
+        }
+        let window = app.get_window("main").ok_or("Main window not found.")?;
+        let gtk_window = window.gtk_window().map_err(|e| e.to_string())?;
+        let vbox = window.default_vbox().map_err(|e| e.to_string())?;
+
+        let overlay = gtk::Overlay::new();
+        gtk_window.remove(&vbox);
+        overlay.add(&vbox);
+        let fixed = gtk::Fixed::new();
+        overlay.add_overlay(&fixed);
+        // The fixed layer must not steal clicks from the app underneath.
+        overlay.set_overlay_pass_through(&fixed, true);
+        gtk_window.add(&overlay);
+        fixed.show();
+        overlay.show();
+
+        FIXED.with(|f| *f.borrow_mut() = Some(fixed.clone()));
+        Ok(fixed)
+    }
+
+    pub fn open(app: &AppHandle, url: String) -> Result<(), String> {
+        let handle = app.clone();
+        on_main(app, move || -> Result<(), String> {
+            let navigated = WEBVIEW.with(|cell| {
+                cell.borrow()
+                    .as_ref()
+                    .map(|webview| webview.load_url(&url).map_err(|e| e.to_string()))
+            });
+            if let Some(result) = navigated {
+                result?;
+                emit_status(&handle, url, "loading");
+                return Ok(());
+            }
+
+            let fixed = ensure_fixed(&handle)?;
+            let status_handle = handle.clone();
+            let webview = wry::WebViewBuilder::new()
+                .with_url(&url)
+                .with_initialization_script(COLLECTOR_SCRIPT)
+                .with_visible(false)
+                .with_bounds(bounds_rect(0.0, 0.0, 1.0, 1.0))
+                .with_on_page_load_handler(move |event, page_url| {
+                    let phase = match event {
+                        wry::PageLoadEvent::Started => "loading",
+                        wry::PageLoadEvent::Finished => "ready",
+                    };
+                    emit_status(&status_handle, page_url, phase);
+                })
+                .build_gtk(&fixed)
+                .map_err(|e| e.to_string())?;
+            WEBVIEW.with(|cell| *cell.borrow_mut() = Some(webview));
+            emit_status(&handle, url, "loading");
+            Ok(())
+        })?
+    }
+
+    pub fn set_bounds(
+        app: &AppHandle,
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+    ) -> Result<(), String> {
+        on_main(app, move || {
+            WEBVIEW.with(|cell| {
+                let borrow = cell.borrow();
+                let Some(webview) = borrow.as_ref() else {
+                    return Ok(());
+                };
+                // Persist geometry in GTK too, so window re-layouts don't
+                // snap the widget back to its creation size.
+                if let Some(fixed) = FIXED.with(|f| f.borrow().clone()) {
+                    let widget = WebViewExtUnix::webview(webview);
+                    fixed.move_(&widget, x as i32, y as i32);
+                    widget.set_size_request(width as i32, height as i32);
+                }
+                webview
+                    .set_bounds(bounds_rect(x, y, width, height))
+                    .map_err(|e| e.to_string())?;
+                webview.set_visible(true).map_err(|e| e.to_string())
+            })
+        })?
+    }
+
+    pub fn set_visible(app: &AppHandle, visible: bool) -> Result<(), String> {
+        on_main(app, move || {
+            WEBVIEW.with(|cell| match cell.borrow().as_ref() {
+                Some(webview) => webview.set_visible(visible).map_err(|e| e.to_string()),
+                None => Ok(()),
+            })
+        })?
+    }
+
+    pub fn reload(app: &AppHandle) -> Result<(), String> {
+        on_main(app, || {
+            WEBVIEW.with(|cell| match cell.borrow().as_ref() {
+                Some(webview) => webview.reload().map_err(|e| e.to_string()),
+                None => Err("No viewport is open.".to_string()),
+            })
+        })?
+    }
+
+    /// Returns whether a webview existed and was destroyed.
+    pub fn close(app: &AppHandle) -> Result<bool, String> {
+        on_main(app, || {
+            let Some(webview) = WEBVIEW.with(|cell| cell.borrow_mut().take()) else {
+                return false;
+            };
+            if let Some(fixed) = FIXED.with(|f| f.borrow().clone()) {
+                fixed.remove(&WebViewExtUnix::webview(&webview));
+            }
+            drop(webview);
+            true
+        })
+    }
+
+    pub async fn eval(app: &AppHandle, js: String) -> Result<String, String> {
+        let (tx, rx) = tokio::sync::oneshot::channel::<String>();
+        let tx = Mutex::new(Some(tx));
+        on_main(app, move || {
+            WEBVIEW.with(|cell| {
+                let borrow = cell.borrow();
+                let Some(webview) = borrow.as_ref() else {
+                    return Err("No viewport is open.".to_string());
+                };
+                webview
+                    .evaluate_script_with_callback(&js, move |result| {
+                        if let Some(tx) = tx.lock().unwrap().take() {
+                            let _ = tx.send(result);
+                        }
+                    })
+                    .map_err(|e| e.to_string())
+            })
+        })??;
+        await_eval(rx).await
+    }
+
+    fn bounds_rect(x: f64, y: f64, width: f64, height: f64) -> wry::Rect {
+        wry::Rect {
+            position: wry::dpi::LogicalPosition::new(x, y).into(),
+            size: wry::dpi::LogicalSize::new(width, height).into(),
+        }
+    }
+}
+
+// ─── Commands ───
+
 #[tauri::command]
 pub async fn agent_viewport_open(app: AppHandle, url: String) -> Result<String, String> {
     let parsed = validate_url(&url)?;
     let visible_url = parsed.to_string();
-    show_url(&app, parsed)?;
+    #[cfg(target_os = "linux")]
+    embed::open(&app, visible_url.clone())?;
+    #[cfg(not(target_os = "linux"))]
+    open_in_viewport(&app, parsed)?;
     Ok(visible_url)
 }
 
@@ -137,7 +370,10 @@ pub async fn agent_viewport_open_file(
     let url = Url::parse(&format!("http://127.0.0.1:{port}/{rel}"))
         .map_err(|e| format!("Invalid preview URL: {e}"))?;
     let visible_url = url.to_string();
-    show_url(&app, url)?;
+    #[cfg(target_os = "linux")]
+    embed::open(&app, visible_url.clone())?;
+    #[cfg(not(target_os = "linux"))]
+    open_in_viewport(&app, url)?;
     Ok(visible_url)
 }
 
@@ -149,40 +385,67 @@ pub async fn agent_viewport_set_bounds(
     width: f64,
     height: f64,
 ) -> Result<(), String> {
-    let Some(webview) = viewport(&app) else {
-        return Ok(());
-    };
-    webview
-        .set_bounds(Rect {
-            position: LogicalPosition::new(x.max(0.0), y.max(0.0)).into(),
-            size: LogicalSize::new(width.max(1.0), height.max(1.0)).into(),
-        })
-        .map_err(|e| e.to_string())?;
-    webview.show().map_err(|e| e.to_string())
+    let (x, y) = (x.max(0.0), y.max(0.0));
+    let (width, height) = (width.max(1.0), height.max(1.0));
+    #[cfg(target_os = "linux")]
+    return embed::set_bounds(&app, x, y, width, height);
+    #[cfg(not(target_os = "linux"))]
+    {
+        let Some(webview) = viewport(&app) else {
+            return Ok(());
+        };
+        webview
+            .set_bounds(Rect {
+                position: LogicalPosition::new(x, y).into(),
+                size: LogicalSize::new(width, height).into(),
+            })
+            .map_err(|e| e.to_string())?;
+        webview.show().map_err(|e| e.to_string())
+    }
 }
 
 #[tauri::command]
 pub async fn agent_viewport_hide(app: AppHandle) -> Result<(), String> {
-    if let Some(webview) = viewport(&app) {
-        webview.hide().map_err(|e| e.to_string())?;
+    #[cfg(target_os = "linux")]
+    return embed::set_visible(&app, false);
+    #[cfg(not(target_os = "linux"))]
+    {
+        if let Some(webview) = viewport(&app) {
+            webview.hide().map_err(|e| e.to_string())?;
+        }
+        Ok(())
     }
-    Ok(())
 }
 
 #[tauri::command]
 pub async fn agent_viewport_close(app: AppHandle) -> Result<(), String> {
     *app.state::<ViewportState>().file_root.lock().unwrap() = None;
-    if let Some(webview) = viewport(&app) {
-        webview.close().map_err(|e| e.to_string())?;
-        emit_status(&app, String::new(), "closed");
+    #[cfg(target_os = "linux")]
+    {
+        if embed::close(&app)? {
+            emit_status(&app, String::new(), "closed");
+        }
+        Ok(())
     }
-    Ok(())
+    #[cfg(not(target_os = "linux"))]
+    {
+        if let Some(webview) = viewport(&app) {
+            webview.close().map_err(|e| e.to_string())?;
+            emit_status(&app, String::new(), "closed");
+        }
+        Ok(())
+    }
 }
 
 #[tauri::command]
 pub async fn agent_viewport_reload(app: AppHandle) -> Result<(), String> {
-    let webview = viewport(&app).ok_or("No viewport is open.")?;
-    webview.reload().map_err(|e| e.to_string())
+    #[cfg(target_os = "linux")]
+    return embed::reload(&app);
+    #[cfg(not(target_os = "linux"))]
+    {
+        let webview = viewport(&app).ok_or("No viewport is open.")?;
+        webview.reload().map_err(|e| e.to_string())
+    }
 }
 
 /// Evaluate the collector in the page and return its observation JSON.
@@ -196,26 +459,15 @@ pub async fn agent_viewport_observe(
     if kind != "snapshot" && kind != "inspect" {
         return Err(format!("Unknown observe kind: {kind}"));
     }
-    let webview = viewport(&app).ok_or("No viewport is open.")?;
     let selector_json = serde_json::to_string(&selector).map_err(|e| e.to_string())?;
     let js = format!(
         "(() => {{ try {{ return window.__POLY_OBSERVE__ ? window.__POLY_OBSERVE__({kind:?}, {selector_json}) : {{ error: \"Collector not loaded; the page may still be starting.\" }}; }} catch (e) {{ return {{ error: String(e) }}; }} }})()"
     );
 
-    let (tx, rx) = tokio::sync::oneshot::channel::<String>();
-    let tx = Mutex::new(Some(tx));
-    webview
-        .eval_with_callback(js, move |result| {
-            if let Some(tx) = tx.lock().unwrap().take() {
-                let _ = tx.send(result);
-            }
-        })
-        .map_err(|e| e.to_string())?;
-
-    let raw = tokio::time::timeout(OBSERVE_TIMEOUT, rx)
-        .await
-        .map_err(|_| "The page did not respond in time; it may still be loading.")?
-        .map_err(|_| "Observation was cancelled.")?;
+    #[cfg(target_os = "linux")]
+    let raw = embed::eval(&app, js).await?;
+    #[cfg(not(target_os = "linux"))]
+    let raw = eval_viewport(&app, js).await?;
     serde_json::from_str(&raw).map_err(|e| format!("Unreadable observation: {e}"))
 }
 

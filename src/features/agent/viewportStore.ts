@@ -15,6 +15,8 @@ export type ViewportSession = {
   runId: string;
   chatId: string | null;
   kind: "url" | "file";
+  /** Who asked for the page: the agent run, the chat model, or a user click. */
+  openedBy: "agent" | "chat" | "user";
   /** What the header shows: the URL, or the workspace file path. */
   label: string;
   url: string;
@@ -27,13 +29,11 @@ type ViewportStore = {
   session: ViewportSession | null;
   drawerOpen: boolean;
   drawerWidth: number;
-  reloadSeq: number;
   actions: {
     opened: (session: Omit<ViewportSession, "status" | "openedAt">) => void;
     statusChanged: (phase: ViewportStatus, url: string) => void;
     setDrawerOpen: (open: boolean) => void;
     setDrawerWidth: (width: number) => void;
-    reloaded: () => void;
     clear: () => void;
   };
 };
@@ -43,7 +43,8 @@ export const VIEWPORT_MIN_WIDTH = 320;
 export const VIEWPORT_MAX_WIDTH = 900;
 
 function loadWidth(): number {
-  const raw = Number(localStorage.getItem(WIDTH_STORAGE_KEY));
+  // Node test imports have no localStorage; fall back to the default width.
+  const raw = typeof localStorage === "undefined" ? NaN : Number(localStorage.getItem(WIDTH_STORAGE_KEY));
   return Number.isFinite(raw) && raw >= VIEWPORT_MIN_WIDTH && raw <= VIEWPORT_MAX_WIDTH ? raw : 440;
 }
 
@@ -51,7 +52,6 @@ export const useViewportStore = create<ViewportStore>((set) => ({
   session: null,
   drawerOpen: false,
   drawerWidth: loadWidth(),
-  reloadSeq: 0,
   actions: {
     opened: (session) =>
       set({ session: { ...session, status: "loading", openedAt: Date.now() }, drawerOpen: true }),
@@ -76,7 +76,6 @@ export const useViewportStore = create<ViewportStore>((set) => ({
       localStorage.setItem(WIDTH_STORAGE_KEY, String(drawerWidth));
       set({ drawerWidth });
     },
-    reloaded: () => set((state) => ({ reloadSeq: state.reloadSeq + 1 })),
     clear: () => set({ session: null, drawerOpen: false }),
   },
 }));
@@ -98,6 +97,7 @@ export async function openViewportUrl(input: {
   chatId: string | null;
   url: string;
   reason: string | null;
+  openedBy?: ViewportSession["openedBy"];
 }): Promise<void> {
   await bindNativeEvents();
   const url = await native.agentViewportOpen(input.url);
@@ -105,9 +105,53 @@ export async function openViewportUrl(input: {
     runId: input.runId,
     chatId: input.chatId,
     kind: "url",
+    openedBy: input.openedBy ?? "agent",
     label: url,
     url,
     reason: input.reason,
+  });
+}
+
+/** Open a page the user clicked (e.g. a web-search source) in the viewport. */
+export function openViewportForUser(url: string): Promise<void> {
+  return openViewportUrl({ runId: "user", chatId: null, url, reason: null, openedBy: "user" });
+}
+
+/**
+ * Capture-phase click handler that reroutes anchor clicks into the viewport
+ * instead of the external browser. Spread onto a container via
+ * `onClickCapture` so nested link components need no changes.
+ */
+export function viewportLinkClickCapture(event: {
+  target: EventTarget | null;
+  preventDefault: () => void;
+}): void {
+  const anchor =
+    event.target instanceof Element ? event.target.closest<HTMLAnchorElement>("a[href^='http']") : null;
+  if (!anchor) return;
+  event.preventDefault();
+  void openViewportForUser(anchor.href).catch((error) =>
+    console.warn("Failed to open link in viewport:", error),
+  );
+}
+
+/**
+ * Listen for `show_webpage` tool calls from the normal chat model (emitted by
+ * the Rust tool loop as `viewport-open-request`). Called once by the store
+ * coordinator; `getChatId` keeps this store decoupled from chatStore.
+ */
+export async function bindViewportOpenRequests(
+  getChatId: () => string | null,
+): Promise<() => void> {
+  const { listen } = await import("@tauri-apps/api/event");
+  return listen<{ url: string }>("viewport-open-request", (event) => {
+    void openViewportUrl({
+      runId: "chat",
+      chatId: getChatId(),
+      url: event.payload.url,
+      reason: null,
+      openedBy: "chat",
+    }).catch((error) => console.warn("Viewport open request failed:", error));
   });
 }
 
@@ -124,6 +168,7 @@ export async function openViewportFile(input: {
     runId: input.runId,
     chatId: input.chatId,
     kind: "file",
+    openedBy: "agent",
     label: input.path,
     url,
     reason: input.reason,
@@ -149,7 +194,6 @@ export function showViewportDrawer(): void {
 }
 
 export function reloadViewport(): Promise<void> {
-  useViewportStore.getState().actions.reloaded();
   return native.agentViewportReload();
 }
 

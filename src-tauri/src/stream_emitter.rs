@@ -1,4 +1,4 @@
-use crate::models::chat::{StreamPayload, ThinkingPayload, WebSearchEvent};
+use crate::models::chat::{StreamPayload, ThinkingPayload, ViewportOpenEvent, WebSearchEvent};
 use async_trait::async_trait;
 use tauri::{AppHandle, Emitter};
 
@@ -7,6 +7,7 @@ pub trait StreamEmitter: Send + Sync {
     async fn emit_chunk(&self, payload: &StreamPayload);
     async fn emit_thinking(&self, payload: &ThinkingPayload);
     async fn emit_web_search(&self, payload: &WebSearchEvent);
+    async fn emit_viewport_open(&self, payload: &ViewportOpenEvent);
 }
 
 pub struct TauriStreamEmitter {
@@ -32,6 +33,10 @@ impl StreamEmitter for TauriStreamEmitter {
     async fn emit_web_search(&self, payload: &WebSearchEvent) {
         let _ = self.app_handle.emit("web-search-event", payload);
     }
+
+    async fn emit_viewport_open(&self, payload: &ViewportOpenEvent) {
+        let _ = self.app_handle.emit("viewport-open-request", payload);
+    }
 }
 
 #[cfg(test)]
@@ -44,6 +49,7 @@ pub mod test {
         pub chunks: Mutex<Vec<StreamPayload>>,
         pub thinking: Mutex<Vec<ThinkingPayload>>,
         pub web_search: Mutex<Vec<WebSearchEvent>>,
+        pub viewport_opens: Mutex<Vec<ViewportOpenEvent>>,
     }
 
     impl TestStreamEmitter {
@@ -52,6 +58,7 @@ pub mod test {
                 chunks: Mutex::new(Vec::new()),
                 thinking: Mutex::new(Vec::new()),
                 web_search: Mutex::new(Vec::new()),
+                viewport_opens: Mutex::new(Vec::new()),
             }
         }
     }
@@ -68,6 +75,10 @@ pub mod test {
 
         async fn emit_web_search(&self, payload: &WebSearchEvent) {
             self.web_search.lock().unwrap().push(payload.clone());
+        }
+
+        async fn emit_viewport_open(&self, payload: &ViewportOpenEvent) {
+            self.viewport_opens.lock().unwrap().push(payload.clone());
         }
     }
 }

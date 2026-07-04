@@ -51,3 +51,10 @@ dirs = "6"
 whisper-rs = "0.16"
 cpal = "0.15"
 hound = "3.5"
+
+# Agent viewport on Linux: built directly with wry inside a GtkFixed because
+# Tauri's add_child cannot position child webviews on GTK. Versions must stay
+# in lockstep with the ones tauri-runtime-wry uses.
+[target.'cfg(target_os = "linux")'.dependencies]
+gtk = { version = "0.18", features = ["v3_24"] }
+wry = { version = "0.55", default-features = false, features = ["protocol", "os-webview", "linux-body"] }

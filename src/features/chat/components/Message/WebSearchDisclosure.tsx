@@ -7,6 +7,7 @@ import {
   ReasoningContent,
 } from "@/components/ui/reasoning";
 import type { SearchResultItem } from "@/types/chat";
+import { viewportLinkClickCapture } from "@/features/agent/viewportStore";
 
 const MAX_HIGHLIGHT_LENGTH = 160;
 
@@ -61,7 +62,7 @@ export const WebSearchDisclosure = React.memo(
         </ReasoningTrigger>
         {hasResults && (
           <ReasoningContent>
-            <div className="flex flex-col gap-2.5">
+            <div className="flex flex-col gap-2.5" onClickCapture={viewportLinkClickCapture}>
               {results?.map((result, i) => (
                 <div key={`${result.url}-${i}`} className="flex flex-col gap-0.5">
                   <a
