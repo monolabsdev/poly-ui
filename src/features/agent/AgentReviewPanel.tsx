@@ -3,11 +3,11 @@ import { Box } from "@/components/ui/Box";
 import { CircularProgress } from "@/components/ui/spinner";
 import { IconButton } from "@/components/ui/icon-button";
 import { Typography } from "@/components/ui/Typography";
+import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 
 import { FileDiff, X } from "lucide-react";
 import { highlight } from "sugar-high";
 import * as presets from "sugar-high/presets";
-import { cn } from "@/lib/utils";
 import { getAgentChangedFiles, getAgentFileDiff } from "./agentClient";
 import { collapseContext, getDiffLanguage, parseUnifiedDiff, type DiffLine } from "./reviewDiff";
 import type { AgentChangedFile, AgentEditedFile, AgentToolCall } from "./types";
@@ -62,15 +62,6 @@ export function AgentReviewPanel({
     if (!open) return;
     setSelectedPath(initialPath);
   }, [initialPath, open]);
-
-  useEffect(() => {
-    if (!open) return;
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose, open]);
 
   useEffect(() => {
     if (!open) return;
@@ -175,31 +166,22 @@ export function AgentReviewPanel({
   );
   const selectedLanguage = selectedFile ? getDiffLanguage(selectedFile.path) : undefined;
 
-  if (!open) return null;
-
   return (
-    <Box className="fixed inset-x-0 bottom-0 top-[var(--titlebar-height)] z-[var(--z-modal)]">
-      <button
-        type="button"
-        aria-label="Close review"
-        className="absolute inset-0 bg-background/70 supports-backdrop-filter:backdrop-blur-sm"
-        onClick={onClose}
-      />
-      <aside
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="agent-review-title"
-        className="absolute inset-y-0 right-0 flex w-screen min-h-0 flex-col border-l border-border bg-background text-foreground shadow-lg sm:w-[760px] lg:w-[900px]"
+    <Sheet open={open} onOpenChange={(next) => !next && onClose()}>
+      <SheetContent
+        side="right"
+        showCloseButton={false}
+        className="min-h-0 w-screen gap-0 bg-background text-foreground sm:w-[760px] sm:max-w-none lg:w-[900px]"
       >
         <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-3">
           <FileDiff className="size-4 shrink-0 text-muted-foreground" />
           <Box className="min-w-0 flex-1">
-            <Typography id="agent-review-title" className="truncate text-sm font-medium">
+            <SheetTitle className="truncate text-sm font-medium">
               Review changes
-            </Typography>
-            <Typography variant="caption" color="text.secondary" className="truncate">
+            </SheetTitle>
+            <SheetDescription className="truncate text-xs">
               {files.length ? `${files.length} changed ${files.length === 1 ? "file" : "files"} · +${totals.additions} -${totals.deletions}` : "Last turn"}
-            </Typography>
+            </SheetDescription>
           </Box>
           <span className="shrink-0 rounded-full border border-border bg-muted px-2 py-0.5 text-xs text-muted-foreground">
             Git diff
@@ -217,34 +199,7 @@ export function AgentReviewPanel({
           ) : orderedFiles.length === 0 ? (
             <PanelState label="No diff data available for this run." />
           ) : (
-            <Box className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] md:grid-cols-[240px_minmax(0,1fr)] md:grid-rows-1">
-              <nav className="max-h-44 overflow-auto border-b border-border bg-muted/20 p-2 md:max-h-none md:border-r md:border-b-0">
-                {orderedFiles.map((file) => {
-                  const active = file.path === selectedFile?.path;
-                  return (
-                    <button
-                      type="button"
-                      key={file.path}
-                      onClick={() => setSelectedPath(file.path)}
-                      className={cn(
-                        "flex w-full min-w-0 items-start gap-2 rounded-xl px-2 py-2 text-left transition-colors hover:bg-foreground/[0.06]",
-                        active && "bg-foreground/[0.08]",
-                      )}
-                    >
-                      <FileDiff className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-xs font-medium text-foreground">{file.path}</span>
-                        <span className="mt-1 flex items-center gap-2 text-[11px] text-muted-foreground">
-                          <span>{statusLabel(file.status)}</span>
-                          <span className="text-success">+{file.additions}</span>
-                          <span className="text-error">-{file.deletions}</span>
-                        </span>
-                      </span>
-                    </button>
-                  );
-                })}
-              </nav>
-
+            <Box className="h-full min-h-0">
               <section className="flex min-h-0 min-w-0 flex-col">
                 <Box className="flex h-11 shrink-0 items-center gap-2 border-b border-border px-3">
                   <Typography className="min-w-0 flex-1 truncate text-sm font-medium">
@@ -276,8 +231,8 @@ export function AgentReviewPanel({
             </Box>
           )}
         </Box>
-      </aside>
-    </Box>
+      </SheetContent>
+    </Sheet>
   );
 }
 
@@ -296,24 +251,24 @@ function DiffRow({ line, language }: { line: DiffLine; language?: string }) {
   return (
     <Box
       as="code"
-      className={cn(
+      className={[
         "grid grid-cols-[3.25rem_3.25rem_minmax(0,1fr)] border-l-2",
-        line.kind === "add" && "border-success/50 bg-success-soft",
-        line.kind === "remove" && "border-error/50 bg-error-soft",
-        line.kind === "hunk" && "border-info/50 bg-info-soft text-info",
-        line.kind === "meta" && "border-transparent text-muted-foreground",
-        line.kind === "context" && "border-transparent",
-      )}
+        line.kind === "add" ? "border-success/50 bg-success-soft" : "",
+        line.kind === "remove" ? "border-error/50 bg-error-soft" : "",
+        line.kind === "hunk" ? "border-info/50 bg-info-soft text-info" : "",
+        line.kind === "meta" ? "border-transparent text-muted-foreground" : "",
+        line.kind === "context" ? "border-transparent" : "",
+      ].filter(Boolean).join(" ")}
     >
       <span className="select-none pr-3 text-right text-muted-foreground/60">{line.oldNumber ?? ""}</span>
       <span className="select-none pr-3 text-right text-muted-foreground/60">{line.newNumber ?? ""}</span>
       <span className="flex min-w-0 whitespace-pre pr-3">
         <span
-          className={cn(
+          className={[
             "w-5 shrink-0 select-none text-muted-foreground/60",
-            line.kind === "add" && "text-success",
-            line.kind === "remove" && "text-error",
-          )}
+            line.kind === "add" ? "text-success" : "",
+            line.kind === "remove" ? "text-error" : "",
+          ].filter(Boolean).join(" ")}
         >
           {source.prefix}
         </span>
@@ -352,14 +307,6 @@ function splitSourceLine(line: DiffLine): { prefix: string; code: string } {
 
   const prefix = line.text[0] === "+" || line.text[0] === "-" || line.text[0] === " " ? line.text[0] : " ";
   return { prefix, code: line.text.slice(prefix === " " && line.text[0] !== " " ? 0 : 1) || " " };
-}
-
-function statusLabel(status: AgentChangedFile["status"]): string {
-  if (status === "added") return "Added";
-  if (status === "deleted") return "Deleted";
-  if (status === "renamed") return "Renamed";
-  if (status === "modified") return "Modified";
-  return "Changed";
 }
 
 function fallbackChangedFiles(files: AgentEditedFile[]): AgentChangedFile[] {

@@ -1,4 +1,4 @@
-import { useEffect, useRef, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { Loader2, RotateCw, X } from "lucide-react";
 import { IconButton } from "@/components/ui/icon-button";
 import { cn } from "@/lib/utils";
@@ -20,6 +20,7 @@ export function AgentViewportDrawer() {
   const setDrawerWidth = useViewportStore((state) => state.actions.setDrawerWidth);
   const asideRef = useRef<HTMLElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  const [dragging, setDragging] = useState(false);
 
   // The page itself is a native child webview (src-tauri/src/agent_viewport.rs)
   // layered over the window; keep its bounds glued to the content box. CSS px
@@ -59,12 +60,14 @@ export function AgentViewportDrawer() {
     const startWidth = width;
     const target = event.currentTarget;
     target.setPointerCapture(event.pointerId);
+    setDragging(true);
 
     const onMove = (move: globalThis.PointerEvent) => {
       const next = Math.min(VIEWPORT_MAX_WIDTH, Math.max(VIEWPORT_MIN_WIDTH, startWidth + startX - move.clientX));
       setDrawerWidth(next);
     };
     const onUp = () => {
+      setDragging(false);
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
     };
@@ -74,16 +77,20 @@ export function AgentViewportDrawer() {
 
   const loading = session?.status === "loading";
   const badge = session ? BADGE_TEXT[session.openedBy] : null;
+  const visible = Boolean(open && session);
 
+  // Sticky panel: takes layout space and pushes the chat over instead of
+  // overlaying it; opening/closing animates the width down to zero.
   return (
     <aside
       ref={asideRef}
       aria-label="Agent viewport"
       className={cn(
-        "absolute inset-y-0 right-0 z-30 flex min-h-0 flex-col border-l border-border bg-background shadow-lg transition-transform duration-200 ease-out",
-        open && session ? "translate-x-0" : "translate-x-full",
+        "relative flex h-full min-h-0 shrink-0 flex-col overflow-hidden bg-background",
+        !dragging && "transition-[width] duration-200 ease-out",
+        visible && "border-l border-border",
       )}
-      style={{ width }}
+      style={{ width: visible ? width : 0 }}
     >
       <div
         className="absolute inset-y-0 left-0 w-1 cursor-ew-resize touch-none bg-transparent hover:bg-border"
