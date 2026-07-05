@@ -34,7 +34,7 @@ export function SettingsDialog({ open, onOpenChange, children }: SettingsDialogP
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         showCloseButton={false}
-        className="grid h-[min(88dvh,760px)] w-[min(1180px,calc(100vw-2rem))] max-w-none grid-cols-1 gap-0 overflow-hidden rounded-[min(var(--radius-4xl),24px)] border-border/60 bg-card p-0 shadow-2xl md:grid-cols-[244px_minmax(0,1fr)]"
+        className="grid h-[min(88dvh,760px)] w-[min(1180px,calc(100vw-2rem))] max-w-none sm:max-w-none grid-cols-1 gap-0 overflow-hidden rounded-[min(var(--radius-4xl),24px)] border-border/60 bg-card p-0 shadow-2xl md:grid-cols-[244px_minmax(0,1fr)]"
       >
         {children}
       </DialogContent>
@@ -88,7 +88,7 @@ export const SettingsNavItem = memo(function SettingsNavItem({ item, active = fa
         active && "bg-accent text-accent-foreground",
       )}
     >
-      <Icon className="shrink-0" />
+      <Icon className="size-4 shrink-0" />
       <span className="truncate">{item.label}</span>
     </button>
   );
