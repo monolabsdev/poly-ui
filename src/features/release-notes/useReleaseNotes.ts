@@ -61,7 +61,8 @@ export function useReleaseNotes(): ReleaseNotesState {
         versionRef.current = installed;
         setShow(true);
         setLoading(true);
-        const unseen = await loadUnseenReleases(installed, null);
+        // ponytail: "0.0.0" = every release; sliced so the demo shows the multi-release layout
+        const unseen = (await loadUnseenReleases(installed, "0.0.0")).slice(0, 3);
         setReleases(unseen);
         setLoading(false);
       })();

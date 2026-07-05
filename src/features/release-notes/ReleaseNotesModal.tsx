@@ -7,6 +7,7 @@ import { IconButton } from "@/components/ui/icon-button";
 import { X, ExternalLink, Sparkles } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { cn } from "@/lib/utils";
 import { MarkdownProse } from "@/features/chat/components/Message/MarkdownProse";
 import { useReleaseNotes } from "./useReleaseNotes";
@@ -64,7 +65,10 @@ export function ReleaseNotesModal() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => window.open(releases[0]?.htmlUrl ?? RELEASES_URL, "_blank")}
+              onClick={() => {
+                const url = releases[0]?.htmlUrl ?? RELEASES_URL;
+                void openUrl(url).catch(() => window.open(url, "_blank", "noopener,noreferrer"));
+              }}
             >
               <ExternalLink size={14} />
               View on GitHub
