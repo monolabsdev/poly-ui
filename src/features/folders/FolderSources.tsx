@@ -29,6 +29,7 @@ function FolderChip({ name }: { name: string }) {
   return (
     <Box
       as="span"
+      className="rounded-full bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground"
     >
       {name}
     </Box>
@@ -110,53 +111,53 @@ export function FolderSources({ folder }: FolderSourcesProps) {
   }, [conversations, scopedFolders]);
 
   return (
-    <Box>
+    <Box className="flex flex-col gap-4">
       <Box>
-        <Typography>Folder context</Typography>
+        <Typography className="mb-1.5 text-[13px] font-semibold">Folder context</Typography>
         {scopedFolders.filter((candidate) => candidate.systemPrompt?.trim()).map((candidate) => (
-          <Box key={`${candidate.id}-prompt`}>
-            <Box>
-              <Typography>System prompt</Typography>
+          <Box key={`${candidate.id}-prompt`} className="mb-1.5 rounded-lg bg-muted/50 px-2.5 py-2">
+            <Box className="mb-0.5 flex items-center gap-1.5">
+              <Typography className="flex-1 text-xs font-semibold">System prompt</Typography>
               <FolderChip name={candidate.name} />
             </Box>
-            <Typography>{candidate.systemPrompt}</Typography>
+            <Typography className="text-xs leading-relaxed text-muted-foreground whitespace-pre-wrap">{candidate.systemPrompt}</Typography>
           </Box>
         ))}
         {contextSources.length === 0 ? (
           scopedFolders.some((candidate) => candidate.systemPrompt?.trim()) ? null : (
-            <Typography>No folder context added.</Typography>
+            <Typography className="text-xs text-muted-foreground">No folder context added.</Typography>
           )
         ) : contextSources.map((source) => (
-          <Box key={source.id}>
-            <FileText size={15} />
-            <Typography>{source.name}</Typography>
+          <Box key={source.id} className="flex items-center gap-2 border-b border-border py-1">
+            <FileText size={15} className="shrink-0 text-muted-foreground" />
+            <Typography className="min-w-0 flex-1 truncate text-[13px]">{source.name}</Typography>
             <FolderChip name={source.folderName} />
-            <Typography>{Math.ceil(source.size / 1024)} KB</Typography>
+            <Typography className="text-[11px] text-muted-foreground">{Math.ceil(source.size / 1024)} KB</Typography>
           </Box>
         ))}
       </Box>
 
       <Box>
-        <Typography>Web sources</Typography>
+        <Typography className="mb-1.5 text-[13px] font-semibold">Web sources</Typography>
         {isLoading ? (
-          <Box>
-            <CircularProgress size={14} /><Typography>Loading sources...</Typography>
+          <Box className="flex items-center gap-2 text-muted-foreground">
+            <CircularProgress size={14} /><Typography className="text-xs">Loading sources...</Typography>
           </Box>
         ) : error ? (
-          <Typography role="alert">Failed to load sources: {error}</Typography>
+          <Typography role="alert" className="text-xs text-destructive">Failed to load sources: {error}</Typography>
         ) : webSources.length === 0 ? (
-          <Typography>No web sources used yet.</Typography>
+          <Typography className="text-xs text-muted-foreground">No web sources used yet.</Typography>
         ) : webSources.map((source) => (
-          <Box key={source.url}>
-            <Box>
-              <Globe size={14} />
-              <Link href={source.url} target="_blank" rel="noopener noreferrer" underline="hover">
-                {source.title || source.url} <ExternalLink size={11} />
+          <Box key={source.url} className="border-b border-border py-1.5">
+            <Box className="flex items-center gap-1.5">
+              <Globe size={14} className="shrink-0 text-muted-foreground" />
+              <Link href={source.url} target="_blank" rel="noopener noreferrer" underline="hover" className="min-w-0 flex-1 text-[13px] font-semibold">
+                {source.title || source.url} <ExternalLink size={11} className="inline" />
               </Link>
-              {source.count > 1 ? <Typography>{source.count} uses</Typography> : null}
+              {source.count > 1 ? <Typography className="text-[11px] text-muted-foreground">{source.count} uses</Typography> : null}
             </Box>
-            {source.highlights?.[0] ? <Typography>{source.highlights[0]}</Typography> : null}
-            <Box>
+            {source.highlights?.[0] ? <Typography className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{source.highlights[0]}</Typography> : null}
+            <Box className="mt-1.5 flex flex-wrap gap-0.5">
               {[...source.folderNames].map((name) => <FolderChip key={name} name={name} />)}
             </Box>
           </Box>
