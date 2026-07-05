@@ -10,10 +10,12 @@
 :root {
     --titlebar-height: 0px;
     --z-titlebar: 10000;
-    --z-dropdown: calc(var(--z-titlebar) + 10);
-    --z-popover: calc(var(--z-titlebar) + 20);
-    --z-tooltip: calc(var(--z-titlebar) + 30);
-    --z-modal: calc(var(--z-titlebar) + 40);
+    /* transient overlays (dropdown/popover/tooltip) must layer above modals,
+       or their portaled content renders behind the dialog overlay */
+    --z-modal: calc(var(--z-titlebar) + 10);
+    --z-dropdown: calc(var(--z-titlebar) + 20);
+    --z-popover: calc(var(--z-titlebar) + 30);
+    --z-tooltip: calc(var(--z-titlebar) + 40);
     --z-toast: calc(var(--z-titlebar) + 50);
     --background: oklch(1 0 0);
     --foreground: oklch(0.148 0.004 228.8);
