@@ -13,12 +13,13 @@ import {
   SettingsSidebar,
 } from "./SettingsShell";
 import { AboutTab } from "./tabs/AboutTab";
-import { ConnectionsTab } from "./tabs/ConnectionsTab";
+import { AudioTab } from "./tabs/AudioTab";
+import { ChatTab } from "./tabs/ChatTab";
 import { DataControlsTab } from "./tabs/DataControlsTab";
 import { GeneralTab } from "./tabs/GeneralTab";
-import { PersonalisationTab } from "./tabs/PersonalisationTab";
-import { ProfileTab } from "./tabs/ProfileTab";
-import { SpeechTab } from "./tabs/SpeechTab";
+import { InterfaceTab } from "./tabs/InterfaceTab";
+import { PersonalizationTab } from "./tabs/PersonalizationTab";
+import { ProvidersTab } from "./tabs/ProvidersTab";
 
 type SettingsModalProps = {
   isOpen: boolean;
@@ -32,15 +33,15 @@ function renderTab(tab: SettingsTabId) {
     case "general":
       return <GeneralTab />;
     case "interface":
-      return <GeneralTab />;
+      return <InterfaceTab />;
     case "providers":
-      return <ConnectionsTab />;
+      return <ProvidersTab />;
     case "chat":
-      return <PersonalisationTab />;
+      return <ChatTab />;
     case "audio":
-      return <SpeechTab />;
+      return <AudioTab />;
     case "personalization":
-      return <ProfileTab />;
+      return <PersonalizationTab />;
     case "data-controls":
       return <DataControlsTab />;
     case "about":

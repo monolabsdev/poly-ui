@@ -1,12 +1,15 @@
-import { FormControl } from "@/components/ui/native-select";
-import { MenuItem } from "@/components/ui/native-select";
-import { Select } from "@/components/ui/native-select";
-import { Stack } from "@/components/ui/Stack";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useShallow } from "zustand/react/shallow";
-import { SettingCard, SectionHeader, selectClassName } from "../SettingComponents";
+import { SettingsSection, SettingRow } from "../SettingsShell";
 import { useSettingsStore } from "@/store/settingsStore";
-import { useThemeStore } from "@/store/themeStore";
 
 export function GeneralTab() {
   const { general, actions } = useSettingsStore(
@@ -15,72 +18,35 @@ export function GeneralTab() {
       actions: state.actions,
     })),
   );
-  const { mode, setMode } = useThemeStore(
-    useShallow((state) => ({
-      mode: state.mode,
-      setMode: state.setMode,
-    })),
-  );
 
   return (
-    <Stack spacing={2}>
-      <SectionHeader title="General" />
-
-      <SettingCard
-        title="Theme"
-        description="Choose how the interface is rendered."
-        action={
-          <FormControl size="small">
-            <Select
-              value={mode}
-              className={selectClassName}
-              onChange={(e) => setMode(e.target.value as "light" | "dark" | "system")}
-            >
-              <MenuItem value="system">System</MenuItem>
-              <MenuItem value="light">Light</MenuItem>
-              <MenuItem value="dark">Dark</MenuItem>
-            </Select>
-          </FormControl>
-        }
-      />
-
-      <SettingCard
+    <SettingsSection title="General" description="Default app preferences.">
+      <SettingRow
         title="Language"
         description="UI language preference."
         action={
-          <FormControl size="small">
-            <Select
-              value={general.language}
-              className={selectClassName}
-              onChange={(e) => actions.updateGeneral({ language: e.target.value })}
-            >
-              <MenuItem value="en">English</MenuItem>
-            </Select>
-          </FormControl>
+          <Select value={general.language} onValueChange={(value) => actions.updateGeneral({ language: value })}>
+            <SelectTrigger size="sm" className="min-w-36">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectItem value="en">English</SelectItem>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
         }
       />
-
-      <SettingCard
+      <SettingRow
         title="Notifications"
         description="Show toast notifications for events."
         action={
           <Switch
             checked={general.notifications}
-            onChange={(e) => actions.updateGeneral({ notifications: e.target.checked })}
+            onCheckedChange={(checked) => actions.updateGeneral({ notifications: checked })}
           />
         }
       />
-
-      <SettingCard
-        title="Show model in empty state"
-        description="Display the active model name instead of the greeting when no messages exist."
-        action={
-          <Switch
-            checked={general.showModelInEmptyState}
-            onChange={(e) => actions.updateGeneral({ showModelInEmptyState: e.target.checked })}
-          />
-        }
-      />
-    </Stack>
+    </SettingsSection>
   );
 }
