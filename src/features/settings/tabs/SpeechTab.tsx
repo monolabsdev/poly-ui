@@ -10,9 +10,14 @@ import { Box } from "@/components/ui/Box";
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
 import { CircularProgress } from "@/components/ui/spinner";
-import { FormControl } from "@/components/ui/native-select";
-import { MenuItem } from "@/components/ui/native-select";
-import { Select } from "@/components/ui/native-select";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Stack } from "@/components/ui/Stack";
 import { Switch } from "@/components/ui/switch";
@@ -165,33 +170,31 @@ export function SpeechTab() {
             title="Voice"
             description="Select the system voice to use for reading messages."
             action={
-              <FormControl size="small">
-                <Select
-                  value={tts.browser.voiceURI || (voices[0]?.voiceURI ?? "")}
-                  className={selectClassName}
-                  onChange={(event) =>
-                    actions.updateTts({
-                      browser: {
-                        ...tts.browser,
-                        voiceURI: event.target.value,
-                      },
-                    })
-                  }
-                  displayEmpty
-                >
-                  {voices.length === 0 ? (
-                    <MenuItem value="" disabled>
-                      Loading voices...
-                    </MenuItem>
-                  ) : (
-                    voices.map((voice) => (
-                      <MenuItem key={voice.voiceURI} value={voice.voiceURI}>
+              <Select
+                value={tts.browser.voiceURI || (voices[0]?.voiceURI ?? "")}
+                disabled={voices.length === 0}
+                onValueChange={(value) =>
+                  actions.updateTts({
+                    browser: {
+                      ...tts.browser,
+                      voiceURI: value,
+                    },
+                  })
+                }
+              >
+                <SelectTrigger size="sm" className={selectClassName}>
+                  <SelectValue placeholder="Loading voices..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {voices.map((voice) => (
+                      <SelectItem key={voice.voiceURI} value={voice.voiceURI}>
                         {voice.name} ({voice.lang})
-                      </MenuItem>
-                    ))
-                  )}
-                </Select>
-              </FormControl>
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
             }
           />
 
@@ -293,20 +296,25 @@ export function SpeechTab() {
             title="Language"
             description="Language for speech recognition. Auto-detect defaults to English for reliability."
             action={
-              <FormControl size="small">
-                <Select
-                  value={dictation.language}
-                  onChange={(event) =>
-                    actions.updateDictation({ language: event.target.value })
-                  }
-                >
-                  {WHISPER_LANGUAGES.map((lang) => (
-                    <MenuItem key={lang.code} value={lang.code}>
-                      {lang.label}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+              <Select
+                value={dictation.language}
+                onValueChange={(value) =>
+                  actions.updateDictation({ language: value })
+                }
+              >
+                <SelectTrigger size="sm" className={selectClassName}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {WHISPER_LANGUAGES.map((lang) => (
+                      <SelectItem key={lang.code} value={lang.code}>
+                        {lang.label}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
             }
           />
 
