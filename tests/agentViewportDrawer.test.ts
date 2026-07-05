@@ -72,6 +72,6 @@ describe("AgentViewportDrawer iframe preview", () => {
     expect(source).toContain("reduceMotion");
     expect(source).toContain("reduceTransparency");
     expect(source).toContain("!reduceMotion &&");
-    expect(source).toContain("reduceTransparency ? \"bg-[#101010]\"");
+    expect(source).toContain("reduceTransparency ? \"bg-sidebar\"");
   });
 });

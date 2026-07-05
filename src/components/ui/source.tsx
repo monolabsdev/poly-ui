@@ -57,8 +57,8 @@ export function SourceTrigger({
   const labelToShow = label ?? domain.replace("www.", "")
 
   return (
-    <HoverCardTrigger asChild>
-      <LinkContextMenu href={href}>
+    <LinkContextMenu href={href}>
+      <HoverCardTrigger asChild>
         <a
           href={href}
           target="_blank"
@@ -82,8 +82,8 @@ export function SourceTrigger({
           )}
           <span className="truncate tabular-nums text-center font-normal">{labelToShow}</span>
         </a>
-      </LinkContextMenu>
-    </HoverCardTrigger>
+      </HoverCardTrigger>
+    </LinkContextMenu>
   )
 }
 
