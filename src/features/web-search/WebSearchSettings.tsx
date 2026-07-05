@@ -1,7 +1,12 @@
-import { FormControl } from "@/components/ui/native-select";
 import { Link } from "@/components/ui/link";
-import { MenuItem } from "@/components/ui/native-select";
-import { Select } from "@/components/ui/native-select";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Stack } from "@/components/ui/Stack";
 import { TextField } from "@/components/ui/text-field";
 import { Typography } from "@/components/ui/Typography";
@@ -21,24 +26,30 @@ export function WebSearchSettings() {
         title="Web search provider"
         description="Choose provider used for live web results."
         action={
-          <FormControl size="small">
-            <Select
-              value={provider.id}
-              className={selectClassName}
-              onChange={(event) => {
-                updateGeneral({
-                  webSearch: {
-                    ...webSearch,
-                    provider: event.target.value as WebSearchProviderId,
-                  },
-                });
-              }}
-            >
-              {webSearchProviderRegistry.map((option) => (
-                <MenuItem key={option.id} value={option.id}>{option.name}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+          <Select
+            value={provider.id}
+            onValueChange={(value) => {
+              updateGeneral({
+                webSearch: {
+                  ...webSearch,
+                  provider: value as WebSearchProviderId,
+                },
+              });
+            }}
+          >
+            <SelectTrigger size="sm" className={selectClassName}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {webSearchProviderRegistry.map((option) => (
+                  <SelectItem key={option.id} value={option.id}>
+                    {option.name}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
         }
       />
 
