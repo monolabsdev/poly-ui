@@ -1,10 +1,12 @@
 import type React from "react";
-import { Box } from "@/components/ui/Box";
-import { Stack } from "@/components/ui/Stack";
-import { Typography } from "@/components/ui/Typography";
-import { cn } from "@/lib/utils";
+import { Badge as ShadcnBadge } from "@/components/ui/badge";
+import { Empty, EmptyDescription } from "@/components/ui/empty";
+import {
+  SettingRow,
+  SettingsSection,
+} from "./SettingsShell";
 
-export const settingSurfaceClassName = "rounded-xl border border-border/60 bg-transparent p-4";
+export const settingSurfaceClassName = "rounded-xl border border-border/60 bg-background/50 p-4";
 
 export function SettingSurface({
   children,
@@ -13,7 +15,7 @@ export function SettingSurface({
   children: React.ReactNode;
   className?: string;
 }) {
-  return <Box className={cn(settingSurfaceClassName, className)}>{children}</Box>;
+  return <div className={`${settingSurfaceClassName} ${className ?? ""}`}>{children}</div>;
 }
 
 export function SettingCard({
@@ -28,24 +30,9 @@ export function SettingCard({
   children?: React.ReactNode;
 }) {
   return (
-    <Box className={settingSurfaceClassName}>
-      <Stack spacing={children ? 2 : 0}>
-        <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={3}>
-          <Box className="min-w-0">
-            <Typography className="text-sm font-medium">
-              {title}
-            </Typography>
-            {description && (
-              <Typography color="muted" className="mt-0.5 text-xs leading-normal">
-                {description}
-              </Typography>
-            )}
-          </Box>
-          {action && <Box className="shrink-0">{action}</Box>}
-        </Stack>
-        {children && <Box>{children}</Box>}
-      </Stack>
-    </Box>
+    <SettingRow title={title} description={description} action={action}>
+      {children}
+    </SettingRow>
   );
 }
 
@@ -61,40 +48,22 @@ export function SectionHeader({
   className?: string;
 }) {
   return (
-    <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2} className={className}>
-      <Box className="min-w-0">
-        <Typography className="text-sm font-bold">
-          {title}
-        </Typography>
-        {description && (
-          <Typography color="muted" className="mt-0.5 text-xs leading-normal">
-            {description}
-          </Typography>
-        )}
-      </Box>
-      {action && <Box>{action}</Box>}
-    </Stack>
+    <div className={className}>
+      <SettingsSection title={title} description={description} action={action} />
+    </div>
   );
 }
 
-export function Badge({ label, color: _color }: { label: string; color: string }) {
-  return (
-    <Box
-      className="inline-flex rounded-full bg-muted px-2 py-0.5"
-    >
-      <Typography className="text-xs font-semibold text-muted-foreground">
-        {label}
-      </Typography>
-    </Box>
-  );
+export function Badge({ label }: { label: string; color?: string }) {
+  return <ShadcnBadge variant="secondary">{label}</ShadcnBadge>;
 }
 
 export function EmptyState({ children }: { children: React.ReactNode }) {
   return (
-    <Box className="rounded-2xl border border-dashed border-border/60 p-6 text-center">
-      <Typography color="muted">{children}</Typography>
-    </Box>
+    <Empty className="rounded-xl border border-dashed border-border/60 p-6">
+      <EmptyDescription>{children}</EmptyDescription>
+    </Empty>
   );
 }
 
-export const selectClassName = "border-0 bg-transparent text-sm font-medium text-muted-foreground hover:text-foreground";
+export const selectClassName = "min-w-36";

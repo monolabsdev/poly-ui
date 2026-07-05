@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   ADVANCED_SETTINGS_ITEM,
@@ -41,5 +42,11 @@ describe("settings registry", () => {
     expect(filterSettingsTabs("whisper").map((tab) => tab.id)).toEqual(["audio"]);
     expect(filterSettingsTabs("prompt").map((tab) => tab.id)).toEqual(["chat"]);
     expect(filterSettingsTabs("")).toHaveLength(SETTINGS_TABS.length);
+  });
+
+  it("settings shell uses semantic Tailwind tokens only", () => {
+    const shell = readFileSync("src/features/settings/SettingsShell.tsx", "utf8");
+    expect(shell).not.toMatch(/#[0-9a-fA-F]{3,8}|rgb\(|rgba\(/);
+    expect(shell).not.toMatch(/\bspace-[xy]-/);
   });
 });
