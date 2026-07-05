@@ -9,6 +9,7 @@ import {
 } from "react";
 import { useModelStore } from "@/store/modelStore";
 import { useSettingsStore } from "@/store/settingsStore";
+import "@/features/settings";
 import { getPresetContent } from "@/lib/constants/promptPresets";
 import { useOllama } from "@/features/ollama";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";

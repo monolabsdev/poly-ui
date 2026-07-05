@@ -56,4 +56,10 @@ describe("settings registry", () => {
     expect(modal).not.toContain("<AdvancedTab");
     expect(modal).not.toContain("<DeveloperTab");
   });
+
+  it("advanced settings view registers with view-registry", () => {
+    const view = readFileSync("src/features/settings/AdvancedSettingsComposerView.tsx", "utf8");
+    expect(view).toContain("registerView(ADVANCED_SETTINGS_VIEW_ID, AdvancedSettingsComposerView)");
+    expect(view).toContain("setActiveView(null)");
+  });
 });
