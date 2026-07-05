@@ -128,7 +128,7 @@ const tabAliases: Partial<Record<SettingsTab, SettingsTabId>> = {
 export function resolveSettingsTab(tab?: SettingsTab): SettingsTabId {
   if (!tab) return "general";
   if (tabAliases[tab]) return tabAliases[tab];
-  return SETTINGS_TABS.some((item) => item.id === tab) ? tab : "general";
+  return SETTINGS_TABS.find((item) => item.id === tab)?.id ?? "general";
 }
 
 function searchableText(tab: Pick<SettingsTabDefinition, "label" | "description" | "keywords">) {
