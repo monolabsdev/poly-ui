@@ -63,6 +63,22 @@ describe("settings registry", () => {
     expect(view).toContain("setActiveView(null)");
   });
 
+  it("settings feature avoids raw colors and space utilities", () => {
+    const files = [
+      "src/features/settings/tabs/PersonalisationTab.tsx",
+      "src/features/settings/tabs/ProfileTab.tsx",
+      "src/features/settings/tabs/SpeechTab.tsx",
+      "src/features/settings/tabs/ConnectionsTab.tsx",
+      "src/features/web-search/WebSearchSettings.tsx",
+      "src/features/memory/MemoryTab.tsx",
+    ];
+    for (const file of files) {
+      const source = readFileSync(file, "utf8");
+      expect(source, file).not.toMatch(/#[0-9a-fA-F]{3,8}|rgb\(|rgba\(/);
+      expect(source, file).not.toMatch(/\bspace-[xy]-/);
+    }
+  });
+
   it("command palette opens advanced settings through the view registry", () => {
     const commands = readFileSync("src/features/command-palette/settingsRegistry.tsx", "utf8");
     expect(commands).toContain("openAdvancedSettings");
