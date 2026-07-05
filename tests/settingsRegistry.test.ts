@@ -49,4 +49,11 @@ describe("settings registry", () => {
     expect(shell).not.toMatch(/#[0-9a-fA-F]{3,8}|rgb\(|rgba\(/);
     expect(shell).not.toMatch(/\bspace-[xy]-/);
   });
+
+  it("settings modal delegates advanced instead of rendering an advanced tab", () => {
+    const modal = readFileSync("src/features/settings/SettingsModal.tsx", "utf8");
+    expect(modal).toContain("onOpenAdvancedSettings");
+    expect(modal).not.toContain("<AdvancedTab");
+    expect(modal).not.toContain("<DeveloperTab");
+  });
 });
