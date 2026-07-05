@@ -85,7 +85,7 @@ export function FoldersSection({
       <div
         id={FOLDERS_SECTION_CONTENT_ID}
         className={`overflow-hidden ${isCollapsed ? "max-h-0 opacity-0" : "max-h-[800px] opacity-100"} ${
-          reducedMotion ? "" : "transition-[max-height,opacity] duration-[var(--dur-base)] ease-[var(--ease-premium)]"
+          reducedMotion ? "" : "transition-[max-height,opacity] duration-200 ease-out"
         }`}
       >
         <SidebarGroupContent>

@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { cn } from "@/lib/utils"
 import { useChatStore } from "@/store/chatStore"
 import { DeleteConversationDialog } from "@/features/chat/components/DeleteConversationDialog"
 import {
@@ -9,6 +10,7 @@ import {
 } from "@/features/sidebar/hooks/useSidebarActions"
 import { useConversationGroups } from "@/features/sidebar/hooks/useConversationGroups"
 import { useFolderStore } from "@/store/folderStore"
+import { useReducedMotion } from "@/features/sidebar/hooks/useReducedMotion"
 import { SidebarBrand } from "@/features/sidebar/components/SidebarBrand"
 import { FoldersSection } from "@/features/sidebar/components/FoldersSection"
 import { ConversationList } from "@/features/sidebar/components/ConversationList"
@@ -45,6 +47,7 @@ function AppSidebarBody({
   )
   const loadFolders = useFolderStore((s) => s.actions.loadFolders)
   const { conv, folder } = useSidebarActions()
+  const reduceMotion = useReducedMotion()
   const groupedConversations = useConversationGroups(conversations)
   const folderConversations = React.useMemo(
     () =>
@@ -68,7 +71,7 @@ function AppSidebarBody({
         <NavMain onNewChat={onNewChat} onSearch={onOpenCommandPalette} />
 
         {/* Stays mounted through collapse so it fades with the width animation instead of popping out */}
-        <div className="flex min-h-0 flex-col gap-(--sidebar-section-gap) transition-[opacity,visibility] duration-[var(--dur-fast)] ease-[var(--ease-soft)] group-data-[collapsible=icon]:invisible group-data-[collapsible=icon]:opacity-0">
+        <div className={cn("flex min-h-0 flex-col gap-(--sidebar-section-gap) group-data-[collapsible=icon]:invisible group-data-[collapsible=icon]:opacity-0", !reduceMotion && "transition-[opacity,visibility] duration-150 ease-out")}>
           <FoldersSection
             folderConversations={folderConversations}
             streamingConversationId={streamingConversationId}

@@ -35,7 +35,7 @@ export function SidebarBrand() {
       <div
         className={`flex items-center gap-2 overflow-hidden ${
           isCollapsed ? "pointer-events-none w-0 opacity-0" : "w-auto opacity-100"
-        } ${reducedMotion ? "" : "transition-opacity duration-[var(--dur-base)] ease-[var(--ease-premium)]"}`}
+        } ${reducedMotion ? "" : "transition-opacity duration-200 ease-out"}`}
       >
         <button
           type="button"

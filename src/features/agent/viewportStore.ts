@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import * as native from "./native";
+import type { AgentEditedFile, AgentToolCall } from "./types";
 
 /**
  * One viewport session at a time, scoped to the agent run that opened it.
@@ -25,13 +26,32 @@ export type ViewportSession = {
   openedAt: number;
 };
 
+export type ViewportTab = "review" | "browser";
+
+export type ViewportReview = {
+  workspacePath?: string;
+  initialPath?: string;
+  fallbackFiles: AgentEditedFile[];
+  toolCalls: Record<string, AgentToolCall>;
+};
+
 type ViewportStore = {
   session: ViewportSession | null;
+  review: ViewportReview | null;
+  browserOpen: boolean;
+  activeTab: ViewportTab;
+  tabOrder: ViewportTab[];
   drawerOpen: boolean;
   drawerWidth: number;
   actions: {
     opened: (session: Omit<ViewportSession, "status" | "openedAt">) => void;
+    browserOpened: () => void;
+    browserClosed: () => void;
+    reviewOpened: (review: ViewportReview) => void;
+    reviewClosed: () => void;
     statusChanged: (phase: ViewportStatus, url: string) => void;
+    setActiveTab: (tab: ViewportTab) => void;
+    moveTab: (tab: ViewportTab, target: ViewportTab, side: "before" | "after") => void;
     setDrawerOpen: (open: boolean) => void;
     setDrawerWidth: (width: number) => void;
     clear: () => void;
@@ -42,6 +62,22 @@ const WIDTH_STORAGE_KEY = "poly_agent_viewport_width";
 export const VIEWPORT_MIN_WIDTH = 320;
 export const VIEWPORT_MAX_WIDTH = 900;
 
+function appendTab(order: ViewportTab[], tab: ViewportTab): ViewportTab[] {
+  return order.includes(tab) ? order : [...order, tab];
+}
+
+function removeTab(order: ViewportTab[], tab: ViewportTab): ViewportTab[] {
+  return order.filter((item) => item !== tab);
+}
+
+function moveTab(order: ViewportTab[], tab: ViewportTab, target: ViewportTab, side: "before" | "after"): ViewportTab[] {
+  if (tab === target || !order.includes(tab) || !order.includes(target)) return order;
+  const withoutTab = removeTab(order, tab);
+  const targetIndex = withoutTab.indexOf(target);
+  const insertAt = side === "before" ? targetIndex : targetIndex + 1;
+  return [...withoutTab.slice(0, insertAt), tab, ...withoutTab.slice(insertAt)];
+}
+
 function loadWidth(): number {
   // Node test imports have no localStorage; fall back to the default width.
   const raw = typeof localStorage === "undefined" ? NaN : Number(localStorage.getItem(WIDTH_STORAGE_KEY));
@@ -50,15 +86,62 @@ function loadWidth(): number {
 
 export const useViewportStore = create<ViewportStore>((set) => ({
   session: null,
+  review: null,
+  browserOpen: false,
+  activeTab: "browser",
+  tabOrder: [],
   drawerOpen: false,
   drawerWidth: loadWidth(),
   actions: {
     opened: (session) =>
-      set({ session: { ...session, status: "loading", openedAt: Date.now() }, drawerOpen: true }),
+      set((state) => ({
+        session: { ...session, status: "loading", openedAt: Date.now() },
+        browserOpen: true,
+        activeTab: "browser",
+        tabOrder: appendTab(state.tabOrder, "browser"),
+        drawerOpen: true,
+      })),
+    browserOpened: () =>
+      set((state) => ({
+        browserOpen: true,
+        activeTab: "browser",
+        tabOrder: appendTab(state.tabOrder, "browser"),
+        drawerOpen: true,
+      })),
+    browserClosed: () =>
+      set((state) => ({
+        session: null,
+        browserOpen: false,
+        activeTab: state.review ? "review" : "browser",
+        tabOrder: removeTab(state.tabOrder, "browser"),
+        drawerOpen: Boolean(state.review),
+      })),
+    reviewOpened: (review) =>
+      set((state) => ({
+        review,
+        activeTab: "review",
+        tabOrder: appendTab(state.tabOrder, "review"),
+        drawerOpen: true,
+      })),
+    reviewClosed: () =>
+      set((state) => ({
+        review: null,
+        activeTab: "browser",
+        tabOrder: removeTab(state.tabOrder, "review"),
+        drawerOpen: state.browserOpen,
+      })),
     statusChanged: (phase, url) =>
       set((state) => {
         if (!state.session) return state;
-        if (phase === "closed") return { session: null, drawerOpen: false };
+        if (phase === "closed") {
+          return {
+            session: null,
+            browserOpen: false,
+            activeTab: state.review ? "review" : "browser",
+            tabOrder: removeTab(state.tabOrder, "browser"),
+            drawerOpen: Boolean(state.review),
+          };
+        }
         const navigatedAway = url !== "" && url !== state.session.url;
         return {
           session: {
@@ -71,12 +154,14 @@ export const useViewportStore = create<ViewportStore>((set) => ({
           },
         };
       }),
+    setActiveTab: (activeTab) => set({ activeTab, drawerOpen: true }),
+    moveTab: (tab, target, side) => set((state) => ({ tabOrder: moveTab(state.tabOrder, tab, target, side) })),
     setDrawerOpen: (drawerOpen) => set({ drawerOpen }),
     setDrawerWidth: (drawerWidth) => {
       localStorage.setItem(WIDTH_STORAGE_KEY, String(drawerWidth));
       set({ drawerWidth });
     },
-    clear: () => set({ session: null, drawerOpen: false }),
+    clear: () => set({ session: null, review: null, browserOpen: false, tabOrder: [], drawerOpen: false }),
   },
 }));
 
@@ -114,7 +199,8 @@ export async function openViewportUrl(input: {
 
 /** Open a page the user clicked (e.g. a web-search source) in the viewport. */
 export function openViewportForUser(url: string): Promise<void> {
-  return openViewportUrl({ runId: "user", chatId: null, url, reason: null, openedBy: "user" });
+  openViewportPreviewUrl({ runId: "user", chatId: null, url, reason: null, openedBy: "user" });
+  return Promise.resolve();
 }
 
 /**
@@ -145,13 +231,13 @@ export async function bindViewportOpenRequests(
 ): Promise<() => void> {
   const { listen } = await import("@tauri-apps/api/event");
   return listen<{ url: string }>("viewport-open-request", (event) => {
-    void openViewportUrl({
+    openViewportPreviewUrl({
       runId: "chat",
       chatId: getChatId(),
       url: event.payload.url,
       reason: null,
       openedBy: "chat",
-    }).catch((error) => console.warn("Viewport open request failed:", error));
+    });
   });
 }
 
@@ -181,6 +267,23 @@ export async function closeViewport(): Promise<void> {
   await native.agentViewportClose().catch(() => undefined);
 }
 
+/** Open the drawer to a blank browser tab for manual navigation. */
+export function openEmptyViewport(): void {
+  useViewportStore.getState().actions.browserOpened();
+}
+
+/** Close only the browser tab; keep an open review tab alive. */
+export function closeViewportBrowser(): void {
+  const hadSession = Boolean(useViewportStore.getState().session);
+  useViewportStore.getState().actions.browserClosed();
+  if (hadSession) void native.agentViewportClose().catch(() => undefined);
+}
+
+/** Close only the review tab; keep an open browser tab alive. */
+export function closeViewportReview(): void {
+  useViewportStore.getState().actions.reviewClosed();
+}
+
 /** Hide the drawer but keep the session and page state alive. */
 export function hideViewportDrawer(): void {
   useViewportStore.getState().actions.setDrawerOpen(false);
@@ -188,13 +291,49 @@ export function hideViewportDrawer(): void {
 }
 
 export function showViewportDrawer(): void {
-  if (useViewportStore.getState().session) {
+  const state = useViewportStore.getState();
+  if (state.browserOpen || state.session || state.review) {
     useViewportStore.getState().actions.setDrawerOpen(true);
   }
 }
 
+export function openViewportReview(review: ViewportReview): void {
+  useViewportStore.getState().actions.reviewOpened(review);
+}
+
+export function openViewportPreviewUrl(input: {
+  runId: string;
+  chatId: string | null;
+  url: string;
+  reason: string | null;
+  openedBy: ViewportSession["openedBy"];
+}): void {
+  const url = safeHttpUrl(input.url);
+  if (!url) return;
+  const actions = useViewportStore.getState().actions;
+  actions.opened({
+    runId: input.runId,
+    chatId: input.chatId,
+    kind: "url",
+    openedBy: input.openedBy,
+    label: url,
+    url,
+    reason: input.reason,
+  });
+  actions.statusChanged("ready", url);
+}
+
 export function reloadViewport(): Promise<void> {
   return native.agentViewportReload();
+}
+
+function safeHttpUrl(input: string): string | null {
+  try {
+    const url = new URL(input);
+    return url.protocol === "http:" || url.protocol === "https:" ? url.href : null;
+  } catch {
+    return null;
+  }
 }
 
 /** Resolve when the page finishes loading, or on timeout. */

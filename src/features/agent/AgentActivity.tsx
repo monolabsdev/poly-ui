@@ -1,11 +1,9 @@
-import { useState } from "react";
 import { Box } from "@/components/ui/Box";
 import { Typography } from "@/components/ui/Typography";
 import type { AgentApproval, AgentMessageState } from "./types";
 import { AgentBrowserCard } from "./AgentBrowserCard";
-import { AgentReviewPanel } from "./AgentReviewPanel";
 import { Steps, StepsContent, StepsItem, StepsTrigger } from "@/components/ui/steps";
-import { openViewportFile } from "./viewportStore";
+import { openViewportFile, openViewportReview } from "./viewportStore";
 import { TextShimmer } from "@/components/ui/text-shimmer";
 import { buildSteps, hasDisclosureContent } from "./activity/buildSteps";
 import { ApprovalContent } from "./activity/content/ApprovalContent";
@@ -34,12 +32,14 @@ export function AgentActivity({ agent, resultText, onResolveApproval, onRetry }:
   const steps = buildSteps(agent);
   const hasFileStep = steps.some((step) => step.files?.length);
   const waitMsg = useHeaderStatus(agent, steps);
-  const [reviewOpen, setReviewOpen] = useState(false);
-  const [reviewPath, setReviewPath] = useState<string | undefined>();
 
   const handleReview = (path?: string) => {
-    setReviewPath(path);
-    setReviewOpen(true);
+    openViewportReview({
+      workspacePath: agent.workspacePath,
+      initialPath: path,
+      fallbackFiles: agent.editedFiles,
+      toolCalls: agent.toolCalls,
+    });
   };
 
   const handlePreview = (path: string) => {
@@ -122,7 +122,6 @@ export function AgentActivity({ agent, resultText, onResolveApproval, onRetry }:
         />
       )}
 
-      <AgentReviewPanel open={reviewOpen} workspacePath={agent.workspacePath} initialPath={reviewPath} fallbackFiles={agent.editedFiles} toolCalls={agent.toolCalls} onClose={() => setReviewOpen(false)} />
     </Box>
   );
 }
