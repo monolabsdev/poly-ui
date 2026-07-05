@@ -17,6 +17,7 @@ const resetViewportStore = () => {
     tabOrder: [],
     drawerOpen: false,
     drawerWidth: 440,
+    lastActiveTab: "browser",
   });
 };
 

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { usePauseableHandler } from "@/lib/idle/hooks";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -72,10 +73,15 @@ export function AgentViewportDrawer() {
   const setDrawerWidth = useViewportStore((state) => state.actions.setDrawerWidth);
   const reduceMotion = useSettingsStore((state) => state.performance.reduceMotion);
   const reduceTransparency = useSettingsStore((state) => state.performance.reduceTransparency);
+  const keepViewportActive = useSettingsStore((state) => state.performance.keepViewportActive);
   const [dragging, setDragging] = useState(false);
   const [url, setUrl] = useState("");
   const [frameNonce, setFrameNonce] = useState(0);
   const [frameLoading, setFrameLoading] = useState(false);
+  const [frameSuspended, setFrameSuspended] = useState(false);
+  const [frameOffloaded, setFrameOffloaded] = useState(false);
+  const offloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const OFFLOAD_TIMEOUT_MS = 120_000;
   const [draggingTab, setDraggingTab] = useState<ViewportTab | null>(null);
   const [history, setHistory] = useState<BrowserHistoryState>({ entries: [], index: -1 });
   const historyMoveRef = useRef(false);
@@ -135,6 +141,55 @@ export function AgentViewportDrawer() {
   const reviewActive = activeTab === "review";
   const browserLoading = Boolean(session?.url && frameLoading);
   const showHttpsWarning = Boolean(session?.url && isHttpsUrl(session.url));
+
+  useEffect(() => {
+    if (keepViewportActive) return;
+    if (!visible && (session?.url || browserOpen)) {
+      setFrameSuspended(true);
+      setFrameOffloaded(false);
+      offloadTimerRef.current = setTimeout(() => {
+        setFrameOffloaded(true);
+      }, OFFLOAD_TIMEOUT_MS);
+    } else if (visible && (frameSuspended || frameOffloaded)) {
+      if (offloadTimerRef.current) {
+        clearTimeout(offloadTimerRef.current);
+        offloadTimerRef.current = null;
+      }
+      setFrameSuspended(false);
+      setFrameOffloaded(false);
+      if (session?.url) {
+        setFrameLoading(true);
+        setFrameNonce((n) => n + 1);
+      }
+    }
+    return () => {
+      if (offloadTimerRef.current) {
+        clearTimeout(offloadTimerRef.current);
+        offloadTimerRef.current = null;
+      }
+    };
+  }, [visible, keepViewportActive]);
+
+  usePauseableHandler("viewport-drawer", {
+    onPause: () => {
+      if (keepViewportActive) return;
+      if (!visible && !frameSuspended && (session?.url || browserOpen)) {
+        setFrameSuspended(true);
+      }
+    },
+    onResume: () => {
+      if (keepViewportActive) return;
+      if (visible && (frameSuspended || frameOffloaded)) {
+        setFrameSuspended(false);
+        setFrameOffloaded(false);
+        if (session?.url) {
+          setFrameLoading(true);
+          setFrameNonce((n) => n + 1);
+        }
+      }
+    },
+    priority: 100,
+  });
 
   const openTypedUrl = () => {
     const href = resolveBrowserInput(url);
@@ -456,17 +511,21 @@ export function AgentViewportDrawer() {
           <div className="relative min-h-0 flex-1 bg-[#101010]">
             {session?.url ? (
               <>
-                <iframe
-                  key={`${session.url}#${frameNonce}`}
-                  src={session.url}
-                  title="Viewport preview"
-                  className="h-full w-full border-0 bg-white"
-                  sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads"
-                  referrerPolicy="no-referrer"
-                  allow="clipboard-read; clipboard-write; fullscreen"
-                  onLoad={() => setFrameLoading(false)}
-                />
-                {browserLoading ? (
+                {frameOffloaded ? (
+                  <BrowserNewTabEmpty />
+                ) : (
+                  <iframe
+                    key={frameSuspended ? "__suspended__" : `${session.url}#${frameNonce}`}
+                    src={frameSuspended ? "about:blank" : session.url}
+                    title="Viewport preview"
+                    className="h-full w-full border-0 bg-white"
+                    sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads"
+                    referrerPolicy="no-referrer"
+                    allow="clipboard-read; clipboard-write; fullscreen"
+                    onLoad={() => setFrameLoading(false)}
+                  />
+                )}
+                {browserLoading && !frameSuspended ? (
                   <div
                     className={cn(
                       "pointer-events-none absolute inset-0 flex items-center justify-center",

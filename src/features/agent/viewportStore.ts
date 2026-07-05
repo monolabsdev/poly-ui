@@ -43,6 +43,7 @@ type ViewportStore = {
   tabOrder: ViewportTab[];
   drawerOpen: boolean;
   drawerWidth: number;
+  lastActiveTab: ViewportTab;
   actions: {
     opened: (session: Omit<ViewportSession, "status" | "openedAt">) => void;
     browserOpened: () => void;
@@ -59,6 +60,7 @@ type ViewportStore = {
 };
 
 const WIDTH_STORAGE_KEY = "poly_agent_viewport_width";
+const LAST_TAB_KEY = "poly_agent_viewport_last_tab";
 export const VIEWPORT_MIN_WIDTH = 320;
 export const VIEWPORT_MAX_WIDTH = 900;
 
@@ -84,6 +86,12 @@ function loadWidth(): number {
   return Number.isFinite(raw) && raw >= VIEWPORT_MIN_WIDTH && raw <= VIEWPORT_MAX_WIDTH ? raw : 440;
 }
 
+function loadLastTab(): ViewportTab {
+  const raw = typeof localStorage === "undefined" ? null : localStorage.getItem(LAST_TAB_KEY);
+  if (raw === "browser" || raw === "review") return raw;
+  return "browser";
+}
+
 export const useViewportStore = create<ViewportStore>((set) => ({
   session: null,
   review: null,
@@ -92,6 +100,7 @@ export const useViewportStore = create<ViewportStore>((set) => ({
   tabOrder: [],
   drawerOpen: false,
   drawerWidth: loadWidth(),
+  lastActiveTab: loadLastTab(),
   actions: {
     opened: (session) =>
       set((state) => ({
@@ -156,7 +165,14 @@ export const useViewportStore = create<ViewportStore>((set) => ({
       }),
     setActiveTab: (activeTab) => set({ activeTab, drawerOpen: true }),
     moveTab: (tab, target, side) => set((state) => ({ tabOrder: moveTab(state.tabOrder, tab, target, side) })),
-    setDrawerOpen: (drawerOpen) => set({ drawerOpen }),
+    setDrawerOpen: (drawerOpen) =>
+      set((state) => {
+        if (!drawerOpen) {
+          localStorage.setItem(LAST_TAB_KEY, state.activeTab);
+          return { drawerOpen, lastActiveTab: state.activeTab };
+        }
+        return { drawerOpen };
+      }),
     setDrawerWidth: (drawerWidth) => {
       localStorage.setItem(WIDTH_STORAGE_KEY, String(drawerWidth));
       set({ drawerWidth });
@@ -294,6 +310,9 @@ export function showViewportDrawer(): void {
   const state = useViewportStore.getState();
   if (state.browserOpen || state.session || state.review) {
     useViewportStore.getState().actions.setDrawerOpen(true);
+    if (state.activeTab !== state.lastActiveTab) {
+      useViewportStore.getState().actions.setActiveTab(state.lastActiveTab);
+    }
   }
 }
 
