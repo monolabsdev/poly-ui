@@ -35,6 +35,7 @@ export type PerformanceSettings = {
   reduceMotion: boolean;
   reduceTransparency: boolean;
   appZoom: number;
+  keepViewportActive: boolean;
 };
 
 type SettingsState = {
@@ -60,7 +61,7 @@ const defaultTts: TtsSettings = {
   },
 };
 
-const SETTINGS_VERSION = 15;
+const SETTINGS_VERSION = 16;
 
 export const defaultDictation: DictationSettings = {
   enabled: true,
@@ -72,6 +73,7 @@ export const defaultPerformance: PerformanceSettings = {
   reduceMotion: false,
   reduceTransparency: false,
   appZoom: 1,
+  keepViewportActive: false,
 };
 
 function createDefaultWebSearchSettings(): WebSearchSettings {
@@ -188,6 +190,9 @@ export const useSettingsStore = create<SettingsState>()(
               ...(state.general.webSearch?.apiKeys ?? {}),
             },
           };
+        }
+        if (version < 16) {
+          state.performance = { ...defaultPerformance, ...state.performance, keepViewportActive: false };
         }
         startupPhase("settings migration complete");
         return state as SettingsState;
