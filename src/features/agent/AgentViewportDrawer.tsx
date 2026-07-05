@@ -297,6 +297,12 @@ export function AgentViewportDrawer() {
     }
     dragStateRef.current = null;
     setDraggingTab(null);
+    const isClick = Math.abs(state.deltaX) < 5;
+    if (isClick && commit) {
+      setActiveTab(state.tab);
+      resetTabDragTransforms();
+      return;
+    }
     const target = state.rects[state.previewIndex];
     if (commit && target && state.previewIndex !== state.fromIndex) {
       moveTab(state.tab, target.tab, state.previewIndex < state.fromIndex ? "before" : "after");
@@ -349,7 +355,7 @@ export function AgentViewportDrawer() {
     <aside
       aria-label="Agent viewport"
       className={cn(
-        "relative flex h-full min-h-0 shrink-0 flex-col overflow-hidden border-border bg-[#101010] text-foreground",
+        "relative flex h-full min-h-0 shrink-0 flex-col overflow-hidden border-border bg-sidebar text-sidebar-foreground",
         !dragging && !reduceMotion && "transition-[width] duration-200 ease-out",
         visible && "border-l border-border",
       )}
@@ -362,7 +368,7 @@ export function AgentViewportDrawer() {
         aria-label="Resize agent viewport"
         onPointerDown={startResize}
       />
-      <header className="flex h-[52px] shrink-0 items-center gap-2 border-b border-white/10 bg-[#151515] px-3">
+      <header className="flex h-[52px] shrink-0 items-center gap-2 border-b border-sidebar-border bg-sidebar px-3">
         <nav ref={navRef} className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
           {tabOrder.map((tab) => {
             if (tab === "review" && showReviewTab) {
@@ -434,8 +440,8 @@ export function AgentViewportDrawer() {
         </IconButton>
       </header>
       {browserActive ? (
-        <section className="flex min-h-0 flex-1 flex-col bg-[#101010]">
-          <div className="grid h-14 shrink-0 grid-cols-[104px_minmax(0,1fr)_32px] items-center gap-3 border-b border-white/10 px-4">
+        <section className="flex min-h-0 flex-1 flex-col bg-sidebar">
+          <div className="grid h-14 shrink-0 grid-cols-[104px_minmax(0,1fr)_32px] items-center gap-3 border-b border-sidebar-border px-4">
             <div className="flex items-center gap-1">
               <IconButton
                 size="small"
@@ -443,7 +449,7 @@ export function AgentViewportDrawer() {
                 title="Back"
                 disabled={history.index <= 0}
                 onClick={() => moveHistory(-1)}
-                className="text-[#8f8f8f]"
+                className="text-muted-foreground"
               >
                 <ArrowLeft size={18} />
               </IconButton>
@@ -453,7 +459,7 @@ export function AgentViewportDrawer() {
                 title="Forward"
                 disabled={history.index >= history.entries.length - 1}
                 onClick={() => moveHistory(1)}
-                className="text-[#8f8f8f]"
+                className="text-muted-foreground"
               >
                 <ArrowRight size={18} />
               </IconButton>
@@ -463,7 +469,7 @@ export function AgentViewportDrawer() {
                 title="Reload preview"
                 onClick={reloadBrowser}
                 disabled={!session?.url}
-                className="text-[#8f8f8f]"
+                className="text-muted-foreground"
               >
                 <RotateCw size={15} />
               </IconButton>
@@ -481,12 +487,12 @@ export function AgentViewportDrawer() {
                 placeholder="Enter a URL"
                 spellCheck={false}
                 autoComplete="off"
-                className="h-10 rounded-[18px] border border-transparent bg-transparent px-5 pr-11 text-center text-[15px] text-foreground shadow-none transition-colors placeholder:text-[#8a8a8a] hover:bg-[#262626] focus:bg-transparent focus:text-left focus-visible:border-white/20 focus-visible:ring-0"
+                className="h-10 rounded-[18px] border border-transparent bg-transparent px-5 pr-11 text-center text-[15px] text-foreground shadow-none transition-colors placeholder:text-muted-foreground hover:bg-sidebar-accent focus:bg-transparent focus:text-left focus-visible:border-ring focus-visible:ring-0"
               />
               <button
                 type="submit"
                 aria-label="Open page or search"
-                className="absolute right-2 top-1/2 inline-flex size-7 -translate-y-1/2 items-center justify-center rounded-full text-[#8a8a8a] hover:bg-white/10 hover:text-foreground"
+                className="absolute right-2 top-1/2 inline-flex size-7 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:bg-sidebar-accent hover:text-foreground"
               >
                 <ExternalLink size={16} />
               </button>
@@ -506,9 +512,9 @@ export function AgentViewportDrawer() {
             </DropdownMenu>
           </div>
           {showHttpsWarning ? (
-            <HttpsPreviewWarning onOpenExternal={openExternal} reduceTransparency={reduceTransparency} />
+            <HttpsPreviewWarning onOpenExternal={openExternal} />
           ) : null}
-          <div className="relative min-h-0 flex-1 bg-[#101010]">
+          <div className="relative min-h-0 flex-1 bg-sidebar">
             {session?.url ? (
               <>
                 {frameOffloaded ? (
@@ -518,7 +524,7 @@ export function AgentViewportDrawer() {
                     key={frameSuspended ? "__suspended__" : `${session.url}#${frameNonce}`}
                     src={frameSuspended ? "about:blank" : session.url}
                     title="Viewport preview"
-                    className="h-full w-full border-0 bg-white"
+                    className="h-full w-full border-0 bg-background"
                     sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads"
                     referrerPolicy="no-referrer"
                     allow="clipboard-read; clipboard-write; fullscreen"
@@ -529,7 +535,7 @@ export function AgentViewportDrawer() {
                   <div
                     className={cn(
                       "pointer-events-none absolute inset-0 flex items-center justify-center",
-                      reduceTransparency ? "bg-[#101010]" : "bg-[#101010]/70",
+                      reduceTransparency ? "bg-sidebar" : "bg-sidebar/70",
                     )}
                   >
                     <Loader2 className={cn("size-5 text-muted-foreground", !reduceMotion && "animate-spin")} />
@@ -565,18 +571,11 @@ export function AgentViewportDrawer() {
 
 function HttpsPreviewWarning({
   onOpenExternal,
-  reduceTransparency,
 }: {
   onOpenExternal: () => void;
-  reduceTransparency: boolean;
 }) {
   return (
-    <div
-      className={cn(
-        "flex min-h-9 shrink-0 items-center gap-2 border-b border-amber-400/15 px-4 py-2 text-[12px]",
-        reduceTransparency ? "bg-[#2a2110] text-amber-100" : "bg-amber-400/[0.07] text-amber-200/90",
-      )}
-    >
+    <div className="flex min-h-9 shrink-0 items-center gap-2 border-b border-warning/15 px-4 py-2 text-[12px] bg-warning-soft text-warning">
       <AlertTriangle className="size-3.5 shrink-0" />
       <span className="min-w-0 flex-1 truncate">
         Some HTTPS sites block embedded previews. Open externally if this stays blank.
@@ -584,7 +583,7 @@ function HttpsPreviewWarning({
       <button
         type="button"
         onClick={onOpenExternal}
-        className="shrink-0 rounded-md px-2 py-1 text-amber-100 hover:bg-amber-100/10"
+        className="shrink-0 rounded-md px-2 py-1 text-warning hover:bg-warning-soft"
       >
         Open
       </button>
@@ -596,7 +595,7 @@ function BrowserNewTabEmpty() {
   return (
     <div className="flex h-full items-center justify-center px-6 text-center">
       <div className="-mt-10 flex flex-col items-center">
-        <Globe2 className="mb-8 size-20 text-[#969696]" strokeWidth={1.7} />
+        <Globe2 className="mb-8 size-20 text-muted-foreground" strokeWidth={1.7} />
         <div className="text-lg font-medium text-foreground">Start browsing</div>
         <div className="mt-3 text-base text-muted-foreground">Enter a URL or search with Google</div>
       </div>
@@ -631,10 +630,10 @@ function DrawerTab({
       onPointerDown={(event) => onPointerDown(tab, event)}
       style={{ touchAction: "none" }}
       className={cn(
-        "group inline-flex h-8 min-w-0 cursor-grab select-none items-center rounded-2xl text-sm font-medium transition-colors will-change-transform active:cursor-grabbing",
+        "group inline-flex h-8 min-w-0 cursor-grab select-none items-center rounded-2xl text-sm font-medium shadow-sm transition-colors will-change-transform active:cursor-grabbing",
         active
-          ? "bg-[#242424] text-foreground shadow-sm"
-          : "text-muted-foreground hover:bg-white/[0.06] hover:text-foreground",
+          ? "bg-sidebar-accent text-foreground"
+          : "text-muted-foreground hover:bg-sidebar-accent hover:text-foreground",
         isDragging && "relative z-10 shadow-lg",
         "[&_svg]:size-4",
       )}
@@ -656,7 +655,7 @@ function DrawerTab({
             event.stopPropagation();
             onClose();
           }}
-          className="mr-1 inline-flex size-5 items-center justify-center rounded-full text-muted-foreground opacity-70 hover:bg-white/10 hover:text-foreground group-hover:opacity-100"
+          className="mr-1 inline-flex size-5 items-center justify-center rounded-full text-muted-foreground opacity-70 hover:bg-sidebar-accent hover:text-foreground group-hover:opacity-100"
         >
           <X size={12} />
         </button>
