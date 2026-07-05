@@ -24,6 +24,7 @@ import type { CommandPaletteItem } from "./types";
 
 export type SettingsCommandContext = {
   openSettings: (tab: SettingsTab) => void;
+  openAdvancedSettings: () => void;
 };
 
 type SettingsEntry = {
@@ -34,7 +35,7 @@ type SettingsEntry = {
   keywords?: string[];
   icon: React.ElementType;
   getStateLabel?: () => string;
-  execute?: () => void;
+  execute?: (context: SettingsCommandContext) => void;
 };
 
 export const settingsRegistry: SettingsEntry[] = [
@@ -96,11 +97,12 @@ export const settingsRegistry: SettingsEntry[] = [
   },
   {
     id: "settings-advanced",
-    title: "Experimental Features",
-    description: "Advanced options and experimental controls",
-    tab: "advanced",
-    keywords: ["advanced", "experiment", "experimental", "features"],
+    title: "Advanced Settings",
+    description: "Experimental, developer, diagnostics, and low-level configuration",
+    tab: "general",
+    keywords: ["advanced", "experiment", "experimental", "features", "developer"],
     icon: SlidersHorizontal,
+    execute: ({ openAdvancedSettings }) => openAdvancedSettings(),
   },
   {
     id: "settings-theme",
@@ -158,7 +160,7 @@ export const settingsRegistry: SettingsEntry[] = [
     id: "settings-reduce-motion",
     title: "Reduce Motion",
     description: "Toggle reduced interface motion",
-    tab: "advanced",
+    tab: "general",
     keywords: ["animation", "performance", "accessibility"],
     icon: Zap,
     getStateLabel: () =>
@@ -178,7 +180,7 @@ export const settingsRegistry: SettingsEntry[] = [
     id: "settings-reduce-transparency",
     title: "Reduce Transparency",
     description: "Toggle solid interface surfaces",
-    tab: "advanced",
+    tab: "general",
     keywords: ["glass", "blur", "performance", "accessibility"],
     icon: Sparkles,
     getStateLabel: () =>
@@ -198,6 +200,7 @@ export const settingsRegistry: SettingsEntry[] = [
 
 export function useSettingsCommands({
   openSettings,
+  openAdvancedSettings,
 }: SettingsCommandContext): CommandPaletteItem[] {
   const settingsState = useSettingsStore(
     useShallow((state) => ({
@@ -223,10 +226,13 @@ export function useSettingsCommands({
           category: "setting" as const,
           keywords: entry.keywords,
           icon: <Icon size={16} />,
-          execute: entry.execute ?? (() => openSettings(entry.tab)),
+          execute: entry.execute
+            ? () => entry.execute?.({ openSettings, openAdvancedSettings })
+            : () => openSettings(entry.tab),
         };
       }),
     [
+      openAdvancedSettings,
       openSettings,
       settingsState.language,
       settingsState.notifications,

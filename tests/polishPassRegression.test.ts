@@ -103,7 +103,6 @@ describe("Poly polish pass guards", () => {
   it("removes hardcoded duration-200 and ease-out from active UI source", () => {
     const files = [
       "src/App.css",
-      "src/components/ui/native-select.tsx",
       "src/components/ui/select.tsx",
       "src/components/ui/input-group.tsx",
       "src/components/ui/visibility.tsx",

@@ -141,9 +141,10 @@ describe("chat screen regression guards", () => {
     const chatInput = read("src/features/chat/components/ChatInput.tsx");
     const profile = read("src/features/profile/ProfileMenu.tsx");
 
-    expect(css).toContain("--z-dropdown: calc(var(--z-titlebar) + 10)");
-    expect(css).toContain("--z-popover: calc(var(--z-titlebar) + 20)");
-    expect(css).toContain("--z-tooltip: calc(var(--z-titlebar) + 30)");
+    expect(css).toContain("--z-modal: calc(var(--z-titlebar) + 10)");
+    expect(css).toContain("--z-dropdown: calc(var(--z-titlebar) + 20)");
+    expect(css).toContain("--z-popover: calc(var(--z-titlebar) + 30)");
+    expect(css).toContain("--z-tooltip: calc(var(--z-titlebar) + 40)");
     expect(dropdown).toContain("z-50");
     expect(popover).toContain("z-[var(--z-popover)]");
     expect(tooltip).toContain("z-[var(--z-tooltip)]");

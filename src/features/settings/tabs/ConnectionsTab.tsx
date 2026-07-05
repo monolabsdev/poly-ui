@@ -30,6 +30,7 @@ import {
   Zap,
 } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { SectionHeader, SettingSurface } from "../SettingComponents";
 import { useNotify } from "@/hooks/useNotify";
 import { useOllama } from "@/features/ollama";
@@ -359,12 +360,12 @@ export function ConnectionsTab() {
     setAddApiKey("");
   };
 
-  const handleDelete = useCallback(
+  const [deleteTarget, setDeleteTarget] = useState<ProviderStatusResponse | null>(null);
+
+  const deleteProvider = useCallback(
     async (provider: ProviderStatusResponse) => {
-      const id = provider.config.id;
-      if (!confirm(`Delete "${lookupPreset(provider.config.preset, provider.config.api_base_url ?? null).label}" connection?`)) return;
       try {
-        await actions.deleteProvider(id);
+        await actions.deleteProvider(provider.config.id);
         notify.success("Connection deleted");
       } catch (err) {
         notify.error("Failed to delete", String(err));
@@ -421,7 +422,7 @@ export function ConnectionsTab() {
             provider={provider}
             updateProviderConfig={actions.updateProviderConfig}
             onDelete={
-              isOllamaLocal(provider) ? undefined : () => handleDelete(provider)
+              isOllamaLocal(provider) ? undefined : () => setDeleteTarget(provider)
             }
           />
         );
@@ -445,7 +446,7 @@ export function ConnectionsTab() {
             <X size={18} />
           </IconButton>
         </DialogTitle>
-        <DialogContent className="space-y-4">
+        <DialogContent className="flex flex-col gap-4">
           <Typography className="text-sm text-muted-foreground">
             Pick a provider preset or configure a custom connection.
           </Typography>
@@ -558,6 +559,24 @@ export function ConnectionsTab() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null);
+        }}
+        title="Delete connection?"
+        description={
+          deleteTarget
+            ? `Delete "${lookupPreset(deleteTarget.config.preset, deleteTarget.config.api_base_url ?? null).label}" connection?`
+            : undefined
+        }
+        confirmLabel="Delete"
+        destructive
+        onConfirm={() => {
+          if (deleteTarget) void deleteProvider(deleteTarget);
+        }}
+      />
     </Stack>
   );
 }

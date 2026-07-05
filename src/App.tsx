@@ -9,6 +9,7 @@ import {
 } from "react";
 import { useModelStore } from "@/store/modelStore";
 import { useSettingsStore } from "@/store/settingsStore";
+import "@/features/settings";
 import { getPresetContent } from "@/lib/constants/promptPresets";
 import { useOllama } from "@/features/ollama";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
@@ -37,6 +38,8 @@ import { useAutoSelectModel } from "@/hooks/useAutoSelectModel";
 import { useChatActionHandlers } from "@/hooks/useChatActionHandlers";
 import { useCommandPaletteItems } from "@/hooks/useCommandPaletteItems";
 import ChatWorkspace from "@/features/chat/components/ChatWorkspace";
+import { useViewStore } from "@/lib/view-registry";
+import { ADVANCED_SETTINGS_VIEW_ID } from "@/features/settings/settingsRegistry";
 import { GlobalConfirmDialog } from "./components/ui/GlobalConfirmDialog";
 import { useDevStore } from "@/store/devStore";
 import { getDevComponentGalleryAction } from "@/features/dev/componentGalleryAction";
@@ -101,6 +104,10 @@ function App() {
     setIsSettingsOpen(true);
   }, []);
   const handleCloseSettings = useCallback(() => setIsSettingsOpen(false), []);
+  const handleOpenAdvancedSettings = useCallback(() => {
+    setIsSettingsOpen(false);
+    useViewStore.getState().setActiveView(ADVANCED_SETTINGS_VIEW_ID);
+  }, []);
   const handleOpenCommandPalette = useCallback(() => {
     if (isAuthGateOpen) return;
     setIsCommandPaletteOpen(true);
@@ -223,6 +230,7 @@ function App() {
   const registeredActions = useRegisteredCommandPaletteActions();
   const settingsCommands = useSettingsCommands({
     openSettings: handleOpenSettings,
+    openAdvancedSettings: handleOpenAdvancedSettings,
   });
   const devComponentGalleryAction = useMemo(
     () => getDevComponentGalleryAction(import.meta.env.DEV, devMode),
@@ -287,6 +295,7 @@ function App() {
             isOpen={isSettingsOpen}
             onClose={handleCloseSettings}
             initialTab={settingsInitialTab}
+            onOpenAdvancedSettings={handleOpenAdvancedSettings}
           />
         ) : null}
       </Suspense>

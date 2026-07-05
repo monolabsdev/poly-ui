@@ -7,9 +7,14 @@ import { DialogActions } from "@/components/ui/dialog-panel";
 import { DialogContent } from "@/components/ui/dialog-panel";
 import { DialogTitle } from "@/components/ui/dialog-panel";
 import { Divider } from "@/components/ui/divider";
-import { FormControl } from "@/components/ui/native-select";
-import { MenuItem } from "@/components/ui/native-select";
-import { Select } from "@/components/ui/native-select";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Stack } from "@/components/ui/Stack";
 import { Switch } from "@/components/ui/switch";
@@ -255,12 +260,22 @@ export function MemoryTab() {
             title="Memory provider"
             description="Native local storage is active. Mem0 adapter lands in next phase."
             action={
-              <FormControl size="small">
-                <Select value={settingsReady.provider} onChange={(event) => saveSettings({ provider: event.target.value, locality: event.target.value === "disabled" ? "local" : "remote" })}>
-                  <MenuItem value="disabled">Disabled</MenuItem>
-                  <MenuItem value="mem0" disabled>Mem0</MenuItem>
-                </Select>
-              </FormControl>
+              <Select
+                value={settingsReady.provider}
+                onValueChange={(value) =>
+                  saveSettings({ provider: value, locality: value === "disabled" ? "local" : "remote" })
+                }
+              >
+                <SelectTrigger size="sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value="disabled">Disabled</SelectItem>
+                    <SelectItem value="mem0" disabled>Mem0</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
             }
           />
           <SettingCard
