@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import * as native from "./native";
+import type { AgentEditedFile, AgentToolCall } from "./types";
 
 /**
  * One viewport session at a time, scoped to the agent run that opened it.
@@ -25,13 +26,30 @@ export type ViewportSession = {
   openedAt: number;
 };
 
+export type ViewportTab = "review" | "browser";
+
+export type ViewportReview = {
+  workspacePath?: string;
+  initialPath?: string;
+  fallbackFiles: AgentEditedFile[];
+  toolCalls: Record<string, AgentToolCall>;
+};
+
 type ViewportStore = {
   session: ViewportSession | null;
+  review: ViewportReview | null;
+  browserOpen: boolean;
+  activeTab: ViewportTab;
   drawerOpen: boolean;
   drawerWidth: number;
   actions: {
     opened: (session: Omit<ViewportSession, "status" | "openedAt">) => void;
+    browserOpened: () => void;
+    browserClosed: () => void;
+    reviewOpened: (review: ViewportReview) => void;
+    reviewClosed: () => void;
     statusChanged: (phase: ViewportStatus, url: string) => void;
+    setActiveTab: (tab: ViewportTab) => void;
     setDrawerOpen: (open: boolean) => void;
     setDrawerWidth: (width: number) => void;
     clear: () => void;
@@ -50,15 +68,46 @@ function loadWidth(): number {
 
 export const useViewportStore = create<ViewportStore>((set) => ({
   session: null,
+  review: null,
+  browserOpen: false,
+  activeTab: "browser",
   drawerOpen: false,
   drawerWidth: loadWidth(),
   actions: {
     opened: (session) =>
-      set({ session: { ...session, status: "loading", openedAt: Date.now() }, drawerOpen: true }),
+      set({
+        session: { ...session, status: "loading", openedAt: Date.now() },
+        browserOpen: true,
+        activeTab: "browser",
+        drawerOpen: true,
+      }),
+    browserOpened: () => set({ browserOpen: true, activeTab: "browser", drawerOpen: true }),
+    browserClosed: () =>
+      set((state) => ({
+        session: null,
+        browserOpen: false,
+        activeTab: state.review ? "review" : "browser",
+        drawerOpen: Boolean(state.review),
+      })),
+    reviewOpened: (review) =>
+      set({ review, activeTab: "review", drawerOpen: true }),
+    reviewClosed: () =>
+      set((state) => ({
+        review: null,
+        activeTab: "browser",
+        drawerOpen: state.browserOpen,
+      })),
     statusChanged: (phase, url) =>
       set((state) => {
         if (!state.session) return state;
-        if (phase === "closed") return { session: null, drawerOpen: false };
+        if (phase === "closed") {
+          return {
+            session: null,
+            browserOpen: false,
+            activeTab: state.review ? "review" : "browser",
+            drawerOpen: Boolean(state.review),
+          };
+        }
         const navigatedAway = url !== "" && url !== state.session.url;
         return {
           session: {
@@ -71,12 +120,13 @@ export const useViewportStore = create<ViewportStore>((set) => ({
           },
         };
       }),
+    setActiveTab: (activeTab) => set({ activeTab, drawerOpen: true }),
     setDrawerOpen: (drawerOpen) => set({ drawerOpen }),
     setDrawerWidth: (drawerWidth) => {
       localStorage.setItem(WIDTH_STORAGE_KEY, String(drawerWidth));
       set({ drawerWidth });
     },
-    clear: () => set({ session: null, drawerOpen: false }),
+    clear: () => set({ session: null, review: null, browserOpen: false, drawerOpen: false }),
   },
 }));
 
@@ -181,6 +231,23 @@ export async function closeViewport(): Promise<void> {
   await native.agentViewportClose().catch(() => undefined);
 }
 
+/** Open the drawer to a blank browser tab for manual navigation. */
+export function openEmptyViewport(): void {
+  useViewportStore.getState().actions.browserOpened();
+}
+
+/** Close only the browser tab; keep an open review tab alive. */
+export function closeViewportBrowser(): void {
+  const hadSession = Boolean(useViewportStore.getState().session);
+  useViewportStore.getState().actions.browserClosed();
+  if (hadSession) void native.agentViewportClose().catch(() => undefined);
+}
+
+/** Close only the review tab; keep an open browser tab alive. */
+export function closeViewportReview(): void {
+  useViewportStore.getState().actions.reviewClosed();
+}
+
 /** Hide the drawer but keep the session and page state alive. */
 export function hideViewportDrawer(): void {
   useViewportStore.getState().actions.setDrawerOpen(false);
@@ -188,9 +255,14 @@ export function hideViewportDrawer(): void {
 }
 
 export function showViewportDrawer(): void {
-  if (useViewportStore.getState().session) {
+  const state = useViewportStore.getState();
+  if (state.browserOpen || state.session || state.review) {
     useViewportStore.getState().actions.setDrawerOpen(true);
   }
+}
+
+export function openViewportReview(review: ViewportReview): void {
+  useViewportStore.getState().actions.reviewOpened(review);
 }
 
 export function reloadViewport(): Promise<void> {

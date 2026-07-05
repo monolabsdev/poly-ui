@@ -21,6 +21,7 @@ import {
   ScrollText,
   Check,
   Brain,
+  PanelRightOpen,
 } from "lucide-react";
 import { PROMPT_PRESETS, type PromptPresetId } from "@/lib/constants/promptPresets";
 import { useSettingsStore } from "@/store/settingsStore";
@@ -33,6 +34,7 @@ import {
   useMemoryPanelOpen,
 } from "@/features/memory/MemoryPanel";
 import { useConversationMemoryCount } from "@/features/memory/useConversationMemoryCount";
+import { openEmptyViewport } from "@/features/agent/viewportStore";
 
 
 interface HeaderProps {
@@ -296,6 +298,15 @@ export const Header = memo(function Header({
                 strokeDasharray="2.5 3.5"
               ></path>
             </svg>
+          </IconButton>
+        </Tooltip>
+        <Tooltip title="Open viewport drawer">
+          <IconButton
+            aria-label="Open viewport drawer"
+            onClick={openEmptyViewport}
+            size="small"
+          >
+            <PanelRightOpen size={16} />
           </IconButton>
         </Tooltip>
 

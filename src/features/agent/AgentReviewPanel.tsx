@@ -3,7 +3,7 @@ import { Box } from "@/components/ui/Box";
 import { CircularProgress } from "@/components/ui/spinner";
 import { IconButton } from "@/components/ui/icon-button";
 import { Typography } from "@/components/ui/Typography";
-import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 
 import { FileDiff, X } from "lucide-react";
 import { highlight } from "sugar-high";
@@ -14,6 +14,15 @@ import type { AgentChangedFile, AgentEditedFile, AgentToolCall } from "./types";
 
 type AgentReviewPanelProps = {
   open: boolean;
+  workspacePath?: string;
+  initialPath?: string;
+  fallbackFiles?: AgentEditedFile[];
+  toolCalls?: Record<string, AgentToolCall>;
+  onClose: () => void;
+};
+
+type AgentReviewContentProps = {
+  active: boolean;
   workspacePath?: string;
   initialPath?: string;
   fallbackFiles?: AgentEditedFile[];
@@ -50,6 +59,34 @@ export function AgentReviewPanel({
   toolCalls = {},
   onClose,
 }: AgentReviewPanelProps) {
+  return (
+    <Sheet open={open} onOpenChange={(next) => !next && onClose()}>
+      <SheetContent
+        side="right"
+        showCloseButton={false}
+        className="min-h-0 w-screen gap-0 bg-background text-foreground sm:w-[760px] sm:max-w-none lg:w-[900px]"
+      >
+        <AgentReviewContent
+          active={open}
+          workspacePath={workspacePath}
+          initialPath={initialPath}
+          fallbackFiles={fallbackFiles}
+          toolCalls={toolCalls}
+          onClose={onClose}
+        />
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+export function AgentReviewContent({
+  active,
+  workspacePath,
+  initialPath,
+  fallbackFiles = [],
+  toolCalls = {},
+  onClose,
+}: AgentReviewContentProps) {
   const [files, setFiles] = useState<AgentChangedFile[]>([]);
   const [diffs, setDiffs] = useState<Record<string, string>>({});
   const [loadingFiles, setLoadingFiles] = useState(false);
@@ -59,12 +96,12 @@ export function AgentReviewPanel({
   const [selectedPath, setSelectedPath] = useState<string | undefined>();
 
   useEffect(() => {
-    if (!open) return;
+    if (!active) return;
     setSelectedPath(initialPath);
-  }, [initialPath, open]);
+  }, [active, initialPath]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!active) return;
     let cancelled = false;
     const fallbackFilesNext = fallbackChangedFiles(fallbackFiles);
     setFiles(fallbackFilesNext);
@@ -95,10 +132,10 @@ export function AgentReviewPanel({
     return () => {
       cancelled = true;
     };
-  }, [fallbackFiles, open, workspacePath]);
+  }, [active, fallbackFiles, workspacePath]);
 
   useEffect(() => {
-    if (!open || files.length === 0) {
+    if (!active || files.length === 0) {
       setDiffs({});
       return;
     }
@@ -139,7 +176,7 @@ export function AgentReviewPanel({
     return () => {
       cancelled = true;
     };
-  }, [files, open, toolCalls, workspacePath]);
+  }, [active, files, toolCalls, workspacePath]);
 
   const totals = useMemo(
     () => ({
@@ -154,10 +191,10 @@ export function AgentReviewPanel({
   }, [files, initialPath]);
 
   useEffect(() => {
-    if (!open || orderedFiles.length === 0) return;
+    if (!active || orderedFiles.length === 0) return;
     if (selectedPath && orderedFiles.some((file) => file.path === selectedPath)) return;
     setSelectedPath(orderedFiles[0].path);
-  }, [open, orderedFiles, selectedPath]);
+  }, [active, orderedFiles, selectedPath]);
 
   const selectedFile = orderedFiles.find((file) => file.path === selectedPath) ?? orderedFiles[0];
   const selectedDiffLines = useMemo(
@@ -167,72 +204,68 @@ export function AgentReviewPanel({
   const selectedLanguage = selectedFile ? getDiffLanguage(selectedFile.path) : undefined;
 
   return (
-    <Sheet open={open} onOpenChange={(next) => !next && onClose()}>
-      <SheetContent
-        side="right"
-        showCloseButton={false}
-        className="min-h-0 w-screen gap-0 bg-background text-foreground sm:w-[760px] sm:max-w-none lg:w-[900px]"
-      >
-        <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-3">
-          <FileDiff className="size-4 shrink-0 text-muted-foreground" />
-          <Box className="min-w-0 flex-1">
-            <SheetTitle className="truncate text-sm font-medium">
-              Review changes
-            </SheetTitle>
-            <SheetDescription className="truncate text-xs">
-              {files.length ? `${files.length} changed ${files.length === 1 ? "file" : "files"} · +${totals.additions} -${totals.deletions}` : "Last turn"}
-            </SheetDescription>
-          </Box>
-          <span className="shrink-0 rounded-full border border-border bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-            Git diff
-          </span>
-          <IconButton size="small" onClick={onClose} aria-label="Close review" title="Close review">
-            <X size={14} />
-          </IconButton>
-        </header>
-
-        <Box className="min-h-0 flex-1 overflow-hidden">
-          {loadingFiles && files.length === 0 ? (
-            <PanelState icon={<CircularProgress size={16} />} label="Loading changed files..." />
-          ) : error ? (
-            <PanelState label={error} />
-          ) : orderedFiles.length === 0 ? (
-            <PanelState label="No diff data available for this run." />
-          ) : (
-            <Box className="h-full min-h-0">
-              <section className="flex min-h-0 min-w-0 flex-col">
-                <Box className="flex h-11 shrink-0 items-center gap-2 border-b border-border px-3">
-                  <Typography className="min-w-0 flex-1 truncate text-sm font-medium">
-                    {selectedFile?.path}
-                  </Typography>
-                  {selectedLanguage ? (
-                    <span className="shrink-0 rounded-full border border-border bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
-                      {selectedLanguage}
-                    </span>
-                  ) : null}
-                </Box>
-
-                {selectedFile && loadingDiff && !diffs[selectedFile.path] ? (
-                  <PanelState icon={<CircularProgress size={18} />} label="Loading diff..." />
-                ) : selectedFile && diffError[selectedFile.path] ? (
-                  <PanelState label={diffError[selectedFile.path]} />
-                ) : selectedDiffLines.length === 0 ? (
-                  <PanelState label="No file diff available." />
-                ) : (
-                  <Box className="min-h-0 flex-1 overflow-auto bg-muted/10">
-                    <Box as="pre" className="min-w-max p-3 font-mono text-[12px] leading-5">
-                      {selectedDiffLines.map((line) => (
-                        <DiffRow key={`${selectedFile.path}-${line.id}`} line={line} language={selectedLanguage} />
-                      ))}
-                    </Box>
-                  </Box>
-                )}
-              </section>
-            </Box>
-          )}
+    <div className="flex h-full min-h-0 flex-col bg-background text-foreground">
+      <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-3">
+        <FileDiff className="size-4 shrink-0 text-muted-foreground" />
+        <Box className="min-w-0 flex-1">
+          <Typography className="truncate text-sm font-medium">
+            Review changes
+          </Typography>
+          <Typography className="truncate text-xs text-muted-foreground">
+            {files.length
+              ? `${files.length} changed ${files.length === 1 ? "file" : "files"} · +${totals.additions} -${totals.deletions}`
+              : "Last turn"}
+          </Typography>
         </Box>
-      </SheetContent>
-    </Sheet>
+        <span className="shrink-0 rounded-full border border-border bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+          Git diff
+        </span>
+        <IconButton size="small" onClick={onClose} aria-label="Close review" title="Close review">
+          <X size={14} />
+        </IconButton>
+      </header>
+
+      <Box className="min-h-0 flex-1 overflow-hidden">
+        {loadingFiles && files.length === 0 ? (
+          <PanelState icon={<CircularProgress size={16} />} label="Loading changed files..." />
+        ) : error ? (
+          <PanelState label={error} />
+        ) : orderedFiles.length === 0 ? (
+          <PanelState label="No diff data available for this run." />
+        ) : (
+          <Box className="h-full min-h-0">
+            <section className="flex min-h-0 min-w-0 flex-col">
+              <Box className="flex h-11 shrink-0 items-center gap-2 border-b border-border px-3">
+                <Typography className="min-w-0 flex-1 truncate text-sm font-medium">
+                  {selectedFile?.path}
+                </Typography>
+                {selectedLanguage ? (
+                  <span className="shrink-0 rounded-full border border-border bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
+                    {selectedLanguage}
+                  </span>
+                ) : null}
+              </Box>
+
+              {selectedFile && loadingDiff && !diffs[selectedFile.path] ? (
+                <PanelState icon={<CircularProgress size={18} />} label="Loading diff..." />
+              ) : selectedFile && diffError[selectedFile.path] ? (
+                <PanelState label={diffError[selectedFile.path]} />
+              ) : selectedDiffLines.length === 0 ? (
+                <PanelState label="No file diff available." />
+              ) : (
+                <Box className="min-h-0 flex-1 overflow-auto bg-muted/10">
+                  <Box as="pre" className="min-w-max p-3 font-mono text-[12px] leading-5">
+                    {selectedDiffLines.map((line) => (
+                      <DiffRow key={`${selectedFile.path}-${line.id}`} line={line} language={selectedLanguage} />
+                    ))}
+                  </Box>
+                </Box>
+              )}
+            </section>
+          </Box>
+        )}
+      </Box>
+    </div>
   );
 }
 
