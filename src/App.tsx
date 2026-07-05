@@ -29,6 +29,7 @@ import { useFolderStore } from "@/store/folderStore";
 import type { SettingsTab } from "./features/settings/SettingsModal";
 import { ArchivedChatsDialog } from "@/features/chat/components/ArchivedChatsDialog";
 import type { CommandPaletteItem } from "@/features/command-palette/types";
+import { CommandPalette } from "@/features/command-palette/CommandPalette";
 import { useRegisteredCommandPaletteActions } from "@/features/command-palette/actionRegistry";
 import { useSettingsCommands } from "@/features/command-palette/settingsRegistry";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
@@ -54,11 +55,6 @@ const ReleaseNotesModalLazy = lazy(() =>
 const SettingsModalLazy = lazy(() =>
   import("@/features/settings/SettingsModal").then((module) => ({
     default: module.SettingsModal,
-  })),
-);
-const CommandPaletteLazy = lazy(() =>
-  import("@/features/command-palette/CommandPalette").then((module) => ({
-    default: module.CommandPalette,
   })),
 );
 function App() {
@@ -298,13 +294,11 @@ function App() {
         open={isArchivedOpen}
         onOpenChange={setIsArchivedOpen}
       />
-      <Suspense fallback={null}>
-        <CommandPaletteLazy
-          open={!isAuthGateOpen && isCommandPaletteOpen}
-          onOpenChange={setIsCommandPaletteOpen}
-          items={commandPaletteItems as CommandPaletteItem[]}
-        />
-      </Suspense>
+      <CommandPalette
+        open={!isAuthGateOpen && isCommandPaletteOpen}
+        onOpenChange={setIsCommandPaletteOpen}
+        items={commandPaletteItems as CommandPaletteItem[]}
+      />
       <GlobalConfirmDialog />
       <Suspense fallback={null}>
         <AuthModalLazy />

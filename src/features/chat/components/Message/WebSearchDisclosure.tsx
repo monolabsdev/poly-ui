@@ -7,9 +7,15 @@ import {
   ReasoningContent,
 } from "@/components/ui/reasoning";
 import type { SearchResultItem } from "@/types/chat";
-import { viewportLinkClickCapture } from "@/features/agent/viewportStore";
+import { LinkContextMenu } from "@/components/ui/link";
 
 const MAX_HIGHLIGHT_LENGTH = 160;
+
+function truncateHighlight(text: string) {
+  return text.length > MAX_HIGHLIGHT_LENGTH
+    ? text.slice(0, MAX_HIGHLIGHT_LENGTH) + "…"
+    : text;
+}
 
 interface WebSearchDisclosureProps {
   isSearching: boolean;
@@ -36,11 +42,6 @@ export const WebSearchDisclosure = React.memo(
       ? `Searching for "${query}"…`
       : `Searched for "${query}"${hasResults ? ` · ${count} source${count === 1 ? "" : "s"}` : ""}`;
 
-    const truncate = (text: string) =>
-      text.length > MAX_HIGHLIGHT_LENGTH
-        ? text.slice(0, MAX_HIGHLIGHT_LENGTH) + "…"
-        : text;
-
     return (
       <Reasoning
         open={isExpanded}
@@ -62,20 +63,22 @@ export const WebSearchDisclosure = React.memo(
         </ReasoningTrigger>
         {hasResults && (
           <ReasoningContent>
-            <div className="flex flex-col gap-2.5" onClickCapture={viewportLinkClickCapture}>
+            <div className="flex flex-col gap-2.5">
               {results?.map((result, i) => (
                 <div key={`${result.url}-${i}`} className="flex flex-col gap-0.5">
-                  <a
-                    href={result.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-fit font-medium text-foreground hover:underline"
-                  >
-                    {result.title}
-                  </a>
+                  <LinkContextMenu href={result.url}>
+                    <a
+                      href={result.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-fit font-medium text-foreground hover:underline"
+                    >
+                      {result.title}
+                    </a>
+                  </LinkContextMenu>
                   {result.highlights?.map((highlight, j) => (
                     <span key={j} className="text-muted-foreground">
-                      {truncate(highlight)}
+                      {truncateHighlight(highlight)}
                     </span>
                   ))}
                 </div>

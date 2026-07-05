@@ -9,10 +9,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import {
-  InputGroup,
-  InputGroupAddon,
-} from "@/components/ui/input-group"
 import { SearchIcon, CheckIcon } from "lucide-react"
 
 function Command({
@@ -52,7 +48,7 @@ function CommandDialog({
       </DialogHeader>
       <DialogContent
         className={cn(
-          "top-1/3 translate-y-0 overflow-hidden rounded-3xl! p-0",
+          "overflow-hidden rounded-3xl! p-0",
           className
         )}
         showCloseButton={showCloseButton}
@@ -68,20 +64,16 @@ function CommandInput({
   ...props
 }: React.ComponentProps<typeof CommandPrimitive.Input>) {
   return (
-    <div data-slot="command-input-wrapper" className="p-1 pb-0">
-      <InputGroup className="h-8! bg-input/50">
-        <CommandPrimitive.Input
-          data-slot="command-input"
-          className={cn(
-            "w-full text-sm outline-hidden disabled:cursor-not-allowed disabled:opacity-50",
-            className
-          )}
-          {...props}
-        />
-        <InputGroupAddon>
-          <SearchIcon className="size-4 shrink-0 opacity-50" />
-        </InputGroupAddon>
-      </InputGroup>
+    <div data-slot="command-input-wrapper" className="flex items-center gap-3 px-5 py-4">
+      <SearchIcon className="size-[15px] shrink-0 text-muted-foreground" />
+      <CommandPrimitive.Input
+        data-slot="command-input"
+        className={cn(
+          "min-w-0 flex-1 bg-transparent text-sm text-foreground outline-hidden disabled:cursor-not-allowed disabled:opacity-50",
+          className
+        )}
+        {...props}
+      />
     </div>
   )
 }
