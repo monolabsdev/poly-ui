@@ -8,6 +8,17 @@ export function normalizeAppVersion(version: unknown): string | null {
   return normalized || null;
 }
 
+// ponytail: plain x.y.z numeric compare; add prerelease handling if we ever ship -beta tags
+export function compareAppVersions(a: string, b: string): number {
+  const pa = (normalizeAppVersion(a) ?? "").split(".").map(Number);
+  const pb = (normalizeAppVersion(b) ?? "").split(".").map(Number);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const d = (pa[i] || 0) - (pb[i] || 0);
+    if (d) return d < 0 ? -1 : 1;
+  }
+  return 0;
+}
+
 export function getBundledAppVersion(): string | null {
   try {
     return normalizeAppVersion(__APP_VERSION__);

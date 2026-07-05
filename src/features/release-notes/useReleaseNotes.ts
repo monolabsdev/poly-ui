@@ -1,58 +1,50 @@
 import { useEffect, useState, useCallback, useRef } from "react";
-import { fetchReleaseNotes, type ReleaseNotesResult } from "./releaseNotesApi";
+import { loadUnseenReleases, type Release } from "./releaseNotesApi";
 import { getLastSeenVersion, setLastSeenVersion } from "./releaseNotesStorage";
-import { getInstalledAppVersion } from "@/lib/utils/appVersion";
+import { getInstalledAppVersion, compareAppVersions } from "@/lib/utils/appVersion";
 
 export interface ReleaseNotesState {
   show: boolean;
   loading: boolean;
-  data: ReleaseNotesResult | null;
-  version: string | null;
-  isFirstLaunchForVersion: boolean;
+  releases: Release[];
   dismiss: () => void;
 }
 
 export function useReleaseNotes(): ReleaseNotesState {
-  const [state, setState] = useState<ReleaseNotesState>(() => ({
-    show: false,
-    loading: true,
-    data: null,
-    version: null,
-    isFirstLaunchForVersion: false,
-    dismiss: () => {},
-  }));
-
-  const fetchedRef = useRef(false);
+  const [show, setShow] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [releases, setReleases] = useState<Release[]>([]);
+  const versionRef = useRef<string | null>(null);
+  const startedRef = useRef(false);
 
   useEffect(() => {
-    if (fetchedRef.current) return;
-    fetchedRef.current = true;
+    if (startedRef.current) return;
+    startedRef.current = true;
     let cancelled = false;
 
     void (async () => {
-      const currentVersion = await getInstalledAppVersion();
+      const installed = await getInstalledAppVersion();
       if (cancelled) return;
-      if (!currentVersion) {
-        setState((prev) => ({ ...prev, loading: false }));
+      versionRef.current = installed;
+      if (!installed) {
+        setLoading(false);
         return;
       }
 
       const lastSeen = getLastSeenVersion();
-      if (lastSeen === currentVersion) {
-        setState((prev) => ({ ...prev, loading: false, version: currentVersion }));
+      if (lastSeen && compareAppVersions(lastSeen, installed) >= 0) {
+        setLoading(false);
         return;
       }
 
-      const data = await fetchReleaseNotes(currentVersion);
+      const unseen = await loadUnseenReleases(installed, lastSeen);
       if (cancelled) return;
-      setState((prev) => ({
-        ...prev,
-        show: true,
-        loading: false,
-        data,
-        version: currentVersion,
-        isFirstLaunchForVersion: true,
-      }));
+      setLoading(false);
+      if (unseen.length > 0) {
+        setReleases(unseen);
+        setShow(true);
+      }
+      // Nothing loadable: stay hidden and retry on next launch.
     })();
 
     return () => {
@@ -60,28 +52,19 @@ export function useReleaseNotes(): ReleaseNotesState {
     };
   }, []);
 
+  // Settings "Test Release Notes" button.
   useEffect(() => {
     const handler = () => {
       void (async () => {
-        const v = await getInstalledAppVersion();
-        if (!v) return;
-        setState((prev) => ({
-          ...prev,
-          show: true,
-          loading: true,
-          data: null,
-          version: v,
-          isFirstLaunchForVersion: true,
-        }));
-        const data = await fetchReleaseNotes(v);
-        setState((prev) => ({
-          ...prev,
-          show: true,
-          loading: false,
-          data,
-          version: v,
-          isFirstLaunchForVersion: true,
-        }));
+        const installed = await getInstalledAppVersion();
+        if (!installed) return;
+        versionRef.current = installed;
+        setShow(true);
+        setLoading(true);
+        // ponytail: "0.0.0" = every release; sliced so the demo shows the multi-release layout
+        const unseen = (await loadUnseenReleases(installed, "0.0.0")).slice(0, 3);
+        setReleases(unseen);
+        setLoading(false);
       })();
     };
     window.addEventListener("force-release-notes", handler);
@@ -89,10 +72,9 @@ export function useReleaseNotes(): ReleaseNotesState {
   }, []);
 
   const dismiss = useCallback(() => {
-    const v = state.version;
-    if (v) setLastSeenVersion(v);
-    setState((prev) => ({ ...prev, show: false, isFirstLaunchForVersion: false }));
-  }, [state.version]);
+    if (versionRef.current) setLastSeenVersion(versionRef.current);
+    setShow(false);
+  }, []);
 
-  return { ...state, dismiss };
+  return { show, loading, releases, dismiss };
 }
