@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import {
+  AlertTriangle,
   ArrowLeft,
   ArrowRight,
   ExternalLink,
@@ -7,7 +8,7 @@ import {
   Globe2,
   Loader2,
   MoreVertical,
-  PanelRightClose,
+  PanelRightIcon,
   Plus,
   RotateCw,
   X,
@@ -22,86 +23,86 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { useSettingsStore } from "@/store/settingsStore";
 import * as native from "./native";
 import { AgentReviewContent } from "./AgentReviewPanel";
-import { resolveBrowserInput } from "./browserNavigation";
+import {
+  moveBrowserHistory,
+  pushBrowserHistory,
+  resolveBrowserInput,
+  type BrowserHistoryState,
+} from "./browserNavigation";
 import {
   closeViewportBrowser,
   closeViewportReview,
   hideViewportDrawer,
   openEmptyViewport,
+  openViewportPreviewUrl,
   openViewportReview,
-  openViewportUrl,
   reloadViewport,
   useViewportStore,
   VIEWPORT_MAX_WIDTH,
   VIEWPORT_MIN_WIDTH,
+  type ViewportTab,
 } from "./viewportStore";
 
-const BADGE_TEXT = { agent: "Opened by Agent", chat: "Opened by AI", user: null } as const;
+type TabDragState = {
+  tab: ViewportTab;
+  pointerId: number;
+  startX: number;
+  startCenter: number;
+  deltaX: number;
+  minX: number;
+  maxX: number;
+  fromIndex: number;
+  previewIndex: number;
+  rects: Array<{ tab: ViewportTab; left: number; width: number; center: number }>;
+};
+
 export function AgentViewportDrawer() {
   const session = useViewportStore((state) => state.session);
   const review = useViewportStore((state) => state.review);
   const browserOpen = useViewportStore((state) => state.browserOpen);
   const activeTab = useViewportStore((state) => state.activeTab);
+  const tabOrder = useViewportStore((state) => state.tabOrder);
   const open = useViewportStore((state) => state.drawerOpen);
   const width = useViewportStore((state) => state.drawerWidth);
   const setActiveTab = useViewportStore((state) => state.actions.setActiveTab);
+  const moveTab = useViewportStore((state) => state.actions.moveTab);
   const setDrawerWidth = useViewportStore((state) => state.actions.setDrawerWidth);
-  const asideRef = useRef<HTMLElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
+  const reduceMotion = useSettingsStore((state) => state.performance.reduceMotion);
+  const reduceTransparency = useSettingsStore((state) => state.performance.reduceTransparency);
   const [dragging, setDragging] = useState(false);
   const [url, setUrl] = useState("");
+  const [frameNonce, setFrameNonce] = useState(0);
+  const [frameLoading, setFrameLoading] = useState(false);
+  const [draggingTab, setDraggingTab] = useState<ViewportTab | null>(null);
+  const [history, setHistory] = useState<BrowserHistoryState>({ entries: [], index: -1 });
+  const historyMoveRef = useRef(false);
+  const navRef = useRef<HTMLElement>(null);
+  const dragStateRef = useRef<TabDragState | null>(null);
+  const tabRefs = useRef<Record<ViewportTab, HTMLDivElement | null>>({ browser: null, review: null });
 
   useEffect(() => {
-    if (session?.url) setUrl(session.url);
-  }, [session?.url]);
+    if (open) void native.agentViewportHide().catch(() => undefined);
+  }, [open, activeTab]);
 
-  // The page itself is a native child webview (src-tauri/src/agent_viewport.rs)
-  // layered over the window; keep its bounds glued to the content box. CSS px
-  // equal Tauri logical px because the main webview fills the window.
   useEffect(() => {
-    const el = contentRef.current;
-    if (!session || !open || activeTab !== "browser" || !el) {
-      void native.agentViewportHide().catch(() => undefined);
+    if (!session?.url) {
+      setFrameLoading(false);
       return;
     }
-    let frame = 0;
-    let last = "";
-    const sync = () => {
-      if (frame) return;
-      frame = requestAnimationFrame(() => {
-        frame = 0;
-        const rect = el.getBoundingClientRect();
-        const bounds = {
-          x: Math.round(rect.x),
-          y: Math.round(rect.y),
-          width: Math.round(rect.width),
-          height: Math.round(rect.height),
-        };
-        const key = `${bounds.x}:${bounds.y}:${bounds.width}:${bounds.height}`;
-        if (key === last || bounds.width <= 0 || bounds.height <= 0) return;
-        last = key;
-        void native.agentViewportSetBounds(bounds).catch(() => undefined);
-      });
-    };
-    sync();
-    const observer = new ResizeObserver(sync);
-    observer.observe(el);
-    // Sidebar collapse and window resizes move the drawer without resizing
-    // the content box; the slide-in transition only moves it via transform.
-    const main = el.closest("main");
-    if (main) observer.observe(main);
-    window.addEventListener("resize", sync);
-    const aside = asideRef.current;
-    aside?.addEventListener("transitionend", sync);
-    return () => {
-      if (frame) cancelAnimationFrame(frame);
-      observer.disconnect();
-      window.removeEventListener("resize", sync);
-      aside?.removeEventListener("transitionend", sync);
-    };
-  }, [activeTab, open, session]);
+    setUrl(session.url);
+    setFrameLoading(true);
+    setFrameNonce((nonce) => nonce + 1);
+    setHistory((state) => {
+      if (historyMoveRef.current) {
+        historyMoveRef.current = false;
+        return state;
+      }
+      return pushBrowserHistory(state, session.url);
+    });
+  }, [session?.url]);
 
   const startResize = (event: ReactPointerEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -127,21 +128,35 @@ export function AgentViewportDrawer() {
     window.addEventListener("pointerup", onUp, { once: true });
   };
 
-  const loading = session?.status === "loading";
-  const badge = session ? BADGE_TEXT[session.openedBy] : null;
   const showBrowserTab = browserOpen || Boolean(session);
   const showReviewTab = Boolean(review);
   const visible = Boolean(open && (showBrowserTab || showReviewTab));
   const browserActive = activeTab === "browser";
   const reviewActive = activeTab === "review";
+  const browserLoading = Boolean(session?.url && frameLoading);
+  const showHttpsWarning = Boolean(session?.url && isHttpsUrl(session.url));
 
   const openTypedUrl = () => {
     const href = resolveBrowserInput(url);
     if (!href) return;
-    void openViewportUrl({
+    openViewportPreviewUrl({
       runId: "user",
       chatId: null,
       url: href,
+      reason: null,
+      openedBy: "user",
+    });
+  };
+
+  const moveHistory = (delta: -1 | 1) => {
+    const moved = moveBrowserHistory(history, delta);
+    if (!moved.url) return;
+    historyMoveRef.current = true;
+    setHistory(moved.state);
+    openViewportPreviewUrl({
+      runId: "user",
+      chatId: null,
+      url: moved.url,
       reason: null,
       openedBy: "user",
     });
@@ -153,44 +168,186 @@ export function AgentViewportDrawer() {
     void openUrl(href).catch(() => window.open(href, "_blank", "noopener,noreferrer"));
   };
 
+  const reloadBrowser = () => {
+    if (!session?.url) return;
+    setFrameLoading(true);
+    setFrameNonce((nonce) => nonce + 1);
+    if (session.openedBy === "agent") void reloadViewport().catch(() => undefined);
+  };
+
+  const startTabDrag = (tab: ViewportTab, event: ReactPointerEvent<HTMLElement>) => {
+    if (event.button !== 0 || (event.target as HTMLElement).closest("[data-tab-close]")) return;
+    event.preventDefault();
+    const tabEl = tabRefs.current[tab];
+    const navEl = navRef.current;
+    if (!tabEl || !navEl) return;
+    const tabRect = tabEl.getBoundingClientRect();
+    const navRect = navEl.getBoundingClientRect();
+    const rects = tabOrder
+      .map((item) => {
+        const el = tabRefs.current[item];
+        if (!el) return null;
+        const rect = el.getBoundingClientRect();
+        return { tab: item, left: rect.left, width: rect.width, center: rect.left + rect.width / 2 };
+      })
+      .filter((item): item is { tab: ViewportTab; left: number; width: number; center: number } => Boolean(item));
+    const fromIndex = rects.findIndex((item) => item.tab === tab);
+    if (fromIndex < 0) return;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragStateRef.current = {
+      tab,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startCenter: tabRect.left + tabRect.width / 2,
+      deltaX: 0,
+      minX: navRect.left - tabRect.left,
+      maxX: navRect.right - tabRect.right,
+      fromIndex,
+      previewIndex: fromIndex,
+      rects,
+    };
+    setDraggingTab(tab);
+    const target = event.currentTarget;
+    const pointerId = event.pointerId;
+    const moveDrag = (move: globalThis.PointerEvent) => {
+      if (move.pointerId !== pointerId) return;
+      moveTabDrag(move);
+    };
+    const stopDrag = (up: globalThis.PointerEvent) => {
+      if (up.pointerId !== pointerId) return;
+      window.removeEventListener("pointermove", moveDrag);
+      window.removeEventListener("pointerup", stopDrag);
+      window.removeEventListener("pointercancel", stopDrag);
+      finishTabDrag(pointerId, target, up.type !== "pointercancel");
+    };
+    window.addEventListener("pointermove", moveDrag, { passive: false });
+    window.addEventListener("pointerup", stopDrag);
+    window.addEventListener("pointercancel", stopDrag);
+  };
+
+  const moveTabDrag = (event: globalThis.PointerEvent) => {
+    const state = dragStateRef.current;
+    if (!state || state.pointerId !== event.pointerId) return;
+    event.preventDefault();
+    state.deltaX = Math.min(state.maxX, Math.max(state.minX, event.clientX - state.startX));
+    state.previewIndex = getPreviewTabIndex(state);
+    applyTabDragTransforms(state);
+  };
+
+  const finishTabDrag = (pointerId: number, targetEl: HTMLElement, commit: boolean) => {
+    const state = dragStateRef.current;
+    if (!state || state.pointerId !== pointerId) return;
+    if (targetEl.hasPointerCapture(pointerId)) {
+      targetEl.releasePointerCapture(pointerId);
+    }
+    dragStateRef.current = null;
+    setDraggingTab(null);
+    const target = state.rects[state.previewIndex];
+    if (commit && target && state.previewIndex !== state.fromIndex) {
+      moveTab(state.tab, target.tab, state.previewIndex < state.fromIndex ? "before" : "after");
+      requestAnimationFrame(resetTabDragTransforms);
+    } else {
+      resetTabDragTransforms();
+    }
+  };
+
+  const getPreviewTabIndex = (state: TabDragState) => {
+    const draggedCenter = state.startCenter + state.deltaX;
+    let previewIndex = state.fromIndex;
+    state.rects.forEach((rect, index) => {
+      if (index > state.fromIndex && draggedCenter > rect.center) previewIndex = index;
+      if (index < state.fromIndex && draggedCenter < rect.center) previewIndex = index;
+    });
+    return previewIndex;
+  };
+
+  const applyTabDragTransforms = (state: TabDragState) => {
+    const rects = state.rects;
+    rects.forEach((rect, index) => {
+      const el = tabRefs.current[rect.tab];
+      if (!el) return;
+      el.style.transition = "none";
+      if (rect.tab === state.tab) {
+        el.style.transform = `translate3d(${state.deltaX}px, 0, 0)`;
+        return;
+      }
+      let offset = 0;
+      if (state.previewIndex > state.fromIndex && index > state.fromIndex && index <= state.previewIndex) {
+        offset = rects[index - 1].left - rect.left;
+      }
+      if (state.previewIndex < state.fromIndex && index >= state.previewIndex && index < state.fromIndex) {
+        offset = rects[index + 1].left - rect.left;
+      }
+      el.style.transform = offset ? `translate3d(${offset}px, 0, 0)` : "";
+    });
+  };
+
+  const resetTabDragTransforms = () => {
+    Object.values(tabRefs.current).forEach((el) => {
+      if (!el) return;
+      el.style.transform = "";
+      el.style.transition = "";
+    });
+  };
+
   return (
     <aside
-      ref={asideRef}
       aria-label="Agent viewport"
       className={cn(
-        "relative flex h-full min-h-0 shrink-0 flex-col overflow-hidden border-border bg-[#111111] text-foreground",
-        !dragging && "transition-[width] duration-200 ease-out",
+        "relative flex h-full min-h-0 shrink-0 flex-col overflow-hidden border-border bg-[#101010] text-foreground",
+        !dragging && !reduceMotion && "transition-[width] duration-200 ease-out",
         visible && "border-l border-border",
       )}
       style={{ width: visible ? width : 0 }}
     >
       <div
-        className="absolute inset-y-0 left-0 w-1 cursor-ew-resize touch-none bg-transparent hover:bg-border"
+        className="absolute inset-y-0 left-0 z-20 w-1 cursor-ew-resize touch-none bg-transparent hover:bg-border"
         role="separator"
         aria-orientation="vertical"
         aria-label="Resize agent viewport"
         onPointerDown={startResize}
       />
-      <header className="flex h-14 shrink-0 items-end gap-2 border-b border-white/10 bg-[#141414] px-3 pb-2">
-        <nav className="flex min-w-0 flex-1 items-end gap-1.5">
-          {showReviewTab ? (
-            <DrawerTab
-              active={reviewActive}
-              icon={<FileText />}
-              label="Summary"
-              onClick={() => setActiveTab("review")}
-              onClose={closeViewportReview}
-            />
-          ) : null}
-          {showBrowserTab ? (
-            <DrawerTab
-              active={browserActive}
-              icon={<Globe2 />}
-              label={browserTabLabel(session?.label || session?.url)}
-              onClick={() => setActiveTab("browser")}
-              onClose={closeViewportBrowser}
-            />
-          ) : null}
+      <header className="flex h-[52px] shrink-0 items-center gap-2 border-b border-white/10 bg-[#151515] px-3">
+        <nav ref={navRef} className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
+          {tabOrder.map((tab) => {
+            if (tab === "review" && showReviewTab) {
+              return (
+                <DrawerTab
+                  key="review"
+                  tab="review"
+                  tabRef={(node) => {
+                    tabRefs.current.review = node;
+                  }}
+                  active={reviewActive}
+                  icon={<FileText />}
+                  label="Summary"
+                  onClick={() => setActiveTab("review")}
+                  onClose={closeViewportReview}
+                  isDragging={draggingTab === "review"}
+                  onPointerDown={startTabDrag}
+                />
+              );
+            }
+            if (tab === "browser" && showBrowserTab) {
+              return (
+                <DrawerTab
+                  key="browser"
+                  tab="browser"
+                  tabRef={(node) => {
+                    tabRefs.current.browser = node;
+                  }}
+                  active={browserActive}
+                  icon={<Globe2 />}
+                  label={browserTabLabel(session?.label || session?.url)}
+                  onClick={() => setActiveTab("browser")}
+                  onClose={closeViewportBrowser}
+                  isDragging={draggingTab === "browser"}
+                  onPointerDown={startTabDrag}
+                />
+              );
+            }
+            return null;
+          })}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <IconButton size="small" aria-label="Add viewport tab" title="Add tab">
@@ -209,47 +366,51 @@ export function AgentViewportDrawer() {
             </DropdownMenuContent>
           </DropdownMenu>
         </nav>
-        {loading ? <Loader2 className="size-4 shrink-0 animate-spin text-muted-foreground" /> : null}
+        {browserActive && browserLoading ? (
+          <Loader2 className={cn("size-4 shrink-0 text-muted-foreground", !reduceMotion && "animate-spin")} />
+        ) : null}
         <IconButton
           size="small"
           aria-label="Hide viewport"
           title="Hide viewport"
           onClick={hideViewportDrawer}
         >
-          <PanelRightClose size={15} />
+          <PanelRightIcon className="-scale-x-100" size={15} />
         </IconButton>
       </header>
       {browserActive ? (
         <section className="flex min-h-0 flex-1 flex-col bg-[#101010]">
-          <div className="grid h-14 shrink-0 grid-cols-[auto_minmax(180px,1fr)_auto] items-center gap-4 border-b border-white/10 px-4">
-            <div className="flex items-center gap-3">
+          <div className="grid h-14 shrink-0 grid-cols-[104px_minmax(0,1fr)_32px] items-center gap-3 border-b border-white/10 px-4">
+            <div className="flex items-center gap-1">
               <IconButton
                 size="small"
                 aria-label="Back"
                 title="Back"
-                disabled
-                className="text-[#767676]"
+                disabled={history.index <= 0}
+                onClick={() => moveHistory(-1)}
+                className="text-[#8f8f8f]"
               >
-                <ArrowLeft size={19} />
+                <ArrowLeft size={18} />
               </IconButton>
               <IconButton
                 size="small"
                 aria-label="Forward"
                 title="Forward"
-                disabled
-                className="text-[#767676]"
+                disabled={history.index >= history.entries.length - 1}
+                onClick={() => moveHistory(1)}
+                className="text-[#8f8f8f]"
               >
-                <ArrowRight size={19} />
+                <ArrowRight size={18} />
               </IconButton>
               <IconButton
                 size="small"
-                aria-label="Reload viewport"
-                title="Reload viewport"
-                onClick={() => void reloadViewport().catch(() => undefined)}
-                disabled={!session}
-                className="text-[#949494]"
+                aria-label="Reload preview"
+                title="Reload preview"
+                onClick={reloadBrowser}
+                disabled={!session?.url}
+                className="text-[#8f8f8f]"
               >
-                <RotateCw size={16} />
+                <RotateCw size={15} />
               </IconButton>
             </div>
             <form
@@ -257,12 +418,14 @@ export function AgentViewportDrawer() {
                 event.preventDefault();
                 openTypedUrl();
               }}
-              className="relative mx-auto h-10 w-full max-w-[min(760px,78%)]"
+              className="relative h-10 w-full min-w-0 max-w-[720px] justify-self-center"
             >
               <Input
                 value={url}
                 onChange={(event) => setUrl(event.target.value)}
                 placeholder="Enter a URL"
+                spellCheck={false}
+                autoComplete="off"
                 className="h-10 rounded-[18px] border border-transparent bg-transparent px-5 pr-11 text-center text-[15px] text-foreground shadow-none transition-colors placeholder:text-[#8a8a8a] hover:bg-[#262626] focus:bg-transparent focus:text-left focus-visible:border-white/20 focus-visible:ring-0"
               />
               <button
@@ -273,38 +436,50 @@ export function AgentViewportDrawer() {
                 <ExternalLink size={16} />
               </button>
             </form>
-            <div className="flex items-center justify-end gap-2">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <IconButton size="small" aria-label="More browser actions" title="More">
-                    <MoreVertical size={18} />
-                  </IconButton>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="min-w-52">
-                  <DropdownMenuItem
-                    disabled={!session?.url && !url.trim()}
-                    onSelect={openExternal}
-                  >
-                    <ExternalLink />
-                    Open in external browser
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              {badge ? (
-                <span className="rounded-xl bg-primary/15 px-2 py-1 text-xs font-medium text-primary">
-                  {badge}
-                </span>
-              ) : null}
-            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <IconButton size="small" aria-label="More browser actions" title="More">
+                  <MoreVertical size={18} />
+                </IconButton>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-52">
+                <DropdownMenuItem disabled={!session?.url && !url.trim()} onSelect={openExternal}>
+                  <ExternalLink />
+                  Open in external browser
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
-          <div ref={contentRef} className="min-h-0 flex-1 bg-[#101010] [contain:layout_paint_size]">
-            {!session && !loading ? (
+          {showHttpsWarning ? (
+            <HttpsPreviewWarning onOpenExternal={openExternal} reduceTransparency={reduceTransparency} />
+          ) : null}
+          <div className="relative min-h-0 flex-1 bg-[#101010]">
+            {session?.url ? (
+              <>
+                <iframe
+                  key={`${session.url}#${frameNonce}`}
+                  src={session.url}
+                  title="Viewport preview"
+                  className="h-full w-full border-0 bg-white"
+                  sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads"
+                  referrerPolicy="no-referrer"
+                  allow="clipboard-read; clipboard-write; fullscreen"
+                  onLoad={() => setFrameLoading(false)}
+                />
+                {browserLoading ? (
+                  <div
+                    className={cn(
+                      "pointer-events-none absolute inset-0 flex items-center justify-center",
+                      reduceTransparency ? "bg-[#101010]" : "bg-[#101010]/70",
+                    )}
+                  >
+                    <Loader2 className={cn("size-5 text-muted-foreground", !reduceMotion && "animate-spin")} />
+                  </div>
+                ) : null}
+              </>
+            ) : (
               <BrowserNewTabEmpty />
-            ) : loading ? (
-              <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-                Loading page...
-              </div>
-            ) : null}
+            )}
           </div>
         </section>
       ) : (
@@ -329,6 +504,35 @@ export function AgentViewportDrawer() {
   );
 }
 
+function HttpsPreviewWarning({
+  onOpenExternal,
+  reduceTransparency,
+}: {
+  onOpenExternal: () => void;
+  reduceTransparency: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex min-h-9 shrink-0 items-center gap-2 border-b border-amber-400/15 px-4 py-2 text-[12px]",
+        reduceTransparency ? "bg-[#2a2110] text-amber-100" : "bg-amber-400/[0.07] text-amber-200/90",
+      )}
+    >
+      <AlertTriangle className="size-3.5 shrink-0" />
+      <span className="min-w-0 flex-1 truncate">
+        Some HTTPS sites block embedded previews. Open externally if this stays blank.
+      </span>
+      <button
+        type="button"
+        onClick={onOpenExternal}
+        className="shrink-0 rounded-md px-2 py-1 text-amber-100 hover:bg-amber-100/10"
+      >
+        Open
+      </button>
+    </div>
+  );
+}
+
 function BrowserNewTabEmpty() {
   return (
     <div className="flex h-full items-center justify-center px-6 text-center">
@@ -344,23 +548,35 @@ function BrowserNewTabEmpty() {
 function DrawerTab({
   active,
   icon,
+  isDragging,
   label,
   onClose,
   onClick,
+  onPointerDown,
+  tab,
+  tabRef,
 }: {
   active: boolean;
   icon: React.ReactNode;
+  isDragging?: boolean;
   label: string;
   onClose?: () => void;
   onClick: () => void;
+  onPointerDown: (tab: ViewportTab, event: ReactPointerEvent<HTMLElement>) => void;
+  tab: ViewportTab;
+  tabRef: (node: HTMLDivElement | null) => void;
 }) {
   return (
     <div
+      ref={tabRef}
+      onPointerDown={(event) => onPointerDown(tab, event)}
+      style={{ touchAction: "none" }}
       className={cn(
-        "group inline-flex h-9 min-w-0 items-center rounded-2xl text-sm font-medium transition",
+        "group inline-flex h-8 min-w-0 cursor-grab select-none items-center rounded-2xl text-sm font-medium transition-colors will-change-transform active:cursor-grabbing",
         active
           ? "bg-[#242424] text-foreground shadow-sm"
           : "text-muted-foreground hover:bg-white/[0.06] hover:text-foreground",
+        isDragging && "relative z-10 shadow-lg",
         "[&_svg]:size-4",
       )}
     >
@@ -375,6 +591,7 @@ function DrawerTab({
       {onClose ? (
         <button
           type="button"
+          data-tab-close
           aria-label={`Close ${label} tab`}
           onClick={(event) => {
             event.stopPropagation();
@@ -395,5 +612,13 @@ function browserTabLabel(value?: string | null) {
     return new URL(value).hostname.replace(/^www\./, "") || "New tab";
   } catch {
     return value.length > 22 ? `${value.slice(0, 22)}...` : value;
+  }
+}
+
+function isHttpsUrl(value: string): boolean {
+  try {
+    return new URL(value).protocol === "https:";
+  } catch {
+    return false;
   }
 }

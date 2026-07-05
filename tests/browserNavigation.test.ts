@@ -1,4 +1,4 @@
-import { resolveBrowserInput } from "../src/features/agent/browserNavigation";
+import { moveBrowserHistory, pushBrowserHistory, resolveBrowserInput } from "../src/features/agent/browserNavigation";
 
 describe("browser navigation input", () => {
   it("keeps full http urls", () => {
@@ -22,5 +22,29 @@ describe("browser navigation input", () => {
 
   it("ignores blank input", () => {
     expect(resolveBrowserInput("  ")).toBeNull();
+  });
+});
+
+describe("browser history", () => {
+  it("pushes new pages and moves back and forward", () => {
+    let state = pushBrowserHistory({ entries: [], index: -1 }, "https://a.test/");
+    state = pushBrowserHistory(state, "https://b.test/");
+
+    let moved = moveBrowserHistory(state, -1);
+    expect(moved.url).toBe("https://a.test/");
+    expect(moved.state.index).toBe(0);
+
+    moved = moveBrowserHistory(moved.state, 1);
+    expect(moved.url).toBe("https://b.test/");
+    expect(moved.state.index).toBe(1);
+  });
+
+  it("drops forward history after a new page", () => {
+    let state = pushBrowserHistory({ entries: [], index: -1 }, "https://a.test/");
+    state = pushBrowserHistory(state, "https://b.test/");
+    state = moveBrowserHistory(state, -1).state;
+    state = pushBrowserHistory(state, "https://c.test/");
+
+    expect(state).toEqual({ entries: ["https://a.test/", "https://c.test/"], index: 1 });
   });
 });

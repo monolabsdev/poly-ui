@@ -1,6 +1,7 @@
 import * as React from "react";
 import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useReducedMotion } from "@/features/sidebar/hooks/useReducedMotion";
 
 export const sidebarIconButtonClassName =
   "size-7 min-w-7 rounded-full bg-transparent p-0 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground active:bg-muted";
@@ -20,6 +21,7 @@ export function SidebarSectionHeader({
   };
   quiet?: boolean;
 }) {
+  const reduceMotion = useReducedMotion();
   return (
     <div className="flex min-h-6 items-center justify-between">
       {disclosure ? (
@@ -32,7 +34,8 @@ export function SidebarSectionHeader({
         >
           <span
             className={cn(
-              "flex size-4 items-center justify-center transition-transform duration-[var(--dur-base)] ease-[var(--ease-premium)] [&>svg]:size-3.5",
+              "flex size-4 items-center justify-center [&>svg]:size-3.5",
+              !reduceMotion && "transition-transform duration-200 ease-out",
               disclosure.expanded && "rotate-90",
             )}
           >

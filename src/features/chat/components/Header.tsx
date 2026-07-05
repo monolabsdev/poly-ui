@@ -21,7 +21,7 @@ import {
   ScrollText,
   Check,
   Brain,
-  PanelRightOpen,
+  PanelRightIcon,
 } from "lucide-react";
 import { PROMPT_PRESETS, type PromptPresetId } from "@/lib/constants/promptPresets";
 import { useSettingsStore } from "@/store/settingsStore";
@@ -34,7 +34,7 @@ import {
   useMemoryPanelOpen,
 } from "@/features/memory/MemoryPanel";
 import { useConversationMemoryCount } from "@/features/memory/useConversationMemoryCount";
-import { openEmptyViewport } from "@/features/agent/viewportStore";
+import { openEmptyViewport, useViewportStore } from "@/features/agent/viewportStore";
 
 
 interface HeaderProps {
@@ -75,6 +75,7 @@ export const Header = memo(function Header({
   );
   const ollama = useOllama();
   const activeConversationId = useChatStore((state) => state.activeConversationId);
+  const viewportDrawerOpen = useViewportStore((state) => state.drawerOpen);
   const memoryPanelOpen = useMemoryPanelOpen();
   const { count: memoryCount, refresh: refreshMemoryCount } = useConversationMemoryCount(
     activeConversationId ?? undefined,
@@ -93,9 +94,9 @@ export const Header = memo(function Header({
   return (
     <Box
       as="header"
-      className="relative z-20 flex h-16 shrink-0 items-start justify-between px-5 pt-3"
+      className="relative z-20 flex h-16 shrink-0 items-start gap-3 px-5 pt-3"
     >
-      <Box className="min-w-0">
+      <Box className="min-w-0 flex-1 overflow-hidden">
         <Box className="flex flex-col items-start">
           {ollama.pullingModel ? (
             <Box
@@ -235,7 +236,7 @@ export const Header = memo(function Header({
         </Box>
       </Box>
 
-      <Box className="flex items-center gap-2">
+      <Box className="flex shrink-0 items-center gap-2">
         {memoryCount > 0 && (
           <Tooltip title={`${memoryCount} ${memoryCount === 1 ? "memory" : "memories"} in this conversation`}>
             <IconButton
@@ -300,15 +301,17 @@ export const Header = memo(function Header({
             </svg>
           </IconButton>
         </Tooltip>
-        <Tooltip title="Open viewport drawer">
-          <IconButton
-            aria-label="Open viewport drawer"
-            onClick={openEmptyViewport}
-            size="small"
-          >
-            <PanelRightOpen size={16} />
-          </IconButton>
-        </Tooltip>
+        {!viewportDrawerOpen ? (
+          <Tooltip title="Open viewport drawer">
+            <IconButton
+              aria-label="Open viewport drawer"
+              onClick={openEmptyViewport}
+              size="small"
+            >
+              <PanelRightIcon size={16} />
+            </IconButton>
+          </Tooltip>
+        ) : null}
 
       </Box>
 

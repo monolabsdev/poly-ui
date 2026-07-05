@@ -86,6 +86,18 @@ describe("chat screen regression guards", () => {
     expect(source).not.toContain("from \"@/components/ui/native-select\"");
   });
 
+  it("shows the viewport drawer opener only while the drawer is closed", () => {
+    const source = read("src/features/chat/components/Header.tsx");
+
+    expect(source).toContain("useViewportStore");
+    expect(source).toContain("{!viewportDrawerOpen ? (");
+    expect(source).toContain("flex h-16 shrink-0 items-start gap-3");
+    expect(source).toContain("min-w-0 flex-1 overflow-hidden");
+    expect(source).toContain("flex shrink-0 items-center gap-2");
+    expect(source).toContain("PanelRightIcon");
+    expect(source).not.toContain("aria-pressed={viewportDrawerOpen}");
+  });
+
   it("keeps header icon labels centered and borderless chrome painted", () => {
     const header = read("src/features/chat/components/Header.tsx");
     const css = read("src/App.css");

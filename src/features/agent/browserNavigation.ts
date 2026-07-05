@@ -9,3 +9,23 @@ export function resolveBrowserInput(input: string): string | null {
   if (DOMAIN_TARGET.test(value)) return `https://${value}`;
   return `https://www.google.com/search?${new URLSearchParams({ q: value })}`;
 }
+
+export type BrowserHistoryState = {
+  entries: string[];
+  index: number;
+};
+
+export function pushBrowserHistory(state: BrowserHistoryState, url: string): BrowserHistoryState {
+  if (state.entries[state.index] === url) return state;
+  const entries = [...state.entries.slice(0, state.index + 1), url];
+  return { entries, index: entries.length - 1 };
+}
+
+export function moveBrowserHistory(
+  state: BrowserHistoryState,
+  delta: -1 | 1,
+): { state: BrowserHistoryState; url: string | null } {
+  const index = state.index + delta;
+  if (index < 0 || index >= state.entries.length) return { state, url: null };
+  return { state: { ...state, index }, url: state.entries[index] };
+}
