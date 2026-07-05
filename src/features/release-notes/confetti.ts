@@ -7,6 +7,15 @@ function confettiColors() {
     .filter(Boolean);
 }
 
+function confettiZIndex(): number {
+  const styles = getComputedStyle(document.documentElement);
+  const zToast = styles.getPropertyValue("--z-toast").trim();
+  if (zToast) {
+    return parseInt(zToast, 10) + 10;
+  }
+  return 20000;
+}
+
 export function fireConfettiBothSides() {
   const defaults = {
     spread: 60,
@@ -14,7 +23,7 @@ export function fireConfettiBothSides() {
     gravity: 0.8,
     decay: 0.94,
     startVelocity: 30,
-    zIndex: 9500,
+    zIndex: confettiZIndex(),
     colors: confettiColors(),
   };
 
