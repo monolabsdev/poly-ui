@@ -62,4 +62,11 @@ describe("settings registry", () => {
     expect(view).toContain("registerView(ADVANCED_SETTINGS_VIEW_ID, AdvancedSettingsComposerView)");
     expect(view).toContain("setActiveView(null)");
   });
+
+  it("command palette opens advanced settings through the view registry", () => {
+    const commands = readFileSync("src/features/command-palette/settingsRegistry.tsx", "utf8");
+    expect(commands).toContain("openAdvancedSettings");
+    expect(commands).toContain("settings-advanced");
+    expect(commands).not.toContain('tab: "advanced"');
+  });
 });
