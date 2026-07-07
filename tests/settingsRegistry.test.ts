@@ -20,6 +20,7 @@ describe("settings registry", () => {
       "general",
       "interface",
       "providers",
+      "mobile",
       "chat",
       "audio",
       "personalization",
@@ -39,6 +40,8 @@ describe("settings registry", () => {
 
   it("filters tabs by labels descriptions and keywords", () => {
     expect(filterSettingsTabs("ollama").map((tab) => tab.id)).toEqual(["providers"]);
+    expect(filterSettingsTabs("ios").map((tab) => tab.id)).toEqual(["mobile"]);
+    expect(filterSettingsTabs("wifi").map((tab) => tab.id)).toEqual(["mobile"]);
     expect(filterSettingsTabs("whisper").map((tab) => tab.id)).toEqual(["audio"]);
     expect(filterSettingsTabs("prompt").map((tab) => tab.id)).toEqual(["chat"]);
     expect(filterSettingsTabs("")).toHaveLength(SETTINGS_TABS.length);

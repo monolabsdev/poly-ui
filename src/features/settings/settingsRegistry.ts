@@ -6,6 +6,7 @@ import {
   Info,
   MessageSquareText,
   Mic,
+  Smartphone,
   Shield,
   SlidersHorizontal,
   type LucideIcon,
@@ -17,6 +18,7 @@ export type SettingsTabId =
   | "general"
   | "interface"
   | "providers"
+  | "mobile"
   | "chat"
   | "audio"
   | "personalization"
@@ -70,6 +72,13 @@ export const SETTINGS_TABS: SettingsTabDefinition[] = [
     description: "Ollama, OpenAI-compatible providers, and web search.",
     icon: Cpu,
     keywords: ["connections", "providers", "models", "ollama", "openai", "web", "search", "api"],
+  },
+  {
+    id: "mobile",
+    label: "Mobile",
+    description: "Pair iOS and Android apps on the same Wi-Fi.",
+    icon: Smartphone,
+    keywords: ["mobile", "phone", "ios", "android", "wifi", "wi-fi", "pair", "qr"],
   },
   {
     id: "chat",

@@ -4,6 +4,7 @@ mod commands;
 mod db;
 mod error;
 mod memory;
+mod mobile_pairing;
 mod models;
 mod providers;
 mod startup_log;
@@ -32,6 +33,9 @@ use crate::commands::system_commands::{
     agent_list_directory, agent_list_workspaces, agent_prepare_chat_sandbox, agent_read_text_file,
     agent_read_web_results, agent_run_command, agent_search_web, agent_web_search,
     agent_write_text_file,
+};
+use crate::mobile_pairing::{
+    mobile_pairing_start, mobile_pairing_status, mobile_pairing_stop, MobilePairingState,
 };
 use crate::updater::{check_for_updates, download_update, install_update};
 use crate::whisper_state::WhisperState;
@@ -85,6 +89,7 @@ pub fn run() {
 
     let result = builder
         .manage(agent_viewport::ViewportState::default())
+        .manage(MobilePairingState::default())
         .setup(|app| {
             startup_log::log_phase("setup hook entered");
             match app.path().app_data_dir() {
@@ -233,6 +238,9 @@ pub fn run() {
             log_startup_error,
             log_startup_phase,
             startup_log_path,
+            mobile_pairing_start,
+            mobile_pairing_stop,
+            mobile_pairing_status,
         ])
         .run(context);
 
