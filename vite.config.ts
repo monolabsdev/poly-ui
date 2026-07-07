@@ -35,6 +35,10 @@ export default defineConfig(async () => ({
   },
   build: {
     rollupOptions: {
+      input: {
+        main: path.resolve(__dirname, "index.html"),
+        mobile: path.resolve(__dirname, "mobile.html"),
+      },
       output: {
         manualChunks: {
           "vendor-markdown": ["react-markdown", "remark-gfm", "remark-math", "rehype-katex", "katex"],
