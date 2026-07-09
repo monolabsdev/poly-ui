@@ -44,6 +44,7 @@ import { GlobalConfirmDialog } from "./components/ui/GlobalConfirmDialog";
 import { useDevStore } from "@/store/devStore";
 import { getDevComponentGalleryAction } from "@/features/dev/componentGalleryAction";
 import { AgentViewportDrawer } from "@/features/agent/AgentViewportDrawer";
+import { listen } from "@tauri-apps/api/event";
 
 const AuthModalLazy = lazy(() =>
   import("@/features/auth/AuthModal").then((module) => ({
@@ -176,6 +177,24 @@ function App() {
     useFolderStore.getState().actions.setActiveFolderId(null);
     setActiveConversationId(null);
   }, [setActiveConversationId]);
+
+  useEffect(() => {
+    let unlisten: (() => void) | null = null;
+    void listen<{ conversationId?: string }>("mobile-chat-updated", (event) => {
+      const changedId = event.payload.conversationId;
+      const store = useChatStore.getState();
+      void store.actions.loadConversations().then(() => {
+        if (changedId && store.activeConversationId === changedId) {
+          void store.actions.setActiveConversationId(changedId);
+        }
+      });
+    }).then((fn) => {
+      unlisten = fn;
+    });
+    return () => {
+      unlisten?.();
+    };
+  }, []);
 
   const handleSelectConversation = useCallback(
     (id: string) => {

@@ -18,6 +18,7 @@ import { ChatTab } from "./tabs/ChatTab";
 import { DataControlsTab } from "./tabs/DataControlsTab";
 import { GeneralTab } from "./tabs/GeneralTab";
 import { InterfaceTab } from "./tabs/InterfaceTab";
+import { MobileTab } from "./tabs/MobileTab";
 import { PersonalizationTab } from "./tabs/PersonalizationTab";
 import { ProvidersTab } from "./tabs/ProvidersTab";
 
@@ -36,6 +37,8 @@ function renderTab(tab: SettingsTabId) {
       return <InterfaceTab />;
     case "providers":
       return <ProvidersTab />;
+    case "mobile":
+      return <MobileTab />;
     case "chat":
       return <ChatTab />;
     case "audio":

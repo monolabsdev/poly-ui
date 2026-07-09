@@ -3,7 +3,7 @@ import { useChatStore } from "./chatStore";
 import { useFolderStore } from "./folderStore";
 import { useDevStore } from "./devStore";
 import { useSettingsStore } from "./settingsStore";
-import { setTtsBrowserSettings, useTtsStore } from "./ttsStore";
+import { setTtsSettings, useTtsStore } from "./ttsStore";
 import { setUpdateInstallSimulation } from "./updateStore";
 import { getRepository } from "@/lib/repositories";
 import { deleteAgentChatSandbox } from "@/features/agent/agentClient";
@@ -50,7 +50,7 @@ export function initStoreCoordinator() {
   const initialAccountId = accountIdFromAuth(initialAuth);
   useChatStore.getState().actions.setAccountId(initialAccountId);
   useFolderStore.getState().actions.setAccountId(initialAccountId);
-  setTtsBrowserSettings(useSettingsStore.getState().tts.browser);
+  setTtsSettings(useSettingsStore.getState().tts);
   setUpdateInstallSimulation(useDevStore.getState().devMode);
 
   unsubscribeFns.push(useAuthStore.subscribe((state, prev) => {
@@ -115,8 +115,8 @@ export function initStoreCoordinator() {
   }));
 
   unsubscribeFns.push(useSettingsStore.subscribe((state, prev) => {
-    if (state.tts.browser !== prev.tts.browser) {
-      setTtsBrowserSettings(state.tts.browser);
+    if (state.tts !== prev.tts) {
+      setTtsSettings(state.tts);
     }
   }));
 

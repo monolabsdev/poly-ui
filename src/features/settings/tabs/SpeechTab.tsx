@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, useRef } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { Channel, invoke } from "@tauri-apps/api/core";
 import { useShallow } from "zustand/react/shallow";
 import {
   AlertCircle,
@@ -66,6 +66,8 @@ export function SpeechTab() {
   const notify = useNotify();
 
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [supertonicVoices, setSupertonicVoices] = useState<string[]>([]);
+  const [supertonicLoading, setSupertonicLoading] = useState(false);
   const [speechSupported, setSpeechSupported] = useState(true);
   const shownErrorsRef = useRef<Set<string>>(new Set());
 
@@ -89,6 +91,27 @@ export function SpeechTab() {
     };
   }, []);
 
+  const usesSupertonicControls = tts.engine === "supertonic" || (tts.engine === "auto" && !speechSupported);
+  const usesNativeControls = tts.engine === "native" || (tts.engine === "auto" && speechSupported);
+
+  useEffect(() => {
+    if (!usesSupertonicControls || supertonicVoices.length > 0 || supertonicLoading) return;
+
+    setSupertonicLoading(true);
+    void invoke("plugin:supertonic|load_model", {
+      modelId: "Supertone/supertonic-3",
+      voiceStyle: tts.supertonic.voiceName,
+      onProgress: new Channel(),
+    })
+      .then(() => invoke<string[]>("plugin:supertonic|list_voices"))
+      .then(setSupertonicVoices)
+      .catch((err) => {
+        const message = err instanceof Error ? err.message : "Could not load Supertonic voices.";
+        notify.error("Speech error", message);
+      })
+      .finally(() => setSupertonicLoading(false));
+  }, [notify, supertonicLoading, supertonicVoices.length, tts.supertonic.voiceName, usesSupertonicControls]);
+
   useEffect(() => {
     if (ttsPlayback.error && !shownErrorsRef.current.has(ttsPlayback.error)) {
       shownErrorsRef.current.add(ttsPlayback.error);
@@ -110,7 +133,7 @@ export function SpeechTab() {
   };
 
   const isTesting = ttsPlayback.activeMessageId === "test-synthesis";
-  const isDisabled = (ttsPlayback.isGenerating && !isTesting) || !speechSupported;
+  const isDisabled = ttsPlayback.isGenerating && !isTesting;
 
   const appendTranscript = useCallback(() => {}, []);
   const {
@@ -154,20 +177,44 @@ export function SpeechTab() {
         description="Configure native system speech synthesis for reading assistant messages."
       />
 
+      <SettingCard
+        title="Speech Engine"
+        description="Choose the voice engine for reading messages."
+        action={
+          <Select
+            value={tts.engine}
+            onValueChange={(value) =>
+              actions.updateTts({ engine: value as typeof tts.engine })
+            }
+          >
+            <SelectTrigger size="sm" className={selectClassName}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectItem value="auto">Auto</SelectItem>
+                <SelectItem value="native">Native</SelectItem>
+                <SelectItem value="supertonic">Supertonic</SelectItem>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        }
+      />
+
       {!speechSupported ? (
         <Box
         >
           <AlertCircle size={18} />
           <Typography variant="body2">
-            Native speech synthesis is not supported or disabled on your system.
+            Native speech synthesis is unavailable. Supertonic will be used instead.
           </Typography>
         </Box>
       ) : null}
 
-      {speechSupported ? (
+      {usesNativeControls ? (
         <>
           <SettingCard
-            title="Voice"
+            title="Native Voice"
             description="Select the system voice to use for reading messages."
             action={
               <Select
@@ -239,6 +286,95 @@ export function SpeechTab() {
               >
                 {tts.browser.pitch.toFixed(1)}
               </Typography>
+            </Box>
+          </SettingCard>
+        </>
+      ) : null}
+
+      {usesSupertonicControls ? (
+        <>
+          <SettingCard
+            title="Supertonic Voice"
+            description="Select the local Supertonic voice style."
+            action={
+              <Select
+                value={tts.supertonic.voiceName}
+                disabled={supertonicLoading}
+                onValueChange={(value) =>
+                  actions.updateTts({
+                    supertonic: { ...tts.supertonic, voiceName: value },
+                  })
+                }
+              >
+                <SelectTrigger size="sm" className={selectClassName}>
+                  <SelectValue placeholder={supertonicLoading ? "Loading voices..." : "Select voice"} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {(supertonicVoices.length > 0 ? supertonicVoices : [tts.supertonic.voiceName]).map((voice) => (
+                      <SelectItem key={voice} value={voice}>
+                        {voice}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            }
+          />
+
+          <SettingCard title="Supertonic Speed" description="Adjust local voice reading speed.">
+            <Box>
+              <Slider
+                value={tts.supertonic.speed}
+                min={0.5}
+                max={2.0}
+                step={0.1}
+                valueLabelDisplay="auto"
+                valueLabelFormat={(value) => `${value.toFixed(1)}x`}
+                onChange={(_, value) =>
+                  actions.updateTts({
+                    supertonic: { ...tts.supertonic, speed: value as number },
+                  })
+                }
+              />
+              <Typography>{tts.supertonic.speed.toFixed(1)}x</Typography>
+            </Box>
+          </SettingCard>
+
+          <SettingCard title="Supertonic Steps" description="Adjust synthesis detail.">
+            <Box>
+              <Slider
+                value={tts.supertonic.totalStep}
+                min={3}
+                max={20}
+                step={1}
+                valueLabelDisplay="auto"
+                onChange={(_, value) =>
+                  actions.updateTts({
+                    supertonic: { ...tts.supertonic, totalStep: value as number },
+                  })
+                }
+              />
+              <Typography>{tts.supertonic.totalStep}</Typography>
+            </Box>
+          </SettingCard>
+
+          <SettingCard title="Supertonic Silence" description="Adjust pause between segments.">
+            <Box>
+              <Slider
+                value={tts.supertonic.silenceDuration}
+                min={0}
+                max={1}
+                step={0.05}
+                valueLabelDisplay="auto"
+                valueLabelFormat={(value) => `${value.toFixed(2)}s`}
+                onChange={(_, value) =>
+                  actions.updateTts({
+                    supertonic: { ...tts.supertonic, silenceDuration: value as number },
+                  })
+                }
+              />
+              <Typography>{tts.supertonic.silenceDuration.toFixed(2)}s</Typography>
             </Box>
           </SettingCard>
         </>
