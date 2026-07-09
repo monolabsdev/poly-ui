@@ -84,6 +84,8 @@ pub fn run() {
     let builder = builder.plugin(tauri_plugin_notification::init());
     startup_log::log_phase("plugin init: dialog");
     let builder = builder.plugin(tauri_plugin_dialog::init());
+    startup_log::log_phase("plugin init: supertonic");
+    let builder = builder.plugin(tauri_plugin_supertonic::init());
 
     startup_log::log_phase("plugins registered");
 

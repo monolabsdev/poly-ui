@@ -1,3 +1,4 @@
+import { Channel, invoke } from "@tauri-apps/api/core";
 import { create } from "zustand";
 
 interface TtsState {
@@ -13,14 +14,29 @@ interface TtsState {
 
 let browserSentenceQueue: string[] = [];
 let browserSentenceIndex = 0;
-let browserSettings = {
-  voiceURI: "",
-  speed: 1,
-  pitch: 1,
+let supertonicAudio: HTMLAudioElement | null = null;
+let supertonicLoadPromise: Promise<void> | null = null;
+let ttsSettings = {
+  engine: "auto" as "auto" | "native" | "supertonic",
+  browser: {
+    voiceURI: "",
+    speed: 1,
+    pitch: 1,
+  },
+  supertonic: {
+    voiceName: "M1",
+    speed: 1,
+    totalStep: 10,
+    silenceDuration: 0.3,
+  },
 };
 
-export function setTtsBrowserSettings(settings: typeof browserSettings) {
-  browserSettings = settings;
+export function setTtsBrowserSettings(settings: typeof ttsSettings.browser) {
+  ttsSettings.browser = settings;
+}
+
+export function setTtsSettings(settings: typeof ttsSettings) {
+  ttsSettings = settings;
 }
 
 export function cleanTextForSpeech(text: string): string {
@@ -55,6 +71,53 @@ const getVoice = (voiceURI: string): SpeechSynthesisVoice | undefined => {
   return window.speechSynthesis.getVoices().find((voice) => voice.voiceURI === voiceURI);
 };
 
+const base64ToBlob = (base64: string): Blob => {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+  return new Blob([bytes], { type: "audio/wav" });
+};
+
+const ensureSupertonicLoaded = async () => {
+  const status = await invoke<{ engineLoaded: boolean; currentVoice: string }>("plugin:supertonic|get_status");
+  if (status.engineLoaded && status.currentVoice === ttsSettings.supertonic.voiceName) return;
+
+  supertonicLoadPromise ??= invoke("plugin:supertonic|load_model", {
+    modelId: "Supertone/supertonic-3",
+    voiceStyle: ttsSettings.supertonic.voiceName,
+    onProgress: new Channel(),
+  }).finally(() => {
+    supertonicLoadPromise = null;
+  }) as Promise<void>;
+  await supertonicLoadPromise;
+};
+
+const playSupertonic = async (text: string, set: (state: Partial<TtsState>) => void) => {
+  await ensureSupertonicLoaded();
+  const result = await invoke<{ wavBase64: string }>("plugin:supertonic|synthesize", {
+    text,
+    lang: "en",
+    speed: ttsSettings.supertonic.speed,
+    totalStep: ttsSettings.supertonic.totalStep,
+    silenceDuration: ttsSettings.supertonic.silenceDuration,
+  });
+
+  const url = URL.createObjectURL(base64ToBlob(result.wavBase64));
+  supertonicAudio = new Audio(url);
+  supertonicAudio.onended = () => {
+    URL.revokeObjectURL(url);
+    supertonicAudio = null;
+    set({ isPlaying: false, activeMessageId: null });
+  };
+  supertonicAudio.onerror = () => {
+    URL.revokeObjectURL(url);
+    supertonicAudio = null;
+    set({ error: "Supertonic speech synthesis failed.", isPlaying: false, activeMessageId: null });
+  };
+  set({ isGenerating: false, isPlaying: true });
+  await supertonicAudio.play();
+};
+
 export const useTtsStore = create<TtsState>((set, get) => ({
   activeMessageId: null,
   isPlaying: false,
@@ -66,7 +129,17 @@ export const useTtsStore = create<TtsState>((set, get) => ({
       set({ activeMessageId: messageId, isPlaying: false, isGenerating: true, error: null });
 
       try {
-        if (typeof window === "undefined" || !window.speechSynthesis) {
+        const nativeAvailable = typeof window !== "undefined" && Boolean(window.speechSynthesis);
+        if (ttsSettings.engine === "supertonic" || (!nativeAvailable && ttsSettings.engine !== "native")) {
+          const cleanedText = await cleanTextAsync(rawText);
+          if (!cleanedText || !get().isGenerating) {
+            set({ isGenerating: false, activeMessageId: null });
+            return;
+          }
+          await playSupertonic(cleanedText, set);
+          return;
+        }
+        if (!nativeAvailable) {
           throw new Error("Speech synthesis is not supported in this environment.");
         }
 
@@ -100,10 +173,10 @@ export const useTtsStore = create<TtsState>((set, get) => ({
           }
 
           const utterance = new SpeechSynthesisUtterance(browserSentenceQueue[browserSentenceIndex]);
-          const voice = getVoice(browserSettings.voiceURI);
+          const voice = getVoice(ttsSettings.browser.voiceURI);
           if (voice) utterance.voice = voice;
-          utterance.rate = browserSettings.speed;
-          utterance.pitch = browserSettings.pitch;
+          utterance.rate = ttsSettings.browser.speed;
+          utterance.pitch = ttsSettings.browser.pitch;
 
           utterance.onend = () => {
             browserSentenceIndex += 1;
@@ -112,10 +185,15 @@ export const useTtsStore = create<TtsState>((set, get) => ({
 
           utterance.onerror = (event) => {
             if (event.error !== "interrupted") {
-              set({
-                error: `Speech synthesis error: ${event.error}`,
-                isPlaying: false,
-                activeMessageId: null,
+              const fallback = ttsSettings.engine === "auto"
+                ? playSupertonic(cleanedText, set)
+                : Promise.reject();
+              void fallback.catch(() => {
+                set({
+                  error: `Speech synthesis error: ${event.error}`,
+                  isPlaying: false,
+                  activeMessageId: null,
+                });
               });
             }
           };
@@ -141,6 +219,10 @@ export const useTtsStore = create<TtsState>((set, get) => ({
 
       browserSentenceQueue = [];
       browserSentenceIndex = 0;
+      if (supertonicAudio) {
+        supertonicAudio.pause();
+        supertonicAudio = null;
+      }
       set({ activeMessageId: null, isPlaying: false, isGenerating: false });
     },
   },

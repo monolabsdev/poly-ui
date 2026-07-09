@@ -12,6 +12,7 @@ export type GeneralSettings = {
   webSearch: WebSearchSettings;
   webSearchEnabled: boolean;
   experimentalFeatures: boolean;
+  mobileWebAccess: boolean;
   showModelInEmptyState: boolean;
 };
 
@@ -21,8 +22,19 @@ export type BrowserTtsSettings = {
   pitch: number;
 };
 
+export type TtsEngine = "auto" | "native" | "supertonic";
+
+export type SupertonicTtsSettings = {
+  voiceName: string;
+  speed: number;
+  totalStep: number;
+  silenceDuration: number;
+};
+
 export type TtsSettings = {
+  engine: TtsEngine;
   browser: BrowserTtsSettings;
+  supertonic: SupertonicTtsSettings;
 };
 
 export type DictationSettings = {
@@ -54,14 +66,21 @@ type SettingsState = {
 };
 
 const defaultTts: TtsSettings = {
+  engine: "auto",
   browser: {
     voiceURI: "",
     speed: 1.0,
     pitch: 1.0,
   },
+  supertonic: {
+    voiceName: "M1",
+    speed: 1.0,
+    totalStep: 10,
+    silenceDuration: 0.3,
+  },
 };
 
-const SETTINGS_VERSION = 16;
+const SETTINGS_VERSION = 18;
 
 export const defaultDictation: DictationSettings = {
   enabled: true,
@@ -92,6 +111,7 @@ function defaultSettingsState(): Omit<SettingsState, "actions"> {
       webSearch: createDefaultWebSearchSettings(),
       webSearchEnabled: false,
       experimentalFeatures: false,
+      mobileWebAccess: false,
       showModelInEmptyState: false,
     },
     tts: { ...defaultTts },
@@ -116,6 +136,7 @@ export const useSettingsStore = create<SettingsState>()(
               ...s.tts,
               ...update,
               browser: { ...defaultTts.browser, ...s.tts.browser, ...(update.browser ?? {}) },
+              supertonic: { ...defaultTts.supertonic, ...s.tts.supertonic, ...(update.supertonic ?? {}) },
             },
           })),
 
@@ -141,7 +162,10 @@ export const useSettingsStore = create<SettingsState>()(
         const state = persisted as any;
         if (state?.tts) {
           state.tts = {
+            ...defaultTts,
+            ...state.tts,
             browser: { ...defaultTts.browser, ...state.tts.browser },
+            supertonic: { ...defaultTts.supertonic, ...state.tts.supertonic },
           };
         }
         if (version < 5) {
@@ -193,6 +217,9 @@ export const useSettingsStore = create<SettingsState>()(
         }
         if (version < 16) {
           state.performance = { ...defaultPerformance, ...state.performance, keepViewportActive: false };
+        }
+        if (version < 17 && state?.general) {
+          state.general.mobileWebAccess = false;
         }
         startupPhase("settings migration complete");
         return state as SettingsState;

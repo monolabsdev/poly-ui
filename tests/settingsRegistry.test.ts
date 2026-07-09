@@ -88,4 +88,13 @@ describe("settings registry", () => {
     expect(commands).toContain("settings-advanced");
     expect(commands).not.toContain('tab: "advanced"');
   });
+
+  it("mobile pairing stays behind experimental features and its own toggle", () => {
+    const store = readFileSync("src/store/settingsStore.ts", "utf8");
+    const mobileTab = readFileSync("src/features/settings/tabs/MobileTab.tsx", "utf8");
+    expect(store).toContain("mobileWebAccess: false");
+    expect(mobileTab).toContain("experimentalFeatures");
+    expect(mobileTab).toContain("mobileWebAccess");
+    expect(mobileTab).toContain("mobile_pairing_stop");
+  });
 });
