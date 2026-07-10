@@ -42,7 +42,7 @@ use crate::updater::{check_for_updates, download_update, install_update};
 use crate::whisper_state::WhisperState;
 use providers::ProviderSelector;
 use sqlx::SqlitePool;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicUsize};
 use std::thread;
 use std::time::Duration;
@@ -57,6 +57,34 @@ pub struct AppState {
     pub provider_selector: ProviderSelector,
     pub last_update_check: Mutex<Option<Instant>>,
     pub update_download_path: Mutex<Option<PathBuf>>,
+}
+
+#[cfg(target_os = "windows")]
+const ONNXRUNTIME_LIBRARY_NAME: &str = "onnxruntime.dll";
+#[cfg(target_os = "macos")]
+const ONNXRUNTIME_LIBRARY_NAME: &str = "libonnxruntime.dylib";
+#[cfg(target_os = "linux")]
+const ONNXRUNTIME_LIBRARY_NAME: &str = "libonnxruntime.so";
+
+fn onnxruntime_path(resource_dir: &Path) -> PathBuf {
+    resource_dir.join(ONNXRUNTIME_LIBRARY_NAME)
+}
+
+fn initialize_onnxruntime(app: &tauri::App) -> Result<(), String> {
+    let resource_dir = app
+        .path()
+        .resource_dir()
+        .map_err(|error| error.to_string())?;
+    let path = onnxruntime_path(&resource_dir);
+    ort::init_from(&path)
+        .map_err(|error| {
+            format!(
+                "failed to load ONNX Runtime from {}: {error}",
+                path.display()
+            )
+        })?
+        .commit();
+    Ok(())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -95,6 +123,12 @@ pub fn run() {
         .manage(MobilePairingState::default())
         .setup(|app| {
             startup_log::log_phase("setup hook entered");
+            startup_log::log_phase("ONNX Runtime initialization");
+            initialize_onnxruntime(app).map_err(|error| {
+                startup_log::log_error(&error);
+                std::io::Error::other(error)
+            })?;
+            startup_log::log_phase("ONNX Runtime ready");
             match app.path().app_data_dir() {
                 Ok(path) => startup_log::log_phase(format!("app_data_dir: {}", path.display())),
                 Err(error) => {
@@ -313,5 +347,21 @@ fn apply_native_rounded_corners(window: &tauri::WebviewWindow) {
                 );
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod supertonic_runtime_tests {
+    use super::*;
+    use std::path::Path;
+
+    #[test]
+    fn onnxruntime_uses_tauri_resource_directory() {
+        let resource_dir = Path::new("/app/resources");
+
+        assert_eq!(
+            onnxruntime_path(resource_dir),
+            resource_dir.join(ONNXRUNTIME_LIBRARY_NAME)
+        );
     }
 }

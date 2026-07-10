@@ -240,6 +240,8 @@ jobs:
           Remove-Item (Join-Path $env:LOCALAPPDATA "com.tslater.polyui") -Recurse -Force -ErrorAction SilentlyContinue
           Start-Process -FilePath $installer -ArgumentList "/S" -Wait
           $exe = Join-Path $installDir "polyui.exe"
+          $ort = Join-Path $installDir "onnxruntime.dll"
+          if (!(Test-Path $ort)) { throw "Installed app missing onnxruntime.dll" }
           $sourceMigrations = (Resolve-Path "src-tauri/src/db/migrations").Path
           $hiddenMigrations = Join-Path $env:RUNNER_TEMP "polyui-hidden-source-migrations"
           if (Test-Path $hiddenMigrations) {
@@ -283,6 +285,7 @@ jobs:
           test -d src-tauri/target/release/bundle/macos/PolyUI.app
           APP_EXE="$(find src-tauri/target/release/bundle/macos/PolyUI.app/Contents/MacOS -maxdepth 1 -type f | head -n 1)"
           test -n "$APP_EXE"
+          test -f src-tauri/target/release/bundle/macos/PolyUI.app/Contents/Resources/libonnxruntime.dylib
           test -d src-tauri/target/release/bundle/dmg
           DMG="$(find src-tauri/target/release/bundle/dmg -maxdepth 1 -name '*.dmg' -type f | head -n 1)"
           test -n "$DMG"
@@ -301,6 +304,7 @@ jobs:
           RPM="$(find "$BUNDLE/rpm" -maxdepth 1 -name '*.rpm' -type f | head -n 1)"
           APPIMAGE="$(find "$BUNDLE/appimage" -maxdepth 1 -name '*.AppImage' -type f | head -n 1)"
           test -n "$DEB"
+          dpkg-deb -c "$DEB" | grep 'libonnxruntime.so' >/dev/null
           test -n "$RPM"
           test -n "$APPIMAGE"
           mkdir -p "release-artifacts/linux-${{ matrix.arch }}"

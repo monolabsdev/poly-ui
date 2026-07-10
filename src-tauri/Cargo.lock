@@ -3691,7 +3691,7 @@ dependencies = [
 
 [[package]]
 name = "polyui"
-version = "0.19.0"
+version = "0.19.2"
 dependencies = [
  "async-stream",
  "async-trait",
@@ -3704,6 +3704,7 @@ dependencies = [
  "hound",
  "log",
  "ollama-rs",
+ "ort",
  "percent-encoding",
  "raw-window-handle",
  "reqwest 0.12.28",
