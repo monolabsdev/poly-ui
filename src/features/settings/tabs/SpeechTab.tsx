@@ -98,11 +98,17 @@ export function SpeechTab() {
     if (!usesSupertonicControls || supertonicVoices.length > 0 || supertonicLoading) return;
 
     setSupertonicLoading(true);
-    void invoke("plugin:supertonic|load_model", {
+    const onProgress = new Channel<{ stage: string; progress?: number }>();
+    const loadPromise = invoke("plugin:supertonic|load_model", {
       modelId: "Supertone/supertonic-3",
       voiceStyle: tts.supertonic.voiceName,
-      onProgress: new Channel(),
-    })
+      onProgress,
+    });
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("Supertonic model download timed out after 120 s")), 120_000),
+    );
+
+    void Promise.race([loadPromise, timeoutPromise])
       .then(() => invoke<string[]>("plugin:supertonic|list_voices"))
       .then(setSupertonicVoices)
       .catch((err) => {
