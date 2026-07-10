@@ -5140,7 +5140,9 @@ dependencies = [
 
 [[package]]
 name = "st-tts"
-version = "0.2.0"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a930ccf8457c98e321c028f5f22af75c3ba079dd679317aa4513f0e709aa0ab7"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5660,7 +5662,9 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-supertonic"
-version = "0.2.0"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9e89efe1fe78df72e8ada1c5c98d6fc431411c7af2357963e3c05f81b4fdf9e3"
 dependencies = [
  "anyhow",
  "base64 0.22.1",

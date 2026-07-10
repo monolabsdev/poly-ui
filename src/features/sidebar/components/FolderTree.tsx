@@ -19,7 +19,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ConversationItem } from "@/features/chat/components/ConversationItem";
 import { SidebarMenuButton } from "@/components/ui/sidebar";
-import { sidebarIconButtonClassName } from "@/features/sidebar/components/sidebar-utils";
+import {
+  SidebarMenuRow,
+  sidebarIconButtonClassName,
+} from "@/features/sidebar/components/sidebar-utils";
 import { cn } from "@/lib/utils";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useSidebarActions } from "@/features/sidebar/hooks/useSidebarActions";
@@ -72,6 +75,7 @@ export function FolderTree({
   return (
     <React.Fragment key={folder.id}>
       <SidebarMenuButton
+        asChild
         isActive={activeFolderId === folder.id && !activeConversationId}
         tooltip={folder.name}
         onClick={() => {
@@ -82,6 +86,8 @@ export function FolderTree({
         className="gap-1.5 pr-1 hover:[&_.folder-actions]:opacity-100 focus-within:[&_.folder-actions]:opacity-100"
         style={{ paddingLeft: 8 + depth * 12 }}
       >
+        {/* Row embeds its own action buttons, so it can't be a real <button>. */}
+        <SidebarMenuRow>
         <ChevronRight
           size={14}
           className={cn(
@@ -137,6 +143,7 @@ export function FolderTree({
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
+        </SidebarMenuRow>
       </SidebarMenuButton>
       {isOpen && (
         <div className="ml-4 border-l border-border/60 pl-1">
@@ -152,6 +159,7 @@ export function FolderTree({
           {chats.map((chat) => (
             <SidebarMenuButton
               key={chat.id}
+              asChild
               isActive={activeConversationId === chat.id}
               tooltip={chat.title || "Untitled"}
               onClick={() => {
@@ -162,6 +170,7 @@ export function FolderTree({
               className="pr-1"
               style={{ paddingLeft: 8 + depth * 12 }}
             >
+              <SidebarMenuRow>
               <ConversationItem
                 conv={chat}
                 activeConversationId={activeConversationId}
@@ -176,6 +185,7 @@ export function FolderTree({
                 handleArchive={conv.handleArchive}
                 handleStartDelete={conv.handleStartDelete}
               />
+              </SidebarMenuRow>
             </SidebarMenuButton>
           ))}
         </div>

@@ -8,6 +8,7 @@ import { loggedInvoke, getSessionToken } from "@/lib/utils/utils";
 import { useNotify } from "@/hooks/useNotify";
 import { useOllamaStore } from "@/features/ollama/monitor";
 import { buildSystemPrompt } from "@/lib/chat/prompts";
+import { VOICE_SYSTEM_PROMPT_SUFFIX } from "@/lib/constants/promptPresets";
 import { isFeatureAIActive } from "@/lib/featureRegistry";
 import { defaultPreprocessor } from "@/lib/chat/message-preprocessor";
 import { triggerTitleGeneration, type TitleStore } from "@/lib/chat/title-generation";
@@ -73,7 +74,9 @@ async function extractUserMessageMemory(conversationId: string, userMessageId: s
   }
 }
 
-export function useChatStream(modelChoices: ModelChoice[], systemPrompt = "") {
+export function useChatStream(modelChoices: ModelChoice[], systemPrompt = "", voiceMode = false) {
+  const voiceModeRef = useRef(voiceMode);
+  voiceModeRef.current = voiceMode;
   const { messages, activeConversationId } = useChatStore(
     useShallow((s) => ({
       messages: s.messages,
@@ -270,7 +273,10 @@ export function useChatStream(modelChoices: ModelChoice[], systemPrompt = "") {
       const webSearchConfig = getWebSearchConfig();
       const webSearchAI = isFeatureAIActive("web_search");
       const activeWebSearchConfig = webSearchAI ? webSearchConfig : undefined;
-      const system = buildSystemPrompt(systemPrompt, Boolean(activeWebSearchConfig), webSearchAI);
+      const voicePrompt = voiceModeRef.current
+        ? `${systemPrompt}\n\n${VOICE_SYSTEM_PROMPT_SUFFIX}`
+        : systemPrompt;
+      const system = buildSystemPrompt(voicePrompt, Boolean(activeWebSearchConfig), webSearchAI);
 
       for (const { model, provider, providerConfigId } of models) {
         const rid = crypto.randomUUID();
@@ -298,7 +304,7 @@ export function useChatStream(modelChoices: ModelChoice[], systemPrompt = "") {
               messages: history,
               systemPrompt: system,
               webSearchConfig: activeWebSearchConfig ?? null,
-              reasoningEnabled: true,
+              reasoningEnabled: !voiceModeRef.current,
               providerType: provider,
               providerConfigId: providerConfigId ?? null,
               accountId: getCurrentProviderAccountId(),

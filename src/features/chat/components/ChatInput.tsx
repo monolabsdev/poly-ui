@@ -10,6 +10,7 @@ import {
   X,
   MoreHorizontal,
   Globe,
+  AudioLines,
 } from "lucide-react";
 import { useState, memo, useEffect, useCallback, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
@@ -58,7 +59,11 @@ interface ChatInputProps {
   onFocusChange?: (focused: boolean) => void;
   isTemporary?: boolean;
   conversationId?: string | null;
+  onOpenVoiceMode?: () => void;
 }
+
+const joinTranscript = (base: string, text: string) =>
+  base.trim() ? `${base.trimEnd()} ${text}` : text;
 
 export const ChatInput = memo(function ChatInput({
   onSubmit,
@@ -67,6 +72,7 @@ export const ChatInput = memo(function ChatInput({
   onFocusChange,
   isTemporary,
   conversationId,
+  onOpenVoiceMode,
 }: ChatInputProps) {
   const [draft, setDraft] = useState("");
   const [pastedPreview, setPastedPreview] = useState<{
@@ -90,6 +96,9 @@ export const ChatInput = memo(function ChatInput({
   );
   const dictationEnabled = useSettingsStore(
     (state) => state.dictation.enabled,
+  );
+  const voiceModeExperimental = useSettingsStore(
+    (state) => state.general.voiceModeExperimental,
   );
 
   const workspaceSelectionKey =
@@ -257,16 +266,26 @@ export const ChatInput = memo(function ChatInput({
 
   const hasContent =
     draft.trim() || currentAttachments.length > 0 || !!pastedPreview;
+  const showVoiceModeAction =
+    voiceModeExperimental &&
+    !isStreaming &&
+    draft.length === 0 &&
+    currentAttachments.length === 0 &&
+    !pastedPreview &&
+    Boolean(onOpenVoiceMode);
+  // Draft as it was when dictation started; live partials and the final
+  // transcript both replace everything after it, so streaming text never
+  // stacks on top of itself.
+  const dictationBaseRef = useRef("");
   const appendTranscript = useCallback((text: string) => {
     const transcript = text.trim();
     if (!transcript) return;
 
-    setDraft((previous) =>
-      previous.trim() ? `${previous.trimEnd()} ${transcript}` : transcript,
-    );
+    setDraft(joinTranscript(dictationBaseRef.current, transcript));
   }, []);
   const {
     recording,
+    partialTranscript,
     start,
     stop,
     installOpen,
@@ -278,7 +297,13 @@ export const ChatInput = memo(function ChatInput({
     installModel,
     selectInstalledModel,
     processing,
-  } = useDictation(appendTranscript);
+  } = useDictation(appendTranscript, { partials: true });
+
+  // Stream the live transcript into the composer while recording.
+  useEffect(() => {
+    if (!recording || !partialTranscript) return;
+    setDraft(joinTranscript(dictationBaseRef.current, partialTranscript));
+  }, [recording, partialTranscript]);
 
   const downloadPercent =
     downloadProgress?.totalBytes && downloadProgress.totalBytes > 0
@@ -596,7 +621,14 @@ export const ChatInput = memo(function ChatInput({
                     <Button
                       variant="outline"
                       size="icon"
-                      onClick={recording ? stop : start}
+                      onClick={
+                        recording
+                          ? stop
+                          : () => {
+                              dictationBaseRef.current = draft;
+                              void start();
+                            }
+                      }
                       disabled={isStreaming}
                       aria-label={recording ? "Stop dictation" : "Start dictation"}
                       className="size-9 rounded-full"
@@ -613,16 +645,26 @@ export const ChatInput = memo(function ChatInput({
                 )}
                 <Button
                   size="icon"
-                  onClick={handleAction}
+                  onClick={showVoiceModeAction ? onOpenVoiceMode : handleAction}
                   disabled={
-                    isStreaming
+                    showVoiceModeAction
                       ? false
-                      : !hasContent || (agentEnabled && !hasWorkspace)
+                      : isStreaming
+                        ? false
+                        : !hasContent || (agentEnabled && !hasWorkspace)
                   }
-                  aria-label={isStreaming ? "Stop generation" : "Send message"}
+                  aria-label={
+                    showVoiceModeAction
+                      ? "Open voice mode"
+                      : isStreaming
+                        ? "Stop generation"
+                        : "Send message"
+                  }
                   className="size-9 rounded-full"
                 >
-                  {isStreaming ? (
+                  {showVoiceModeAction ? (
+                    <AudioLines size={18} />
+                  ) : isStreaming ? (
                     <Square size={14} fill="currentColor" />
                   ) : (
                     <ArrowUp size={18} strokeWidth={2.5} />

@@ -24,8 +24,9 @@ use crate::commands::chat_commands::{chat, chat_stream, generate_chat_title};
 use crate::commands::config_commands::cancel_chat;
 use crate::commands::db_commands::execute_sql;
 use crate::commands::dictation_commands::{
-    download_whisper_model, get_whisper_models_status, release_whisper_model, select_whisper_model,
-    start_native_dictation_recording, stop_native_dictation_recording, transcribe_audio,
+    download_whisper_model, get_whisper_models_status, native_dictation_audio_level, preload_whisper_model,
+    release_whisper_model, select_whisper_model, start_native_dictation_recording, stop_native_dictation_and_transcribe,
+    stop_native_dictation_recording, transcribe_audio, transcribe_native_dictation_partial,
 };
 use crate::commands::model_commands::{cancel_pull, delete_model, get_local_models, pull_model};
 use crate::commands::system_commands::{
@@ -233,9 +234,13 @@ pub fn run() {
             download_whisper_model,
             select_whisper_model,
             release_whisper_model,
+            native_dictation_audio_level,
+            preload_whisper_model,
             start_native_dictation_recording,
             stop_native_dictation_recording,
+            stop_native_dictation_and_transcribe,
             transcribe_audio,
+            transcribe_native_dictation_partial,
             startup_frontend_loaded,
             log_startup_error,
             log_startup_phase,

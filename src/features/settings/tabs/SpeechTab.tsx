@@ -466,6 +466,29 @@ export function SpeechTab() {
           />
 
           <SettingCard
+            title="Microphone sensitivity"
+            description="How easily voice mode detects speech. Raise it if your speech is missed, lower it if background noise triggers turns."
+          >
+            <Box>
+              <Slider
+                value={dictation.vadSensitivity ?? 1}
+                min={0.5}
+                max={2.0}
+                step={0.1}
+                valueLabelDisplay="auto"
+                valueLabelFormat={(value) => `${value.toFixed(1)}x`}
+                onChange={(_, value) =>
+                  actions.updateDictation({ vadSensitivity: value as number })
+                }
+              />
+              <Typography
+              >
+                {(dictation.vadSensitivity ?? 1).toFixed(1)}x
+              </Typography>
+            </Box>
+          </SettingCard>
+
+          <SettingCard
             title="Model"
             description={
               currentModel
