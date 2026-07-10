@@ -117,11 +117,16 @@ const ensureSupertonicLoaded = async () => {
   const status = await invoke<{ engineLoaded: boolean; currentVoice: string }>("plugin:supertonic|get_status");
   if (status.engineLoaded && status.currentVoice === ttsSettings.supertonic.voiceName) return;
 
-  supertonicLoadPromise ??= invoke("plugin:supertonic|load_model", {
-    modelId: "Supertone/supertonic-3",
-    voiceStyle: ttsSettings.supertonic.voiceName,
-    onProgress: new Channel(),
-  }).finally(() => {
+  supertonicLoadPromise ??= Promise.race([
+    invoke("plugin:supertonic|load_model", {
+      modelId: "Supertone/supertonic-3",
+      voiceStyle: ttsSettings.supertonic.voiceName,
+      onProgress: new Channel(),
+    }),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("Supertonic model load timed out")), 120_000),
+    ),
+  ]).finally(() => {
     supertonicLoadPromise = null;
   }) as Promise<void>;
   await supertonicLoadPromise;
