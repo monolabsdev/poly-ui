@@ -3713,6 +3713,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "sqlx",
+ "st-tts",
  "tauri",
  "tauri-build",
  "tauri-plugin-dialog",
