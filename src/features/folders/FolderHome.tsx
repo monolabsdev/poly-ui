@@ -21,9 +21,10 @@ type FolderHomeProps = {
   isStreaming: boolean;
   providerOnline: boolean;
   onOpenConnections: () => void;
+  onOpenVoiceMode?: () => void;
 };
 
-export function FolderHome({ folder, onSubmit, onStop, isStreaming, providerOnline, onOpenConnections }: FolderHomeProps) {
+export function FolderHome({ folder, onSubmit, onStop, isStreaming, providerOnline, onOpenConnections, onOpenVoiceMode }: FolderHomeProps) {
   const conversations = useChatStore((state) => state.conversations);
   const activeConversationId = useChatStore((state) => state.activeConversationId);
   const setActiveConversationId = useChatStore((state) => state.actions.setActiveConversationId);
@@ -179,6 +180,7 @@ export function FolderHome({ folder, onSubmit, onStop, isStreaming, providerOnli
         onSubmit={onSubmit}
         onStop={onStop}
         isStreaming={isStreaming}
+        onOpenVoiceMode={onOpenVoiceMode}
       />
 
       {!providerOnline && (

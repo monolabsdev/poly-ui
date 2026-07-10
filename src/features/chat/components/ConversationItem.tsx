@@ -23,6 +23,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useReducedMotion } from "@/features/sidebar/hooks/useReducedMotion";
+import { activateRowOnKeyDown } from "@/features/sidebar/components/sidebar-utils";
 import { TextShimmer } from "@/components/ui/text-shimmer";
 import type { Conversation } from "@/store/chatStore";
 import { cn } from "@/lib/utils";
@@ -179,6 +180,12 @@ export const ConversationItem = React.memo(function ConversationItem({
   if (isFolder) {
     return (
       <ButtonBase
+        // The row embeds its own buttons (actions menu, rename controls) and
+        // HTML forbids button-in-button, so render a div with button semantics.
+        as="div"
+        role="button"
+        tabIndex={0}
+        onKeyDown={activateRowOnKeyDown}
         onClick={onClick}
         className={cn(
           "group flex w-full min-w-0 items-center gap-1.5 rounded-lg p-1.5 text-left text-sm hover:bg-muted",

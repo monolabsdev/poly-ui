@@ -6,7 +6,7 @@ import {
   SidebarGroupLabel,
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
-import { SidebarSectionHeader } from "@/features/sidebar/components/sidebar-utils";
+import { SidebarMenuRow, SidebarSectionHeader } from "@/features/sidebar/components/sidebar-utils";
 import { ConversationSkeleton } from "@/features/sidebar/components/ConversationSkeleton";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useSidebarActions } from "@/features/sidebar/hooks/useSidebarActions";
@@ -133,6 +133,7 @@ export function ConversationList({
                 ) : (
                   <div className={`${isCollapsed ? "px-1" : "px-3"} py-px`}>
                     <SidebarMenuButton
+                      asChild
                       isActive={activeConversationId === row.conversation.id}
                       tooltip={row.conversation.title || "Untitled"}
                       onClick={() => {
@@ -141,6 +142,9 @@ export function ConversationList({
                       }}
                       className="px-2 hover:[&_.conversation-actions]:opacity-100 focus-within:[&_.conversation-actions]:opacity-100"
                     >
+                      {/* Row embeds its own action buttons, so it can't be a
+                          real <button>. */}
+                      <SidebarMenuRow>
                       <ConversationItem
                         conv={row.conversation}
                         activeConversationId={activeConversationId}
@@ -156,6 +160,7 @@ export function ConversationList({
                         handleStartDelete={conv.handleStartDelete}
                         onExport={handleExport}
                       />
+                      </SidebarMenuRow>
                     </SidebarMenuButton>
                   </div>
                 )}

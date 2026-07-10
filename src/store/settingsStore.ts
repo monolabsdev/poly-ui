@@ -14,6 +14,7 @@ export type GeneralSettings = {
   experimentalFeatures: boolean;
   mobileWebAccess: boolean;
   showModelInEmptyState: boolean;
+  voiceModeExperimental: boolean;
 };
 
 export type BrowserTtsSettings = {
@@ -41,6 +42,8 @@ export type DictationSettings = {
   enabled: boolean;
   language: string;
   autoStart: boolean;
+  /** Voice-activity threshold scale: >1 hears quieter speech, <1 needs louder. */
+  vadSensitivity: number;
 };
 
 export type PerformanceSettings = {
@@ -80,12 +83,13 @@ const defaultTts: TtsSettings = {
   },
 };
 
-const SETTINGS_VERSION = 18;
+const SETTINGS_VERSION = 22;
 
 export const defaultDictation: DictationSettings = {
   enabled: true,
   language: "en",
   autoStart: false,
+  vadSensitivity: 1,
 };
 
 export const defaultPerformance: PerformanceSettings = {
@@ -113,6 +117,7 @@ function defaultSettingsState(): Omit<SettingsState, "actions"> {
       experimentalFeatures: false,
       mobileWebAccess: false,
       showModelInEmptyState: false,
+      voiceModeExperimental: false,
     },
     tts: { ...defaultTts },
     dictation: { ...defaultDictation },
@@ -220,6 +225,17 @@ export const useSettingsStore = create<SettingsState>()(
         }
         if (version < 17 && state?.general) {
           state.general.mobileWebAccess = false;
+        }
+        if (version < 19 && state?.general) {
+          state.general.voiceModeExperimental = false;
+        }
+        // 22, not 20: dev sessions hot-reloaded between the version bump and
+        // this branch landing were stamped 20/21 without the new field, so
+        // the merge must re-run for them. Defaults-merge also heals any other
+        // missing dictation key.
+        if (version < 22 && state?.dictation) {
+          state.dictation = { ...defaultDictation, ...state.dictation };
+          state.dictation.vadSensitivity ??= 1;
         }
         startupPhase("settings migration complete");
         return state as SettingsState;

@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { Box } from "@/components/ui/Box";
 import { useShallow } from "zustand/react/shallow";
 import { ChatArea } from "@/features/chat/components/ChatArea";
@@ -22,6 +22,10 @@ import { buildAgentResolvedContext } from "@/features/agent/context";
 import { useViewStore, getViewComponent } from "@/lib/view-registry";
 import { useNotify } from "@/hooks/useNotify";
 
+const VoiceModeOverlayLazy = lazy(() =>
+  import("@/features/chat/components/VoiceModeOverlay"),
+);
+
 type ChatWorkspaceProps = {
   selectedModels: string[];
   selectedProviders: ModelProvider[];
@@ -43,6 +47,7 @@ export default function ChatWorkspace({
   onStopStreamingReady,
   onOpenConnections,
 }: ChatWorkspaceProps) {
+  const [voiceModeOpen, setVoiceModeOpen] = useState(false);
   const ollama = useOllama();
   const notify = useNotify();
   const activeFolder = useFolderStore((state) => state.folders.find((folder) => folder.id === state.activeFolderId));
@@ -50,7 +55,7 @@ export default function ChatWorkspace({
     ? `${systemPromptContent}\n${activeFolder.systemPrompt}`
     : systemPromptContent;
   const { messages, isStreaming, sendMessage, regenerateMessage, stopStreaming, bottomRef, hasMessages } =
-    useChatStream(selectedModelChoices, effectiveSystemPrompt);
+    useChatStream(selectedModelChoices, effectiveSystemPrompt, voiceModeOpen);
   const experimentalFeatures = useSettingsStore((state) => state.general.experimentalFeatures);
   const agentEnabled = useAgentStore((state) => state.enabled) && experimentalFeatures;
   const workspaceSelections = useAgentStore((state) => state.workspaceSelections);
@@ -100,6 +105,18 @@ export default function ChatWorkspace({
       createConversation("Temporary Chat", true);
     }
   }, [isTemporary, createConversation, setActiveConversationId]);
+  // Compact voice mode: the orb docks small above the input and the chat
+  // stays visible behind it. Toggled by clicking the orb.
+  const [voiceCompact, setVoiceCompact] = useState(false);
+  const openVoiceMode = useCallback(() => {
+    setVoiceCompact(false);
+    setVoiceModeOpen(true);
+  }, []);
+  const closeVoiceMode = useCallback(() => {
+    setVoiceModeOpen(false);
+    setVoiceCompact(false);
+  }, []);
+  const toggleVoiceCompact = useCallback(() => setVoiceCompact((c) => !c), []);
 
   useEffect(() => {
     onStopStreamingReady(agentEnabled ? cancelAgentRun : stopStreaming);
@@ -245,7 +262,11 @@ export default function ChatWorkspace({
     <Box
       className="relative flex h-full min-h-0 flex-1 flex-col bg-background"
     >
-      {ViewComponent ? (
+      {/* Full voice mode is opaque over the workspace — skip rendering the
+          chat UI behind it so streaming markdown re-renders don't starve the
+          orb animation. Compact voice mode shows the chat, with the voice bar
+          replacing the composer. */}
+      {voiceModeOpen && !voiceCompact ? null : ViewComponent ? (
         <ViewComponent />
       ) : (
         <>
@@ -270,6 +291,7 @@ export default function ChatWorkspace({
           isStreaming={effectiveStreaming}
           providerOnline={ollama.online}
           onOpenConnections={onOpenConnections}
+          onOpenVoiceMode={openVoiceMode}
         />
       ) : hasMessages ? (
         <ChatArea
@@ -287,31 +309,58 @@ export default function ChatWorkspace({
           providerOnline={ollama.online}
           onOpenConnections={onOpenConnections}
         >
-          <ChatInput
-            onSubmit={handleSend}
-            onStop={agentEnabled ? cancelAgentRun : stopStreaming}
-            isStreaming={effectiveStreaming}
-            isTemporary={isTemporary}
-            conversationId={activeConversationId}
-          />
-        </EmptyState>
-      )}
-
-      {hasMessages ? (
-        <Box className="shrink-0 px-6 pb-6">
-          <Box className="mx-auto w-full max-w-3xl">
+          {voiceModeOpen ? null : (
             <ChatInput
               onSubmit={handleSend}
               onStop={agentEnabled ? cancelAgentRun : stopStreaming}
               isStreaming={effectiveStreaming}
               isTemporary={isTemporary}
               conversationId={activeConversationId}
+              onOpenVoiceMode={openVoiceMode}
             />
+          )}
+        </EmptyState>
+      )}
+
+      {hasMessages ? (
+        voiceModeOpen ? (
+          // Clearance for the docked voice orb + bar overlaying the bottom.
+          <Box className="h-44 shrink-0" />
+        ) : (
+          <Box className="shrink-0 px-6 pb-6">
+            <Box className="mx-auto w-full max-w-3xl">
+              <ChatInput
+                onSubmit={handleSend}
+                onStop={agentEnabled ? cancelAgentRun : stopStreaming}
+                isStreaming={effectiveStreaming}
+                isTemporary={isTemporary}
+                conversationId={activeConversationId}
+                onOpenVoiceMode={openVoiceMode}
+              />
+            </Box>
           </Box>
-        </Box>
+        )
       ) : null}
         </>
       )}
+      {voiceModeOpen ? (
+        <Suspense fallback={null}>
+          <VoiceModeOverlayLazy
+            open
+            compact={voiceCompact}
+            onToggleCompact={toggleVoiceCompact}
+            onClose={closeVoiceMode}
+            onSubmit={handleSend}
+            onInterrupt={agentEnabled ? cancelAgentRun : stopStreaming}
+            canSubmit={
+              ollama.online &&
+              selectedModelChoices.some((choice) => Boolean(choice.model && choice.provider))
+            }
+            isResponding={effectiveStreaming}
+            messages={messages}
+          />
+        </Suspense>
+      ) : null}
     </Box>
   );
 }

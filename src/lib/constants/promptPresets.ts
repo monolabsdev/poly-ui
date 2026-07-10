@@ -32,6 +32,9 @@ export const PROMPT_PRESETS: PromptPreset[] = [
   },
 ];
 
+export const VOICE_SYSTEM_PROMPT_SUFFIX =
+  "You are speaking to the user viva voce. Keep responses very short and conversational — aim for 1–3 sentences. Speak as if in real-time conversation: no greetings, no sign-offs, no markdown formatting, no lists. Answer directly and concisely.";
+
 export function getPresetContent(id: PromptPresetId): string {
   const preset = PROMPT_PRESETS.find((p) => p.id === id);
   return preset?.content ?? "";

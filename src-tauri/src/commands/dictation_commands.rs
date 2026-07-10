@@ -17,7 +17,9 @@ const SELECTED_MODEL_FILE: &str = "whisper-selected-model.txt";
 const WHISPER_SAMPLE_RATE: f32 = 16_000.0;
 const MIN_AUDIO_SAMPLES: usize = 4_800;
 const MIN_AUDIO_RMS: f32 = 0.001;
-const MIN_AUDIO_PEAK: f32 = 0.01;
+// Quiet mics leave mumbled speech peaking well under 0.01; Whisper's own
+// no_speech/logprob segment filters are the real hallucination guard.
+const MIN_AUDIO_PEAK: f32 = 0.006;
 const MIN_ACTIVE_AUDIO_RATIO: f32 = 0.005;
 const CLIPPING_THRESHOLD: f32 = 0.999;
 static LAST_AUDIO_HASH: LazyLock<Mutex<Option<String>>> = LazyLock::new(|| Mutex::new(None));
@@ -307,10 +309,51 @@ fn audio_stats(samples: &[f32]) -> AudioStats {
     }
 }
 
+fn recent_audio_rms(samples: &[f32], window_size: usize) -> f32 {
+    let start = samples.len().saturating_sub(window_size);
+    audio_stats(&samples[start..]).rms
+}
+
 fn has_audible_audio(stats: AudioStats) -> bool {
     stats.rms >= MIN_AUDIO_RMS
         && stats.peak >= MIN_AUDIO_PEAK
         && stats.active_ratio >= MIN_ACTIVE_AUDIO_RATIO
+}
+
+/// Scale quiet audio up toward full range before transcription. Quiet mics
+/// leave speech far below full scale and Whisper resolves mumbled speech
+/// noticeably better at normal levels. Gain is capped so near-silence isn't
+/// amplified into fake speech. Returns the applied gain, if any.
+fn normalize_quiet_audio(samples: &mut [f32], peak: f32) -> Option<f32> {
+    if peak <= 0.0 || peak >= 0.9 {
+        return None;
+    }
+    let gain = (0.9 / peak).min(20.0);
+    if gain <= 1.0 {
+        return None;
+    }
+    for sample in samples.iter_mut() {
+        *sample = (*sample * gain).clamp(-1.0, 1.0);
+    }
+    Some(gain)
+}
+
+/// Whisper's greedy decoder sometimes emits the whole utterance twice
+/// back-to-back on short clips ("Hey how are you? Hey how are you?").
+/// Collapse an exact space-separated repeat; halves must be long enough that
+/// deliberate repeats ("very very") are never touched.
+fn collapse_repeated_transcript(transcript: &str) -> &str {
+    let transcript = transcript.trim();
+    let mid = transcript.len() / 2;
+    if mid >= 10
+        && transcript.len() % 2 == 1
+        && transcript.is_char_boundary(mid)
+        && transcript.as_bytes()[mid] == b' '
+        && transcript[..mid] == transcript[mid + 1..]
+    {
+        return &transcript[..mid];
+    }
+    transcript
 }
 
 fn sanitize_audio_samples(samples: &mut [f32]) {
@@ -745,6 +788,23 @@ pub fn release_whisper_model(state: State<'_, WhisperState>) -> Result<(), Strin
     Ok(())
 }
 
+/// Load the selected Whisper model into memory ahead of the first
+/// transcription so the first voice-mode turn doesn't pay the load time.
+#[tauri::command]
+pub async fn preload_whisper_model(state: State<'_, WhisperState>) -> Result<(), String> {
+    let state = state.inner().clone();
+    tokio::task::spawn_blocking(move || {
+        let Some(model_id) = read_selected_model_id(&state)? else {
+            return Ok(());
+        };
+        let model = model_by_id(&model_id)?;
+        let model_path = installed_path(&state, model);
+        state.with_context(model.id, model_path, |_context| Ok(()))
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
 #[tauri::command]
 pub async fn download_whisper_model(
     app_handle: AppHandle,
@@ -830,6 +890,125 @@ pub async fn start_native_dictation_recording() -> Result<(), String> {
 }
 
 #[tauri::command]
+pub fn native_dictation_audio_level() -> Result<f32, String> {
+    #[cfg(target_os = "linux")]
+    {
+        let current = NATIVE_RECORDER
+            .lock()
+            .map_err(|_| "Native recorder lock poisoned".to_string())?;
+        let Some(recorder) = current.as_ref() else {
+            return Ok(0.0);
+        };
+        let samples = recorder
+            .samples
+            .lock()
+            .map_err(|_| "Native recorder sample lock poisoned".to_string())?;
+        return Ok(recent_audio_rms(
+            &samples,
+            (recorder.source_sample_rate / 10) as usize,
+        ));
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        Ok(0.0)
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn snapshot_native_samples() -> Result<Option<Vec<f32>>, String> {
+    let current = NATIVE_RECORDER
+        .lock()
+        .map_err(|_| "Native recorder lock poisoned".to_string())?;
+    let Some(recorder) = current.as_ref() else {
+        return Ok(None);
+    };
+    let raw = recorder
+        .samples
+        .lock()
+        .map_err(|_| "Native recorder sample lock poisoned".to_string())?
+        .clone();
+    Ok(Some(resample_mono(
+        &raw,
+        recorder.source_sample_rate,
+        WHISPER_SAMPLE_RATE as u32,
+    )))
+}
+
+/// Transcribe the audio captured so far without stopping the recorder, so the
+/// UI can stream a live transcript while the user is still speaking. Returns
+/// an empty string when there isn't enough audible audio yet.
+#[tauri::command]
+pub async fn transcribe_native_dictation_partial(
+    language: Option<String>,
+    state: State<'_, WhisperState>,
+) -> Result<String, String> {
+    #[cfg(target_os = "linux")]
+    {
+        let state = state.inner().clone();
+        return tokio::task::spawn_blocking(move || {
+            let Some(mut samples) = snapshot_native_samples()? else {
+                return Ok(String::new());
+            };
+            if samples.len() < MIN_AUDIO_SAMPLES {
+                return Ok(String::new());
+            }
+            let stats = audio_stats(&samples);
+            if !has_audible_audio(stats) {
+                return Ok(String::new());
+            }
+            normalize_quiet_audio(&mut samples, stats.peak);
+            run_whisper(&samples, language.as_deref(), &state, false)
+        })
+        .await
+        .map_err(|error| error.to_string())?;
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = (language, state);
+        Ok(String::new())
+    }
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NativeTranscription {
+    transcript: String,
+    peak: f32,
+}
+
+/// Stop native capture and transcribe in one call. Avoids shipping the raw
+/// sample vector across IPC twice (Rust -> JS -> Rust) as JSON, which costs
+/// hundreds of milliseconds on longer turns.
+#[tauri::command]
+pub async fn stop_native_dictation_and_transcribe(
+    language: Option<String>,
+    state: State<'_, WhisperState>,
+) -> Result<NativeTranscription, String> {
+    #[cfg(target_os = "linux")]
+    {
+        let state = state.inner().clone();
+        return tokio::task::spawn_blocking(move || {
+            let recording = stop_native_recorder()?;
+            let peak = audio_stats(&recording.audio_samples).peak;
+            let transcript = transcribe_audio_blocking(
+                recording.audio_samples,
+                language,
+                Some(recording.audio_meta),
+                state,
+            )?;
+            Ok(NativeTranscription { transcript, peak })
+        })
+        .await
+        .map_err(|error| error.to_string())?;
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = (language, state);
+        Err("Native dictation recording is only available on Linux.".to_string())
+    }
+}
+
+#[tauri::command]
 pub async fn stop_native_dictation_recording() -> Result<NativeDictationRecording, String> {
     #[cfg(target_os = "linux")]
     {
@@ -908,21 +1087,55 @@ fn transcribe_audio_blocking(
         return Ok(String::new());
     }
 
+    if let Some(gain) = normalize_quiet_audio(&mut audio_samples, stats.peak) {
+        log_dictation(format!(
+            "transcribe_audio: normalized quiet input gain={gain:.2} pre_peak={:.5}",
+            stats.peak,
+        ));
+    }
+
+    run_whisper(&audio_samples, language.as_deref(), &state, true)
+}
+
+fn run_whisper(
+    audio_samples: &[f32],
+    language: Option<&str>,
+    state: &WhisperState,
+    verbose: bool,
+) -> Result<String, String> {
+    let duration_s = audio_samples.len() as f32 / WHISPER_SAMPLE_RATE;
+
     // Force English for dictation; auto-detection is unreliable on short clips
     // and is the primary cause of hallucinated single-token outputs like "you".
-    let effective_language = match language.as_deref() {
+    let effective_language = match language {
         Some(lang) if lang != "auto" => Some(lang),
         _ => Some("en"),
     };
 
-    let selected_model_id = read_selected_model_id(&state)?
+    let selected_model_id = read_selected_model_id(state)?
         .ok_or_else(|| "Install a Whisper model before dictation.".to_string())?;
     let model = model_by_id(&selected_model_id)?;
-    let model_path = installed_path(&state, model);
+    let model_path = installed_path(state, model);
 
     state.with_context(model.id, model_path, |context| {
         let mut whisper_state = context.create_state().map_err(|error| error.to_string())?;
         let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
+
+        // Speed over polish: voice turns are short conversational clips.
+        // Whisper defaults to 4 threads regardless of core count, and always
+        // runs the encoder over its full 30s window — shrinking the audio
+        // context to the clip length is a ~3-5x encoder speedup on short
+        // turns for a marginal accuracy cost.
+        let threads = std::thread::available_parallelism()
+            .map(|n| n.get() as i32)
+            .unwrap_or(4)
+            .clamp(4, 8);
+        params.set_n_threads(threads);
+        // Floor of 512: below that the truncated encoder context makes the
+        // greedy decoder repeat the utterance ("Hey how are you? Hey how are
+        // you?" from a 1.9s clip decoded at audio_ctx=160).
+        let audio_ctx = (((duration_s * 50.0).ceil() as i32) + 64).clamp(512, 1500);
+        params.set_audio_ctx(audio_ctx);
 
         params.set_language(effective_language);
         params.set_print_special(false);
@@ -937,16 +1150,18 @@ fn transcribe_audio_blocking(
             .full(params, &audio_samples)
             .map_err(|error| error.to_string())?;
 
-        // Diagnostic: detected language
-        let lang_id = whisper_state.full_lang_id_from_state();
-        let lang_name = whisper_rs::get_lang_str(lang_id).unwrap_or("unknown");
-        log_dictation(format!(
-            "transcribe_audio: {} samples ({:.2}s), lang={}, segments={}",
-            audio_samples.len(),
-            duration_s,
-            lang_name,
-            whisper_state.full_n_segments(),
-        ));
+        if verbose {
+            // Diagnostic: detected language
+            let lang_id = whisper_state.full_lang_id_from_state();
+            let lang_name = whisper_rs::get_lang_str(lang_id).unwrap_or("unknown");
+            log_dictation(format!(
+                "transcribe_audio: {} samples ({:.2}s), lang={}, segments={}",
+                audio_samples.len(),
+                duration_s,
+                lang_name,
+                whisper_state.full_n_segments(),
+            ));
+        }
 
         let mut transcript_parts: Vec<String> = Vec::new();
         let n_segments = whisper_state.full_n_segments();
@@ -975,32 +1190,41 @@ fn transcribe_audio_blocking(
                 -10.0
             };
 
-            log_dictation(format!(
-                "  seg[{}]: \"{}\" tokens={} no_speech={:.4} avg_logprob={:.4}",
-                seg_idx, text, n_tokens, no_speech_prob, avg_logprob
-            ));
+            if verbose {
+                log_dictation(format!(
+                    "  seg[{}]: \"{}\" tokens={} no_speech={:.4} avg_logprob={:.4}",
+                    seg_idx, text, n_tokens, no_speech_prob, avg_logprob
+                ));
+            }
 
             if no_speech_prob > 0.5 {
-                log_dictation(format!(
-                    "  seg[{}] rejected: no_speech_prob={:.4} > 0.5",
-                    seg_idx, no_speech_prob
-                ));
+                if verbose {
+                    log_dictation(format!(
+                        "  seg[{}] rejected: no_speech_prob={:.4} > 0.5",
+                        seg_idx, no_speech_prob
+                    ));
+                }
                 continue;
             }
 
             if avg_logprob < -2.0 {
-                log_dictation(format!(
-                    "  seg[{}] rejected: avg_logprob={:.4} < -2.0",
-                    seg_idx, avg_logprob
-                ));
+                if verbose {
+                    log_dictation(format!(
+                        "  seg[{}] rejected: avg_logprob={:.4} < -2.0",
+                        seg_idx, avg_logprob
+                    ));
+                }
                 continue;
             }
 
             transcript_parts.push(text);
         }
 
-        let transcript = transcript_parts.join("").trim().to_string();
-        log_dictation(format!("  final: \"{}\"", transcript));
+        let joined = transcript_parts.join("");
+        let transcript = collapse_repeated_transcript(&joined).to_string();
+        if verbose {
+            log_dictation(format!("  final: \"{}\"", transcript));
+        }
 
         Ok(transcript)
     })
@@ -1030,6 +1254,36 @@ mod tests {
     }
 
     #[test]
+    fn normalizes_quiet_audio_with_capped_gain() {
+        let mut samples = vec![0.01_f32, -0.03, 0.02];
+        let gain = normalize_quiet_audio(&mut samples, 0.03).unwrap();
+        assert!((gain - 20.0).abs() < f32::EPSILON);
+        assert!((samples[1] + 0.6).abs() < 1e-6);
+
+        let mut loud = vec![0.5_f32, -0.95];
+        assert!(normalize_quiet_audio(&mut loud, 0.95).is_none());
+        assert_eq!(loud, vec![0.5, -0.95]);
+
+        let mut silent: Vec<f32> = vec![0.0; 4];
+        assert!(normalize_quiet_audio(&mut silent, 0.0).is_none());
+    }
+
+    #[test]
+    fn collapses_exact_repeated_transcript() {
+        assert_eq!(
+            collapse_repeated_transcript("Hey how are you? Hey how are you?"),
+            "Hey how are you?"
+        );
+        // Short deliberate repeats and non-repeats are untouched.
+        assert_eq!(collapse_repeated_transcript("very very"), "very very");
+        assert_eq!(
+            collapse_repeated_transcript("Hey how are you? I'm doing fine."),
+            "Hey how are you? I'm doing fine."
+        );
+        assert_eq!(collapse_repeated_transcript(""), "");
+    }
+
+    #[test]
     fn sanitize_audio_removes_invalid_samples() {
         let mut samples = vec![f32::NAN, f32::INFINITY, 2.0, -2.0, 0.5];
         sanitize_audio_samples(&mut samples);
@@ -1043,5 +1297,11 @@ mod tests {
             resample_mono(&samples, 48_000, WHISPER_SAMPLE_RATE as u32).len(),
             16_000
         );
+    }
+
+    #[test]
+    fn recent_audio_level_uses_only_the_tail_window() {
+        assert_eq!(recent_audio_rms(&[1.0, 1.0, 0.0, 0.0], 2), 0.0);
+        assert_eq!(recent_audio_rms(&[0.0, 0.0, 0.5, 0.5], 2), 0.5);
     }
 }
