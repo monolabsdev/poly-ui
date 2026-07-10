@@ -9,4 +9,18 @@ describe("Supertonic release bundle", () => {
       "target/onnxruntime/*onnxruntime*": "",
     });
   });
+
+  it("builds st-tts before staging its generated runtime", () => {
+    const cargo = readFileSync("src-tauri/Cargo.toml", "utf8");
+    const buildDependencies = cargo.split("[build-dependencies]")[1].split("\n[")[0];
+
+    expect(buildDependencies).toContain('st-tts = "0.3"');
+  });
+
+  it("runs frontend tests through the Vitest package script", () => {
+    const workflow = readFileSync(".github/workflows/ci.yml", "utf8");
+
+    expect(workflow).toContain("run: bun run test");
+    expect(workflow).not.toContain("run: bun test");
+  });
 });
