@@ -3704,6 +3704,7 @@ dependencies = [
  "hound",
  "log",
  "ollama-rs",
+ "ort",
  "percent-encoding",
  "raw-window-handle",
  "reqwest 0.12.28",

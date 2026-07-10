@@ -36,6 +36,9 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "resources": {
+      "target/onnxruntime/*onnxruntime*": ""
+    },
     "icon": ["icons/icon.ico", "icons/icon.png"],
     "windows": {
       "nsis": {
