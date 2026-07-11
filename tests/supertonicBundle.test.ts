@@ -17,6 +17,13 @@ describe("Supertonic release bundle", () => {
     expect(buildDependencies).toContain('st-tts = "0.3"');
   });
 
+  it("re-downloads the ONNX runtime when rust-cache pruned it", () => {
+    const workflow = readFileSync(".github/workflows/ci.yml", "utf8");
+
+    expect(workflow).toContain("if [ ! -f src-tauri/target/debug/libonnxruntime.so ]; then");
+    expect(workflow).toContain("cargo clean --manifest-path src-tauri/Cargo.toml -p st-tts");
+  });
+
   it("runs frontend tests through the Vitest package script", () => {
     const workflow = readFileSync(".github/workflows/ci.yml", "utf8");
 

@@ -283,12 +283,27 @@ pub fn run() {
             mobile_pairing_stop,
             mobile_pairing_status,
         ])
-        .run(context);
+        .build(context);
 
-    if let Err(error) = result {
-        startup_log::log_error(format!("tauri run failed: {error}"));
-        panic!("error while running tauri application: {error}");
-    }
+    let app = match result {
+        Ok(app) => app,
+        Err(error) => {
+            startup_log::log_error(format!("tauri run failed: {error}"));
+            panic!("error while running tauri application: {error}");
+        }
+    };
+
+    app.run(|_app, event| {
+        if let tauri::RunEvent::ExitRequested { code, .. } = event {
+            // ponytail: hard-exit before Tauri teardown. Closing the sqlite pools
+            // (block_on on the main thread) and dropping the ONNX/Supertonic
+            // sessions deadlocks on Linux, leaving a frozen "not responding"
+            // window. SQLite is crash-safe and window state is saved on
+            // CloseRequested, so skipping cleanup loses nothing.
+            startup_log::log_phase("exit requested; terminating process");
+            std::process::exit(code.unwrap_or(0));
+        }
+    });
     startup_log::log_phase("process exit");
 }
 

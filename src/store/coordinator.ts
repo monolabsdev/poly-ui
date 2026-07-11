@@ -3,7 +3,8 @@ import { useChatStore } from "./chatStore";
 import { useFolderStore } from "./folderStore";
 import { useDevStore } from "./devStore";
 import { useSettingsStore } from "./settingsStore";
-import { setTtsSettings, useTtsStore } from "./ttsStore";
+import { setTtsSettings, setTtsLoadNotifier, useTtsStore, type TtsLoadProgress } from "./ttsStore";
+import { useNotificationStore } from "./notificationStore";
 import { setUpdateInstallSimulation } from "./updateStore";
 import { getRepository } from "@/lib/repositories";
 import { deleteAgentChatSandbox } from "@/features/agent/agentClient";
@@ -29,6 +30,49 @@ async function refreshProviders() {
   });
 }
 
+// Voice engine (Supertonic) load → one persistent loading toast that tracks
+// download progress and only clears when the model is ready or failed.
+function makeTtsLoadToast() {
+  let toastId: string | null = null;
+  const mb = (n: number) => `${Math.max(1, Math.round(n / 1_048_576))} MB`;
+  return (progress: TtsLoadProgress) => {
+    const toasts = useNotificationStore.getState().actions;
+    if (progress.phase === "start") {
+      toastId = toasts.add({
+        type: "loading",
+        message: "Preparing voice engine",
+        description: "Loading the local voice model. First use downloads it once.",
+        duration: Infinity,
+      });
+      return;
+    }
+    if (!toastId) return;
+    if (progress.phase === "progress") {
+      toasts.update(toastId, {
+        description: progress.totalBytes
+          ? `Downloading ${progress.file} — ${mb(progress.bytesDownloaded)} / ${mb(progress.totalBytes)}`
+          : `Downloading ${progress.file} — ${mb(progress.bytesDownloaded)}`,
+      });
+    } else if (progress.phase === "done") {
+      toasts.update(toastId, {
+        type: "success",
+        message: "Voice engine ready",
+        description: undefined,
+        duration: 2500,
+      });
+      toastId = null;
+    } else {
+      toasts.update(toastId, {
+        type: "error",
+        message: "Voice engine failed to load",
+        description: progress.message,
+        duration: 8000,
+      });
+      toastId = null;
+    }
+  };
+}
+
 async function cleanupDeletedConversation(id: string) {
   closeViewportForChat(id);
   await deleteAgentChatSandbox(id).catch((error) => {
@@ -51,6 +95,7 @@ export function initStoreCoordinator() {
   useChatStore.getState().actions.setAccountId(initialAccountId);
   useFolderStore.getState().actions.setAccountId(initialAccountId);
   setTtsSettings(useSettingsStore.getState().tts);
+  setTtsLoadNotifier(makeTtsLoadToast());
   setUpdateInstallSimulation(useDevStore.getState().devMode);
 
   unsubscribeFns.push(useAuthStore.subscribe((state, prev) => {
