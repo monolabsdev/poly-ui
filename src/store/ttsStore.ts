@@ -113,23 +113,76 @@ const usesSupertonic = () =>
   ttsSettings.engine === "supertonic" ||
   (ttsSettings.engine !== "native" && (IS_LINUX_WEBVIEW || !nativeSynthesisAvailable()));
 
+export type TtsLoadProgress =
+  | { phase: "start" }
+  | { phase: "progress"; file: string; bytesDownloaded: number; totalBytes: number | null }
+  | { phase: "done" }
+  | { phase: "error"; message: string };
+
+// Injected by store/coordinator.ts (stores must not import each other); the
+// notification store turns these into a persistent loading toast.
+let notifyLoadProgress: (progress: TtsLoadProgress) => void = () => {};
+export function setTtsLoadNotifier(notify: (progress: TtsLoadProgress) => void) {
+  notifyLoadProgress = notify;
+}
+
 const ensureSupertonicLoaded = async () => {
   const status = await invoke<{ engineLoaded: boolean; currentVoice: string }>("plugin:supertonic|get_status");
-  if (status.engineLoaded && status.currentVoice === ttsSettings.supertonic.voiceName) return;
+  if (status.engineLoaded) {
+    if (status.currentVoice !== ttsSettings.supertonic.voiceName) {
+      await invoke("plugin:supertonic|select_voice", {
+        voiceName: ttsSettings.supertonic.voiceName,
+      });
+    }
+    return;
+  }
 
-  supertonicLoadPromise ??= Promise.race([
-    invoke("plugin:supertonic|load_model", {
-      modelId: "Supertone/supertonic-3",
-      voiceStyle: ttsSettings.supertonic.voiceName,
-      onProgress: new Channel(),
-    }),
-    new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error("Supertonic model load timed out")), 120_000),
-    ),
-  ]).finally(() => {
+  supertonicLoadPromise ??= loadSupertonic().finally(() => {
     supertonicLoadPromise = null;
-  }) as Promise<void>;
+  });
   await supertonicLoadPromise;
+};
+
+const loadSupertonic = async () => {
+  // A first-time download takes as long as the connection needs, so no hard
+  // deadline — instead fail only when nothing has happened for a while.
+  let stalled: () => void = () => {};
+  const stallPromise = new Promise<never>((_, reject) => {
+    stalled = () => reject(new Error("Supertonic model load stalled"));
+  });
+  let stallTimer = setTimeout(stalled, 120_000);
+
+  const onProgress = new Channel<{
+    file: string;
+    bytesDownloaded: number;
+    totalBytes: number | null;
+  }>();
+  onProgress.onmessage = (p) => {
+    clearTimeout(stallTimer);
+    stallTimer = setTimeout(stalled, 120_000);
+    notifyLoadProgress({ phase: "progress", ...p });
+  };
+
+  notifyLoadProgress({ phase: "start" });
+  try {
+    await Promise.race([
+      invoke("plugin:supertonic|load_model", {
+        modelId: "Supertone/supertonic-3",
+        voiceStyle: ttsSettings.supertonic.voiceName,
+        onProgress,
+      }),
+      stallPromise,
+    ]);
+    notifyLoadProgress({ phase: "done" });
+  } catch (error) {
+    notifyLoadProgress({
+      phase: "error",
+      message: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
+  } finally {
+    clearTimeout(stallTimer);
+  }
 };
 
 /** Load the Supertonic engine ahead of the first utterance (e.g. when voice
