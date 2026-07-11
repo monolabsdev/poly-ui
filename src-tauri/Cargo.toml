@@ -1,6 +1,6 @@
 [package]
 name = "polyui"
-version = "0.19.2"
+version = "0.19.3"
 description = "A Tauri App"
 authors = ["you"]
 edition = "2021"
