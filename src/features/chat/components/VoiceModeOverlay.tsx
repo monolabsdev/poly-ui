@@ -460,7 +460,7 @@ export default function VoiceModeOverlay({
           role="dialog"
           aria-modal={compact ? undefined : "true"}
           aria-label="Voice mode"
-          className={`absolute inset-0 z-20 text-foreground transition-opacity duration-200 ${entered ? "opacity-100" : "opacity-0"} ${compact ? "pointer-events-none" : "bg-background"}`}
+          className={`absolute inset-0 z-20 text-foreground transition-opacity duration-200 ${entered ? "opacity-100" : "opacity-0"} ${compact ? "pointer-events-none" : "bg-[#0A0A0A]"}`}
         >
           {/* The orb keeps its 180px canvas; docking animates position and
               scale so the shader surface never remounts mid-transition. */}
@@ -507,7 +507,7 @@ export default function VoiceModeOverlay({
 
           <div className="pointer-events-auto absolute inset-x-0 bottom-5 flex flex-col items-center gap-2 px-5">
             <form
-              className="flex h-12 w-full max-w-2xl items-center gap-1 rounded-full bg-muted p-1 pl-2"
+              className="flex h-12 w-full max-w-2xl items-center gap-1 rounded-full bg-[#2A2A2A] p-1 pl-2"
               onSubmit={handleTypedSubmit}
             >
               <Button
