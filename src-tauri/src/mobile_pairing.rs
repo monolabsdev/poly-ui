@@ -11,6 +11,7 @@ use std::fs;
 use std::net::{IpAddr, Ipv4Addr, UdpSocket};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 use tauri::{Emitter, State};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
@@ -119,6 +120,38 @@ fn lan_ip() -> Option<Ipv4Addr> {
     }
 }
 
+const AUTH_FAILURE_WINDOW: Duration = Duration::from_secs(60);
+const MAX_AUTH_FAILURES: u32 = 10;
+
+/// Throttles token guessing: after MAX_AUTH_FAILURES bad tokens within the
+/// window, unauthorized requests get 429 until the window resets. Requests
+/// carrying the correct token are never blocked.
+/// ponytail: one global bucket; per-IP buckets if a noisy LAN device ever
+/// starves legitimate pairing attempts.
+struct AuthRateLimiter {
+    failures: u32,
+    window_start: Instant,
+}
+
+impl AuthRateLimiter {
+    fn new() -> Self {
+        Self {
+            failures: 0,
+            window_start: Instant::now(),
+        }
+    }
+
+    /// Records a failed auth attempt; returns true once locked out.
+    fn record_failure(&mut self) -> bool {
+        if self.window_start.elapsed() > AUTH_FAILURE_WINDOW {
+            self.failures = 0;
+            self.window_start = Instant::now();
+        }
+        self.failures = self.failures.saturating_add(1);
+        self.failures > MAX_AUTH_FAILURES
+    }
+}
+
 async fn run_pairing_server(
     listener: TcpListener,
     token: String,
@@ -127,16 +160,18 @@ async fn run_pairing_server(
     mut stop: oneshot::Receiver<()>,
 ) {
     let token = Arc::new(token);
+    let limiter = Arc::new(std::sync::Mutex::new(AuthRateLimiter::new()));
     loop {
         tokio::select! {
             _ = &mut stop => break,
             accepted = listener.accept() => {
                 let Ok((stream, _addr)) = accepted else { continue };
                 let token = Arc::clone(&token);
+                let limiter = Arc::clone(&limiter);
                 let db = db.clone();
                 let app_handle = app_handle.clone();
                 tokio::spawn(async move {
-                    let _ = handle_connection(stream, token.as_str(), db, app_handle).await;
+                    let _ = handle_connection(stream, token.as_str(), limiter, db, app_handle).await;
                 });
             }
         }
@@ -174,6 +209,7 @@ struct BrowserMessageRequest {
 async fn handle_connection(
     mut stream: TcpStream,
     token: &str,
+    limiter: Arc<std::sync::Mutex<AuthRateLimiter>>,
     db: sqlx::SqlitePool,
     app_handle: tauri::AppHandle,
 ) -> std::io::Result<()> {
@@ -188,6 +224,16 @@ async fn handle_connection(
     let method = parts.next().unwrap_or("GET");
     let path = parts.next().unwrap_or("/");
     let body = request.split("\r\n\r\n").nth(1).unwrap_or("");
+    if !token_matches(path, token) && !is_public_path(path) {
+        let locked_out = limiter
+            .lock()
+            .map(|mut limiter| limiter.record_failure())
+            .unwrap_or(false);
+        if locked_out {
+            stream.write_all(&too_many_requests_response()).await?;
+            return Ok(());
+        }
+    }
     if method == "POST" && path.starts_with("/api/chat-stream") {
         return handle_chat_stream_response(stream, path, body, token, db, app_handle).await;
     }
@@ -661,8 +707,18 @@ async fn insert_message(db: &sqlx::SqlitePool, message: &BrowserMessageRequest) 
     Ok(())
 }
 
+/// Paths served without a pairing token; failures here never count toward
+/// the auth rate limit.
+fn is_public_path(path: &str) -> bool {
+    path == "/health" || path == "/polyui-icon.png" || path.starts_with("/assets/")
+}
+
 fn unauthorized_response() -> Vec<u8> {
     json_response(401, r#"{"ok":false}"#)
+}
+
+fn too_many_requests_response() -> Vec<u8> {
+    json_response(429, r#"{"ok":false,"error":"Too many requests"}"#)
 }
 
 fn not_found_response() -> Vec<u8> {
@@ -689,6 +745,7 @@ fn http_response(status: u16, content_type: &str, body: &str) -> Vec<u8> {
         401 => "Unauthorized",
         404 => "Not Found",
         400 => "Bad Request",
+        429 => "Too Many Requests",
         _ => "Error",
     };
     format!(
@@ -785,7 +842,28 @@ fn content_type_for_path(path: &Path) -> &'static str {
 
 #[cfg(test)]
 mod tests {
-    use super::{build_pairing_info, response_for_path};
+    use super::{
+        build_pairing_info, is_public_path, response_for_path, AuthRateLimiter, MAX_AUTH_FAILURES,
+    };
+
+    #[test]
+    fn auth_limiter_locks_out_after_max_failures() {
+        let mut limiter = AuthRateLimiter::new();
+        for _ in 0..MAX_AUTH_FAILURES {
+            assert!(!limiter.record_failure());
+        }
+        assert!(limiter.record_failure());
+        assert!(limiter.record_failure());
+    }
+
+    #[test]
+    fn public_paths_bypass_auth_limiting() {
+        assert!(is_public_path("/health"));
+        assert!(is_public_path("/polyui-icon.png"));
+        assert!(is_public_path("/assets/index-abc.js"));
+        assert!(!is_public_path("/api/conversations"));
+        assert!(!is_public_path("/mobile.html?token=x"));
+    }
 
     #[test]
     fn pairing_url_opens_vite_mobile_entry() {
