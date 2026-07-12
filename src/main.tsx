@@ -7,6 +7,7 @@ import { TooltipProvider } from "./components/ui/tooltip";
 import StartupLoadingScreen from "./components/StartupLoadingScreen";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { WindowTitleBar } from "./components/Layout/WindowTitleBar";
+import { WindowResizeBorders } from "./components/WindowResizeBorders";
 import { prepareAppStartup } from "./startup";
 import {
   startupError as reportStartupError,
@@ -148,6 +149,7 @@ function Root() {
       <NotificationProvider>
         <ErrorBoundary>
           <div className="app-root-shell">
+            <WindowResizeBorders />
             <WindowTitleBar />
             {startupError ? (
               <StartupErrorScreen message={startupError} />
