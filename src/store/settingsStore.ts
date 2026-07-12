@@ -128,6 +128,42 @@ function defaultSettingsState(): Omit<SettingsState, "actions"> {
   };
 }
 
+// Runs on every rehydrate (unlike migrate, which only runs on version
+// bumps): fills in any missing nested field from defaults, so adding a new
+// settings key no longer requires a migration step and a half-stamped
+// storage (e.g. from a dev HMR race) heals itself on next load.
+export function mergeSettingsWithDefaults(
+  persisted: unknown,
+  current: SettingsState,
+): SettingsState {
+  const p = (persisted ?? {}) as Partial<Omit<SettingsState, "actions">>;
+  return {
+    ...current,
+    ...p,
+    general: {
+      ...current.general,
+      ...p.general,
+      webSearch: {
+        ...current.general.webSearch,
+        ...p.general?.webSearch,
+        apiKeys: {
+          ...current.general.webSearch.apiKeys,
+          ...p.general?.webSearch?.apiKeys,
+        },
+      },
+    },
+    tts: {
+      ...current.tts,
+      ...p.tts,
+      browser: { ...current.tts.browser, ...p.tts?.browser },
+      supertonic: { ...current.tts.supertonic, ...p.tts?.supertonic },
+    },
+    dictation: { ...current.dictation, ...p.dictation },
+    performance: { ...current.performance, ...p.performance },
+    actions: current.actions,
+  };
+}
+
 export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
@@ -160,6 +196,7 @@ export const useSettingsStore = create<SettingsState>()(
       name: "polyui:settings",
       version: SETTINGS_VERSION,
       storage: createSafeJsonStorage<SettingsState>(),
+      merge: mergeSettingsWithDefaults,
       migrate: (persisted, version) => {
         startupPhase(`settings migration start: ${version} -> ${SETTINGS_VERSION}`);
         if (version > SETTINGS_VERSION) {
