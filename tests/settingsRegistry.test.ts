@@ -23,6 +23,7 @@ describe("settings registry", () => {
       "mobile",
       "chat",
       "voice",
+      "memory",
       "personalization",
       "data-controls",
       "about",
@@ -73,6 +74,7 @@ describe("settings registry", () => {
       "src/features/settings/tabs/ProfileTab.tsx",
       "src/features/settings/tabs/SpeechTab.tsx",
       "src/features/settings/tabs/ConnectionsTab.tsx",
+      "src/features/settings/tabs/MemorySettingsTab.tsx",
       "src/features/web-search/WebSearchSettings.tsx",
       "src/features/memory/MemoryTab.tsx",
     ];

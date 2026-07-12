@@ -266,6 +266,7 @@ impl MemoryService {
             user_content: record_input.user_content.clone(),
             assistant_content: record_input.assistant_content.clone(),
             scopes: scopes.clone(),
+            chat_model: None,
         };
 
         let operations = match self.extractor.extract(turn).await {
@@ -317,9 +318,15 @@ impl MemoryService {
         owner_id: &str,
         conversation_id: &str,
         user_message_id: &str,
+        chat_model: Option<&str>,
     ) -> Result<Vec<String>, MemoryError> {
         let settings = self.get_settings(owner_id).await?;
         if !settings.enabled || !settings.automatic_extraction {
+            log::info!(
+                "memory: extraction skipped (enabled={}, automatic_extraction={})",
+                settings.enabled,
+                settings.automatic_extraction
+            );
             return Ok(Vec::new());
         }
         // Temporary/unpersisted chats never write memories automatically.
@@ -362,6 +369,7 @@ impl MemoryService {
                 user_content: user.content,
                 assistant_content: String::new(),
                 scopes,
+                chat_model: chat_model.map(str::to_string),
             })
             .await?;
         if operations.is_empty() {
@@ -463,7 +471,7 @@ impl MemoryService {
         } else if !settings.automatic_extraction {
             (true, format!("Storage ready ({count} active memories). Automatic extraction is off."))
         } else {
-            match resolve_extraction_target(&self.pool, &settings, owner_id).await {
+            match resolve_extraction_target(&self.pool, &settings, owner_id, None).await {
                 Ok((provider, model)) => (
                     true,
                     format!(

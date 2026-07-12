@@ -381,6 +381,10 @@ pub struct MemoryTurnInput {
     pub user_content: String,
     pub assistant_content: String,
     pub scopes: Vec<MemoryScopeOwner>,
+    /// Model the user is chatting with; preferred extraction fallback when no
+    /// explicit extraction model is configured.
+    #[serde(default)]
+    pub chat_model: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

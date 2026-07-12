@@ -83,7 +83,7 @@ class SqliteConversationRepository implements ConversationRepository {
 
   async addMessage(message: Message): Promise<void> {
     await this.db.execute(
-      "INSERT INTO messages (id, conversationId, role, content, createdAt, attachments, model, provider, thinking, thinkingDuration, webSearch, agent, status, errorMessage) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO messages (id, conversationId, role, content, createdAt, attachments, model, provider, thinking, thinkingDuration, webSearch, agent, status, errorMessage, memoryUpdates) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
       [
         message.id, message.conversationId, message.role, message.content, message.createdAt,
         message.attachments ? JSON.stringify(message.attachments) : null,
@@ -92,9 +92,17 @@ class SqliteConversationRepository implements ConversationRepository {
         message.agent ? JSON.stringify(message.agent) : null,
         message.status || null,
         message.errorMessage || null,
+        message.memoryUpdates?.length ? JSON.stringify(message.memoryUpdates) : null,
       ]
     );
     await this.db.execute("UPDATE conversations SET updatedAt = ? WHERE id = ?", [message.createdAt, message.conversationId]);
+  }
+
+  async setMessageMemoryUpdates(messageId: string, summaries: string[]): Promise<void> {
+    await this.db.execute(
+      "UPDATE messages SET memoryUpdates = ? WHERE id = ?",
+      [summaries.length ? JSON.stringify(summaries) : null, messageId],
+    );
   }
 
   async deleteMessagesAfter(conversationId: string, messageId: string): Promise<void> {
@@ -239,6 +247,18 @@ export class InMemoryConversationRepository implements ConversationRepository {
     this.messages[message.conversationId] = [...list, message];
     if (this.conversations[message.conversationId]) {
       this.conversations[message.conversationId].updatedAt = message.createdAt;
+    }
+  }
+
+  async setMessageMemoryUpdates(messageId: string, summaries: string[]): Promise<void> {
+    for (const [conversationId, msgs] of Object.entries(this.messages)) {
+      const idx = msgs.findIndex((m) => m.id === messageId);
+      if (idx !== -1) {
+        const next = [...msgs];
+        next[idx] = { ...next[idx], memoryUpdates: summaries.length ? summaries : undefined };
+        this.messages[conversationId] = next;
+        return;
+      }
     }
   }
 
