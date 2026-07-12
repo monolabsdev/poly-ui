@@ -49,6 +49,7 @@ fn find_library(library_name: &str, target: &str) -> Option<PathBuf> {
         .ok()
         .into_iter()
         .flatten()
+        .filter_map(|e| e.ok())
     {
         if entry.path().file_name().is_some_and(|n| n == library_name) {
             return Some(entry.path());
