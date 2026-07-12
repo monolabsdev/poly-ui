@@ -6,8 +6,6 @@ import {
 } from "@/components/ui/reasoning";
 import { TextShimmer } from "@/components/ui/text-shimmer";
 
-// TODO: npx shadcn add "https://prompt-kit.com/c/thinking-bar.json"
-
 interface ThinkingDisclosureProps {
   thinking?: string;
   isThinking: boolean;
@@ -86,10 +84,7 @@ export const ThinkingDisclosure = React.memo(
           )}
         </ReasoningTrigger>
         {hasThinking && (
-          <ReasoningContent
-            markdown
-           
-          >
+          <ReasoningContent markdown>
             {processedThinking}
           </ReasoningContent>
         )}
