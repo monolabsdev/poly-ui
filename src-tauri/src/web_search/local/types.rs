@@ -2,20 +2,15 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 use url::Url;
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Freshness {
     Day,
     Week,
     Month,
     Year,
+    #[default]
     Any,
-}
-
-impl Default for Freshness {
-    fn default() -> Self {
-        Self::Any
-    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

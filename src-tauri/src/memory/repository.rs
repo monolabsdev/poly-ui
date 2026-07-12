@@ -740,7 +740,7 @@ impl MemoryRepository for SqliteMemoryRepository {
             }
             sql.push_str("(scope = ? AND scope_owner_id = ?)");
         }
-        sql.push_str(")");
+        sql.push(')');
         // ponytail: naive LIKE match is a ranking boost, not a gate — a whole
         // user message almost never appears verbatim inside a stored memory,
         // so gating on it returned nothing. Embedding-based relevance later.
