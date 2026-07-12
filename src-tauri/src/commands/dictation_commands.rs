@@ -890,9 +890,9 @@ pub async fn download_whisper_model(
 pub async fn start_native_dictation_recording() -> Result<(), String> {
     #[cfg(target_os = "linux")]
     {
-        return tokio::task::spawn_blocking(start_native_recorder)
+        tokio::task::spawn_blocking(start_native_recorder)
             .await
-            .map_err(|error| error.to_string())?;
+            .map_err(|error| error.to_string())?
     }
     #[cfg(not(target_os = "linux"))]
     {
@@ -914,10 +914,10 @@ pub fn native_dictation_audio_level() -> Result<f32, String> {
             .samples
             .lock()
             .map_err(|_| "Native recorder sample lock poisoned".to_string())?;
-        return Ok(recent_audio_rms(
+        Ok(recent_audio_rms(
             &samples,
             (recorder.source_sample_rate / 10) as usize,
-        ));
+        ))
     }
     #[cfg(not(target_os = "linux"))]
     {
@@ -956,7 +956,7 @@ pub async fn transcribe_native_dictation_partial(
     #[cfg(target_os = "linux")]
     {
         let state = state.inner().clone();
-        return tokio::task::spawn_blocking(move || {
+        tokio::task::spawn_blocking(move || {
             let Some(mut samples) = snapshot_native_samples()? else {
                 return Ok(String::new());
             };
@@ -971,7 +971,7 @@ pub async fn transcribe_native_dictation_partial(
             run_whisper(&samples, language.as_deref(), &state, false)
         })
         .await
-        .map_err(|error| error.to_string())?;
+        .map_err(|error| error.to_string())?
     }
     #[cfg(not(target_os = "linux"))]
     {
@@ -998,7 +998,7 @@ pub async fn stop_native_dictation_and_transcribe(
     #[cfg(target_os = "linux")]
     {
         let state = state.inner().clone();
-        return tokio::task::spawn_blocking(move || {
+        tokio::task::spawn_blocking(move || {
             let recording = stop_native_recorder()?;
             let peak = audio_stats(&recording.audio_samples).peak;
             let transcript = transcribe_audio_blocking(
@@ -1010,7 +1010,7 @@ pub async fn stop_native_dictation_and_transcribe(
             Ok(NativeTranscription { transcript, peak })
         })
         .await
-        .map_err(|error| error.to_string())?;
+        .map_err(|error| error.to_string())?
     }
     #[cfg(not(target_os = "linux"))]
     {
@@ -1023,9 +1023,9 @@ pub async fn stop_native_dictation_and_transcribe(
 pub async fn stop_native_dictation_recording() -> Result<NativeDictationRecording, String> {
     #[cfg(target_os = "linux")]
     {
-        return tokio::task::spawn_blocking(stop_native_recorder)
+        tokio::task::spawn_blocking(stop_native_recorder)
             .await
-            .map_err(|error| error.to_string())?;
+            .map_err(|error| error.to_string())?
     }
     #[cfg(not(target_os = "linux"))]
     {
@@ -1158,7 +1158,7 @@ fn run_whisper(
         params.set_suppress_nst(true);
 
         whisper_state
-            .full(params, &audio_samples)
+            .full(params, audio_samples)
             .map_err(|error| error.to_string())?;
 
         if verbose {

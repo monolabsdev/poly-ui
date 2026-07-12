@@ -537,7 +537,7 @@ async fn response_for_request(
 #[cfg(test)]
 fn response_for_path(path: &str, token: &str) -> String {
     String::from_utf8_lossy(
-        &response_for_static_path("GET", path, token).unwrap_or_else(|| unauthorized_response()),
+        &response_for_static_path("GET", path, token).unwrap_or_else(unauthorized_response),
     )
     .into_owned()
 }

@@ -17,7 +17,8 @@ const SEARCH_CACHE_TTL: Duration = Duration::from_secs(10 * 60);
 static CLIENT: OnceLock<Client> = OnceLock::new();
 static SEARCH_CACHE: OnceLock<Mutex<HashMap<String, (Instant, SearchWebResponse)>>> =
     OnceLock::new();
-static SESSION: OnceLock<Mutex<HashMap<String, (Instant, String, SearchResult)>>> = OnceLock::new();
+type SessionEntry = (Instant, String, SearchResult);
+static SESSION: OnceLock<Mutex<HashMap<String, SessionEntry>>> = OnceLock::new();
 
 pub async fn search_web(mut request: SearchWebRequest) -> SearchWebResponse {
     request.query = request.query.trim().to_string();
