@@ -2,6 +2,16 @@ import { idleManager } from './manager'
 import { useChatStore } from '@/store/chatStore'
 import { useModelStore } from '@/store/modelStore'
 import { useFolderStore } from '@/store/folderStore'
+import { useNotificationStore } from '@/store/notificationStore'
+
+function notifyRestoreFailed(): void {
+  useNotificationStore.getState().actions.add({
+    type: 'error',
+    message: 'Failed to restore conversations',
+    description: 'Some chats may be missing — try switching conversations.',
+    duration: 5000,
+  })
+}
 
 function setCache(key: string, data: unknown): void {
   try { sessionStorage.setItem('idle:' + key, JSON.stringify(data)) } catch {}
@@ -61,8 +71,8 @@ export function registerMemoryPurge(): void {
       if (folders) useFolderStore.setState({ folders: folders })
       if (folderId !== null) useFolderStore.setState({ activeFolderId: folderId })
 
-      if (convId) useChatStore.getState().actions.setActiveConversationId(convId).catch(() => {})
-      useChatStore.getState().actions.loadConversations().catch(() => {})
+      if (convId) useChatStore.getState().actions.setActiveConversationId(convId).catch(notifyRestoreFailed)
+      useChatStore.getState().actions.loadConversations().catch(notifyRestoreFailed)
     },
     priority: 200,
   })

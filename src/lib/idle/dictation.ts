@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core'
 import { idleManager } from './manager'
+import { useNotificationStore } from '@/store/notificationStore'
 
 let selectedModelId: string | null = null
 let unregister: (() => void) | null = null
@@ -41,6 +42,15 @@ async function reload(): Promise<void> {
     } catch { return }
   }
   if (selectedModelId) {
-    try { await invoke('select_whisper_model', { modelId: selectedModelId }) } catch {}
+    try {
+      await invoke('select_whisper_model', { modelId: selectedModelId })
+    } catch {
+      useNotificationStore.getState().actions.add({
+        type: 'warning',
+        message: 'Dictation model failed to reload',
+        description: 'Reselect it in Settings → Dictation if voice input stops working.',
+        duration: 5000,
+      })
+    }
   }
 }
