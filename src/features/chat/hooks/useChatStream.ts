@@ -29,6 +29,7 @@ import { StreamSession } from "@/lib/chat/stream-session";
 import { getRepository } from "@/lib/repositories";
 import { getWebSearchConfig } from "@/features/web-search/useWebSearchConfig";
 import { getCurrentProviderAccountId } from "@/features/providers";
+import { notifyMemoryUpdated } from "@/features/memory/useConversationMemoryCount";
 import { useSettingsStore } from "@/store/settingsStore";
 import type { ModelChoice } from "@/lib/models/model-choice";
 
@@ -45,32 +46,54 @@ const pendingMemoryUpdates = new Map<string, string[]>();
  * just-sent user message and shows the "Memory updated" disclosure as soon
  * as extraction lands — usually while the model is still responding.
  */
-async function extractUserMessageMemory(conversationId: string, userMessageId: string) {
+async function extractUserMessageMemory(
+  conversationId: string,
+  userMessageId: string,
+  chatModel?: string,
+) {
   pendingMemoryUpdates.delete(conversationId);
-  if (!useSettingsStore.getState().general.experimentalFeatures) return;
+  const memoryBeta = useSettingsStore.getState().general.memoryBeta;
+  if (!memoryBeta) {
+    console.info("[Memory] skipped: memoryBeta is false");
+    return;
+  }
   const ownerId = getCurrentProviderAccountId();
-  if (!ownerId) return;
+  if (!ownerId) {
+    console.warn("[Memory] skipped: ownerId is empty");
+    return;
+  }
 
+  console.info(`[Memory] extracting for conversation=${conversationId}, message=${userMessageId}, owner=${ownerId}`);
   try {
     const summaries = await invoke<string[]>("memory_extract_user_message", {
       ownerId,
       conversationId,
       userMessageId,
+      // ponytail: first model only; multi-model turns extract once with it
+      chatModel: chatModel ?? null,
       token: getSessionToken(),
     });
-    console.info(`[Memory] extracted ${summaries.length} memories from user message`);
+    console.info(`[Memory] extracted ${summaries.length} summaries`, summaries);
     if (summaries.length === 0) return;
     pendingMemoryUpdates.set(conversationId, summaries);
+    notifyMemoryUpdated();
 
     // Show live on any assistant message already streaming for this turn.
     const { streamingMessages, actions } = useChatStore.getState();
+    let attached = false;
     for (const message of Object.values(streamingMessages)) {
       if (message.conversationId === conversationId) {
         actions.patchStreamingMessage(message.id, { memoryUpdates: summaries });
+        attached = true;
       }
     }
+    // Fast replies finish before extraction does — the turn is already
+    // settled, so stamp the persisted assistant message instead.
+    if (!attached) {
+      actions.attachMemoryUpdates(conversationId, userMessageId, summaries);
+    }
   } catch (error) {
-    console.warn("[Memory] user message extraction skipped", error);
+    console.error("[Memory] user message extraction failed", error);
   }
 }
 
@@ -363,7 +386,7 @@ export function useChatStream(modelChoices: ModelChoice[], systemPrompt = "", vo
         content: next.content,
         attachments: next.attachments,
       });
-      void extractUserMessageMemory(next.conversationId, userMessageId);
+      void extractUserMessageMemory(next.conversationId, userMessageId, models[0]?.model);
 
       await startStream(next.conversationId, models);
     } catch (err) {
@@ -411,7 +434,7 @@ export function useChatStream(modelChoices: ModelChoice[], systemPrompt = "", vo
         content: processed,
         attachments,
       });
-      void extractUserMessageMemory(conversationId, userMessageId);
+      void extractUserMessageMemory(conversationId, userMessageId, models[0]?.model);
 
       await startStream(conversationId, models);
     },

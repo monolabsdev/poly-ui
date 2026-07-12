@@ -157,7 +157,8 @@ async fn ensure_conversations_schema(pool: &SqlitePool) -> Result<(), String> {
             webSearch TEXT,
             agent TEXT,
             status TEXT,
-            errorMessage TEXT
+            errorMessage TEXT,
+            memoryUpdates TEXT
         )",
     )
     .execute(pool)
@@ -235,6 +236,23 @@ async fn ensure_conversations_schema(pool: &SqlitePool) -> Result<(), String> {
 
     if !has_error_message {
         sqlx::query("ALTER TABLE messages ADD COLUMN errorMessage TEXT")
+            .execute(pool)
+            .await
+            .map_err(|e| e.to_string())?;
+    }
+
+    let has_memory_updates = sqlx::query(
+        "SELECT COUNT(*) FROM pragma_table_info('messages') WHERE name = 'memoryUpdates'",
+    )
+    .fetch_one(pool)
+    .await
+    .map_err(|e| e.to_string())?
+    .get::<i64, _>(0)
+        > 0;
+
+    if !has_memory_updates {
+        // JSON array of memory summaries shown in the "Memory updated" chip
+        sqlx::query("ALTER TABLE messages ADD COLUMN memoryUpdates TEXT")
             .execute(pool)
             .await
             .map_err(|e| e.to_string())?;

@@ -48,6 +48,7 @@ type ChatStore = {
     setStreamingMessage: (id: string, message: Message | null) => void;
     patchStreamingMessage: (id: string, update: Partial<Message>) => void;
     patchStreamingMessages: (updates: Record<string, Partial<Message>>) => void;
+    attachMemoryUpdates: (conversationId: string, userMessageId: string, summaries: string[]) => void;
     loadMoreMessages: () => Promise<void>;
     addMessage: (message: {
       conversationId: string;
@@ -147,6 +148,34 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       if (!changed) return state;
       return { streamingMessages: { ...state.streamingMessages } };
     }),
+    // "Memory updated" chip for extraction that finishes after the stream:
+    // stamps the assistant message(s) of the turn already settled into
+    // messages, and persists so the chip survives reload.
+    attachMemoryUpdates: (conversationId, userMessageId, summaries) => {
+      const stamped: string[] = [];
+      set((state) => {
+        const turnStart = state.messages.findIndex((m) => m.id === userMessageId);
+        if (turnStart === -1) return state;
+        const messages = state.messages.map((m, i) => {
+          if (
+            i > turnStart &&
+            m.conversationId === conversationId &&
+            m.role === "assistant" &&
+            !m.memoryUpdates
+          ) {
+            stamped.push(m.id);
+            return { ...m, memoryUpdates: summaries };
+          }
+          return m;
+        });
+        return stamped.length ? { messages } : state;
+      });
+      for (const id of stamped) {
+        getRepo()
+          .then((r) => r.setMessageMemoryUpdates(id, summaries))
+          .catch((error) => console.error("Failed to persist memory updates:", error));
+      }
+    },
     createConversation: async (title = "New Chat", isTemporary = false, folderId) => {
       const id = crypto.randomUUID();
       const now = new Date().toISOString();

@@ -35,6 +35,8 @@ Return a JSON object: {"memories": [...]}. Each entry has: value (string), summa
 Allowed categories: identity, preference, goal, project, relationship, event, instruction, other.
 
 Rules:
+- If the user explicitly asks to remember, note, or save something, always extract it with confidence 0.9 or higher.
+- Store the fact itself, never the user's phrasing of the request. "remember that I am 16" becomes value "User is 16 years old", not the command text.
 - Only extract definite facts, not speculation.
 - Do not re-extract facts already listed under existing memories.
 - Prefer canonical keys for mergeable facts (e.g. "user_name", "user_job", "user_location"); use lowercase letters, digits, underscores and dots only.
@@ -164,8 +166,13 @@ impl MemoryExtractor for LlmMemoryExtractor {
 
         let repository = SqliteMemoryRepository::new(self.pool.clone());
         let settings = repository.get_settings(&input.owner_id).await?;
-        let (provider, model) =
-            resolve_extraction_target(&self.pool, &settings, &input.owner_id).await?;
+        let (provider, model) = resolve_extraction_target(
+            &self.pool,
+            &settings,
+            &input.owner_id,
+            input.chat_model.as_deref(),
+        )
+        .await?;
 
         let existing = self.existing_memory_summaries(&input.owner_id).await?;
         let context = self.recent_context(&input).await?;
@@ -182,6 +189,7 @@ pub async fn resolve_extraction_target(
     pool: &SqlitePool,
     settings: &MemorySettings,
     owner_id: &str,
+    chat_model: Option<&str>,
 ) -> Result<(Box<dyn ChatProvider>, String), MemoryError> {
     let selector = ProviderSelector::new(pool.clone());
 
@@ -199,9 +207,13 @@ pub async fn resolve_extraction_target(
             .map_err(MemoryError::ProviderUnavailable)?,
     };
 
+    // Model priority: configured extraction model → the model the user is
+    // already chatting with → first catalog entry. Catalog-first is a poor
+    // last resort (arbitrary model, may be paywalled), never the default.
     let model = match settings
         .extraction_model
         .as_deref()
+        .or(chat_model)
         .map(str::trim)
         .filter(|model| !model.is_empty())
     {
@@ -234,9 +246,12 @@ fn parse_provider_type(value: &str) -> Result<ProviderType, MemoryError> {
 }
 
 fn extraction_options() -> [Value; 2] {
+    // num_predict caps Ollama, max_tokens caps OpenAI-compatible providers —
+    // without it OpenRouter bills the model's full context as max_tokens.
     let base = serde_json::json!({
         "temperature": 0.0,
         "num_predict": 1200,
+        "max_tokens": 1200,
     });
     let mut structured = base.clone();
     structured["format"] = serde_json::json!({
@@ -470,6 +485,7 @@ mod tests {
                 scope: MemoryScope::User,
                 scope_owner_id: "owner-1".to_string(),
             }],
+            chat_model: None,
         }
     }
 

@@ -206,11 +206,17 @@ pub async fn memory_extract_user_message(
     owner_id: String,
     conversation_id: String,
     user_message_id: String,
+    chat_model: Option<String>,
     token: Option<String>,
 ) -> Result<Vec<String>, String> {
     check_owner(&state, token.as_deref(), &owner_id).await?;
     service(&state)
-        .extract_user_message(&owner_id, &conversation_id, &user_message_id)
+        .extract_user_message(
+            &owner_id,
+            &conversation_id,
+            &user_message_id,
+            chat_model.as_deref(),
+        )
         .await
         .map_err(|error| error.to_string())
 }
