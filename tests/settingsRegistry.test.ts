@@ -22,7 +22,7 @@ describe("settings registry", () => {
       "providers",
       "mobile",
       "chat",
-      "audio",
+      "voice",
       "personalization",
       "data-controls",
       "about",
@@ -33,7 +33,8 @@ describe("settings registry", () => {
     expect(resolveSettingsTab("connections")).toBe("providers");
     expect(resolveSettingsTab("profile")).toBe("personalization");
     expect(resolveSettingsTab("personalisation")).toBe("chat");
-    expect(resolveSettingsTab("speech")).toBe("audio");
+    expect(resolveSettingsTab("speech")).toBe("voice");
+    expect(resolveSettingsTab("audio")).toBe("voice");
     expect(resolveSettingsTab("advanced")).toBe("general");
     expect(resolveSettingsTab()).toBe("general");
   });
@@ -42,7 +43,7 @@ describe("settings registry", () => {
     expect(filterSettingsTabs("ollama").map((tab) => tab.id)).toEqual(["providers"]);
     expect(filterSettingsTabs("ios").map((tab) => tab.id)).toEqual(["mobile"]);
     expect(filterSettingsTabs("wifi").map((tab) => tab.id)).toEqual(["mobile"]);
-    expect(filterSettingsTabs("whisper").map((tab) => tab.id)).toEqual(["audio"]);
+    expect(filterSettingsTabs("whisper").map((tab) => tab.id)).toEqual(["voice"]);
     expect(filterSettingsTabs("prompt").map((tab) => tab.id)).toEqual(["chat"]);
     expect(filterSettingsTabs("")).toHaveLength(SETTINGS_TABS.length);
   });

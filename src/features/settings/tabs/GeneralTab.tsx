@@ -47,16 +47,6 @@ export function GeneralTab() {
           />
         }
       />
-      <SettingRow
-        title="Voice mode (experimental)"
-        description="Open a full-screen voice conversation from an empty chat input."
-        action={
-          <Switch
-            checked={general.voiceModeExperimental}
-            onCheckedChange={(checked) => actions.updateGeneral({ voiceModeExperimental: checked })}
-          />
-        }
-      />
     </SettingsSection>
   );
 }

@@ -214,7 +214,8 @@ void main() {
   uv /= (1.0 + effect * 0.03);
 
   float lr = length(uv);
-  float alpha = 1.0 - smoothstep(0.483, 0.5, lr);
+  // Keep enough transparent canvas for the 3% reactive zoom.
+  float alpha = 1.0 - smoothstep(0.455, 0.47, lr);
 
   float t = uTime;
   float spd = radians(uSpeed);

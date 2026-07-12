@@ -34,6 +34,7 @@ export type SupertonicTtsSettings = {
 
 export type TtsSettings = {
   engine: TtsEngine;
+  voiceColorsEnabled: boolean;
   browser: BrowserTtsSettings;
   supertonic: SupertonicTtsSettings;
 };
@@ -70,6 +71,7 @@ type SettingsState = {
 
 const defaultTts: TtsSettings = {
   engine: "auto",
+  voiceColorsEnabled: true,
   browser: {
     voiceURI: "",
     speed: 1.0,
@@ -83,7 +85,7 @@ const defaultTts: TtsSettings = {
   },
 };
 
-const SETTINGS_VERSION = 22;
+const SETTINGS_VERSION = 23;
 
 export const defaultDictation: DictationSettings = {
   enabled: true,

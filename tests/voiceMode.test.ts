@@ -7,12 +7,55 @@ describe("experimental voice mode", () => {
   it("persists an opt-in setting that defaults off", () => {
     const store = read("src/store/settingsStore.ts");
     const general = read("src/features/settings/tabs/GeneralTab.tsx");
+    const voice = read("src/features/settings/tabs/SpeechTab.tsx");
 
     expect(store).toContain("voiceModeExperimental: boolean");
     expect(store).toContain("voiceModeExperimental: false");
-    expect(store).toContain("const SETTINGS_VERSION = 22");
-    expect(general).toContain('title="Voice mode (experimental)"');
-    expect(general).toContain("voiceModeExperimental");
+    expect(store).toContain("voiceColorsEnabled: boolean");
+    expect(store).toContain("voiceColorsEnabled: true");
+    expect(store).toContain("const SETTINGS_VERSION = 23");
+    expect(general).not.toContain("voiceModeExperimental");
+    expect(voice).toContain('title="Voice mode"');
+    expect(voice).toContain("voiceModeExperimental");
+    expect(voice).toContain('title="Individual voice colours"');
+  });
+
+  it("selects named AI voices by swipe without exposing model IDs", () => {
+    const voice = read("src/features/settings/tabs/SpeechTab.tsx");
+
+    expect(voice).toContain('id: "M1", name: "Theo"');
+    expect(voice).toContain('id: "M2", name: "Oliver"');
+    expect(voice).toContain('id: "M3", name: "James"');
+    expect(voice).toContain('id: "M4", name: "Mark"');
+    expect(voice).toContain('id: "M5", name: "Miles"');
+    expect(voice).toContain('id: "F1", name: "Emma"');
+    expect(voice).toContain('id: "F2", name: "Sophie"');
+    expect(voice).toContain('id: "F3", name: "Grace"');
+    expect(voice).toContain('id: "F4", name: "Hannah"');
+    expect(voice).toContain('id: "F5", name: "Chloe"');
+    expect(voice).toContain('id: "M1"');
+    expect(voice).toContain("onPointerDown");
+    expect(voice).toContain("onPointerUp");
+    expect(voice).toContain('event.key === "ArrowLeft"');
+    expect(voice).toContain('event.key === "ArrowRight"');
+    expect(voice).not.toContain("{voice}");
+  });
+
+  it("bundles and plays one personalized preview per named voice", () => {
+    const voice = read("src/features/settings/tabs/SpeechTab.tsx");
+
+    for (const id of ["M1", "F1", "M2", "F2", "M3", "F3", "M4", "F4", "M5", "F5"]) {
+      expect(existsSync(`public/voice-previews/${id}.wav`), id).toBe(true);
+    }
+    expect(voice).toContain("previewAudioRef");
+    expect(voice).toContain("previewAudioRef.current.pause()");
+    expect(voice).toContain("new Audio(`/voice-previews/${profile.id}.wav`)");
+    expect(voice).toContain("void audio.play()");
+    expect(voice).not.toContain("createMediaElementSource(audio)");
+    expect(voice).toContain("profile.levels");
+    expect(voice).toContain("audio.currentTime");
+    expect(voice).toContain("audioLevel={previewAudioLevel}");
+    expect(voice).toContain("cancelAnimationFrame");
   });
 
   it("uses the send-button slot for voice only when the composer is empty", () => {
@@ -40,6 +83,24 @@ describe("experimental voice mode", () => {
     expect(orb.match(/<Surface /g)).toHaveLength(1);
     expect(orb).not.toContain("outgoing &&");
     expect(orb).toContain("const FRAG = `");
+    expect(orb).toContain("smoothstep(0.455, 0.47, lr)");
+  });
+
+  it("uses per-voice palettes without overriding semantic error colours", () => {
+    const palettes = read("src/features/chat/voicePalettes.ts");
+    const voice = read("src/features/settings/tabs/SpeechTab.tsx");
+    const overlay = read("src/features/chat/components/VoiceModeOverlay.tsx");
+
+    expect(palettes).toContain('state === "error"');
+    expect(palettes).toContain('state === "warning"');
+    expect(palettes).toContain('state === "unavailable"');
+    expect(palettes).toContain("if (!enabled");
+    expect(voice).toContain("getVoiceOrbPalette");
+    expect(overlay).toContain("getVoiceOrbPalette");
+    expect(overlay).toContain("voiceColorsEnabled");
+    expect(overlay).toContain('const visualOrbState: HeroOrbState = orbState === "error" ? orbState : "idle"');
+    expect(overlay).toContain("state={visualOrbState}");
+    expect(overlay).toContain("getVoiceOrbPalette(voiceName, visualOrbState, voiceColorsEnabled)");
   });
 
   it("provides the in-workspace voice overlay and existing speech pipeline", () => {
@@ -59,7 +120,9 @@ describe("experimental voice mode", () => {
     expect(workspace).toContain("toggleVoiceCompact");
     expect(overlay).toContain("#0A0A0A");
     expect(overlay).toContain("#2A2A2A");
-    expect(overlay).toContain("<HeroOrb state={orbState} size={180}");
+    expect(overlay).toContain("<HeroOrb");
+    expect(overlay).toContain("state={visualOrbState}");
+    expect(overlay).toContain("size={180}");
     expect(overlay).toContain('placeholder="Type"');
     expect(overlay).toContain("Poly can make mistakes. Check important info.");
     expect(overlay).toContain('event.key === "Escape"');
@@ -83,12 +146,11 @@ describe("experimental voice mode", () => {
     expect(overlay).toContain("{caption}");
   });
 
-  it("sleeps on spoken command and wakes on orb click", () => {
+  it("closes voice mode on spoken sleep command", () => {
     const overlay = read("src/features/chat/components/VoiceModeOverlay.tsx");
 
     expect(overlay).toContain("matchesSleepCommand");
-    expect(overlay).toContain('"unavailable"');
-    expect(overlay).toContain("Asleep — click the orb to wake");
+    expect(overlay).toContain("handleClose()");
     expect(overlay).toContain("handleOrbClick");
   });
 
