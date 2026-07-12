@@ -9,7 +9,7 @@ fn ort_download_url(target: &str) -> Option<(&'static str, bool)> {
         "aarch64-apple-darwin" => Some(("https://github.com/microsoft/onnxruntime/releases/download/v1.24.2/onnxruntime-osx-arm64-1.24.2.tgz", false)),
         "x86_64-apple-darwin" => Some(("https://github.com/microsoft/onnxruntime/releases/download/v1.24.2/onnxruntime-osx-x86-64-1.24.2.tgz", false)),
         "x86_64-unknown-linux-gnu" => Some(("https://github.com/microsoft/onnxruntime/releases/download/v1.24.2/onnxruntime-linux-x64-1.24.2.tgz", false)),
-        "aarch64-unknown-linux-gnu" => Some(("https://github.com/microsoft/onnxruntime/releases/download/v1.24.2/onnxruntime-linux-arm64-1.24.2.tgz", false)),
+        "aarch64-unknown-linux-gnu" => Some(("https://github.com/microsoft/onnxruntime/releases/download/v1.24.2/onnxruntime-linux-aarch64-1.24.2.tgz", false)),
         "x86_64-pc-windows-msvc" => Some(("https://github.com/microsoft/onnxruntime/releases/download/v1.24.2/onnxruntime-win-x64-1.24.2.zip", true)),
         "aarch64-pc-windows-msvc" => Some(("https://github.com/microsoft/onnxruntime/releases/download/v1.24.2/onnxruntime-win-arm64-1.24.2.zip", true)),
         _ => None,
