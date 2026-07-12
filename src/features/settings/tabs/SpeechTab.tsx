@@ -34,16 +34,16 @@ import HeroOrb from "@/features/chat/components/HeroOrb";
 import { getVoiceOrbPalette } from "@/features/chat/voicePalettes";
 
 const VOICE_PROFILES = [
-  { id: "M1", name: "Theo", description: "Open and upbeat", levels: "AAAAAAAAAAABA3j//6xA/80MQ6j/iAwGDQYDAgMCbv///7KCNP+Tmn+cPyMZH0aXuFIUCwMBAAAAAQAAAAAAAAAA" },
-  { id: "F1", name: "Emma", description: "Bright and expressive", levels: "AAAAAAAAAAEBJLG7wZ1fIwIBAwQGBAWFwAVAdOW6BgcGKbr/0dCFhX/K/P3MvbzauYVKAgEAAAAAAAAAAAAAAAA=" },
-  { id: "M2", name: "Oliver", description: "Calm and grounded", levels: "AAAAAAAAAAAAAAEI///3Z6F9MBcNAgEBAgIDAhj6/60HnP8hKYzQayoUDQEBAQEBAAACuf+JA3P9///YcIT/7Qwar5ESBgEAAAAAAAAAAAAAAA==" },
-  { id: "F2", name: "Sophie", description: "Warm and thoughtful", levels: "AAAAAAAAAAAAAAYW//CuSREDBBD//7WrqtoVXJtJTGk+sNeeWkkxCQUBAQEAAAAAAAAAAAAA" },
-  { id: "M3", name: "James", description: "Confident and direct", levels: "AAAAAAAAAAAWwcSrk5N2PQkBAQFR/ztt6ak+T0P3mzNPkbJ7RwsBAQGi19J7lElrpKGkWV49KAMBAQAAAAAAAAAA" },
-  { id: "F3", name: "Grace", description: "Clear and composed", levels: "AAAAAAAAAAABAgdLzph5cGpZST03JQECBAMDAwMUotd/BIqkSHuvgXqVggoDLoFRZ5t/JQ0JCTZ+jnhhTTcBAQEAAAAAAAA=" },
-  { id: "M4", name: "Mark", description: "Easygoing and natural", levels: "AAAAAAAAAAABD/L/+pA1BwEBAg2K+eNOhBICj86/qXlTLQYMnf3U2OeYi++lDGi7knZhSDILAQEAAAAAAAAAAA==" },
-  { id: "F4", name: "Hannah", description: "Measured and reassuring", levels: "AAAAAAAAAAEVm728QMrTxsmoSwgBW621ZMP/4YzApchBxHarqEXTs1VoR1ExAQEBAAAAAAAAAAA=" },
-  { id: "M5", name: "Miles", description: "Deep and reflective", levels: "AAAAAAAAAAAAABL//2sXTci/P///8p4iHda018imlW9LOhEEAQEBAQEBASj/2aVegKl8OLXkjXDWSzv/uIaGgF4TAgEAAAAAAAAAAAA=" },
-  { id: "F5", name: "Chloe", description: "Friendly and energetic", levels: "AAAAAAAAAAEiUrzq/8uYTgYBAQECAgL/r2M4k9VSY/Pev69oAwICAqH/GErY/3saTXriowua0nUNhsu9qaR7EwEBAAAAAAAAAAA=" },
+  { id: "M1", name: "Alex", description: "Open and upbeat", levels: "AAAAAAAAAAABA3j//6xA/80MQ6j/iAwGDQYDAgMCbv///7KCNP+Tmn+cPyMZH0aXuFIUCwMBAAAAAQAAAAAAAAAA" },
+  { id: "F1", name: "Sarah", description: "Bright and expressive", levels: "AAAAAAAAAAEBJLG7wZ1fIwIBAwQGBAWFwAVAdOW6BgcGKbr/0dCFhX/K/P3MvbzauYVKAgEAAAAAAAAAAAAAAAA=" },
+  { id: "M2", name: "James", description: "Calm and grounded", levels: "AAAAAAAAAAAAAAEI///3Z6F9MBcNAgEBAgIDAhj6/60HnP8hKYzQayoUDQEBAQEBAAACuf+JA3P9///YcIT/7Qwar5ESBgEAAAAAAAAAAAAAAA==" },
+  { id: "F2", name: "Lily", description: "Warm and thoughtful", levels: "AAAAAAAAAAAAAAYW//CuSREDBBD//7WrqtoVXJtJTGk+sNeeWkkxCQUBAQEAAAAAAAAAAAAA" },
+  { id: "M3", name: "Robert", description: "Confident and direct", levels: "AAAAAAAAAAAWwcSrk5N2PQkBAQFR/ztt6ak+T0P3mzNPkbJ7RwsBAQGi19J7lElrpKGkWV49KAMBAQAAAAAAAAAA" },
+  { id: "F3", name: "Jessica", description: "Clear and composed", levels: "AAAAAAAAAAABAgdLzph5cGpZST03JQECBAMDAwMUotd/BIqkSHuvgXqVggoDLoFRZ5t/JQ0JCTZ+jnhhTTcBAQEAAAAAAAA=" },
+  { id: "M4", name: "Sam", description: "Easygoing and natural", levels: "AAAAAAAAAAABD/L/+pA1BwEBAg2K+eNOhBICj86/qXlTLQYMnf3U2OeYi++lDGi7knZhSDILAQEAAAAAAAAAAA==" },
+  { id: "F4", name: "Olivia", description: "Measured and reassuring", levels: "AAAAAAAAAAEVm728QMrTxsmoSwgBW621ZMP/4YzApchBxHarqEXTs1VoR1ExAQEBAAAAAAAAAAA=" },
+  { id: "M5", name: "Daniel", description: "Deep and reflective", levels: "AAAAAAAAAAAAABL//2sXTci/P///8p4iHda018imlW9LOhEEAQEBAQEBASj/2aVegKl8OLXkjXDWSzv/uIaGgF4TAgEAAAAAAAAAAAA=" },
+  { id: "F5", name: "Emily", description: "Friendly and energetic", levels: "AAAAAAAAAAEiUrzq/8uYTgYBAQECAgL/r2M4k9VSY/Pev69oAwICAqH/GErY/3saTXriowua0nUNhsu9qaR7EwEBAAAAAAAAAAA=" },
 ] as const;
 
 const WHISPER_LANGUAGES = [
