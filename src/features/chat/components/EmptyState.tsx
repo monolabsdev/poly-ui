@@ -1,5 +1,6 @@
 import { useSettingsStore } from "@/store/settingsStore";
 import { Box } from "@/components/ui/Box";
+import { Button } from "@/components/ui/button";
 import { Typography } from "@/components/ui/Typography";
 
 interface EmptyStateProps {
@@ -16,8 +17,8 @@ export function EmptyState({
   selectedModels,
   userName,
   isTemporary: _isTemporary,
-  providerOnline: _providerOnline,
-  onOpenConnections: _onOpenConnections,
+  providerOnline,
+  onOpenConnections,
 }: EmptyStateProps) {
   const showModelInEmptyState = useSettingsStore((s) => s.general.showModelInEmptyState);
 
@@ -36,6 +37,18 @@ export function EmptyState({
         >
           {heading}
         </Typography>
+
+        {!providerOnline && (
+          <Box className="flex flex-col items-center gap-3">
+            <Typography variant="body2" align="center" color="muted">
+              Your AI provider is offline. Make sure it&apos;s running, or check
+              your connection settings.
+            </Typography>
+            <Button variant="outline" size="sm" onClick={onOpenConnections}>
+              Open connections
+            </Button>
+          </Box>
+        )}
 
         <Box className="w-full">
         {children}
