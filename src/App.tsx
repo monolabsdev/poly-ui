@@ -43,7 +43,7 @@ import { ADVANCED_SETTINGS_VIEW_ID } from "@/features/settings/settingsRegistry"
 import { GlobalConfirmDialog } from "./components/ui/GlobalConfirmDialog";
 import { useDevStore } from "@/store/devStore";
 import { getDevComponentGalleryAction } from "@/features/dev/componentGalleryAction";
-import { AgentViewportDrawer } from "@/features/agent/AgentViewportDrawer";
+import { useViewportStore } from "@/features/agent/viewportStore";
 import { listen } from "@tauri-apps/api/event";
 
 const AuthModalLazy = lazy(() =>
@@ -61,12 +61,22 @@ const SettingsModalLazy = lazy(() =>
     default: module.SettingsModal,
   })),
 );
+const AgentViewportDrawerLazy = lazy(() =>
+  import("@/features/agent/AgentViewportDrawer").then((module) => ({
+    default: module.AgentViewportDrawer,
+  })),
+);
 function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [settingsInitialTab, setSettingsInitialTab] =
     useState<SettingsTab>("general");
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isArchivedOpen, setIsArchivedOpen] = useState(false);
+  // Mount the (lazy) viewport drawer only once an agent run opens a session,
+  // so the agent drawer UI stays out of the initial chunk.
+  const viewportActive = useViewportStore(
+    (state) => Boolean(state.session || state.browserOpen || state.review),
+  );
   const stopStreamingRef = useRef<(() => void) | null>(null);
   const notify = useNotify();
   const {
@@ -303,7 +313,11 @@ function App() {
               onStopStreamingReady={handleStopStreamingReady}
               onOpenConnections={handleOpenConnections}
             />
-            <AgentViewportDrawer />
+            {viewportActive && (
+              <Suspense fallback={null}>
+                <AgentViewportDrawerLazy />
+              </Suspense>
+            )}
           </main>
         </ChatPanel>
       </SidebarInset>

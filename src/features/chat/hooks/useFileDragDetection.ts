@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { readFile } from "@tauri-apps/plugin-fs";
 import { extensions as imageExtensions } from "@/lib/image-upload/validation";
+import { useNotificationStore } from "@/store/notificationStore";
 
 type UseFileDragDetectionOptions = {
   onFilesDropped?: (files: File[]) => void;
@@ -167,9 +168,18 @@ export function useFileDragDetection({
         const payload = event.payload;
         if (payload.type === "drop") {
           resetDragState();
-          Promise.all(payload.paths.map(fileFromPath)).then((files) => {
-            if (files.length > 0) onFilesDroppedRef.current?.(files);
-          });
+          Promise.all(payload.paths.map(fileFromPath))
+            .then((files) => {
+              if (files.length > 0) onFilesDroppedRef.current?.(files);
+            })
+            .catch(() => {
+              useNotificationStore.getState().actions.add({
+                type: "error",
+                message: "Couldn't read dropped files",
+                description: "The files may have been moved or aren't readable.",
+                duration: 5000,
+              });
+            });
         } else if (payload.type === "enter" || payload.type === "over") {
           setIsDraggingFiles(true);
         } else {

@@ -157,10 +157,9 @@ describe("chat screen regression guards", () => {
     expect(profile).toContain("flex min-w-0 flex-1 flex-col");
   });
 
-  it("keeps the thinking indicator on Prompt Kit shimmer with deep reasoning deferred", () => {
+  it("keeps the thinking indicator on Prompt Kit shimmer", () => {
     const thinking = read("src/features/chat/components/Message/ThinkingDisclosure.tsx");
 
-    expect(thinking).toContain("TODO: npx shadcn add \"https://prompt-kit.com/c/thinking-bar.json\"");
     expect(thinking).toContain("TextShimmer");
     expect(thinking).toContain("duration={2}");
     expect(thinking).toContain("spread={15}");

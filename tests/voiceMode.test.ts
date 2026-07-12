@@ -118,8 +118,10 @@ describe("experimental voice mode", () => {
     expect(overlay).toContain('"Expand voice mode"');
     expect(workspace).toContain("voiceCompact");
     expect(workspace).toContain("toggleVoiceCompact");
-    expect(overlay).toContain("#0A0A0A");
-    expect(overlay).toContain("#2A2A2A");
+    // Theme tokens, not hardcoded hex — the overlay follows light/dark theme.
+    expect(overlay).toContain("bg-background");
+    expect(overlay).toContain("bg-secondary");
+    expect(overlay).not.toMatch(/#0A0A0A|#2A2A2A/i);
     expect(overlay).toContain("<HeroOrb");
     expect(overlay).toContain("state={visualOrbState}");
     expect(overlay).toContain("size={180}");
