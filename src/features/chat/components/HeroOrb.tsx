@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { usePauseableAnimationFrame } from '@/lib/idle';
 
 /**
  * HeroOrb — self-contained animated orb (WebGL shader, zero dependencies).
@@ -285,6 +286,12 @@ function Surface({ palette, audioLevel, pulseAt }: { palette: HeroOrbPalette; au
   const transitionStartedAt = useRef(performance.now());
   const audioLevelRef = useRef(audioLevel);
   const pulseAtRef = useRef(pulseAt);
+  // Set by the GL setup effect below; the idle-aware rAF drives it so the
+  // shader stops burning GPU when the app goes idle (voice mode blocks idle,
+  // so a live session keeps animating).
+  const renderRef = useRef<((now: number) => void) | null>(null);
+
+  usePauseableAnimationFrame((ts) => renderRef.current?.(ts));
 
   useEffect(() => {
     audioLevelRef.current = audioLevel;
@@ -340,7 +347,6 @@ function Surface({ palette, audioLevel, pulseAt }: { palette: HeroOrbPalette; au
     let smooth = 0;
     let lastPulseAt = 0;
     let pulseShaderTime: number | null = null;
-    let raf = 0;
     const frame = (now: number) => {
       const progress = Math.min(1, (now - transitionStartedAt.current) / PALETTE_TRANSITION_MS);
       const eased = progress * progress * (3 - 2 * progress);
@@ -372,10 +378,14 @@ function Surface({ palette, audioLevel, pulseAt }: { palette: HeroOrbPalette; au
       gl.uniform1f(uAudioLevel, smooth);
       gl.uniform1f(uPulseTime, pulseShaderTime ?? -1);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
-      raf = requestAnimationFrame(frame);
     };
-    raf = requestAnimationFrame(frame);
-    return () => cancelAnimationFrame(raf);
+    renderRef.current = frame;
+    // No loseContext() here: StrictMode re-runs this effect on the same
+    // canvas, and getContext() would hand back the dead context. GC frees
+    // the context with the canvas on unmount.
+    return () => {
+      renderRef.current = null;
+    };
   }, []);
 
   return <canvas ref={canvasRef} style={{ width: '100%', height: '100%', display: 'block' }} />;

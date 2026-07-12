@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { InputBase } from "@/components/ui/input-base";
 import { DictationModelDialog } from "@/features/dictation/DictationModelDialog";
 import { useDictation } from "@/hooks/useDictation";
+import { useIdleBlock } from "@/lib/idle";
 import { matchesSleepCommand } from "@/lib/dictation/sleepCommands";
 import {
   advanceBargeIn,
@@ -68,6 +69,10 @@ export default function VoiceModeOverlay({
   isResponding,
   messages,
 }: VoiceModeOverlayProps) {
+  // A hands-free session emits no mouse/keyboard activity; without this the
+  // idle manager would unload the Whisper + TTS models mid-conversation.
+  useIdleBlock(open);
+
   const [draft, setDraft] = useState("");
   const [entered, setEntered] = useState(false);
   const [awaitingResponse, setAwaitingResponse] = useState(false);
