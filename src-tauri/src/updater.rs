@@ -6,6 +6,8 @@ use std::path::Path;
 use std::thread;
 use std::time::Duration;
 use std::time::Instant;
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
 use tauri::{AppHandle, Emitter, State};
 
 const GITHUB_REPO: &str = "monolabsdev/poly-ui";
