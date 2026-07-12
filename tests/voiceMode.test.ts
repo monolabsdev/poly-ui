@@ -23,16 +23,16 @@ describe("experimental voice mode", () => {
   it("selects named AI voices by swipe without exposing model IDs", () => {
     const voice = read("src/features/settings/tabs/SpeechTab.tsx");
 
-    expect(voice).toContain('id: "M1", name: "Theo"');
-    expect(voice).toContain('id: "M2", name: "Oliver"');
-    expect(voice).toContain('id: "M3", name: "James"');
-    expect(voice).toContain('id: "M4", name: "Mark"');
-    expect(voice).toContain('id: "M5", name: "Miles"');
-    expect(voice).toContain('id: "F1", name: "Emma"');
-    expect(voice).toContain('id: "F2", name: "Sophie"');
-    expect(voice).toContain('id: "F3", name: "Grace"');
-    expect(voice).toContain('id: "F4", name: "Hannah"');
-    expect(voice).toContain('id: "F5", name: "Chloe"');
+    expect(voice).toContain('id: "M1", name: "Alex"');
+    expect(voice).toContain('id: "M2", name: "James"');
+    expect(voice).toContain('id: "M3", name: "Robert"');
+    expect(voice).toContain('id: "M4", name: "Sam"');
+    expect(voice).toContain('id: "M5", name: "Daniel"');
+    expect(voice).toContain('id: "F1", name: "Sarah"');
+    expect(voice).toContain('id: "F2", name: "Lily"');
+    expect(voice).toContain('id: "F3", name: "Jessica"');
+    expect(voice).toContain('id: "F4", name: "Olivia"');
+    expect(voice).toContain('id: "F5", name: "Emily"');
     expect(voice).toContain('id: "M1"');
     expect(voice).toContain("onPointerDown");
     expect(voice).toContain("onPointerUp");
