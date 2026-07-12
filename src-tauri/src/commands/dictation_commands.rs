@@ -788,6 +788,17 @@ pub fn release_whisper_model(state: State<'_, WhisperState>) -> Result<(), Strin
     Ok(())
 }
 
+/// Drop the Supertonic TTS engine to reclaim its RAM after inactivity. The
+/// frontend lazily reloads it via `plugin:supertonic|load_model` on next use.
+/// In-flight synthesis holds its own `Arc` clone, so this never cuts audio off.
+#[tauri::command]
+pub async fn release_tts_engine(
+    state: State<'_, tauri_plugin_supertonic::TtsState>,
+) -> Result<(), String> {
+    *state.engine.write().await = None;
+    Ok(())
+}
+
 /// Load the selected Whisper model into memory ahead of the first
 /// transcription so the first voice-mode turn doesn't pay the load time.
 #[tauri::command]

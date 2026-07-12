@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useNotify } from "@/hooks/useNotify";
+import { useIdleBlock } from "@/lib/idle";
 import { IS_LINUX } from "@/lib/utils/platform";
 import {
   DICTATION_SAMPLE_RATE,
@@ -88,6 +89,9 @@ export function useDictation(
   const notify = useNotify();
   const [recording, setRecording] = useState(false);
   const [processing, setProcessing] = useState(false);
+  // Speaking into the mic produces no DOM activity events; block idle so the
+  // Whisper model isn't released out from under an in-flight capture.
+  useIdleBlock(recording || processing);
   const [partialTranscript, setPartialTranscript] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [audioLevel, setAudioLevel] = useState(0);
