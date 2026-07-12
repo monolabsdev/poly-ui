@@ -18,7 +18,7 @@ import { useSettingsStore } from "@/store/settingsStore";
 
 export function UserMessage({ id, conversationId, content, attachments }: MessageProps) {
   const { copied, handleCopy } = useCopyMessage(content);
-  const memoryUiEnabled = useSettingsStore((state) => state.general.experimentalFeatures);
+  const memoryUiEnabled = useSettingsStore((state) => state.general.memoryBeta);
 
   return (
     <Box

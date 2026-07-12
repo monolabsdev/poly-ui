@@ -13,7 +13,7 @@ describe("experimental voice mode", () => {
     expect(store).toContain("voiceModeExperimental: false");
     expect(store).toContain("voiceColorsEnabled: boolean");
     expect(store).toContain("voiceColorsEnabled: true");
-    expect(store).toContain("const SETTINGS_VERSION = 23");
+    expect(store).toContain("const SETTINGS_VERSION = 24");
     expect(general).not.toContain("voiceModeExperimental");
     expect(voice).toContain('title="Voice mode"');
     expect(voice).toContain("voiceModeExperimental");

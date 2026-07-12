@@ -3,20 +3,33 @@ import { useSettingsStore } from "@/store/settingsStore";
 import { getCurrentProviderAccountId } from "@/features/providers";
 import { memoryGetSettings, memoryListForChat } from "./memoryClient";
 
+/** Fired whenever memories change (extraction, delete, clear) so mounted
+ * memory UI refreshes without a remount. */
+export const MEMORY_UPDATED_EVENT = "polyui:memory-updated";
+
+export function notifyMemoryUpdated() {
+  window.dispatchEvent(new CustomEvent(MEMORY_UPDATED_EVENT));
+}
+
 export function useConversationMemoryCount(conversationId: string | undefined): {
   count: number;
   loading: boolean;
   refresh: () => void;
 } {
-  const experimentalFeatures = useSettingsStore((state) => state.general.experimentalFeatures);
+  const memoryBeta = useSettingsStore((state) => state.general.memoryBeta);
   const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [refreshToken, setRefreshToken] = useState(0);
   const refresh = useCallback(() => setRefreshToken((token) => token + 1), []);
 
   useEffect(() => {
+    window.addEventListener(MEMORY_UPDATED_EVENT, refresh);
+    return () => window.removeEventListener(MEMORY_UPDATED_EVENT, refresh);
+  }, [refresh]);
+
+  useEffect(() => {
     const ownerId = getCurrentProviderAccountId();
-    if (!experimentalFeatures || !ownerId || !conversationId) {
+    if (!memoryBeta || !ownerId || !conversationId) {
       setCount(0);
       return;
     }
@@ -32,7 +45,7 @@ export function useConversationMemoryCount(conversationId: string | undefined): 
     return () => {
       cancelled = true;
     };
-  }, [conversationId, experimentalFeatures, refreshToken]);
+  }, [conversationId, memoryBeta, refreshToken]);
 
   return { count, loading, refresh };
 }

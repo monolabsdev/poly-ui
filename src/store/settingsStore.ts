@@ -15,6 +15,7 @@ export type GeneralSettings = {
   mobileWebAccess: boolean;
   showModelInEmptyState: boolean;
   voiceModeExperimental: boolean;
+  memoryBeta: boolean;
 };
 
 export type BrowserTtsSettings = {
@@ -85,7 +86,7 @@ const defaultTts: TtsSettings = {
   },
 };
 
-const SETTINGS_VERSION = 23;
+const SETTINGS_VERSION = 24;
 
 export const defaultDictation: DictationSettings = {
   enabled: true,
@@ -120,6 +121,7 @@ function defaultSettingsState(): Omit<SettingsState, "actions"> {
       mobileWebAccess: false,
       showModelInEmptyState: false,
       voiceModeExperimental: false,
+      memoryBeta: false,
     },
     tts: { ...defaultTts },
     dictation: { ...defaultDictation },
@@ -275,6 +277,9 @@ export const useSettingsStore = create<SettingsState>()(
         if (version < 22 && state?.dictation) {
           state.dictation = { ...defaultDictation, ...state.dictation };
           state.dictation.vadSensitivity ??= 1;
+        }
+        if (version < 24 && state?.general) {
+          state.general.memoryBeta = false;
         }
         startupPhase("settings migration complete");
         return state as SettingsState;

@@ -1,5 +1,6 @@
 import {
   Bell,
+  Brain,
   Brush,
   CircleUserRound,
   Cpu,
@@ -21,6 +22,7 @@ export type SettingsTabId =
   | "mobile"
   | "chat"
   | "voice"
+  | "memory"
   | "personalization"
   | "data-controls"
   | "about";
@@ -94,6 +96,13 @@ export const SETTINGS_TABS: SettingsTabDefinition[] = [
     description: "AI voice, speech synthesis, dictation, and Whisper models.",
     icon: Mic,
     keywords: ["speech", "voice", "tts", "dictation", "whisper", "microphone"],
+  },
+  {
+    id: "memory",
+    label: "Memory",
+    description: "Memory beta settings and stored memories.",
+    icon: Brain,
+    keywords: ["memory", "remember", "recall", "context", "beta"],
   },
   {
     id: "personalization",

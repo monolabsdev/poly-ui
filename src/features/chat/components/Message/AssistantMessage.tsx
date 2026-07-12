@@ -89,7 +89,7 @@ export function AssistantMessage(props: MessageProps) {
   const { copied, handleCopy } = useCopyMessage(content);
   const [webSearchExpanded, setWebSearchExpanded] = useState(false);
   const notify = useNotify();
-  const memoryUiEnabled = useSettingsStore((state) => state.general.experimentalFeatures);
+  const memoryUiEnabled = useSettingsStore((state) => state.general.memoryBeta);
 
   const streamingDisplayContent = useMessageStreaming(content, isStreaming);
   const { processedContent, processedThinking } = useMessageMarkdown(
