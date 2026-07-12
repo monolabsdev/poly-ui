@@ -17,6 +17,7 @@ import { useSettingsStore } from "@/store/settingsStore";
 import { speakableSentencePrefix, useTtsStore, warmTtsEngine } from "@/store/ttsStore";
 import type { Message } from "@/types/chat";
 import HeroOrb, { type HeroOrbState } from "./HeroOrb";
+import { getVoiceOrbPalette } from "../voicePalettes";
 
 // Speaker tail + room reverb bleed into the mic for a beat after playback
 // stops; opening a turn inside that window transcribes the assistant's own
@@ -73,7 +74,6 @@ export default function VoiceModeOverlay({
   const [sessionError, setSessionError] = useState(false);
   const [ttsAttempted, setTtsAttempted] = useState(false);
   const [muted, setMuted] = useState(false);
-  const [asleep, setAsleep] = useState(false);
   const [lastHeard, setLastHeard] = useState("");
   const assistantIdsBeforeSend = useRef<Set<string>>(new Set());
   const pipelineIdRef = useRef<string | null>(null);
@@ -111,8 +111,7 @@ export default function VoiceModeOverlay({
       const transcript = text.trim();
       if (!transcript) return;
       if (matchesSleepCommand(transcript)) {
-        setAsleep(true);
-        setLastHeard("");
+        handleClose();
         return;
       }
       if (!canSubmit) {
@@ -153,8 +152,12 @@ export default function VoiceModeOverlay({
     // echo-filled audio is discarded, never worth transcribing.
   } = useDictation(handleTranscript, { partials: !tts.isPlaying });
 
-  const vadSensitivity = useSettingsStore(
-    (state) => state.dictation.vadSensitivity,
+  const { vadSensitivity, voiceName, voiceColorsEnabled } = useSettingsStore(
+    useShallow((state) => ({
+      vadSensitivity: state.dictation.vadSensitivity,
+      voiceName: state.tts.supertonic.voiceName,
+      voiceColorsEnabled: state.tts.voiceColorsEnabled,
+    })),
   );
   const hasError =
     sessionError || Boolean(dictationError) || (ttsAttempted && Boolean(tts.error));
@@ -184,11 +187,6 @@ export default function VoiceModeOverlay({
   );
 
   const handleOrbClick = useCallback(() => {
-    if (asleep) {
-      setAsleep(false);
-      setSessionError(false);
-      return;
-    }
     if (hasError) {
       // Tap to retry: errors latch so a failure can't loop the mic, but they
       // shouldn't silently end the hands-free session. Clearing them lets the
@@ -199,7 +197,7 @@ export default function VoiceModeOverlay({
       return;
     }
     onToggleCompact();
-  }, [asleep, clearError, hasError, onToggleCompact]);
+  }, [clearError, hasError, onToggleCompact]);
 
   const handleMute = useCallback(() => {
     if (muted) {
@@ -362,14 +360,14 @@ export default function VoiceModeOverlay({
   // hasn't started. start() is single-flight, so retries are no-ops while a
   // start is still in flight and only recover from failed attempts.
   useEffect(() => {
-    if (!open || recording || processing || muted || asleep || hasError || installOpen) return;
+    if (!open || recording || processing || muted || hasError || installOpen) return;
     const timer = setTimeout(() => setAutoStartTick((t) => t + 1), 5000);
     return () => clearTimeout(timer);
-  }, [open, recording, processing, muted, asleep, hasError, installOpen, autoStartTick]);
+  }, [open, recording, processing, muted, hasError, installOpen, autoStartTick]);
 
   useEffect(() => {
     const ready =
-      open && !muted && !asleep && !recording && !processing && !installOpen && !hasError;
+      open && !muted && !recording && !processing && !installOpen && !hasError;
     const fullyIdle =
       !awaitingResponse && !isResponding && !tts.isGenerating && !tts.isPlaying;
     // Capture runs in two modes: a normal turn when idle, or a barge-in
@@ -390,7 +388,6 @@ export default function VoiceModeOverlay({
     monitoringRef.current = tts.isPlaying;
     void start();
   }, [
-    asleep,
     awaitingResponse,
     hasError,
     installOpen,
@@ -415,20 +412,18 @@ export default function VoiceModeOverlay({
 
   if (!open) return null;
 
-  const orbState: HeroOrbState = asleep
-    ? "unavailable"
-    : hasError
+  const orbState: HeroOrbState = hasError
       ? "error"
       : tts.isPlaying
         ? "live"
         : processing || awaitingResponse || isResponding || tts.isGenerating
           ? "connecting"
           : "idle";
+  const visualOrbState: HeroOrbState = orbState === "error" ? orbState : "idle";
   // While listening (or finalizing) show the live partial transcript; once
   // the turn is submitted, show what was heard until the reply finishes.
   const livePartial =
     !hasError &&
-    !asleep &&
     partialTranscript &&
     ((recording && !monitoringRef.current) || processing)
       ? partialTranscript
@@ -436,15 +431,12 @@ export default function VoiceModeOverlay({
   const caption =
     livePartial ||
     (!hasError &&
-    !asleep &&
     lastHeard &&
     (tts.isPlaying || processing || awaitingResponse || isResponding || tts.isGenerating)
       ? lastHeard
       : "");
   const combinedAudioLevel = Math.max(audioLevel, tts.outputLevel);
-  const statusText = asleep
-    ? "Asleep — click the orb to wake"
-    : hasError
+  const statusText = hasError
       ? "Something went wrong — tap the orb to retry"
       : tts.isPlaying
         ? "Speaking"
@@ -468,7 +460,7 @@ export default function VoiceModeOverlay({
           role="dialog"
           aria-modal={compact ? undefined : "true"}
           aria-label="Voice mode"
-          className={`absolute inset-0 z-20 text-white transition-opacity duration-200 ${entered ? "opacity-100" : "opacity-0"} ${compact ? "pointer-events-none" : "bg-[#0A0A0A]"}`}
+          className={`absolute inset-0 z-20 text-foreground transition-opacity duration-200 ${entered ? "opacity-100" : "opacity-0"} ${compact ? "pointer-events-none" : "bg-[#0A0A0A]"}`}
         >
           {/* The orb keeps its 180px canvas; docking animates position and
               scale so the shader surface never remounts mid-transition. */}
@@ -481,9 +473,7 @@ export default function VoiceModeOverlay({
               type="button"
               onClick={handleOrbClick}
               aria-label={
-                asleep
-                  ? "Wake voice mode"
-                  : hasError
+                hasError
                     ? "Retry voice mode"
                     : compact
                       ? "Expand voice mode"
@@ -491,18 +481,23 @@ export default function VoiceModeOverlay({
               }
               className="block cursor-pointer border-0 bg-transparent p-0"
             >
-              <HeroOrb state={orbState} size={180} audioLevel={combinedAudioLevel} />
+              <HeroOrb
+                state={visualOrbState}
+                size={180}
+                audioLevel={combinedAudioLevel}
+                palette={getVoiceOrbPalette(voiceName, visualOrbState, voiceColorsEnabled)}
+              />
             </button>
             {compact ? null : (
               <>
                 <p
                   aria-live="polite"
-                  className="absolute top-full left-1/2 mt-4 -translate-x-1/2 text-sm whitespace-nowrap text-white/65"
+                  className="absolute top-full left-1/2 mt-4 -translate-x-1/2 text-sm whitespace-nowrap text-muted-foreground"
                 >
                   {statusText}
                 </p>
                 {caption ? (
-                  <p className="absolute top-full left-1/2 mt-12 line-clamp-2 w-[32rem] max-w-[80vw] -translate-x-1/2 text-center text-xs text-white/40">
+                  <p className="absolute top-full left-1/2 mt-12 line-clamp-2 w-[32rem] max-w-[80vw] -translate-x-1/2 text-center text-xs text-muted-foreground/60">
                     “{caption}”
                   </p>
                 ) : null}
@@ -520,7 +515,7 @@ export default function VoiceModeOverlay({
                 size="icon"
                 variant="ghost"
                 aria-label="Add attachment"
-                className="size-9 rounded-full text-white hover:bg-white/10 hover:text-white"
+                className="size-9 rounded-full text-foreground hover:bg-accent hover:text-accent-foreground"
               >
                 <Plus />
               </Button>
@@ -530,7 +525,7 @@ export default function VoiceModeOverlay({
                 onChange={(event) => setDraft(event.target.value)}
                 placeholder="Type"
                 aria-label="Voice mode message"
-                className="h-full flex-1 text-base text-white placeholder:text-white/45"
+                className="h-full flex-1 text-base text-foreground placeholder:text-muted-foreground"
               />
               <Button
                 type="button"
@@ -539,7 +534,7 @@ export default function VoiceModeOverlay({
                 onClick={handleMute}
                 aria-pressed={muted}
                 aria-label={muted ? "Unmute microphone" : "Mute microphone"}
-                className="size-9 rounded-full text-white hover:bg-white/10 hover:text-white"
+                className="size-9 rounded-full text-foreground hover:bg-accent hover:text-accent-foreground"
               >
                 {muted ? <MicOff /> : <Mic />}
               </Button>
@@ -548,12 +543,12 @@ export default function VoiceModeOverlay({
                 size="icon"
                 onClick={handleClose}
                 aria-label="Close voice mode"
-                className="size-10 rounded-full bg-white text-black hover:bg-white/85"
+                className="size-10 rounded-full bg-primary text-primary-foreground hover:bg-primary/85"
               >
                 <X />
               </Button>
             </form>
-            <p className="text-center text-[11px] text-white/45">
+            <p className="text-center text-[11px] text-muted-foreground/60">
               Poly can make mistakes. Check important info.
             </p>
           </div>

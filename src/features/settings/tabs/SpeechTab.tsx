@@ -3,6 +3,8 @@ import { Channel, invoke } from "@tauri-apps/api/core";
 import { useShallow } from "zustand/react/shallow";
 import {
   AlertCircle,
+  ChevronLeft,
+  ChevronRight,
   Square,
   Volume2,
 } from "lucide-react";
@@ -28,6 +30,21 @@ import { useTtsStore } from "@/store/ttsStore";
 import { useNotify } from "@/hooks/useNotify";
 import { useDictation } from "@/hooks/useDictation";
 import { DictationModelDialog } from "@/features/dictation/DictationModelDialog";
+import HeroOrb from "@/features/chat/components/HeroOrb";
+import { getVoiceOrbPalette } from "@/features/chat/voicePalettes";
+
+const VOICE_PROFILES = [
+  { id: "M1", name: "Theo", description: "Open and upbeat", levels: "AAAAAAAAAAABA3j//6xA/80MQ6j/iAwGDQYDAgMCbv///7KCNP+Tmn+cPyMZH0aXuFIUCwMBAAAAAQAAAAAAAAAA" },
+  { id: "F1", name: "Emma", description: "Bright and expressive", levels: "AAAAAAAAAAEBJLG7wZ1fIwIBAwQGBAWFwAVAdOW6BgcGKbr/0dCFhX/K/P3MvbzauYVKAgEAAAAAAAAAAAAAAAA=" },
+  { id: "M2", name: "Oliver", description: "Calm and grounded", levels: "AAAAAAAAAAAAAAEI///3Z6F9MBcNAgEBAgIDAhj6/60HnP8hKYzQayoUDQEBAQEBAAACuf+JA3P9///YcIT/7Qwar5ESBgEAAAAAAAAAAAAAAA==" },
+  { id: "F2", name: "Sophie", description: "Warm and thoughtful", levels: "AAAAAAAAAAAAAAYW//CuSREDBBD//7WrqtoVXJtJTGk+sNeeWkkxCQUBAQEAAAAAAAAAAAAA" },
+  { id: "M3", name: "James", description: "Confident and direct", levels: "AAAAAAAAAAAWwcSrk5N2PQkBAQFR/ztt6ak+T0P3mzNPkbJ7RwsBAQGi19J7lElrpKGkWV49KAMBAQAAAAAAAAAA" },
+  { id: "F3", name: "Grace", description: "Clear and composed", levels: "AAAAAAAAAAABAgdLzph5cGpZST03JQECBAMDAwMUotd/BIqkSHuvgXqVggoDLoFRZ5t/JQ0JCTZ+jnhhTTcBAQEAAAAAAAA=" },
+  { id: "M4", name: "Mark", description: "Easygoing and natural", levels: "AAAAAAAAAAABD/L/+pA1BwEBAg2K+eNOhBICj86/qXlTLQYMnf3U2OeYi++lDGi7knZhSDILAQEAAAAAAAAAAA==" },
+  { id: "F4", name: "Hannah", description: "Measured and reassuring", levels: "AAAAAAAAAAEVm728QMrTxsmoSwgBW621ZMP/4YzApchBxHarqEXTs1VoR1ExAQEBAAAAAAAAAAA=" },
+  { id: "M5", name: "Miles", description: "Deep and reflective", levels: "AAAAAAAAAAAAABL//2sXTci/P///8p4iHda018imlW9LOhEEAQEBAQEBASj/2aVegKl8OLXkjXDWSzv/uIaGgF4TAgEAAAAAAAAAAAA=" },
+  { id: "F5", name: "Chloe", description: "Friendly and energetic", levels: "AAAAAAAAAAEiUrzq/8uYTgYBAQECAgL/r2M4k9VSY/Pev69oAwICAqH/GErY/3saTXriowua0nUNhsu9qaR7EwEBAAAAAAAAAAA=" },
+] as const;
 
 const WHISPER_LANGUAGES = [
   { code: "auto", label: "Auto-detect" },
@@ -47,8 +64,9 @@ const WHISPER_LANGUAGES = [
 ];
 
 export function SpeechTab() {
-  const { tts, dictation, actions } = useSettingsStore(
+  const { general, tts, dictation, actions } = useSettingsStore(
     useShallow((state) => ({
+      general: state.general,
       tts: state.tts,
       dictation: state.dictation,
       actions: state.actions,
@@ -69,7 +87,11 @@ export function SpeechTab() {
   const [supertonicVoices, setSupertonicVoices] = useState<string[]>([]);
   const [supertonicLoading, setSupertonicLoading] = useState(false);
   const [speechSupported, setSpeechSupported] = useState(true);
+  const [previewAudioLevel, setPreviewAudioLevel] = useState(0);
   const shownErrorsRef = useRef<Set<string>>(new Set());
+  const swipeStartX = useRef<number | null>(null);
+  const previewAudioRef = useRef<HTMLAudioElement | null>(null);
+  const previewMeterFrameRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined" || !window.speechSynthesis) {
@@ -125,6 +147,26 @@ export function SpeechTab() {
     }
   }, [ttsPlayback.error, notify]);
 
+  const teardownVoicePreview = useCallback(() => {
+    if (previewAudioRef.current) {
+      previewAudioRef.current.onended = null;
+      previewAudioRef.current.onerror = null;
+      previewAudioRef.current.pause();
+      previewAudioRef.current = null;
+    }
+    if (previewMeterFrameRef.current !== null) {
+      cancelAnimationFrame(previewMeterFrameRef.current);
+      previewMeterFrameRef.current = null;
+    }
+  }, []);
+
+  const stopVoicePreview = useCallback(() => {
+    teardownVoicePreview();
+    setPreviewAudioLevel(0);
+  }, [teardownVoicePreview]);
+
+  useEffect(() => teardownVoicePreview, [teardownVoicePreview]);
+
   const handleTestSpeech = async () => {
     const testId = "test-synthesis";
     if (ttsPlayback.activeMessageId === testId && ttsPlayback.isPlaying) {
@@ -175,12 +217,136 @@ export function SpeechTab() {
       : null;
 
   const currentModel = models.find((m) => m.id === selectedModelId);
+  const availableProfiles = VOICE_PROFILES.filter(
+    (profile) => supertonicVoices.length === 0 || supertonicVoices.includes(profile.id),
+  );
+  const selectedVoiceIndex = Math.max(
+    0,
+    availableProfiles.findIndex((profile) => profile.id === tts.supertonic.voiceName),
+  );
+  const selectedVoice = availableProfiles[selectedVoiceIndex] ?? VOICE_PROFILES[0];
+  const selectVoice = (index: number) => {
+    const profile = availableProfiles[(index + availableProfiles.length) % availableProfiles.length];
+    if (!profile) return;
+    stopVoicePreview();
+    const audio = new Audio(`/voice-previews/${profile.id}.wav`);
+    const levels = Uint8Array.from(atob(profile.levels), (value) => value.charCodeAt(0));
+    const meter = () => {
+      if (previewAudioRef.current !== audio) return;
+      const index = Math.min(levels.length - 1, Math.floor(audio.currentTime * 20));
+      setPreviewAudioLevel((levels[index] ?? 0) / 2550);
+      previewMeterFrameRef.current = requestAnimationFrame(meter);
+    };
+    previewAudioRef.current = audio;
+    audio.onended = stopVoicePreview;
+    audio.onerror = stopVoicePreview;
+    void audio.play().then(meter).catch(stopVoicePreview);
+    actions.updateTts({
+      engine: "supertonic",
+      supertonic: { ...tts.supertonic, voiceName: profile.id },
+    });
+  };
+  const moveVoice = (direction: number) => selectVoice(selectedVoiceIndex + direction);
 
   return (
     <Stack spacing={2}>
-      <SectionHeader
-        title="Speech Settings"
-        description="Configure native system speech synthesis for reading assistant messages."
+      <div
+        role="listbox"
+        aria-label="AI voice"
+        aria-activedescendant={`voice-${selectedVoice.id}`}
+        tabIndex={0}
+        className="touch-pan-y select-none border-b border-border/60 pb-6 pt-2 outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        onKeyDown={(event) => {
+          if (event.key === "ArrowLeft") {
+            event.preventDefault();
+            moveVoice(-1);
+          }
+          if (event.key === "ArrowRight") {
+            event.preventDefault();
+            moveVoice(1);
+          }
+        }}
+        onPointerDown={(event) => {
+          swipeStartX.current = event.clientX;
+        }}
+        onPointerUp={(event) => {
+          if (swipeStartX.current === null) return;
+          const distance = event.clientX - swipeStartX.current;
+          swipeStartX.current = null;
+          if (Math.abs(distance) >= 40) moveVoice(distance < 0 ? 1 : -1);
+        }}
+        onPointerCancel={() => {
+          swipeStartX.current = null;
+        }}
+      >
+        <div className="flex flex-col items-center text-center">
+          <HeroOrb
+            state="idle"
+            size={190}
+            audioLevel={previewAudioLevel}
+            palette={getVoiceOrbPalette(selectedVoice.id, "idle", tts.voiceColorsEnabled)}
+            className="my-1 max-h-[190px] max-w-[190px]"
+          />
+          <div className="mt-3 grid w-full grid-cols-[2.5rem_1fr_2.5rem] items-center gap-3">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-lg"
+              aria-label="Previous voice"
+              onClick={() => moveVoice(-1)}
+            >
+              <ChevronLeft />
+            </Button>
+            <div id={`voice-${selectedVoice.id}`} role="option" aria-selected="true">
+              <h3 className="text-2xl font-semibold tracking-tight">{selectedVoice.name}</h3>
+              <p className="mt-1 text-base text-muted-foreground">{selectedVoice.description}</p>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-lg"
+              aria-label="Next voice"
+              onClick={() => moveVoice(1)}
+            >
+              <ChevronRight />
+            </Button>
+          </div>
+          <div className="mt-4 flex items-center justify-center gap-2" aria-label="Voice choices">
+            {availableProfiles.map((profile, index) => (
+              <button
+                key={profile.id}
+                type="button"
+                aria-label={`Choose ${profile.name}`}
+                aria-current={profile.id === selectedVoice.id ? "true" : undefined}
+                className="size-2.5 rounded-full bg-muted-foreground/35 transition-colors hover:bg-muted-foreground/60 aria-current:bg-foreground"
+                onClick={() => selectVoice(index)}
+              />
+            ))}
+          </div>
+          <p className="mt-3 text-xs text-muted-foreground">Swipe or use arrow keys to change voice</p>
+        </div>
+      </div>
+
+      <SettingCard
+        title="Voice mode"
+        description="Open a hands-free AI voice conversation from an empty chat."
+        action={
+          <Switch
+            checked={general.voiceModeExperimental}
+            onCheckedChange={(checked) => actions.updateGeneral({ voiceModeExperimental: checked })}
+          />
+        }
+      />
+
+      <SettingCard
+        title="Individual voice colours"
+        description="Give each AI voice its own orb colour palette. Error, warning, and unavailable states keep their standard colours."
+        action={
+          <Switch
+            checked={tts.voiceColorsEnabled}
+            onCheckedChange={(checked) => actions.updateTts({ voiceColorsEnabled: checked })}
+          />
+        }
       />
 
       <SettingCard
@@ -299,35 +465,6 @@ export function SpeechTab() {
 
       {usesSupertonicControls ? (
         <>
-          <SettingCard
-            title="Supertonic Voice"
-            description="Select the local Supertonic voice style."
-            action={
-              <Select
-                value={tts.supertonic.voiceName}
-                disabled={supertonicLoading}
-                onValueChange={(value) =>
-                  actions.updateTts({
-                    supertonic: { ...tts.supertonic, voiceName: value },
-                  })
-                }
-              >
-                <SelectTrigger size="sm" className={selectClassName}>
-                  <SelectValue placeholder={supertonicLoading ? "Loading voices..." : "Select voice"} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    {(supertonicVoices.length > 0 ? supertonicVoices : [tts.supertonic.voiceName]).map((voice) => (
-                      <SelectItem key={voice} value={voice}>
-                        {voice}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            }
-          />
-
           <SettingCard title="Supertonic Speed" description="Adjust local voice reading speed.">
             <Box>
               <Slider

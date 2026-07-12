@@ -303,7 +303,10 @@ else
   echo "Install needs pkexec, sudo, or root." >&2
   exit 1
 fi
-{install}"#
+{install}
+# Relaunch after install
+nohup /usr/bin/poly-ui > /dev/null 2>&1 &
+"#
     ))
 }
 
@@ -390,6 +393,21 @@ pub async fn install_update(app: AppHandle, state: State<'_, AppState>) -> Resul
             std::process::Command::new(fp.as_ref())
                 .spawn()
                 .map_err(|e| format!("Failed to start installer: {}", e))?;
+
+            #[cfg(target_os = "windows")]
+            if let Ok(exe) = std::env::current_exe() {
+                let exe_str = exe.to_string_lossy().to_string();
+                let _ = std::process::Command::new("cmd")
+                    .args([
+                        "/c",
+                        &format!(
+                            "timeout /t 8 /nobreak >nul && start \"\" \"{}\"",
+                            exe_str
+                        ),
+                    ])
+                    .creation_flags(0x08000000)
+                    .spawn();
+            }
         }
         "macos" => {
             let install_script = format!(

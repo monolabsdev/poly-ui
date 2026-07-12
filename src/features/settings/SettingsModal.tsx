@@ -41,7 +41,7 @@ function renderTab(tab: SettingsTabId) {
       return <MobileTab />;
     case "chat":
       return <ChatTab />;
-    case "audio":
+    case "voice":
       return <AudioTab />;
     case "personalization":
       return <PersonalizationTab />;

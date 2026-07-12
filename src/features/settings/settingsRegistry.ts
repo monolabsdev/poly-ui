@@ -20,7 +20,7 @@ export type SettingsTabId =
   | "providers"
   | "mobile"
   | "chat"
-  | "audio"
+  | "voice"
   | "personalization"
   | "data-controls"
   | "about";
@@ -30,6 +30,7 @@ export type LegacySettingsTab =
   | "profile"
   | "personalisation"
   | "speech"
+  | "audio"
   | "advanced";
 
 export type SettingsTab = SettingsTabId | LegacySettingsTab;
@@ -88,9 +89,9 @@ export const SETTINGS_TABS: SettingsTabDefinition[] = [
     keywords: ["composer", "prompt", "assistant", "system", "personalisation", "personalization"],
   },
   {
-    id: "audio",
-    label: "Audio",
-    description: "Speech synthesis, dictation, and Whisper models.",
+    id: "voice",
+    label: "Voice",
+    description: "AI voice, speech synthesis, dictation, and Whisper models.",
     icon: Mic,
     keywords: ["speech", "voice", "tts", "dictation", "whisper", "microphone"],
   },
@@ -130,7 +131,8 @@ const tabAliases: Partial<Record<SettingsTab, SettingsTabId>> = {
   connections: "providers",
   profile: "personalization",
   personalisation: "chat",
-  speech: "audio",
+  speech: "voice",
+  audio: "voice",
   advanced: "general",
 };
 

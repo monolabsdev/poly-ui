@@ -257,13 +257,13 @@ fn append_chat_options(body: &mut Map<String, Value>, options: Option<Value>) {
             body.insert((*key).to_string(), value.clone());
         }
     }
-    if options
-        .get("reasoning_enabled")
-        .and_then(Value::as_bool)
-        .unwrap_or(false)
-        && !body.contains_key("reasoning_effort")
-    {
-        body.insert("reasoning_effort".to_string(), Value::String("medium".to_string()));
+    if !body.contains_key("reasoning_effort") {
+        let reasoning_enabled = options
+            .get("reasoning_enabled")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        let effort = if reasoning_enabled { "medium" } else { "low" };
+        body.insert("reasoning_effort".to_string(), Value::String(effort.to_string()));
     }
     if let Some(format) = options.get("format").and_then(openai_response_format) {
         body.insert("response_format".to_string(), format);
