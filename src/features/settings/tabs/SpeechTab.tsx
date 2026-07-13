@@ -152,6 +152,9 @@ export function SpeechTab() {
       previewAudioRef.current.onended = null;
       previewAudioRef.current.onerror = null;
       previewAudioRef.current.pause();
+      if (previewAudioRef.current.src.startsWith("blob:")) {
+        URL.revokeObjectURL(previewAudioRef.current.src);
+      }
       previewAudioRef.current = null;
     }
     if (previewMeterFrameRef.current !== null) {
@@ -229,7 +232,7 @@ export function SpeechTab() {
     const profile = availableProfiles[(index + availableProfiles.length) % availableProfiles.length];
     if (!profile) return;
     stopVoicePreview();
-    const audio = new Audio(`/voice-previews/${profile.id}.wav`);
+    const audio = new Audio();
     const levels = Uint8Array.from(atob(profile.levels), (value) => value.charCodeAt(0));
     const meter = () => {
       if (previewAudioRef.current !== audio) return;
@@ -240,7 +243,19 @@ export function SpeechTab() {
     previewAudioRef.current = audio;
     audio.onended = stopVoicePreview;
     audio.onerror = stopVoicePreview;
-    void audio.play().then(meter).catch(stopVoicePreview);
+    // WebKitGTK can't stream media over Tauri's custom protocol in prod builds,
+    // so fetch the file and play it from a blob URL instead of setting src directly.
+    void fetch(`voice-previews/${profile.id}.wav`)
+      .then((response) => {
+        if (!response.ok) throw new Error(`preview fetch failed: ${response.status}`);
+        return response.blob();
+      })
+      .then((blob) => {
+        if (previewAudioRef.current !== audio) return;
+        audio.src = URL.createObjectURL(blob);
+        return audio.play().then(meter);
+      })
+      .catch(stopVoicePreview);
     actions.updateTts({
       engine: "supertonic",
       supertonic: { ...tts.supertonic, voiceName: profile.id },
