@@ -49,8 +49,10 @@ describe("experimental voice mode", () => {
     }
     expect(voice).toContain("previewAudioRef");
     expect(voice).toContain("previewAudioRef.current.pause()");
-    expect(voice).toContain("new Audio(`/voice-previews/${profile.id}.wav`)");
-    expect(voice).toContain("void audio.play()");
+    // prod (Tauri custom protocol) can't stream media directly, so previews go fetch -> blob URL
+    expect(voice).toContain("fetch(`voice-previews/${profile.id}.wav`)");
+    expect(voice).toContain("URL.createObjectURL(blob)");
+    expect(voice).toContain("audio.play()");
     expect(voice).not.toContain("createMediaElementSource(audio)");
     expect(voice).toContain("profile.levels");
     expect(voice).toContain("audio.currentTime");
