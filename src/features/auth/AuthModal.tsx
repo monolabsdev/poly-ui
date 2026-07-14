@@ -248,8 +248,8 @@ export const AuthModal: React.FC = () => {
   if (!isOpen) return null;
 
   return (
-    <ModalRoot open={isOpen} aria-labelledby="auth-dialog-title" aria-modal="true">
-      <div role="dialog" className="mt-[var(--titlebar-height)]">
+    <ModalRoot open={isOpen} aria-labelledby="auth-dialog-title">
+      <div className="mt-[var(--titlebar-height)]">
         <Card className="w-[min(420px,calc(100vw_-_32px))] gap-8 p-8">
           <Tabs value={tab} onValueChange={(value) => handleTabChange(value as AuthTab)}>
             <TabsList className="w-full">
