@@ -280,7 +280,6 @@ export default function ChatWorkspace({
         onSetDefault={handleSetDefault}
         isTemporary={isTemporary}
         onToggleTemporaryChat={handleToggleTemporary}
-        transparent
       />
 
       {activeFolder && !activeConversationId ? (
