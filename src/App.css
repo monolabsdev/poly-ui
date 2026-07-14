@@ -456,6 +456,7 @@ code {
 /* Hover visibility for copy button */
 .copy-button {
     opacity: 0;
+    transition: opacity var(--dur-fast) var(--ease-soft);
 }
 
 *:hover > .copy-button {
@@ -471,6 +472,7 @@ code {
 /* Action bar visibility */
 .action-bar {
     opacity: 0;
+    transition: opacity var(--dur-fast) var(--ease-soft);
 }
 
 *:hover > .action-bar,
@@ -594,6 +596,7 @@ code {
 /* Conversation actions in sidebar */
 .conversation-actions {
     opacity: 0;
+    transition: opacity var(--dur-fast) var(--ease-soft);
 }
 
 *:hover > .conversation-actions,
