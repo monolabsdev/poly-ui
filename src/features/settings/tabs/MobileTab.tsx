@@ -134,7 +134,7 @@ export function MobileTab() {
         >
           {pairing ? (
             <Stack spacing={3}>
-              <div className="w-fit rounded-xl border border-border/60 bg-white p-3">
+              <div className="w-fit rounded-xl border border-border/60 bg-white p-3 dark:bg-white">
                 <QRCodeSVG value={pairing.url} size={184} marginSize={1} />
               </div>
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
