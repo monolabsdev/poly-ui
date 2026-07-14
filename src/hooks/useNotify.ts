@@ -4,7 +4,7 @@ import { useSettingsStore } from "@/store/settingsStore";
 
 export function useNotify() {
   const add = useNotificationStore((s) => s.actions.add);
-  const remove = useNotificationStore((s) => s.actions.remove);
+  const startRemove = useNotificationStore((s) => s.actions.startRemove);
   const update = useNotificationStore((s) => s.actions.update);
 
   const notificationsEnabled = useSettingsStore((s) => s.general.notifications);
@@ -53,7 +53,7 @@ export function useNotify() {
   // Stable identity: effects that list the returned object as a dependency
   // must not re-run (cancelling in-flight fetches) on every render.
   return useMemo(
-    () => ({ notify, success, error, warn, info, promise, dismiss: remove }),
-    [notify, success, error, warn, info, promise, remove],
+    () => ({ notify, success, error, warn, info, promise, dismiss: startRemove }),
+    [notify, success, error, warn, info, promise, startRemove],
   );
 }
