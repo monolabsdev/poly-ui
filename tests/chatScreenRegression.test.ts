@@ -36,6 +36,18 @@ describe("chat screen regression guards", () => {
     expect(source).toContain("\"dragDropEnabled\": true");
   });
 
+  it("keeps the Linux window large enough to resize", () => {
+    const config = JSON.parse(read("src-tauri/tauri.linux.conf.json"));
+    const window = config.app.windows[0];
+
+    expect(window).toMatchObject({
+      width: 1100,
+      height: 750,
+      minWidth: 900,
+      minHeight: 600,
+    });
+  });
+
   it("uses a centered overlay instead of an active composer outline for file drops", () => {
     const source = read("src/features/chat/components/ChatInput.tsx");
     const css = read("src/App.css");
