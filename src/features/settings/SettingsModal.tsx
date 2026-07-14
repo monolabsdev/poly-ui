@@ -108,7 +108,7 @@ export function SettingsModal({
         onClose={onClose}
       >
         {[...visitedTabs].map((tab) => (
-          <div key={tab} className={tab === activeTab ? "block" : "hidden"}>
+          <div key={tab} className={`animate-fade-in ${tab === activeTab ? "block" : "hidden"}`}>
             {renderTab(tab)}
           </div>
         ))}
