@@ -622,6 +622,21 @@ code {
     }
 }
 
+.animate-toast-out {
+    animation: toast-out var(--dur-fast) var(--ease-premium) forwards;
+}
+
+@keyframes toast-out {
+    from {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+    to {
+        opacity: 0;
+        transform: translateY(20px) scale(0.98);
+    }
+}
+
 /* Fade in */
 .animate-fade-in {
     animation: fade-in var(--dur-base) var(--ease-premium) forwards;
