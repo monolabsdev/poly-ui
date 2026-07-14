@@ -8,30 +8,48 @@ export function WindowControls({ closeOnly = false }: { closeOnly?: boolean }) {
 
   useEffect(() => {
     if (!USE_CUSTOM_WINDOW_CONTROLS || closeOnly) return;
+
     const w = getCurrentWindow();
     void w.isMaximized().then(setMaximized);
-    const unlisten: (() => void)[] = [];
-    void w.onResized(() => {
-      void w.isMaximized().then(setMaximized);
-    }).then((fn) => unlisten.push(fn));
-    return () => { unlisten.forEach((fn) => fn()); };
+
+    const unlisten: Array<() => void> = [];
+
+    void w
+      .onResized(() => {
+        void w.isMaximized().then(setMaximized);
+      })
+      .then((fn) => unlisten.push(fn));
+
+    return () => {
+      unlisten.forEach((fn) => fn());
+    };
   }, [closeOnly]);
 
   if (!USE_CUSTOM_WINDOW_CONTROLS) return null;
 
   const w = getCurrentWindow();
+
   return (
-    <div className={`flex h-full shrink-0 items-center pr-0 ${IS_LINUX ? "gap-1.5" : "gap-0.5"}`}>
+    <div
+      className={`flex h-full shrink-0 items-center pr-2 ${
+        IS_LINUX ? "gap-1.5" : "gap-0.5"
+      }`}
+    >
       {!closeOnly && (
         <>
           <WinButton onClick={() => void w.minimize()} title="Minimize">
             <Minus size={15} strokeWidth={1.5} />
           </WinButton>
-          <WinButton onClick={() => void w.toggleMaximize()} title={maximized ? "Restore" : "Maximize"}>
+
+          <WinButton
+            onClick={() => void w.toggleMaximize()}
+            title={maximized ? "Restore" : "Maximize"}
+          >
             <Square size={13} strokeWidth={1.5} />
           </WinButton>
         </>
       )}
+
       <WinButton close onClick={() => void w.close()} title="Close">
         <X size={15} strokeWidth={1.5} />
       </WinButton>
@@ -39,26 +57,40 @@ export function WindowControls({ closeOnly = false }: { closeOnly?: boolean }) {
   );
 }
 
-function WinButton({ children, onClick, title, close = false }: {
+function WinButton({
+  children,
+  onClick,
+  title,
+  close = false,
+}: {
   children: React.ReactNode;
   onClick: () => void;
   title: string;
   close?: boolean;
 }) {
+  const closeClasses =
+    "text-muted-foreground hover:bg-destructive/10 hover:text-destructive " +
+    "focus-visible:bg-destructive/10 focus-visible:text-destructive " +
+    "active:bg-destructive/20 active:text-destructive";
+
+  const normalClasses =
+    "text-muted-foreground hover:bg-accent hover:text-foreground " +
+    "focus-visible:bg-accent focus-visible:text-foreground active:bg-accent/80";
+
   return (
     <button
       type="button"
       onClick={onClick}
       title={title}
-      onMouseDown={(e: React.MouseEvent) => e.stopPropagation()}
-      onDoubleClick={(e: React.MouseEvent) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
+      onDoubleClick={(e) => e.stopPropagation()}
       className={
         IS_LINUX
-          ? `flex h-7 w-7 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors ${
-              close ? "hover:bg-destructive hover:text-destructive-foreground" : "hover:bg-accent hover:text-foreground"
+          ? `flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg transition-colors ${
+              close ? closeClasses : normalClasses
             }`
-          : `flex h-full w-[46px] cursor-pointer items-center justify-center rounded-none text-muted-foreground ${
-              close ? "hover:bg-destructive/15 hover:text-destructive" : "hover:bg-accent hover:text-foreground"
+          : `flex h-full w-[46px] cursor-pointer items-center justify-center rounded-none transition-colors ${
+              close ? closeClasses : normalClasses
             }`
       }
     >

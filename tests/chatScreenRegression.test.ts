@@ -98,7 +98,7 @@ describe("chat screen regression guards", () => {
     expect(source).not.toContain("aria-pressed={viewportDrawerOpen}");
   });
 
-  it("keeps header icon labels centered and borderless chrome painted", () => {
+  it("keeps header icon labels centered and borderless chrome painted without changing layout", () => {
     const header = read("src/features/chat/components/Header.tsx");
     const css = read("src/App.css");
 
@@ -106,7 +106,10 @@ describe("chat screen regression guards", () => {
     expect(header).toContain("flex size-4 items-center justify-center");
     expect(css).toContain("vertical-align: middle;");
     expect(css).toContain("min-height: 100vh;");
-    expect(css).toContain("html[data-chrome=\"borderless\"] #root {\n    overflow: hidden;\n    border: 1px solid var(--border);\n    background: var(--sidebar);");
+    expect(css).toContain("outline: 1px solid var(--border);");
+    expect(css).toContain("outline-offset: -1px;");
+    expect(css).not.toContain("html[data-chrome=\"borderless\"] #root {\n    overflow: hidden;\n    border:");
+    expect(css).toContain("html[data-chrome=\"borderless\"].maximized #root {\n    border-radius: 0;\n    outline: none;");
     expect(css).toContain(".app-root-shell {\n    background: var(--sidebar);");
   });
 
