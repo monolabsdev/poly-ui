@@ -128,7 +128,7 @@ async fn eval_viewport(app: &AppHandle, js: String) -> Result<String, String> {
     let tx = Mutex::new(Some(tx));
     webview
         .eval_with_callback(js, move |result| {
-            if let Some(tx) = tx.lock().unwrap().take() {
+            if let Some(tx) = tx.lock().unwrap_or_else(|e| e.into_inner()).take() {
                 let _ = tx.send(result);
             }
         })
@@ -307,7 +307,7 @@ mod embed {
                 };
                 webview
                     .evaluate_script_with_callback(&js, move |result| {
-                        if let Some(tx) = tx.lock().unwrap().take() {
+                        if let Some(tx) = tx.lock().unwrap_or_else(|e| e.into_inner()).take() {
                             let _ = tx.send(result);
                         }
                     })
@@ -359,12 +359,12 @@ pub async fn agent_viewport_open_file(
     }
 
     let state = app.state::<ViewportState>();
-    *state.file_root.lock().unwrap() = Some(root.clone());
+    *state.file_root.lock().unwrap_or_else(|e| e.into_inner()) = Some(root.clone());
     let port = ensure_file_server(&app).await?;
 
     let rel = file
         .strip_prefix(&root)
-        .unwrap()
+        .map_err(|_| "Path invariant violated: strip_prefix after starts_with")?
         .to_string_lossy()
         .replace('\\', "/");
     let url = Url::parse(&format!("http://127.0.0.1:{port}/{rel}"))
@@ -419,7 +419,7 @@ pub async fn agent_viewport_hide(app: AppHandle) -> Result<(), String> {
 
 #[tauri::command]
 pub async fn agent_viewport_close(app: AppHandle) -> Result<(), String> {
-    *app.state::<ViewportState>().file_root.lock().unwrap() = None;
+    *app.state::<ViewportState>().file_root.lock().unwrap_or_else(|e| e.into_inner()) = None;
     #[cfg(target_os = "linux")]
     {
         if embed::close(&app)? {
@@ -495,7 +495,7 @@ async fn ensure_file_server(app: &AppHandle) -> Result<u16, String> {
                 .state::<ViewportState>()
                 .file_root
                 .lock()
-                .unwrap()
+                .unwrap_or_else(|e| e.into_inner())
                 .clone();
             tauri::async_runtime::spawn(serve_connection(stream, root));
         }
