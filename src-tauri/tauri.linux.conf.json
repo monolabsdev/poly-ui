@@ -3,6 +3,10 @@
     "windows": [
       {
         "label": "main",
+        "width": 1100,
+        "height": 750,
+        "minWidth": 900,
+        "minHeight": 600,
         "decorations": true,
         "visible": false,
         "dragDropEnabled": true
