@@ -92,6 +92,8 @@ type ChatStore = {
     clearFolderAssignments: (folderIds: Set<string>) => void;
   };
 };
+let switchSeq = 0;
+
 export const useChatStore = create<ChatStore>((set, get) => ({
   conversations: [],
   conversationsLoading: false,
@@ -213,14 +215,22 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         return;
       }
 
+      const seq = ++switchSeq;
       const pageSize = 50;
-      const r = await getRepo();
-      const messages = await r.getMessages(id, pageSize, 0);
-      set({
-        activeConversationId: id,
-        messages,
-        hasMoreMessages: messages.length === pageSize,
-      });
+      try {
+        const r = await getRepo();
+        const messages = await r.getMessages(id, pageSize, 0);
+        if (seq !== switchSeq) return;
+        set({
+          activeConversationId: id,
+          messages,
+          hasMoreMessages: messages.length === pageSize,
+        });
+      } catch (error) {
+        console.error("Failed to load conversation messages:", error);
+        if (seq !== switchSeq) return;
+        set({ activeConversationId: id, messages: [], hasMoreMessages: false });
+      }
     },
     loadMoreMessages: async () => {
       const { activeConversationId, messages } = useChatStore.getState();
@@ -228,17 +238,21 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
       const pageSize = 50;
       const offset = messages.length;
-      const r = await getRepo();
-      const newMessages = await r.getMessages(activeConversationId, pageSize, offset);
+      try {
+        const r = await getRepo();
+        const newMessages = await r.getMessages(activeConversationId, pageSize, offset);
 
-      if (newMessages.length === 0) {
-        set({ hasMoreMessages: false });
-        return;
+        if (newMessages.length === 0) {
+          set({ hasMoreMessages: false });
+          return;
+        }
+        set({
+          messages: [...newMessages, ...messages],
+          hasMoreMessages: newMessages.length === pageSize,
+        });
+      } catch (error) {
+        console.error("Failed to load more messages:", error);
       }
-      set({
-        messages: [...newMessages, ...messages],
-        hasMoreMessages: newMessages.length === pageSize,
-      });
     },
     setMessages: (messages) => set({ messages }),
     addMessage: async (message) => {
@@ -292,8 +306,12 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       const shouldPersist = conversation && !conversation.isTemporary;
 
       if (shouldPersist) {
-        const r = await getRepo();
-        await r.deleteConversation(id);
+        try {
+          const r = await getRepo();
+          await r.deleteConversation(id);
+        } catch (error) {
+          console.error("Failed to delete conversation:", error);
+        }
       }
 
       set((state) => {
@@ -320,8 +338,12 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       });
 
       if (toDelete.length > 0) {
-        const r = await getRepo();
-        await r.deleteConversations(toDelete);
+        try {
+          const r = await getRepo();
+          await r.deleteConversations(toDelete);
+        } catch (error) {
+          console.error("Failed to delete conversations:", error);
+        }
       }
 
       set((state) => {
@@ -348,8 +370,12 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       );
 
       if (userConversations.length > 0) {
-        const r = await getRepo();
-        await r.deleteAllConversations(userId);
+        try {
+          const r = await getRepo();
+          await r.deleteAllConversations(userId);
+        } catch (error) {
+          console.error("Failed to delete all conversations:", error);
+        }
       }
 
       set({
@@ -365,8 +391,12 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       const shouldPersist = conversation && !conversation.isTemporary;
 
       if (shouldPersist) {
-        const r = await getRepo();
-        await r.updateConversation(id, { isArchived: true });
+        try {
+          const r = await getRepo();
+          await r.updateConversation(id, { isArchived: true });
+        } catch (error) {
+          console.error("Failed to archive conversation:", error);
+        }
       }
 
       set((state) => {
@@ -392,8 +422,12 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       const shouldPersist = conversation && !conversation.isTemporary;
 
       if (shouldPersist) {
-        const r = await getRepo();
-        await r.updateConversation(id, { isArchived: false });
+        try {
+          const r = await getRepo();
+          await r.updateConversation(id, { isArchived: false });
+        } catch (error) {
+          console.error("Failed to unarchive conversation:", error);
+        }
       }
 
       set((state) => ({
@@ -436,8 +470,12 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         ),
       }));
       if (conversation.isTemporary) return;
-      const r = await getRepo();
-      await r.updateConversation(id, { metadata });
+      try {
+        const r = await getRepo();
+        await r.updateConversation(id, { metadata });
+      } catch (error) {
+        console.error("Failed to update conversation metadata:", error);
+      }
     },
     setTitleGenerationStatus: (id, status) => set((state) => ({
       conversations: state.conversations.map((c) =>
@@ -451,8 +489,12 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       const shouldPersist = conversation && !conversation.isTemporary;
 
       if (shouldPersist) {
-        const r = await getRepo();
-        await r.deleteMessagesAfter(conversationId, messageId);
+        try {
+          const r = await getRepo();
+          await r.deleteMessagesAfter(conversationId, messageId);
+        } catch (error) {
+          console.error("Failed to delete messages after:", error);
+        }
       }
 
       set((state) => {
