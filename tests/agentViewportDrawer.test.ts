@@ -59,6 +59,10 @@ describe("AgentViewportDrawer iframe preview", () => {
     expect(source).toContain("-scale-x-100");
   });
 
+  it("keeps enough split width for chat", () => {
+    expect(source).toContain('maxWidth: "calc(100% - 320px)"');
+  });
+
   it("wires back and forward controls to preview history", () => {
     expect(source).toContain("onClick={() => moveHistory(-1)}");
     expect(source).toContain("onClick={() => moveHistory(1)}");

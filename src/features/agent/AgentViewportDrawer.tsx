@@ -359,7 +359,7 @@ export function AgentViewportDrawer() {
         !dragging && !reduceMotion && "transition-[width] duration-200 ease-out",
         visible && "border-l border-border",
       )}
-      style={{ width: visible ? width : 0 }}
+      style={{ width: visible ? width : 0, maxWidth: "calc(100% - 320px)" }}
     >
       <div
         className="absolute inset-y-0 left-0 z-20 w-1 cursor-ew-resize touch-none bg-transparent hover:bg-border"
