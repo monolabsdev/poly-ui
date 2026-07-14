@@ -394,7 +394,9 @@ html.reduce-transparency[data-chrome="borderless"] body {
 
 html[data-chrome="borderless"] #root {
     overflow: hidden;
-    border: 1px solid var(--border);
+    outline: 1px solid var(--border);
+    outline-offset: -1px;
+    border-radius: 0;
     background: var(--sidebar);
     min-height: 100vh;
 }
@@ -405,7 +407,7 @@ html.reduce-transparency[data-chrome="borderless"] #root {
 
 html[data-chrome="borderless"].maximized #root {
     border-radius: 0;
-    border: none;
+    outline: none;
 }
 
 *,
