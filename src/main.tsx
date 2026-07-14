@@ -19,7 +19,7 @@ import { invoke } from "@tauri-apps/api/core";
 import "./App.css";
 import App from "./App";
 
-const TITLE_BAR_HEIGHT = 36;
+export const TITLE_BAR_HEIGHT = 36;
 document.documentElement.style.setProperty(
   "--titlebar-height",
   `${TITLE_BAR_HEIGHT}px`,

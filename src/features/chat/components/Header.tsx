@@ -52,7 +52,6 @@ interface HeaderProps {
   onSetDefault: (choice: ModelChoice) => void;
   isTemporary?: boolean;
   onToggleTemporaryChat: () => void;
-  transparent?: boolean;
 }
 
 export const Header = memo(function Header({
@@ -65,7 +64,6 @@ export const Header = memo(function Header({
   onSetDefault,
   isTemporary,
   onToggleTemporaryChat,
-  transparent: _transparent = false,
 }: HeaderProps) {
   const { selectedPromptPreset, actions } = useSettingsStore(
     useShallow((state) => ({

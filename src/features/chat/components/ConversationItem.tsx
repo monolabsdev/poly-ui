@@ -82,6 +82,7 @@ export const ConversationItem = React.memo(function ConversationItem({
           if (e.key === "Enter") handleConfirmRename?.(e as any, conv.id);
           if (e.key === "Escape") handleCancelRename?.(e as any);
         }}
+        aria-label="Rename conversation"
         className="w-full min-w-0 flex-1 border-none bg-transparent p-0 text-inherit outline-none"
       />
       <IconButton
