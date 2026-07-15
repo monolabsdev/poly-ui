@@ -4,11 +4,12 @@ import * as React from "react"
 import { Popover as PopoverPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
+import { useOverlayRootProps } from "@/features/embedded-webview/overlayTracking"
 
 function Popover({
   ...props
 }: React.ComponentProps<typeof PopoverPrimitive.Root>) {
-  return <PopoverPrimitive.Root data-slot="popover" {...props} />
+  return <PopoverPrimitive.Root data-slot="popover" {...useOverlayRootProps(props)} />
 }
 
 function PopoverTrigger({

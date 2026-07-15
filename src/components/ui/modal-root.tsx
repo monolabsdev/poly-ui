@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useOverlayOpenTracking } from "@/features/embedded-webview/overlayTracking";
 
 export function ModalRoot({
   open,
@@ -14,6 +15,10 @@ export function ModalRoot({
   const [visible, setVisible] = React.useState(open);
   const [phase, setPhase] = React.useState<"idle" | "entering" | "exiting">("idle");
   const contentRef = React.useRef<HTMLDivElement>(null);
+  // Track `visible` (not `open`) so embedded webviews stay hidden until the
+  // exit animation finishes — the native view would pop over the fading
+  // backdrop otherwise.
+  useOverlayOpenTracking(visible);
 
   React.useEffect(() => {
     if (open && !visible) {

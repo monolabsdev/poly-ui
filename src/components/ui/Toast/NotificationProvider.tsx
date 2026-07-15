@@ -1,6 +1,7 @@
 import React, { useEffect } from "react";
 import { CheckCircle2, AlertCircle, Info, AlertTriangle, X, Loader2 } from "lucide-react";
 import { useNotificationStore, type Toast as ToastType } from "@/store/notificationStore";
+import { useOverlayOpenTracking } from "@/features/embedded-webview/overlayTracking";
 import { cn } from "@/lib/utils";
 
 const typeIcon = {
@@ -70,6 +71,8 @@ const ToastItem = ({ toast, isRemoving }: { toast: ToastType; isRemoving: boolea
 export const NotificationProvider = ({ children }: { children: React.ReactNode }) => {
   const toasts = useNotificationStore((s) => s.toasts);
   const removing = useNotificationStore((s) => s.removing);
+  // Toasts stack over the bottom-right corner, where embedded webviews live.
+  useOverlayOpenTracking(toasts.length > 0);
 
   return (
     <>

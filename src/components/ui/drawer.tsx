@@ -2,6 +2,7 @@ import * as React from "react"
 import { Drawer as DrawerPrimitive } from "vaul"
 
 import { cn } from "@/lib/utils"
+import { useOverlayRootProps } from "@/features/embedded-webview/overlayTracking"
 
 function Drawer({
   anchor = "right",
@@ -15,16 +16,15 @@ function Drawer({
   onClose?: () => void
   PaperProps?: { className?: string; sx?: unknown }
 }) {
+  const tracked = useOverlayRootProps({
+    ...props,
+    onOpenChange: (open: boolean) => {
+      onOpenChange?.(open)
+      if (!open) onClose?.()
+    },
+  })
   return (
-    <DrawerPrimitive.Root
-      data-slot="drawer"
-      direction={anchor}
-      onOpenChange={(open) => {
-        onOpenChange?.(open)
-        if (!open) onClose?.()
-      }}
-      {...props}
-    >
+    <DrawerPrimitive.Root data-slot="drawer" direction={anchor} {...tracked}>
       <DrawerContent className={PaperProps?.className}>{children}</DrawerContent>
     </DrawerPrimitive.Root>
   )
