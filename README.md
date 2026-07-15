@@ -12,7 +12,7 @@
 
 PolyUI is a desktop AI chat app that runs entirely offline. One calm window for your models - use Ollama, OpenAI-compatible APIs, and more. Built for private, everyday conversations with local LLMs.
 
-![polyui demo](public/PolyUI_Demo.png)
+![polyui demo](public/PolyUI_Demo.png)s
 
 ## Key features of PolyUI
 
