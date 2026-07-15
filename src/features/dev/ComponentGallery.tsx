@@ -10,8 +10,16 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Source, SourceContent, SourceTrigger } from "@/components/ui/source";
@@ -20,7 +28,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { TextShimmer } from "@/components/ui/text-shimmer";
 import { ThinkingDisclosure } from "@/features/chat/components/Message/ThinkingDisclosure";
 import { WebSearchDisclosure } from "@/features/chat/components/Message/WebSearchDisclosure";
+import { EmbeddedWebviewFrame } from "@/features/embedded-webview/EmbeddedWebviewFrame";
+import { useNotificationStore } from "@/store/notificationStore";
 import type { SearchResultItem } from "@/types/chat";
+
+const WEBVIEW_URL_A = "https://example.com";
+const WEBVIEW_URL_B = "https://developer.mozilla.org";
 
 const sampleSources: SearchResultItem[] = [
   {
@@ -52,6 +65,8 @@ function GallerySection({
 
 export function ComponentGallery() {
   const [webSearchOpen, setWebSearchOpen] = useState(true);
+  const [webviewMounted, setWebviewMounted] = useState(false);
+  const [webviewUrl, setWebviewUrl] = useState(WEBVIEW_URL_A);
 
   return (
     <div className="h-full overflow-auto bg-background">
@@ -203,6 +218,67 @@ export function ComponentGallery() {
             <Skeleton className="h-4 w-full" />
             <Separator />
             <Skeleton className="h-20 w-full" />
+          </div>
+        </GallerySection>
+
+        <GallerySection title="Embedded webview">
+          <div className="w-full space-y-3">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="gallery-webview"
+                  checked={webviewMounted}
+                  onCheckedChange={setWebviewMounted}
+                />
+                <Label htmlFor="gallery-webview">Mount webview</Label>
+              </div>
+              <Button
+                variant="secondary"
+                disabled={!webviewMounted}
+                onClick={() => setWebviewUrl((url) => (url === WEBVIEW_URL_A ? WEBVIEW_URL_B : WEBVIEW_URL_A))}
+              >
+                Navigate
+              </Button>
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button variant="secondary">Dialog over page</Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogTitle>Airspace check</DialogTitle>
+                  <DialogDescription>
+                    The page below should be a snapshot while this is open, and restore without a flash on close.
+                  </DialogDescription>
+                </DialogContent>
+              </Dialog>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="secondary">Popover over page</Button>
+                </PopoverTrigger>
+                <PopoverContent>Open and close this rapidly to exercise the race token.</PopoverContent>
+              </Popover>
+              <Button
+                variant="secondary"
+                onClick={() =>
+                  useNotificationStore.getState().actions.add({
+                    type: "info",
+                    message: "Toast over the page",
+                    description: "The webview hides until the toast expires.",
+                  })
+                }
+              >
+                Fire toast
+              </Button>
+            </div>
+            {webviewMounted ? (
+              <EmbeddedWebviewFrame
+                label="gallery-demo"
+                url={webviewUrl}
+                className="h-80 w-full rounded-lg border border-border"
+              />
+            ) : null}
+            <p className="text-xs text-muted-foreground">
+              Also try: ⌘K over the page, sidebar collapse, window resize, and moving the window between monitors.
+            </p>
           </div>
         </GallerySection>
       </div>
