@@ -116,28 +116,35 @@ export function getEmbeddedWebviewBridge(): EmbeddedWebviewBridge {
 
 let eventsBound = false;
 
-/** Subscribe to native page events. Lazy so tests never touch Tauri APIs. */
+/**
+ * Subscribe to native page events. Lazy, and a no-op outside Tauri (Node
+ * tests drive the store through the injected bridge instead).
+ */
 async function bindNativeEvents(): Promise<void> {
   if (eventsBound) return;
   eventsBound = true;
-  const { listen } = await import("@tauri-apps/api/event");
-  await listen<EmbeddedWebviewEvent>("embedded-webview-event", ({ payload }) => {
-    const { patchFrame } = useEmbeddedWebviewStore.getState().actions;
-    switch (payload.event.kind) {
-      case "titleChanged":
-        patchFrame(payload.label, { title: payload.event.title });
-        break;
-      case "urlChanged":
-        patchFrame(payload.label, { url: payload.event.url });
-        break;
-      case "loadStarted":
-        patchFrame(payload.label, { url: payload.event.url, status: "loading" });
-        break;
-      case "loadFinished":
-        patchFrame(payload.label, { url: payload.event.url, status: "ready" });
-        break;
-    }
-  });
+  try {
+    const { listen } = await import("@tauri-apps/api/event");
+    await listen<EmbeddedWebviewEvent>("embedded-webview-event", ({ payload }) => {
+      const { patchFrame } = useEmbeddedWebviewStore.getState().actions;
+      switch (payload.event.kind) {
+        case "titleChanged":
+          patchFrame(payload.label, { title: payload.event.title });
+          break;
+        case "urlChanged":
+          patchFrame(payload.label, { url: payload.event.url });
+          break;
+        case "loadStarted":
+          patchFrame(payload.label, { url: payload.event.url, status: "loading" });
+          break;
+        case "loadFinished":
+          patchFrame(payload.label, { url: payload.event.url, status: "ready" });
+          break;
+      }
+    });
+  } catch {
+    // Not running under Tauri (Node tests): the bridge seam drives state.
+  }
 }
 
 // ─── Overlay-hide engine ───
