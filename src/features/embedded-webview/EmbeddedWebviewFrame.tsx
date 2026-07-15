@@ -4,6 +4,7 @@ import type { WebviewBounds } from "./generated/WebviewBounds";
 import {
   getEmbeddedWebviewBridge,
   mountFrame,
+  setFrameShown,
   unmountFrame,
   useEmbeddedWebviewStore,
 } from "./embeddedWebviewStore";
@@ -22,6 +23,32 @@ import {
  * shows the page snapshot — or a neutral surface if snapshots are unavailable —
  * so there is never a blank flash.
  */
+
+/**
+ * Lifecycle invokes (create/navigate/visibility/destroy) are serialized per
+ * label: distinct async Tauri commands carry no ordering guarantee, so a
+ * StrictMode remount (create → destroy → create) or a fast unmount could
+ * otherwise interleave and leave the native view destroyed or duplicated.
+ */
+const opQueues = new Map<string, Promise<unknown>>();
+
+function enqueueOp<T>(label: string, op: () => Promise<T>): Promise<T> {
+  const previous = opQueues.get(label) ?? Promise.resolve();
+  const next = previous.then(op, op);
+  opQueues.set(
+    label,
+    next.catch(() => undefined),
+  );
+  return next;
+}
+
+function isLabelTaken(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    (error as { kind?: string }).kind === "labelTaken"
+  );
+}
 
 /** Transition properties that can move or resize this element. */
 const LAYOUT_TRANSITION_PROPERTIES = new Set([
@@ -72,6 +99,7 @@ export function EmbeddedWebviewFrame({
   url,
   className,
   destroyOnUnmount = true,
+  visible = true,
 }: {
   /** Unique webview label (letters, digits, '-', '_'). */
   label: string;
@@ -79,9 +107,17 @@ export function EmbeddedWebviewFrame({
   className?: string;
   /** Destroy the native webview on unmount (default) or just hide it. */
   destroyOnUnmount?: boolean;
+  /**
+   * Native views ignore CSS visibility, so hosts that collapse or hide the
+   * placeholder (drawer close, inactive tab) must flip this instead of
+   * relying on display/width styles.
+   */
+  visible?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const urlRef = useRef(url);
+  const visibleRef = useRef(visible);
+  visibleRef.current = visible;
   const frame = useEmbeddedWebviewStore((state) => state.frames[label]);
 
   useEffect(() => {
@@ -135,8 +171,20 @@ export function EmbeddedWebviewFrame({
 
     const initial = measure(el);
     lastSent.bounds = initial;
-    void bridge.create(label, urlRef.current, initial).catch((error) => {
-      console.warn(`Failed to create embedded webview ${label}:`, error);
+    void enqueueOp(label, async () => {
+      try {
+        await bridge.create(label, urlRef.current, initial);
+      } catch (error) {
+        if (isLabelTaken(error)) {
+          // The native view survived a remount (destroyOnUnmount=false, or a
+          // StrictMode double-mount): re-adopt it instead of failing.
+          await bridge.setBounds(label, initial).catch(() => undefined);
+        } else {
+          console.warn(`Failed to create embedded webview ${label}:`, error);
+          return;
+        }
+      }
+      await setFrameShown(label, visibleRef.current, { force: true });
     });
 
     const resizeObserver = new ResizeObserver(scheduleSync);
@@ -174,8 +222,11 @@ export function EmbeddedWebviewFrame({
       if (scheduled !== null) cancelAnimationFrame(scheduled);
       if (animationFrame !== null) cancelAnimationFrame(animationFrame);
       unmountFrame(label);
-      if (destroyOnUnmount) void bridge.destroy(label).catch(() => undefined);
-      else void bridge.setVisible(label, false).catch(() => undefined);
+      void enqueueOp(label, () =>
+        destroyOnUnmount
+          ? bridge.destroy(label).catch(() => undefined)
+          : bridge.setVisible(label, false).catch(() => undefined),
+      );
     };
     // destroyOnUnmount is read only during cleanup; remount on change is unwanted.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -185,10 +236,16 @@ export function EmbeddedWebviewFrame({
   useEffect(() => {
     if (urlRef.current === url) return;
     urlRef.current = url;
-    void getEmbeddedWebviewBridge()
-      .navigate(label, url)
-      .catch(() => undefined);
+    void enqueueOp(label, () =>
+      getEmbeddedWebviewBridge()
+        .navigate(label, url)
+        .catch(() => undefined),
+    );
   }, [label, url]);
+
+  useEffect(() => {
+    void enqueueOp(label, () => setFrameShown(label, visible));
+  }, [label, visible]);
 
   const covered = frame?.covered ?? false;
   return (

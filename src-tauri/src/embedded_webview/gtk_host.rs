@@ -132,6 +132,14 @@ impl WebviewHost for GtkWebviewHost {
         .map_err(HostError::Platform)?
     }
 
+    fn reload(&self, label: &str) -> Result<(), HostError> {
+        let label = label.to_string();
+        on_main(&self.app, move || {
+            with_webview(&label, |webview| webview.reload().map_err(HostError::platform))
+        })
+        .map_err(HostError::Platform)?
+    }
+
     fn set_bounds(&self, label: &str, bounds: WebviewBounds) -> Result<(), HostError> {
         let handle = self.app.clone();
         let label = label.to_string();

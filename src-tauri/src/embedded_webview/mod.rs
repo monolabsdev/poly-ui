@@ -179,6 +179,11 @@ impl EmbeddedWebviews {
         Ok(self.host.navigate(label, &url)?)
     }
 
+    pub fn reload(&self, label: &str) -> Result<(), EmbeddedWebviewError> {
+        self.require(label)?;
+        Ok(self.host.reload(label)?)
+    }
+
     pub fn set_bounds(
         &self,
         label: &str,
@@ -232,6 +237,14 @@ pub async fn embedded_webview_navigate(
     url: String,
 ) -> Result<(), EmbeddedWebviewError> {
     app.state::<EmbeddedWebviews>().navigate(&label, &url)
+}
+
+#[tauri::command]
+pub async fn embedded_webview_reload(
+    app: AppHandle,
+    label: String,
+) -> Result<(), EmbeddedWebviewError> {
+    app.state::<EmbeddedWebviews>().reload(&label)
 }
 
 #[tauri::command]
@@ -303,6 +316,10 @@ mod tests {
         }
         fn navigate(&self, label: &str, url: &Url) -> Result<(), HostError> {
             self.log(format!("navigate {label} {url}"));
+            Ok(())
+        }
+        fn reload(&self, label: &str) -> Result<(), HostError> {
+            self.log(format!("reload {label}"));
             Ok(())
         }
         fn set_bounds(&self, label: &str, b: WebviewBounds) -> Result<(), HostError> {

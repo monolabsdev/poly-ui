@@ -44,6 +44,7 @@ impl HostError {
 pub trait WebviewHost: Send + Sync + 'static {
     fn create(&self, label: &str, url: &Url, bounds: WebviewBounds) -> Result<(), HostError>;
     fn navigate(&self, label: &str, url: &Url) -> Result<(), HostError>;
+    fn reload(&self, label: &str) -> Result<(), HostError>;
     fn set_bounds(&self, label: &str, bounds: WebviewBounds) -> Result<(), HostError>;
     fn set_visible(&self, label: &str, visible: bool) -> Result<(), HostError>;
     fn set_z_order(&self, label: &str, z_order: ZOrder) -> Result<(), HostError>;

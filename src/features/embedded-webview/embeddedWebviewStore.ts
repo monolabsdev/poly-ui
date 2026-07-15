@@ -25,6 +25,12 @@ export type EmbeddedFrameState = {
   url: string | null;
   title: string | null;
   status: "loading" | "ready";
+  /**
+   * Whether the frame wants its native view on screen. CSS can't hide a
+   * native view, so hosts (e.g. the viewport drawer when collapsed) drive
+   * this explicitly; the overlay engine restores to it on uncover.
+   */
+  shown: boolean;
   /** True while an overlay hides the native webview. */
   covered: boolean;
   /** Object URL of the snapshot shown while covered. */
@@ -57,6 +63,7 @@ export const useEmbeddedWebviewStore = create<EmbeddedWebviewStore>((set) => ({
             url: null,
             title: null,
             status: "loading",
+            shown: true,
             covered: false,
             snapshotUrl: null,
             coverFallback: false,
@@ -84,6 +91,7 @@ export const useEmbeddedWebviewStore = create<EmbeddedWebviewStore>((set) => ({
 export type EmbeddedWebviewBridge = {
   create: (label: string, url: string, bounds: WebviewBounds) => Promise<void>;
   navigate: (label: string, url: string) => Promise<void>;
+  reload: (label: string) => Promise<void>;
   setBounds: (label: string, bounds: WebviewBounds) => Promise<void>;
   setVisible: (label: string, visible: boolean) => Promise<void>;
   destroy: (label: string) => Promise<void>;
@@ -95,6 +103,7 @@ export type EmbeddedWebviewBridge = {
 const tauriBridge: EmbeddedWebviewBridge = {
   create: native.embeddedWebviewCreate,
   navigate: native.embeddedWebviewNavigate,
+  reload: native.embeddedWebviewReload,
   setBounds: native.embeddedWebviewSetBounds,
   setVisible: native.embeddedWebviewSetVisible,
   destroy: native.embeddedWebviewDestroy,
@@ -167,6 +176,9 @@ function coverFrame(label: string, token: number): Promise<void> {
   const frame = store.getState().frames[label];
   if (!frame) return Promise.resolve();
 
+  // A frame the host is hiding anyway needs no snapshot — it can't occlude.
+  if (!frame.shown) return Promise.resolve();
+
   // Re-covered before the uncover finished: the existing snapshot is still
   // showing (and the page may already be hidden mid-capture), so keep it.
   if (frame.snapshotUrl || frame.coverFallback) {
@@ -199,7 +211,7 @@ function uncoverFrame(label: string, token: number): Promise<void> {
   if (!frame?.covered) return Promise.resolve();
 
   return bridge
-    .setVisible(label, true)
+    .setVisible(label, store.getState().frames[label]?.shown ?? true)
     .catch(() => undefined)
     .then(() => {
       // Keep the snapshot up for one more frame so the native view is
@@ -256,4 +268,32 @@ export function mountFrame(label: string): void {
 
 export function unmountFrame(label: string): void {
   useEmbeddedWebviewStore.getState().actions.frameUnmounted(label);
+}
+
+/**
+ * Set whether a frame wants its native view on screen (drawer collapsed,
+ * inactive tab, ...). Applied immediately unless an overlay currently covers
+ * the frame — then the uncover pass restores to this value instead.
+ */
+export function setFrameShown(
+  label: string,
+  shown: boolean,
+  options?: {
+    /**
+     * Apply even when state already matches — used right after (re)creating
+     * or re-adopting a native view, whose actual visibility is unknown.
+     */
+    force?: boolean;
+  },
+): Promise<void> {
+  const store = useEmbeddedWebviewStore;
+  const frame = store.getState().frames[label];
+  if (!frame || (!options?.force && frame.shown === shown)) return Promise.resolve();
+  store.getState().actions.patchFrame(label, { shown });
+  if (frame.covered) return Promise.resolve();
+  if (shown && store.getState().overlayCount > 0) {
+    // Shown under an open overlay: cover instead of revealing on top of it.
+    return coverFrame(label, coverToken);
+  }
+  return bridge.setVisible(label, shown).catch(() => undefined);
 }

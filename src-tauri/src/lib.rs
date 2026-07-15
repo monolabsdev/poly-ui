@@ -26,7 +26,8 @@ use crate::agent_viewport::{
 use crate::commands::chat_commands::{chat, chat_stream, generate_chat_title};
 use crate::embedded_webview::{
     embedded_webview_create, embedded_webview_destroy, embedded_webview_navigate,
-    embedded_webview_set_bounds, embedded_webview_set_visible, embedded_webview_snapshot,
+    embedded_webview_reload, embedded_webview_set_bounds, embedded_webview_set_visible,
+    embedded_webview_snapshot,
 };
 use crate::commands::config_commands::cancel_chat;
 use crate::commands::db_commands::execute_sql;
@@ -284,6 +285,7 @@ pub fn run() {
             agent_viewport_observe,
             embedded_webview_create,
             embedded_webview_navigate,
+            embedded_webview_reload,
             embedded_webview_set_bounds,
             embedded_webview_set_visible,
             embedded_webview_snapshot,

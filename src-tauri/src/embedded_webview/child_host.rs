@@ -115,6 +115,10 @@ impl WebviewHost for ChildWebviewHost {
             .map_err(HostError::platform)
     }
 
+    fn reload(&self, label: &str) -> Result<(), HostError> {
+        self.webview(label)?.reload().map_err(HostError::platform)
+    }
+
     fn set_bounds(&self, label: &str, bounds: WebviewBounds) -> Result<(), HostError> {
         self.webview(label)?
             .set_bounds(rect(bounds))

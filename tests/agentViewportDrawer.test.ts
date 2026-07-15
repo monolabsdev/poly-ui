@@ -2,16 +2,31 @@ import { readFileSync } from "node:fs";
 
 const source = readFileSync("src/features/agent/AgentViewportDrawer.tsx", "utf8");
 
-describe("AgentViewportDrawer iframe preview", () => {
-  it("uses a sandboxed iframe for the visible browser surface", () => {
-    expect(source).toContain("<iframe");
-    expect(source).toContain("sandbox=\"allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads\"");
+describe("AgentViewportDrawer browser preview", () => {
+  it("renders the browser surface in a native embedded webview", () => {
+    expect(source).toContain("<EmbeddedWebviewFrame");
+    expect(source).toContain('const AGENT_BROWSER_LABEL = "agent-browser"');
+    expect(source).toContain("visible={visible}");
+    expect(source).not.toContain("<iframe");
+    // Bounds sync belongs to EmbeddedWebviewFrame, not the drawer.
     expect(source).not.toContain("agentViewportSetBounds");
   });
 
-  it("warns for https pages that may refuse embedding", () => {
-    expect(source).toContain("HttpsPreviewWarning");
-    expect(source).toContain("Some HTTPS sites block embedded previews");
+  it("no longer warns about https embedding (native views are not frame-blocked)", () => {
+    expect(source).not.toContain("HttpsPreviewWarning");
+    expect(source).not.toContain("Some HTTPS sites block embedded previews");
+  });
+
+  it("follows native navigation in the url bar and history", () => {
+    expect(source).toContain("const embeddedUrl = embeddedFrame?.url");
+    expect(source).toContain("pushBrowserHistory(state, embeddedUrl)");
+  });
+
+  it("offloads a hidden webview to free memory unless kept active", () => {
+    expect(source).toContain("keepViewportActive");
+    expect(source).toContain("OFFLOAD_TIMEOUT_MS");
+    expect(source).toContain("setFrameOffloaded(true)");
+    expect(source).toContain("!frameOffloaded");
   });
 
   it("keeps tab chrome vertically centered", () => {
@@ -74,8 +89,6 @@ describe("AgentViewportDrawer iframe preview", () => {
 
   it("respects drawer performance settings", () => {
     expect(source).toContain("reduceMotion");
-    expect(source).toContain("reduceTransparency");
     expect(source).toContain("!reduceMotion &&");
-    expect(source).toContain("reduceTransparency ? \"bg-sidebar\"");
   });
 });

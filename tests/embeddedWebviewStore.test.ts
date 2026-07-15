@@ -4,6 +4,7 @@ import {
   notifyOverlayClosed,
   notifyOverlayOpened,
   setEmbeddedWebviewBridge,
+  setFrameShown,
   unmountFrame,
   useEmbeddedWebviewStore,
   type EmbeddedWebviewBridge,
@@ -39,6 +40,10 @@ class FakeBridge implements EmbeddedWebviewBridge {
   }
   navigate(label: string, url: string): Promise<void> {
     this.calls.push(`navigate ${label} ${url}`);
+    return Promise.resolve();
+  }
+  reload(label: string): Promise<void> {
+    this.calls.push(`reload ${label}`);
     return Promise.resolve();
   }
   setBounds(label: string, _bounds: WebviewBounds): Promise<void> {
@@ -196,6 +201,44 @@ describe("race tokens", () => {
     // No second capture needed — the page was hidden mid-cycle.
     expect(bridge.calls.filter((call) => call.startsWith("snapshot"))).toHaveLength(1);
     expect(bridge.calls.filter((call) => call === "visible page false").length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("skips snapshots for frames their host is hiding, and restores to hidden", async () => {
+    mountFrame("page");
+    await setFrameShown("page", false);
+    expect(bridge.calls).toContain("visible page false");
+
+    notifyOverlayOpened();
+    await settle();
+    // Nothing to occlude: no capture, frame stays uncovered.
+    expect(bridge.calls.filter((call) => call.startsWith("snapshot"))).toHaveLength(0);
+    expect(frame("page").covered).toBe(false);
+
+    notifyOverlayClosed();
+    await settle();
+    // The uncover pass must not reveal a frame the host still hides.
+    expect(bridge.calls.filter((call) => call === "visible page true")).toHaveLength(0);
+  });
+
+  it("covers instead of revealing when shown under an open overlay", async () => {
+    mountFrame("page");
+    await setFrameShown("page", false);
+    notifyOverlayOpened();
+    await settle();
+
+    // Not awaited: the cover path resolves only once the snapshot lands below.
+    void setFrameShown("page", true);
+    bridge.pendingSnapshots[0].resolve("blob:snap-1");
+    await settle();
+
+    expect(frame("page")).toMatchObject({ covered: true, snapshotUrl: "blob:snap-1", shown: true });
+    // Revealed only through the cover path, never directly under the overlay.
+    expect(bridge.calls.filter((call) => call === "visible page true")).toHaveLength(0);
+
+    notifyOverlayClosed();
+    await settle();
+    expect(bridge.calls).toContain("visible page true");
+    expect(frame("page").covered).toBe(false);
   });
 
   it("ends visible and snapshot-free after rapid open/close cycles", async () => {

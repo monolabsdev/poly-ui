@@ -16,6 +16,10 @@ export function embeddedWebviewNavigate(label: string, url: string): Promise<voi
   return invoke("embedded_webview_navigate", { label, url });
 }
 
+export function embeddedWebviewReload(label: string): Promise<void> {
+  return invoke("embedded_webview_reload", { label });
+}
+
 export function embeddedWebviewSetBounds(label: string, bounds: WebviewBounds): Promise<void> {
   return invoke("embedded_webview_set_bounds", { label, bounds });
 }

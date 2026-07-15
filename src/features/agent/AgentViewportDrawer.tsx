@@ -1,7 +1,5 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { usePauseableHandler } from "@/lib/idle/hooks";
 import {
-  AlertTriangle,
   ArrowLeft,
   ArrowRight,
   ExternalLink,
@@ -25,6 +23,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useSettingsStore } from "@/store/settingsStore";
+import { EmbeddedWebviewFrame } from "@/features/embedded-webview/EmbeddedWebviewFrame";
+import {
+  getEmbeddedWebviewBridge,
+  useEmbeddedWebviewStore,
+} from "@/features/embedded-webview/embeddedWebviewStore";
 import * as native from "./native";
 import { AgentReviewContent } from "./AgentReviewPanel";
 import {
@@ -46,6 +49,9 @@ import {
   VIEWPORT_MIN_WIDTH,
   type ViewportTab,
 } from "./viewportStore";
+
+/** Label of the drawer's native browser webview (embedded webview manager). */
+const AGENT_BROWSER_LABEL = "agent-browser";
 
 type TabDragState = {
   tab: ViewportTab;
@@ -72,13 +78,10 @@ export function AgentViewportDrawer() {
   const moveTab = useViewportStore((state) => state.actions.moveTab);
   const setDrawerWidth = useViewportStore((state) => state.actions.setDrawerWidth);
   const reduceMotion = useSettingsStore((state) => state.performance.reduceMotion);
-  const reduceTransparency = useSettingsStore((state) => state.performance.reduceTransparency);
   const keepViewportActive = useSettingsStore((state) => state.performance.keepViewportActive);
+  const embeddedFrame = useEmbeddedWebviewStore((state) => state.frames[AGENT_BROWSER_LABEL]);
   const [dragging, setDragging] = useState(false);
   const [url, setUrl] = useState("");
-  const [frameNonce, setFrameNonce] = useState(0);
-  const [frameLoading, setFrameLoading] = useState(false);
-  const [frameSuspended, setFrameSuspended] = useState(false);
   const [frameOffloaded, setFrameOffloaded] = useState(false);
   const offloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const OFFLOAD_TIMEOUT_MS = 120_000;
@@ -94,13 +97,8 @@ export function AgentViewportDrawer() {
   }, [open, activeTab]);
 
   useEffect(() => {
-    if (!session?.url) {
-      setFrameLoading(false);
-      return;
-    }
+    if (!session?.url) return;
     setUrl(session.url);
-    setFrameLoading(true);
-    setFrameNonce((nonce) => nonce + 1);
     setHistory((state) => {
       if (historyMoveRef.current) {
         historyMoveRef.current = false;
@@ -109,6 +107,20 @@ export function AgentViewportDrawer() {
       return pushBrowserHistory(state, session.url);
     });
   }, [session?.url]);
+
+  // Links clicked inside the native webview navigate for real; follow them in
+  // the URL bar and history (pushBrowserHistory dedupes the programmatic
+  // navigations that already went through session.url).
+  const embeddedUrl = embeddedFrame?.url;
+  useEffect(() => {
+    if (!embeddedUrl || !session?.url) return;
+    setUrl(embeddedUrl);
+    setHistory((state) =>
+      state.entries[state.index] === embeddedUrl ? state : pushBrowserHistory(state, embeddedUrl),
+    );
+    // session?.url intentionally read, not depended on: only embeddedUrl changes matter here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [embeddedUrl]);
 
   const startResize = (event: ReactPointerEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -139,28 +151,19 @@ export function AgentViewportDrawer() {
   const visible = Boolean(open && (showBrowserTab || showReviewTab));
   const browserActive = activeTab === "browser";
   const reviewActive = activeTab === "review";
-  const browserLoading = Boolean(session?.url && frameLoading);
-  const showHttpsWarning = Boolean(session?.url && isHttpsUrl(session.url));
+  const browserLoading = Boolean(session?.url) && embeddedFrame?.status === "loading";
 
+  // A hidden native webview keeps running; after a while offload (destroy)
+  // it to free memory unless the user opted to keep it alive. Reopening
+  // remounts the frame, which reloads the page.
   useEffect(() => {
     if (keepViewportActive) return;
     if (!visible && (session?.url || browserOpen)) {
-      setFrameSuspended(true);
-      setFrameOffloaded(false);
       offloadTimerRef.current = setTimeout(() => {
         setFrameOffloaded(true);
       }, OFFLOAD_TIMEOUT_MS);
-    } else if (visible && (frameSuspended || frameOffloaded)) {
-      if (offloadTimerRef.current) {
-        clearTimeout(offloadTimerRef.current);
-        offloadTimerRef.current = null;
-      }
-      setFrameSuspended(false);
+    } else if (visible && frameOffloaded) {
       setFrameOffloaded(false);
-      if (session?.url) {
-        setFrameLoading(true);
-        setFrameNonce((n) => n + 1);
-      }
     }
     return () => {
       if (offloadTimerRef.current) {
@@ -168,28 +171,7 @@ export function AgentViewportDrawer() {
         offloadTimerRef.current = null;
       }
     };
-  }, [visible, keepViewportActive]);
-
-  usePauseableHandler("viewport-drawer", {
-    onPause: () => {
-      if (keepViewportActive) return;
-      if (!visible && !frameSuspended && (session?.url || browserOpen)) {
-        setFrameSuspended(true);
-      }
-    },
-    onResume: () => {
-      if (keepViewportActive) return;
-      if (visible && (frameSuspended || frameOffloaded)) {
-        setFrameSuspended(false);
-        setFrameOffloaded(false);
-        if (session?.url) {
-          setFrameLoading(true);
-          setFrameNonce((n) => n + 1);
-        }
-      }
-    },
-    priority: 100,
-  });
+  }, [visible, keepViewportActive, frameOffloaded, session?.url, browserOpen]);
 
   const openTypedUrl = () => {
     const href = resolveBrowserInput(url);
@@ -225,8 +207,8 @@ export function AgentViewportDrawer() {
 
   const reloadBrowser = () => {
     if (!session?.url) return;
-    setFrameLoading(true);
-    setFrameNonce((nonce) => nonce + 1);
+    void getEmbeddedWebviewBridge().reload(AGENT_BROWSER_LABEL).catch(() => undefined);
+    // Agent sessions keep a hidden observer webview in sync for observations.
     if (session.openedBy === "agent") void reloadViewport().catch(() => undefined);
   };
 
@@ -511,37 +493,18 @@ export function AgentViewportDrawer() {
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-          {showHttpsWarning ? (
-            <HttpsPreviewWarning onOpenExternal={openExternal} />
-          ) : null}
           <div className="relative min-h-0 flex-1 bg-sidebar">
-            {session?.url ? (
-              <>
-                {frameOffloaded ? (
-                  <BrowserNewTabEmpty />
-                ) : (
-                  <iframe
-                    key={frameSuspended ? "__suspended__" : `${session.url}#${frameNonce}`}
-                    src={frameSuspended ? "about:blank" : session.url}
-                    title="Viewport preview"
-                    className="h-full w-full border-0 bg-background"
-                    sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads"
-                    referrerPolicy="no-referrer"
-                    allow="clipboard-read; clipboard-write; fullscreen"
-                    onLoad={() => setFrameLoading(false)}
-                  />
-                )}
-                {browserLoading && !frameSuspended ? (
-                  <div
-                    className={cn(
-                      "pointer-events-none absolute inset-0 flex items-center justify-center",
-                      reduceTransparency ? "bg-sidebar" : "bg-sidebar/70",
-                    )}
-                  >
-                    <Loader2 className={cn("size-5 text-muted-foreground", !reduceMotion && "animate-spin")} />
-                  </div>
-                ) : null}
-              </>
+            {session?.url && !frameOffloaded ? (
+              // The page renders in a native embedded webview kept aligned
+              // with this frame; native views composite above all HTML, so a
+              // loading overlay here would be invisible — the header spinner
+              // carries that state instead.
+              <EmbeddedWebviewFrame
+                label={AGENT_BROWSER_LABEL}
+                url={session.url}
+                visible={visible}
+                className="h-full w-full"
+              />
             ) : (
               <BrowserNewTabEmpty />
             )}
@@ -566,28 +529,6 @@ export function AgentViewportDrawer() {
         </section>
       )}
     </aside>
-  );
-}
-
-function HttpsPreviewWarning({
-  onOpenExternal,
-}: {
-  onOpenExternal: () => void;
-}) {
-  return (
-    <div className="flex min-h-9 shrink-0 items-center gap-2 border-b border-warning/15 px-4 py-2 text-[12px] bg-warning-soft text-warning">
-      <AlertTriangle className="size-3.5 shrink-0" />
-      <span className="min-w-0 flex-1 truncate">
-        Some HTTPS sites block embedded previews. Open externally if this stays blank.
-      </span>
-      <button
-        type="button"
-        onClick={onOpenExternal}
-        className="shrink-0 rounded-md px-2 py-1 text-warning hover:bg-warning-soft"
-      >
-        Open
-      </button>
-    </div>
   );
 }
 
@@ -670,13 +611,5 @@ function browserTabLabel(value?: string | null) {
     return new URL(value).hostname.replace(/^www\./, "") || "New tab";
   } catch {
     return value.length > 22 ? `${value.slice(0, 22)}...` : value;
-  }
-}
-
-function isHttpsUrl(value: string): boolean {
-  try {
-    return new URL(value).protocol === "https:";
-  } catch {
-    return false;
   }
 }
