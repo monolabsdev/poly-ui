@@ -38,7 +38,7 @@ const COLLECTOR_SCRIPT: &str = include_str!("agent_viewport_collector.js");
 /// but have no IPC permission there; replace them with an inert
 /// standard-shaped API so remote pages don't hit capability rejections.
 #[cfg(not(target_os = "linux"))]
-const NOTIFICATION_STUB: &str = r#"(() => {
+pub(crate) const NOTIFICATION_STUB: &str = r#"(() => {
   try {
     const inert = function Notification() { throw new TypeError("Notifications are disabled in this viewport."); };
     inert.permission = "denied";
@@ -148,56 +148,19 @@ async fn await_eval(rx: tokio::sync::oneshot::Receiver<String>) -> Result<String
 #[cfg(target_os = "linux")]
 mod embed {
     use super::{await_eval, emit_status, COLLECTOR_SCRIPT};
+    use crate::gtk_overlay::{ensure_fixed, on_main};
     use gtk::prelude::*;
     use std::cell::RefCell;
     use std::sync::Mutex;
-    use tauri::{AppHandle, Manager};
+    use tauri::AppHandle;
     use wry::{WebViewBuilderExtUnix, WebViewExtUnix};
 
     // GTK objects are main-thread only; every entry point below hops onto the
-    // GTK main thread via `on_main` and the state lives in thread-locals.
+    // GTK main thread via `on_main` and the state lives in thread-locals. The
+    // GtkFixed layer itself is shared with the embedded webview manager (see
+    // crate::gtk_overlay).
     thread_local! {
         static WEBVIEW: RefCell<Option<wry::WebView>> = const { RefCell::new(None) };
-        static FIXED: RefCell<Option<gtk::Fixed>> = const { RefCell::new(None) };
-    }
-
-    /// Run `f` on the GTK main thread and wait for its result.
-    fn on_main<T: Send + 'static>(
-        app: &AppHandle,
-        f: impl FnOnce() -> T + Send + 'static,
-    ) -> Result<T, String> {
-        let (tx, rx) = std::sync::mpsc::channel();
-        app.run_on_main_thread(move || {
-            let _ = tx.send(f());
-        })
-        .map_err(|e| e.to_string())?;
-        rx.recv()
-            .map_err(|_| "The viewport task was dropped by the main thread.".to_string())
-    }
-
-    /// Wrap the main window's content in a GtkOverlay (once) and return the
-    /// GtkFixed layer the viewport webview lives in.
-    fn ensure_fixed(app: &AppHandle) -> Result<gtk::Fixed, String> {
-        if let Some(fixed) = FIXED.with(|f| f.borrow().clone()) {
-            return Ok(fixed);
-        }
-        let window = app.get_window("main").ok_or("Main window not found.")?;
-        let gtk_window = window.gtk_window().map_err(|e| e.to_string())?;
-        let vbox = window.default_vbox().map_err(|e| e.to_string())?;
-
-        let overlay = gtk::Overlay::new();
-        gtk_window.remove(&vbox);
-        overlay.add(&vbox);
-        let fixed = gtk::Fixed::new();
-        overlay.add_overlay(&fixed);
-        // The fixed layer must not steal clicks from the app underneath.
-        overlay.set_overlay_pass_through(&fixed, true);
-        gtk_window.add(&overlay);
-        fixed.show();
-        overlay.show();
-
-        FIXED.with(|f| *f.borrow_mut() = Some(fixed.clone()));
-        Ok(fixed)
     }
 
     pub fn open(app: &AppHandle, url: String) -> Result<(), String> {
@@ -243,6 +206,7 @@ mod embed {
         width: f64,
         height: f64,
     ) -> Result<(), String> {
+        let handle = app.clone();
         on_main(app, move || {
             WEBVIEW.with(|cell| {
                 let borrow = cell.borrow();
@@ -251,7 +215,7 @@ mod embed {
                 };
                 // Persist geometry in GTK too, so window re-layouts don't
                 // snap the widget back to its creation size.
-                if let Some(fixed) = FIXED.with(|f| f.borrow().clone()) {
+                if let Ok(fixed) = ensure_fixed(&handle) {
                     let widget = WebViewExtUnix::webview(webview);
                     fixed.move_(&widget, x as i32, y as i32);
                     widget.set_size_request(width as i32, height as i32);
@@ -284,11 +248,12 @@ mod embed {
 
     /// Returns whether a webview existed and was destroyed.
     pub fn close(app: &AppHandle) -> Result<bool, String> {
-        on_main(app, || {
+        let handle = app.clone();
+        on_main(app, move || {
             let Some(webview) = WEBVIEW.with(|cell| cell.borrow_mut().take()) else {
                 return false;
             };
-            if let Some(fixed) = FIXED.with(|f| f.borrow().clone()) {
+            if let Ok(fixed) = ensure_fixed(&handle) {
                 fixed.remove(&WebViewExtUnix::webview(&webview));
             }
             drop(webview);

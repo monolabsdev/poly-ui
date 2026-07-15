@@ -2,7 +2,10 @@ mod agent_viewport;
 mod auth;
 mod commands;
 mod db;
+mod embedded_webview;
 mod error;
+#[cfg(target_os = "linux")]
+mod gtk_overlay;
 mod memory;
 mod mobile_pairing;
 mod models;
@@ -21,6 +24,10 @@ use crate::agent_viewport::{
     agent_viewport_open_file, agent_viewport_reload, agent_viewport_set_bounds,
 };
 use crate::commands::chat_commands::{chat, chat_stream, generate_chat_title};
+use crate::embedded_webview::{
+    embedded_webview_create, embedded_webview_destroy, embedded_webview_navigate,
+    embedded_webview_set_bounds, embedded_webview_set_visible, embedded_webview_snapshot,
+};
 use crate::commands::config_commands::cancel_chat;
 use crate::commands::db_commands::execute_sql;
 use crate::commands::dictation_commands::{
@@ -172,6 +179,17 @@ pub fn run() {
             app.manage(WhisperState::new(app_data_dir));
             startup_log::log_phase("whisper state initialized");
 
+            #[cfg(target_os = "linux")]
+            let embedded_host =
+                embedded_webview::gtk_host::GtkWebviewHost::new(app.handle().clone());
+            #[cfg(not(target_os = "linux"))]
+            let embedded_host =
+                embedded_webview::child_host::ChildWebviewHost::new(app.handle().clone());
+            app.manage(embedded_webview::EmbeddedWebviews::new(Box::new(
+                embedded_host,
+            )));
+            startup_log::log_phase("embedded webview manager initialized");
+
             if let Some(_window) = app.get_webview_window("main") {
                 startup_log::log_phase("main window created");
                 _window.on_window_event(|event| match event {
@@ -264,6 +282,12 @@ pub fn run() {
             agent_viewport_reload,
             agent_viewport_set_bounds,
             agent_viewport_observe,
+            embedded_webview_create,
+            embedded_webview_navigate,
+            embedded_webview_set_bounds,
+            embedded_webview_set_visible,
+            embedded_webview_snapshot,
+            embedded_webview_destroy,
             get_whisper_models_status,
             download_whisper_model,
             select_whisper_model,

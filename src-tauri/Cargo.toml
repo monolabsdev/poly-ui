@@ -54,6 +54,7 @@ dirs = "6"
 whisper-rs = "0.16"
 cpal = "0.15"
 hound = "3.5"
+ts-rs = "11"
 
 # Agent viewport on Linux: built directly with wry inside a GtkFixed because
 # Tauri's add_child cannot position child webviews on GTK. Versions must stay
@@ -61,3 +62,21 @@ hound = "3.5"
 [target.'cfg(target_os = "linux")'.dependencies]
 gtk = { version = "0.18", features = ["v3_24"] }
 wry = { version = "0.55", default-features = false, features = ["protocol", "os-webview", "linux-body"] }
+# Embedded webview snapshots: same webkit2gtk/cairo versions wry/gtk already pull.
+webkit2gtk = "2.0"
+cairo-rs = { version = "0.18", features = ["png"] }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+# Embedded webview snapshots via WebView2 CapturePreview. webview2-com must
+# match the version tauri-runtime-wry uses so COM types line up.
+webview2-com = "0.38"
+windows = { version = "0.61", features = ["Win32_Foundation", "Win32_System_Com", "Win32_System_Com_StructuredStorage"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+# Embedded webview snapshots via WKWebView takeSnapshot. objc2 crates must
+# match the versions tauri pulls (see Cargo.lock).
+objc2 = "0.6"
+block2 = "0.6"
+objc2-foundation = { version = "0.3", features = ["NSData", "NSDictionary", "NSString", "NSError", "NSGeometry"] }
+objc2-app-kit = { version = "0.3", features = ["NSImage", "NSImageRep", "NSBitmapImageRep"] }
+objc2-web-kit = { version = "0.3", features = ["WKWebView", "WKSnapshotConfiguration", "block2", "objc2-app-kit"] }
