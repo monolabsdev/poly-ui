@@ -4,11 +4,11 @@
 
 <h1 align="center">PolyUI</h1>
 
-![GitHub repo size](https://img.shields.io/github/repo-size/theoslater/openbench)
-![GitHub language count](https://img.shields.io/github/languages/count/theoslater/openbench)
-![GitHub top language](https://img.shields.io/github/languages/top/theoslater/openbench)
-![GitHub last commit](https://img.shields.io/github/last-commit/theoslater/openbench?color=red)
-![GitHub stars](https://img.shields.io/github/stars/theoslater/openbench?style=social)
+![GitHub repo size](https://img.shields.io/github/repo-size/monolabsdev/poly-ui)
+![GitHub language count](https://img.shields.io/github/languages/count/monolabsdev/poly-ui)
+![GitHub top language](https://img.shields.io/github/languages/top/monolabsdev/poly-ui)
+![GitHub last commit](https://img.shields.io/github/last-commit/monolabsdev/poly-ui?color=red)
+![GitHub stars](https://img.shields.io/github/stars/monolabsdev/poly-ui?style=social)
 
 PolyUI is a desktop AI chat app that runs entirely offline. One calm window for your models - use Ollama, OpenAI-compatible APIs, and more. Built for private, everyday conversations with local LLMs.
 
