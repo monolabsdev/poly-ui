@@ -2,10 +2,11 @@
 
 Branch: `spike/cef-osr`. Research spike — prove, don't polish.
 
-Status: **stopped at CP1**. CEF initializes, but initialization makes the Tauri main
-thread consume a full CPU core while idle. Per the spike rule, CP2 was not started.
-The visible viewport therefore remains the existing iframe; no OSR browser or canvas
-transport exists yet.
+Status: **CP3 prototype works, spike remains a performance no-go**. The visible agent
+viewport is now a DOM canvas fed by a real CEF OSR browser. CEF initialization still makes
+the Tauri main thread consume one full CPU core while idle. The owner explicitly asked to
+continue through the canvas proof after CP1 exposed that blocker; later checkpoints remain
+blocked until it is understood.
 
 ## Pinned versions
 
@@ -102,7 +103,7 @@ The three options and why the other two lost:
 | Option | Verdict |
 | --- | --- |
 | `multi_threaded_message_loop` | **Not available.** CEF only supports this on Windows. Dead on arrival for a Linux-target spike. |
-| `external_message_pump` + `OnScheduleMessagePumpWork` | Correct production answer, but needs a `BrowserProcessHandler` implementation and careful re-entrancy handling. More machinery than CP1 needs to answer its question. |
+| `external_message_pump` + `OnScheduleMessagePumpWork` | Tested after CP1. It did not reduce CPU and, when used as the sole scheduler, did not deliver OSR paints in this Tauri/GTK host. |
 | `do_message_loop_work()` on a GTK timer | **Chosen.** Tauri already runs a GTK main loop on Linux; `glib::timeout_add_local` hooks straight into it with no new thread and no new event loop, so neither loop can block the other. |
 
 Cost of the choice, stated honestly: a fixed 16 ms timer bounds worst-case frame latency — a
@@ -164,13 +165,58 @@ bury the integration failure under rendering load.
 Normal Tauri `ExitRequested` teardown was not verified: closing the dev process group
 removed all helpers, but does not exercise `cef_osr::shutdown()` through the app event.
 
+Follow-up after the owner requested the canvas proof: enabling CEF's external-message-pump
+setting and wiring its scheduling callback left idle CPU at 100% and stopped `OnPaint`
+delivery. Restoring the fixed 16 ms GTK timer restored paints. A fresh five-second sample
+with the working canvas path was exactly 100%, with `pidstat -t` attributing 99.67% to the
+main `polyui` thread and effectively zero to its worker threads. On Linux, 100% means one
+logical CPU core; the earlier 104.8% is the same saturated-core result plus sampling noise.
+
 ## CP2 — First offscreen frame
 
-Not started: blocked by CP1 idle CPU.
+Implemented after explicit owner override of the CP1 stop:
+
+- One windowless CEF browser loads the viewport URL.
+- `OsrRenderHandler::on_paint` receives the CPU BGRA buffer and CEF dirty rectangles.
+- The initial implementation crashed at browser creation with
+  `CefClient_0_CToCpp called with invalid version -1`. cef-rs requires selecting its
+  generated API version with `api_hash(CEF_API_VERSION_LAST, 0)` before any callback-backed
+  object crosses into CEF; the upstream OSR example does this but the generated Rust API
+  does not enforce it.
+- A live `https://example.com/` first frame was received and rendered. The proof was made
+  through the CP3 canvas path rather than a standalone PNG dump; the requested PNG artifact
+  remains missing.
+
+What does not work: input forwarding is not implemented, and CP1's idle CPU blocker remains.
 
 ## CP3 — Frame transport to the frontend
 
-Not started. `AgentViewportDrawer.tsx` still renders the pre-spike `<iframe>`.
+Working prototype:
+
+- `AgentViewportDrawer.tsx` contains no iframe. Its browser surface is a normal DOM
+  `<canvas aria-label="CEF browser viewport">`.
+- Transport is a Tauri raw IPC `Channel<ArrayBuffer>`, not invoke/base64. Each packet carries
+  frame dimensions, the CEF paint timestamp, dirty-rect metadata, and row-packed BGRA bytes.
+- First paint and resize send the full surface; steady-state packets contain only CEF's dirty
+  rectangles. The frontend validates packets, converts BGRA to RGBA, and calls
+  `putImageData` once per dirty rectangle on the next animation frame.
+- CSS size is reported to CEF with device pixel ratio; CEF's screen info exposes that scale,
+  and the canvas backing store follows the physical CEF frame dimensions.
+- ResizeObserver drives `WasResized`; stale-size frames resize the backing store before draw.
+- Unmount removes the canvas and sends `CloseBrowser(true)`. One close/remount cycle worked.
+
+Measurements on `https://example.com/`, debug build:
+
+| Measurement | Result |
+| --- | --- |
+| Live canvas backing store | 701 × 456 pixels |
+| Paint timestamp → canvas present | 34.2 ms and 40.5 ms observed first-frame samples |
+| 701 × 456 full-frame pixel payload | 1,278,624 bytes, plus 40 bytes packet metadata |
+| Dirty-rect steady-state bandwidth | Packet path verified by unit test; sustained bandwidth not yet measured |
+| Active/idle app CPU | 100% of one logical core; already consumed before an OSR browser exists |
+
+This proves the iframe replacement and raw frame path, but does not answer the spike's
+"feels like a real browser" question. No input exists yet, and CPU already fails the target.
 
 ## CP4 — Input forwarding
 
