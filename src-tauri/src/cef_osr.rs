@@ -30,6 +30,7 @@
 //!   CEF's UI thread is the thread that called `initialize`.
 
 use cef::{args::Args, *};
+use serde::Deserialize;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -56,6 +57,64 @@ struct BrowserState {
     height: Rc<Cell<i32>>,
     scale_factor: Rc<Cell<f32>>,
     full_frame_pending: Rc<Cell<bool>>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CefMouseButton {
+    Left,
+    Middle,
+    Right,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CefKeyEventType {
+    RawKeyDown,
+    KeyUp,
+    Char,
+}
+
+#[derive(Deserialize)]
+#[serde(
+    tag = "kind",
+    rename_all = "snake_case",
+    rename_all_fields = "camelCase"
+)]
+pub enum CefInputEvent {
+    Focus {
+        focused: bool,
+    },
+    MouseMove {
+        x: i32,
+        y: i32,
+        modifiers: u32,
+        mouse_leave: bool,
+    },
+    MouseClick {
+        x: i32,
+        y: i32,
+        modifiers: u32,
+        button: CefMouseButton,
+        mouse_up: bool,
+        click_count: u8,
+    },
+    MouseWheel {
+        x: i32,
+        y: i32,
+        modifiers: u32,
+        delta_x: i32,
+        delta_y: i32,
+    },
+    Key {
+        event_type: CefKeyEventType,
+        modifiers: u32,
+        windows_key_code: i32,
+        native_key_code: i32,
+        is_system_key: bool,
+        character: u16,
+        unmodified_character: u16,
+    },
 }
 
 thread_local! {
@@ -130,14 +189,38 @@ cef::wrap_render_handler! {
     }
 }
 
+cef::wrap_display_handler! {
+    struct OsrDisplayHandler {
+        on_cursor: Channel<String>,
+    }
+
+    impl DisplayHandler {
+        fn on_cursor_change(
+            &self,
+            _browser: Option<&mut Browser>,
+            _cursor: ::std::os::raw::c_ulong,
+            type_: CursorType,
+            _custom_cursor_info: Option<&CursorInfo>,
+        ) -> ::std::os::raw::c_int {
+            let _ = self.on_cursor.send(cursor_css(type_).to_string());
+            1
+        }
+    }
+}
+
 cef::wrap_client! {
     struct OsrClient {
         render_handler: RenderHandler,
+        display_handler: DisplayHandler,
     }
 
     impl Client {
         fn render_handler(&self) -> Option<RenderHandler> {
             Some(self.render_handler.clone())
+        }
+
+        fn display_handler(&self) -> Option<DisplayHandler> {
+            Some(self.display_handler.clone())
         }
     }
 }
@@ -212,6 +295,7 @@ pub fn cef_viewport_open(
     height: u32,
     scale_factor: f64,
     on_frame: Channel<InvokeResponseBody>,
+    on_cursor: Channel<String>,
 ) -> Result<(), String> {
     let parsed = url::Url::parse(&url).map_err(|error| error.to_string())?;
     if !matches!(parsed.scheme(), "http" | "https") {
@@ -231,7 +315,7 @@ pub fn cef_viewport_open(
     }
 
     on_main(&app, move || {
-        open_browser(url, width, height, scale_factor as f32, on_frame)
+        open_browser(url, width, height, scale_factor as f32, on_frame, on_cursor)
     })?
 }
 
@@ -285,6 +369,11 @@ pub fn cef_viewport_reload(app: AppHandle) -> Result<(), String> {
     })
 }
 
+#[tauri::command]
+pub fn cef_viewport_input(app: AppHandle, events: Vec<CefInputEvent>) -> Result<(), String> {
+    on_main(&app, move || dispatch_input(events))?
+}
+
 fn on_main<T: Send + 'static>(
     app: &AppHandle,
     task: impl FnOnce() -> T + Send + 'static,
@@ -304,6 +393,7 @@ fn open_browser(
     height: i32,
     scale_factor: f32,
     on_frame: Channel<InvokeResponseBody>,
+    on_cursor: Channel<String>,
 ) -> Result<(), String> {
     if !INITIALIZED.load(Ordering::SeqCst) {
         return Err("CEF is not initialized.".to_string());
@@ -321,7 +411,8 @@ fn open_browser(
         full_frame_pending.clone(),
         on_frame,
     );
-    let mut client = OsrClient::new(render_handler);
+    let display_handler = OsrDisplayHandler::new(on_cursor);
+    let mut client = OsrClient::new(render_handler, display_handler);
     let window_info = WindowInfo::default().set_as_windowless(Default::default());
     let browser_settings = BrowserSettings {
         windowless_frame_rate: TARGET_FRAME_RATE,
@@ -347,6 +438,121 @@ fn open_browser(
         });
     });
     Ok(())
+}
+
+fn dispatch_input(events: Vec<CefInputEvent>) -> Result<(), String> {
+    BROWSER.with(|cell| {
+        let borrow = cell.borrow();
+        let state = borrow
+            .as_ref()
+            .ok_or_else(|| "CEF viewport is not open.".to_string())?;
+        let host = state
+            .browser
+            .host()
+            .ok_or_else(|| "CEF browser host is unavailable.".to_string())?;
+
+        for event in events {
+            match event {
+                CefInputEvent::Focus { focused } => host.set_focus(i32::from(focused)),
+                CefInputEvent::MouseMove {
+                    x,
+                    y,
+                    modifiers,
+                    mouse_leave,
+                } => host.send_mouse_move_event(
+                    Some(&MouseEvent { x, y, modifiers }),
+                    i32::from(mouse_leave),
+                ),
+                CefInputEvent::MouseClick {
+                    x,
+                    y,
+                    modifiers,
+                    button,
+                    mouse_up,
+                    click_count,
+                } => {
+                    if !(1..=3).contains(&click_count) {
+                        return Err("CEF click count must be between 1 and 3.".to_string());
+                    }
+                    let button = match button {
+                        CefMouseButton::Left => MouseButtonType::LEFT,
+                        CefMouseButton::Middle => MouseButtonType::MIDDLE,
+                        CefMouseButton::Right => MouseButtonType::RIGHT,
+                    };
+                    host.send_mouse_click_event(
+                        Some(&MouseEvent { x, y, modifiers }),
+                        button,
+                        i32::from(mouse_up),
+                        i32::from(click_count),
+                    );
+                }
+                CefInputEvent::MouseWheel {
+                    x,
+                    y,
+                    modifiers,
+                    delta_x,
+                    delta_y,
+                } => host.send_mouse_wheel_event(
+                    Some(&MouseEvent { x, y, modifiers }),
+                    delta_x,
+                    delta_y,
+                ),
+                CefInputEvent::Key {
+                    event_type,
+                    modifiers,
+                    windows_key_code,
+                    native_key_code,
+                    is_system_key,
+                    character,
+                    unmodified_character,
+                } => host.send_key_event(Some(&KeyEvent {
+                    type_: match event_type {
+                        CefKeyEventType::RawKeyDown => KeyEventType::RAWKEYDOWN,
+                        CefKeyEventType::KeyUp => KeyEventType::KEYUP,
+                        CefKeyEventType::Char => KeyEventType::CHAR,
+                    },
+                    modifiers,
+                    windows_key_code,
+                    native_key_code,
+                    is_system_key: i32::from(is_system_key),
+                    character,
+                    unmodified_character,
+                    ..Default::default()
+                })),
+            }
+        }
+        Ok(())
+    })
+}
+
+fn cursor_css(cursor: CursorType) -> &'static str {
+    match cursor {
+        CursorType::HAND => "pointer",
+        CursorType::IBEAM => "text",
+        CursorType::CROSS => "crosshair",
+        CursorType::WAIT => "wait",
+        CursorType::PROGRESS => "progress",
+        CursorType::MOVE => "move",
+        CursorType::EASTRESIZE
+        | CursorType::WESTRESIZE
+        | CursorType::EASTWESTRESIZE
+        | CursorType::COLUMNRESIZE => "ew-resize",
+        CursorType::NORTHRESIZE
+        | CursorType::SOUTHRESIZE
+        | CursorType::NORTHSOUTHRESIZE
+        | CursorType::ROWRESIZE => "ns-resize",
+        CursorType::NORTHEASTRESIZE
+        | CursorType::SOUTHWESTRESIZE
+        | CursorType::NORTHEASTSOUTHWESTRESIZE => "nesw-resize",
+        CursorType::NORTHWESTRESIZE
+        | CursorType::SOUTHEASTRESIZE
+        | CursorType::NORTHWESTSOUTHEASTRESIZE => "nwse-resize",
+        CursorType::NOTALLOWED | CursorType::NODROP => "not-allowed",
+        CursorType::GRAB => "grab",
+        CursorType::GRABBING => "grabbing",
+        CursorType::NONE => "none",
+        _ => "default",
+    }
 }
 
 fn close_browser() {
@@ -453,8 +659,8 @@ pub fn shutdown() {
 
 #[cfg(test)]
 mod tests {
-    use super::{cef_settings, encode_frame, initialize_api_version};
-    use cef::Rect;
+    use super::{cef_settings, cursor_css, encode_frame, initialize_api_version, CefInputEvent};
+    use cef::{CursorType, Rect};
 
     #[test]
     fn cef_uses_external_message_pump_inside_tauri_gtk_loop() {
@@ -490,5 +696,36 @@ mod tests {
             &packet[40..],
             &[4, 5, 6, 7, 8, 9, 10, 11, 16, 17, 18, 19, 20, 21, 22, 23]
         );
+    }
+
+    #[test]
+    fn input_event_deserializes_camel_case_frontend_fields() {
+        let event: CefInputEvent = serde_json::from_value(serde_json::json!({
+            "kind": "mouse_click",
+            "x": 12,
+            "y": 34,
+            "modifiers": 16,
+            "button": "left",
+            "mouseUp": false,
+            "clickCount": 2
+        }))
+        .expect("valid CEF input event");
+
+        assert!(matches!(
+            event,
+            CefInputEvent::MouseClick {
+                x: 12,
+                y: 34,
+                click_count: 2,
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn common_cef_cursors_map_to_css() {
+        assert_eq!(cursor_css(CursorType::HAND), "pointer");
+        assert_eq!(cursor_css(CursorType::IBEAM), "text");
+        assert_eq!(cursor_css(CursorType::NORTHSOUTHRESIZE), "ns-resize");
     }
 }

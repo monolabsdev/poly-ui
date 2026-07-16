@@ -294,6 +294,8 @@ pub fn run() {
             cef_osr::cef_viewport_close,
             #[cfg(target_os = "linux")]
             cef_osr::cef_viewport_reload,
+            #[cfg(target_os = "linux")]
+            cef_osr::cef_viewport_input,
             get_whisper_models_status,
             download_whisper_model,
             select_whisper_model,

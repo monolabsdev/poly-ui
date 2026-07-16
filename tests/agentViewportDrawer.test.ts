@@ -20,6 +20,15 @@ describe("AgentViewportDrawer CEF preview", () => {
     expect(source).toContain("onFirstFrame={handleFirstFrame}");
   });
 
+  it("forwards focused canvas input and coalesces pointer traffic", () => {
+    expect(source).toContain("tabIndex={0}");
+    expect(source).toContain("onMouseMove={queueMouseMove}");
+    expect(source).toContain("onWheel={queueWheel}");
+    expect(source).toContain("requestAnimationFrame(flushPointerInput)");
+    expect(source).toContain('onKeyDown={(event) => sendKey(event, "down")}');
+    expect(source).toContain('onKeyUp={(event) => sendKey(event, "up")}');
+  });
+
   it("keeps tab chrome vertically centered", () => {
     expect(source).toContain("h-[52px] shrink-0 items-center");
     expect(source).toContain("min-w-0 flex-1 items-center");

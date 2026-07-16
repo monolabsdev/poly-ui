@@ -1,4 +1,13 @@
-import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
+  type WheelEvent as ReactWheelEvent,
+} from "react";
 import { Channel } from "@tauri-apps/api/core";
 import { usePauseableHandler } from "@/lib/idle/hooks";
 import {
@@ -28,6 +37,13 @@ import { useSettingsStore } from "@/store/settingsStore";
 import * as native from "./native";
 import { AgentReviewContent } from "./AgentReviewPanel";
 import { decodeCefFrame, type CefFrame } from "./cefFrame";
+import {
+  cefCoordinates,
+  cefKeyEvents,
+  cefModifiers,
+  cefWheelDelta,
+  type CefInputEvent,
+} from "./cefInput";
 import {
   moveBrowserHistory,
   pushBrowserHistory,
@@ -562,6 +578,117 @@ export function AgentViewportDrawer() {
 
 function CefViewport({ url, onFirstFrame }: { url: string; onFirstFrame: () => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const pointerAnimationRef = useRef(0);
+  const pendingMoveRef = useRef<CefInputEvent | null>(null);
+  const pendingWheelRef = useRef<CefInputEvent | null>(null);
+  const wheelStartedAtRef = useRef<number | null>(null);
+
+  function sendInput(...events: CefInputEvent[]) {
+    if (events.length) void native.cefViewportInput(events).catch(() => undefined);
+  }
+
+  function mouseInput(event: ReactMouseEvent<HTMLCanvasElement>) {
+    const canvas = canvasRef.current;
+    if (!canvas) return null;
+    const { x, y } = cefCoordinates(
+      event.clientX,
+      event.clientY,
+      canvas.getBoundingClientRect(),
+      canvas.width,
+      canvas.height,
+    );
+    return {
+      x,
+      y,
+      modifiers: cefModifiers({
+        altKey: event.altKey,
+        ctrlKey: event.ctrlKey,
+        metaKey: event.metaKey,
+        shiftKey: event.shiftKey,
+        buttons: event.buttons,
+        capsLock: event.getModifierState("CapsLock"),
+        numLock: event.getModifierState("NumLock"),
+      }),
+    };
+  }
+
+  function flushPointerInput() {
+    if (pointerAnimationRef.current) cancelAnimationFrame(pointerAnimationRef.current);
+    pointerAnimationRef.current = 0;
+    sendInput(...[pendingMoveRef.current, pendingWheelRef.current].filter((event): event is CefInputEvent => event !== null));
+    pendingMoveRef.current = null;
+    pendingWheelRef.current = null;
+  }
+
+  function schedulePointerFlush() {
+    if (!pointerAnimationRef.current) {
+      pointerAnimationRef.current = requestAnimationFrame(flushPointerInput);
+    }
+  }
+
+  function queueMouseMove(event: ReactMouseEvent<HTMLCanvasElement>) {
+    const input = mouseInput(event);
+    if (!input) return;
+    pendingMoveRef.current = { kind: "mouse_move", ...input, mouseLeave: false };
+    schedulePointerFlush();
+  }
+
+  function queueMouseLeave(event: ReactMouseEvent<HTMLCanvasElement>) {
+    const input = mouseInput(event);
+    if (!input) return;
+    pendingMoveRef.current = { kind: "mouse_move", ...input, mouseLeave: true };
+    schedulePointerFlush();
+  }
+
+  function queueWheel(event: ReactWheelEvent<HTMLCanvasElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    const input = mouseInput(event);
+    if (!input) return;
+    const delta = cefWheelDelta(event.deltaX, event.deltaY, event.deltaMode, event.currentTarget.clientHeight);
+    const pending = pendingWheelRef.current;
+    pendingWheelRef.current = {
+      kind: "mouse_wheel",
+      ...input,
+      deltaX: delta.deltaX + (pending?.kind === "mouse_wheel" ? pending.deltaX : 0),
+      deltaY: delta.deltaY + (pending?.kind === "mouse_wheel" ? pending.deltaY : 0),
+    };
+    wheelStartedAtRef.current ??= performance.now();
+    schedulePointerFlush();
+  }
+
+  function sendMouseClick(event: ReactMouseEvent<HTMLCanvasElement>, mouseUp: boolean) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!mouseUp) event.currentTarget.focus({ preventScroll: true });
+    const input = mouseInput(event);
+    if (!input || event.button > 2) return;
+    flushPointerInput();
+    sendInput({
+      kind: "mouse_click",
+      ...input,
+      button: event.button === 1 ? "middle" : event.button === 2 ? "right" : "left",
+      mouseUp,
+      clickCount: Math.max(1, Math.min(3, event.detail || 1)),
+    });
+  }
+
+  function sendKey(event: ReactKeyboardEvent<HTMLCanvasElement>, phase: "down" | "up") {
+    if (event.nativeEvent.isComposing) return;
+    event.preventDefault();
+    event.stopPropagation();
+    sendInput(...cefKeyEvents({
+      key: event.key,
+      keyCode: event.keyCode,
+      location: event.location,
+      altKey: event.altKey,
+      ctrlKey: event.ctrlKey,
+      metaKey: event.metaKey,
+      shiftKey: event.shiftKey,
+      capsLock: event.getModifierState("CapsLock"),
+      numLock: event.getModifierState("NumLock"),
+    }, phase));
+  }
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -571,10 +698,14 @@ function CefViewport({ url, onFirstFrame }: { url: string; onFirstFrame: () => v
     let opened = false;
     let disposed = false;
     let pendingFrame: CefFrame | null = null;
-    let animationFrame = 0;
+    let paintAnimationFrame = 0;
     const frames = new Channel<ArrayBuffer>();
+    const cursors = new Channel<string>();
+    cursors.onmessage = (cursor) => {
+      canvas.style.cursor = cursor;
+    };
     const present = () => {
-      animationFrame = 0;
+      paintAnimationFrame = 0;
       const frame = pendingFrame;
       pendingFrame = null;
       if (!frame || disposed) return;
@@ -586,13 +717,17 @@ function CefViewport({ url, onFirstFrame }: { url: string; onFirstFrame: () => v
         context.putImageData(new ImageData(rect.pixels, rect.width, rect.height), rect.x, rect.y);
       });
       canvas.dataset.frameLatencyMs = (Date.now() - frame.paintedAtMs).toFixed(1);
+      if (wheelStartedAtRef.current !== null) {
+        canvas.dataset.scrollInputLatencyMs = (performance.now() - wheelStartedAtRef.current).toFixed(1);
+        wheelStartedAtRef.current = null;
+      }
       onFirstFrame();
-      if (pendingFrame) animationFrame = requestAnimationFrame(present);
+      if (pendingFrame) paintAnimationFrame = requestAnimationFrame(present);
     };
     frames.onmessage = (packet) => {
       try {
         pendingFrame = decodeCefFrame(packet);
-        if (!animationFrame) animationFrame = requestAnimationFrame(present);
+        if (!paintAnimationFrame) paintAnimationFrame = requestAnimationFrame(present);
       } catch (error) {
         console.warn("Invalid CEF frame:", error);
       }
@@ -609,7 +744,7 @@ function CefViewport({ url, onFirstFrame }: { url: string; onFirstFrame: () => v
       lastSize = size;
       if (!opened) {
         opened = true;
-        void native.cefViewportOpen({ url, width, height, scaleFactor, onFrame: frames }).catch((error) => {
+        void native.cefViewportOpen({ url, width, height, scaleFactor, onFrame: frames, onCursor: cursors }).catch((error) => {
           opened = false;
           console.error("Failed to open CEF viewport:", error);
         });
@@ -626,12 +761,30 @@ function CefViewport({ url, onFirstFrame }: { url: string; onFirstFrame: () => v
     return () => {
       disposed = true;
       observer.disconnect();
-      if (animationFrame) cancelAnimationFrame(animationFrame);
+      if (paintAnimationFrame) cancelAnimationFrame(paintAnimationFrame);
+      if (pointerAnimationRef.current) cancelAnimationFrame(pointerAnimationRef.current);
       if (opened) void native.cefViewportClose().catch(() => undefined);
     };
   }, [url, onFirstFrame]);
 
-  return <canvas ref={canvasRef} aria-label="CEF browser viewport" className="block h-full w-full bg-background" />;
+  return (
+    <canvas
+      ref={canvasRef}
+      tabIndex={0}
+      aria-label="CEF browser viewport"
+      className="block h-full w-full bg-background outline-none"
+      onFocus={() => sendInput({ kind: "focus", focused: true })}
+      onBlur={() => sendInput({ kind: "focus", focused: false })}
+      onMouseMove={queueMouseMove}
+      onMouseLeave={queueMouseLeave}
+      onMouseDown={(event) => sendMouseClick(event, false)}
+      onMouseUp={(event) => sendMouseClick(event, true)}
+      onWheel={queueWheel}
+      onKeyDown={(event) => sendKey(event, "down")}
+      onKeyUp={(event) => sendKey(event, "up")}
+      onContextMenu={(event) => event.preventDefault()}
+    />
+  );
 }
 
 function BrowserNewTabEmpty() {
