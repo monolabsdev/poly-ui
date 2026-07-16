@@ -35,6 +35,12 @@ export type EmbeddedFrameState = {
   covered: boolean;
   /** Object URL of the snapshot shown while covered. */
   snapshotUrl: string | null;
+  /**
+   * Warm snapshot kept between covers (refreshed on page load and after each
+   * uncover) so opening an overlay swaps to it instantly instead of waiting
+   * ~100ms for a fresh capture — the main source of visible flicker.
+   */
+  cachedSnapshotUrl: string | null;
   /** Snapshot failed or is unsupported: show the neutral surface instead. */
   coverFallback: boolean;
 };
@@ -66,6 +72,7 @@ export const useEmbeddedWebviewStore = create<EmbeddedWebviewStore>((set) => ({
             shown: true,
             covered: false,
             snapshotUrl: null,
+            cachedSnapshotUrl: null,
             coverFallback: false,
           },
         },
@@ -73,7 +80,9 @@ export const useEmbeddedWebviewStore = create<EmbeddedWebviewStore>((set) => ({
     frameUnmounted: (label) =>
       set((state) => {
         const { [label]: removed, ...frames } = state.frames;
-        if (removed?.snapshotUrl) bridge.revokeSnapshot(removed.snapshotUrl);
+        for (const url of new Set([removed?.snapshotUrl, removed?.cachedSnapshotUrl])) {
+          if (url) bridge.revokeSnapshot(url);
+        }
         return { frames };
       }),
     setOverlayCount: (overlayCount) => set({ overlayCount }),
@@ -141,13 +150,18 @@ async function bindNativeEvents(): Promise<void> {
           patchFrame(payload.label, { title: payload.event.title });
           break;
         case "urlChanged":
+          // The page is changing: the warm snapshot no longer matches it.
           patchFrame(payload.label, { url: payload.event.url });
+          patchFrameSnapshots(payload.label, { cachedSnapshotUrl: null });
           break;
         case "loadStarted":
           patchFrame(payload.label, { url: payload.event.url, status: "loading" });
+          patchFrameSnapshots(payload.label, { cachedSnapshotUrl: null });
           break;
         case "loadFinished":
           patchFrame(payload.label, { url: payload.event.url, status: "ready" });
+          // Warm the cache so the very first overlay already swaps instantly.
+          void refreshSnapshotCache(payload.label);
           break;
       }
     });
@@ -171,6 +185,62 @@ function nextFrame(callback: () => void): void {
   else setTimeout(callback, 0);
 }
 
+/** Resolve after the next commit + paint (two frames). */
+function afterPaint(): Promise<void> {
+  return new Promise((resolve) => nextFrame(() => nextFrame(resolve)));
+}
+
+/**
+ * Force-decode a snapshot before it is shown, so swapping it in (or hiding
+ * the native view behind it) never paints an empty frame.
+ */
+function loadSnapshot(url: string): Promise<void> {
+  if (typeof Image === "undefined") return Promise.resolve();
+  const image = new Image();
+  image.src = url;
+  return image.decode().catch(() => undefined);
+}
+
+/**
+ * Patch a frame and revoke any snapshot object URL the patch orphaned. All
+ * snapshotUrl/cachedSnapshotUrl changes go through here so blobs can't leak
+ * or be revoked while still displayed (the two fields often share a URL).
+ */
+function patchFrameSnapshots(label: string, patch: Partial<EmbeddedFrameState>): void {
+  const store = useEmbeddedWebviewStore;
+  const before = store.getState().frames[label];
+  store.getState().actions.patchFrame(label, patch);
+  const after = store.getState().frames[label];
+  const kept = new Set([after?.snapshotUrl, after?.cachedSnapshotUrl]);
+  for (const url of new Set([before?.snapshotUrl, before?.cachedSnapshotUrl])) {
+    if (url && !kept.has(url)) bridge.revokeSnapshot(url);
+  }
+}
+
+/**
+ * Capture the visible page into the warm cache. Called when a page finishes
+ * loading and after each uncover, so the next cover can swap instantly.
+ */
+function refreshSnapshotCache(label: string): Promise<void> {
+  const store = useEmbeddedWebviewStore;
+  const frame = store.getState().frames[label];
+  if (!frame || !frame.shown || frame.covered) return Promise.resolve();
+  return bridge
+    .snapshot(label)
+    .then(async (fresh) => {
+      await loadSnapshot(fresh);
+      const current = store.getState().frames[label];
+      // A cover raced this capture: the page may have been hidden mid-frame,
+      // so the result can't be trusted as a cache.
+      if (!current || current.covered) {
+        bridge.revokeSnapshot(fresh);
+        return;
+      }
+      patchFrameSnapshots(label, { cachedSnapshotUrl: fresh });
+    })
+    .catch(() => undefined);
+}
+
 function coverFrame(label: string, token: number): Promise<void> {
   const store = useEmbeddedWebviewStore;
   const frame = store.getState().frames[label];
@@ -186,15 +256,43 @@ function coverFrame(label: string, token: number): Promise<void> {
     return bridge.setVisible(label, false).catch(() => undefined);
   }
 
+  // Warm cache: swap it in and hide within a couple of frames, instead of
+  // leaving the overlay clipped under the live page while a fresh capture
+  // (~100ms of snapshot + encode + transfer) completes.
+  const cached = frame.cachedSnapshotUrl;
+  if (cached) {
+    return loadSnapshot(cached).then(async () => {
+      if (token !== coverToken || !store.getState().frames[label]) return;
+      patchFrameSnapshots(label, { covered: true, snapshotUrl: cached, coverFallback: false });
+      await afterPaint();
+      if (token !== coverToken) return;
+      await bridge.setVisible(label, false).catch(() => undefined);
+    });
+  }
+
   return bridge
     .snapshot(label)
-    .then((snapshotUrl) => {
-      if (token !== coverToken || !store.getState().frames[label]) {
+    .then(async (snapshotUrl) => {
+      if (!store.getState().frames[label]) {
         bridge.revokeSnapshot(snapshotUrl);
         return;
       }
-      store.getState().actions.patchFrame(label, { covered: true, snapshotUrl, coverFallback: false });
-      return bridge.setVisible(label, false);
+      // Decode before showing/hiding anything so the swap never paints an
+      // empty frame; late captures still warm the cache for the next cover.
+      await loadSnapshot(snapshotUrl);
+      if (token !== coverToken) {
+        patchFrameSnapshots(label, { cachedSnapshotUrl: snapshotUrl });
+        return;
+      }
+      patchFrameSnapshots(label, {
+        covered: true,
+        snapshotUrl,
+        cachedSnapshotUrl: snapshotUrl,
+        coverFallback: false,
+      });
+      await afterPaint();
+      if (token !== coverToken) return;
+      await bridge.setVisible(label, false);
     })
     .catch(() => {
       // Snapshot failed or unsupported (e.g. Linux WebKitGTK edge cases):
@@ -213,20 +311,24 @@ function uncoverFrame(label: string, token: number): Promise<void> {
   return bridge
     .setVisible(label, store.getState().frames[label]?.shown ?? true)
     .catch(() => undefined)
-    .then(() => {
-      // Keep the snapshot up for one more frame so the native view is
-      // already compositing when it disappears — no flash of placeholder.
-      nextFrame(() => {
-        if (token !== coverToken) return;
-        const current = store.getState().frames[label];
-        if (!current) return;
-        if (current.snapshotUrl) bridge.revokeSnapshot(current.snapshotUrl);
-        store.getState().actions.patchFrame(label, {
-          covered: false,
-          snapshotUrl: null,
-          coverFallback: false,
-        });
+    .then(async () => {
+      // Keep the snapshot up through a full paint cycle so the native view
+      // is already compositing when it disappears — no flash of placeholder.
+      await afterPaint();
+      if (token !== coverToken) return;
+      const current = store.getState().frames[label];
+      if (!current) return;
+      // The displayed snapshot stays alive as the warm cache for the next
+      // cover (patchFrameSnapshots only revokes orphaned URLs).
+      patchFrameSnapshots(label, {
+        covered: false,
+        snapshotUrl: null,
+        coverFallback: false,
+        cachedSnapshotUrl: current.snapshotUrl ?? current.cachedSnapshotUrl,
       });
+      // The page is visible again: refresh the cache so the next cover shows
+      // current content rather than this cycle's frame.
+      await refreshSnapshotCache(label);
     });
 }
 

@@ -127,7 +127,7 @@ describe("cover and restore", () => {
     expect(bridge.calls).toContain("visible page false");
   });
 
-  it("restores the view and clears the snapshot a frame later", async () => {
+  it("restores the view, clears the snapshot after paint, and keeps it as warm cache", async () => {
     mountFrame("page");
     notifyOverlayOpened();
     bridge.pendingSnapshots[0].resolve("blob:snap-1");
@@ -136,8 +136,36 @@ describe("cover and restore", () => {
     notifyOverlayClosed();
     await settle();
     expect(bridge.calls).toContain("visible page true");
-    expect(frame("page")).toMatchObject({ covered: false, snapshotUrl: null });
+    expect(frame("page")).toMatchObject({
+      covered: false,
+      snapshotUrl: null,
+      cachedSnapshotUrl: "blob:snap-1",
+    });
+    expect(bridge.revoked).not.toContain("blob:snap-1");
+    // The visible page is re-captured so the next cover shows fresh content.
+    expect(bridge.calls.filter((call) => call.startsWith("snapshot"))).toHaveLength(2);
+  });
+
+  it("covers instantly from the warm cache on later overlays", async () => {
+    mountFrame("page");
+    notifyOverlayOpened();
+    bridge.pendingSnapshots[0].resolve("blob:snap-1");
+    await settle();
+    notifyOverlayClosed();
+    await settle();
+    bridge.pendingSnapshots[1].resolve("blob:fresh");
+    await settle();
+    // The refresh replaced the cache and released the older blob.
+    expect(frame("page").cachedSnapshotUrl).toBe("blob:fresh");
     expect(bridge.revoked).toContain("blob:snap-1");
+
+    notifyOverlayOpened();
+    await settle();
+    // Covered and hidden without waiting on a new capture.
+    expect(frame("page")).toMatchObject({ covered: true, snapshotUrl: "blob:fresh" });
+    expect(bridge.calls.filter((call) => call.startsWith("snapshot"))).toHaveLength(2);
+    // One hide per cover: the first (slow-path) cover and this cached one.
+    expect(bridge.calls.filter((call) => call === "visible page false")).toHaveLength(2);
   });
 
   it("falls back to the neutral surface when the snapshot fails", async () => {
@@ -172,15 +200,20 @@ describe("cover and restore", () => {
 });
 
 describe("race tokens", () => {
-  it("discards a snapshot that resolves after the overlay already closed", async () => {
+  it("keeps a snapshot that resolves after the overlay closed as cache, without hiding", async () => {
     mountFrame("page");
     notifyOverlayOpened();
     notifyOverlayClosed();
     bridge.pendingSnapshots[0].resolve("blob:stale");
     await settle();
 
-    expect(frame("page")).toMatchObject({ covered: false, snapshotUrl: null });
-    expect(bridge.revoked).toContain("blob:stale");
+    // Not displayed — but retained to warm the next cover.
+    expect(frame("page")).toMatchObject({
+      covered: false,
+      snapshotUrl: null,
+      cachedSnapshotUrl: "blob:stale",
+    });
+    expect(bridge.revoked).not.toContain("blob:stale");
     // The stale continuation must not have hidden the view.
     expect(bridge.calls).not.toContain("visible page false");
   });
