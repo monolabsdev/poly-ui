@@ -421,8 +421,15 @@ export function AgentViewportDrawer() {
           <PanelRightIcon className="-scale-x-100" size={15} />
         </IconButton>
       </header>
-      {browserActive ? (
-        <section className="flex min-h-0 flex-1 flex-col bg-sidebar">
+      {/* The browser section stays mounted across tab switches (hidden via
+          CSS) so the native webview — and the page state in it — survives;
+          only its `visible` flag flips. */}
+      <section
+        className={cn(
+          "flex min-h-0 flex-1 flex-col bg-sidebar",
+          !browserActive && "hidden",
+        )}
+      >
           <div className="grid h-14 shrink-0 grid-cols-[104px_minmax(0,1fr)_32px] items-center gap-3 border-b border-sidebar-border px-4">
             <div className="flex items-center gap-1">
               <IconButton
@@ -502,7 +509,7 @@ export function AgentViewportDrawer() {
               <EmbeddedWebviewFrame
                 label={AGENT_BROWSER_LABEL}
                 url={session.url}
-                visible={visible}
+                visible={visible && browserActive}
                 className="h-full w-full"
               />
             ) : (
@@ -510,7 +517,7 @@ export function AgentViewportDrawer() {
             )}
           </div>
         </section>
-      ) : (
+      {!browserActive ? (
         <section className="min-h-0 flex-1 bg-background">
           {review ? (
             <AgentReviewContent
@@ -527,7 +534,7 @@ export function AgentViewportDrawer() {
             </div>
           )}
         </section>
-      )}
+      ) : null}
     </aside>
   );
 }

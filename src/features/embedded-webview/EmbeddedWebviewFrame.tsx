@@ -244,7 +244,17 @@ export function EmbeddedWebviewFrame({
   }, [label, url]);
 
   useEffect(() => {
-    void enqueueOp(label, () => setFrameShown(label, visible));
+    void enqueueOp(label, async () => {
+      const el = ref.current;
+      if (visible && el) {
+        // The last sync may have run while the placeholder was display:none
+        // (zero rect); re-anchor before the native view becomes visible.
+        await getEmbeddedWebviewBridge()
+          .setBounds(label, measure(el))
+          .catch(() => undefined);
+      }
+      await setFrameShown(label, visible);
+    });
   }, [label, visible]);
 
   const covered = frame?.covered ?? false;

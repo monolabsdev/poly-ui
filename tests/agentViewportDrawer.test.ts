@@ -6,10 +6,16 @@ describe("AgentViewportDrawer browser preview", () => {
   it("renders the browser surface in a native embedded webview", () => {
     expect(source).toContain("<EmbeddedWebviewFrame");
     expect(source).toContain('const AGENT_BROWSER_LABEL = "agent-browser"');
-    expect(source).toContain("visible={visible}");
+    expect(source).toContain("visible={visible && browserActive}");
     expect(source).not.toContain("<iframe");
     // Bounds sync belongs to EmbeddedWebviewFrame, not the drawer.
     expect(source).not.toContain("agentViewportSetBounds");
+  });
+
+  it("keeps the browser section mounted across tab switches", () => {
+    // Hidden via CSS, never unmounted — the native webview keeps page state.
+    expect(source).toContain('!browserActive && "hidden"');
+    expect(source).not.toContain("{browserActive ? (");
   });
 
   it("no longer warns about https embedding (native views are not frame-blocked)", () => {
