@@ -141,10 +141,6 @@ pub fn run() {
         .manage(MobilePairingState::default())
         .setup(|app| {
             startup_log::log_phase("setup hook entered");
-            // CEF itself is already initialized (see `run`); the pump timer is
-            // attached here, once GTK's main loop exists to host it.
-            #[cfg(target_os = "linux")]
-            cef_osr::start_pump();
             startup_log::log_phase("ONNX Runtime initialization");
             initialize_onnxruntime(app).map_err(|error| {
                 startup_log::log_error(&error);
@@ -336,8 +332,8 @@ pub fn run() {
             //
             // CEF is the one thing that does NOT survive this: process::exit
             // skips destructors, and CEF's child processes would outlive us as
-            // zombies. Shut it down explicitly first. This runs on the main
-            // thread, which is CEF's UI thread, as cef::shutdown requires.
+            // zombies. Shut it down explicitly first, from the same main
+            // application thread that initialized it.
             #[cfg(target_os = "linux")]
             {
                 startup_log::log_phase("CEF shutdown");

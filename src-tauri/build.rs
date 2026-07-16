@@ -2,6 +2,8 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 const ORT_VERSION: &str = "1.24.2";
+const RETAINED_CEF_LOCALE: &str = "en-US.pak";
+const UNUSED_CEF_RELEASE_FILES: [&str; 3] = ["CMakeLists.txt", "CREDITS.html", "archive.json"];
 
 fn ort_download_url(target: &str) -> Option<(&'static str, bool)> {
     // (url, is_zip)
@@ -223,7 +225,54 @@ fn emit_cef_link_args() {
     );
 }
 
+fn optimize_cef_release_runtime(target: &str) {
+    let profile = std::env::var("PROFILE").expect("PROFILE missing");
+    if profile != "release" || !target.contains("linux") {
+        return;
+    }
+
+    let out_dir = PathBuf::from(std::env::var_os("OUT_DIR").expect("OUT_DIR missing"));
+    let profile_dir = out_dir
+        .ancestors()
+        .nth(3)
+        .expect("Cargo profile directory missing");
+    let libcef = profile_dir.join("libcef.so");
+    if !libcef.exists() {
+        panic!("CEF runtime missing at {}", libcef.display());
+    }
+
+    let status = Command::new("strip")
+        .arg("--strip-unneeded")
+        .arg(&libcef)
+        .status()
+        .expect("failed to run strip on the CEF runtime");
+    if !status.success() {
+        panic!("strip failed for {}", libcef.display());
+    }
+
+    let locales = profile_dir.join("locales");
+    for entry in std::fs::read_dir(&locales)
+        .unwrap_or_else(|error| panic!("failed to read {}: {error}", locales.display()))
+    {
+        let entry = entry.unwrap_or_else(|error| panic!("failed to read CEF locale: {error}"));
+        if entry.file_name() != RETAINED_CEF_LOCALE {
+            std::fs::remove_file(entry.path()).unwrap_or_else(|error| {
+                panic!("failed to remove {}: {error}", entry.path().display())
+            });
+        }
+    }
+
+    for file_name in UNUSED_CEF_RELEASE_FILES {
+        let path = profile_dir.join(file_name);
+        if path.exists() {
+            std::fs::remove_file(&path)
+                .unwrap_or_else(|error| panic!("failed to remove {}: {error}", path.display()));
+        }
+    }
+}
+
 fn main() {
+    println!("cargo::rerun-if-env-changed=CEF_PATH");
     let target = std::env::var("TARGET").expect("TARGET missing");
     let lib_name = library_name(&target);
 
@@ -231,6 +280,7 @@ fn main() {
     // describes the host that is running it, not what is being built.
     if target.contains("linux") {
         emit_cef_link_args();
+        optimize_cef_release_runtime(&target);
     }
 
     let staged_dir = PathBuf::from(

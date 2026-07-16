@@ -20,32 +20,50 @@
 //!    pointer. On Linux it is required to be null.
 //! 2. `on_paint` hands us a `*const u8` BGRA buffer owned by CEF, valid only
 //!    for the duration of the call.
+//! 3. Linux multi-threaded CEF requires Xlib/GDK threading initialized before
+//!    either CEF or GTK touches X11.
 //!
 //! ## Threading invariants
 //!
 //! - `execute_subprocess` MUST be the first thing `main` does, before any
 //!   thread is spawned. CEF forks a zygote on Linux; forking a process that
 //!   already has threads is undefined behaviour.
-//! - `init`, `pump`, and `shutdown` MUST all run on the main (GTK) thread.
-//!   CEF's UI thread is the thread that called `initialize`.
+//! - `init` and `shutdown` run on the main application thread. CEF owns a
+//!   separate UI thread; all browser work is posted there through `on_cef_ui`.
 
 use cef::{args::Args, *};
 use serde::Deserialize;
 use std::cell::{Cell, RefCell};
+use std::path::Path;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::sync::{Arc, Mutex};
+use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::ipc::{Channel, InvokeResponseBody};
-use tauri::AppHandle;
 
-/// How often GTK hands time to CEF. One pump per target frame.
-const MESSAGE_PUMP_INTERVAL: Duration = Duration::from_millis(16);
+#[link(name = "X11")]
+extern "C" {
+    fn XInitThreads() -> ::std::os::raw::c_int;
+}
+
 const TARGET_FRAME_RATE: i32 = 60;
 const FRAME_VERSION: u32 = 1;
 const FRAME_HEADER_BYTES: usize = 24;
 const RECT_HEADER_BYTES: usize = 16;
 const BYTES_PER_PIXEL: usize = 4;
 const MAX_DEVICE_SCALE_FACTOR: f64 = 8.0;
+const CEF_CACHE_DIR: &str = "com.tslater.polyui/cef";
+const CEF_LOCALE: &str = "en-US";
+/// Keep Chromium's HTTP cache bounded; page storage/cookies are separate.
+const CEF_DISK_CACHE_BYTES: &str = "67108864";
+
+fn browser_switches() -> [&'static str; 2] {
+    ["disable-gpu", "disable-gpu-compositing"]
+}
+
+fn browser_switch_values() -> [(&'static str, &'static str); 1] {
+    [("disk-cache-size", CEF_DISK_CACHE_BYTES)]
+}
 
 /// Set once `initialize` succeeds, so `shutdown` cannot run against an
 /// uninitialized CEF (which aborts inside Chromium) and cannot run twice.
@@ -119,6 +137,50 @@ pub enum CefInputEvent {
 
 thread_local! {
     static BROWSER: RefCell<Option<BrowserState>> = const { RefCell::new(None) };
+}
+
+type CefUiJob = Box<dyn FnOnce() + Send + 'static>;
+
+cef::wrap_task! {
+    struct CefUiTask {
+        job: Arc<Mutex<Option<CefUiJob>>>,
+    }
+
+    impl Task {
+        fn execute(&self) {
+            let job = match self.job.lock() {
+                Ok(mut slot) => slot.take(),
+                Err(poisoned) => poisoned.into_inner().take(),
+            };
+            if let Some(job) = job {
+                job();
+            }
+        }
+    }
+}
+
+cef::wrap_app! {
+    struct OsrApp;
+
+    impl App {
+        fn on_before_command_line_processing(
+            &self,
+            _process_type: Option<&CefString>,
+            command_line: Option<&mut CommandLine>,
+        ) {
+            if let Some(command_line) = command_line {
+                for switch in browser_switches() {
+                    let switch: CefString = switch.into();
+                    command_line.append_switch(Some(&switch));
+                }
+                for (name, value) in browser_switch_values() {
+                    let name: CefString = name.into();
+                    let value: CefString = value.into();
+                    command_line.append_switch_with_value(Some(&name), Some(&value));
+                }
+            }
+        }
+    }
 }
 
 cef::wrap_render_handler! {
@@ -253,15 +315,21 @@ fn initialize_api_version() {
 
 /// Initializes CEF in the browser process. Main thread only.
 pub fn init() -> Result<(), String> {
+    prepare_linux_threading()?;
     let args = Args::new();
-    let settings = cef_settings();
+    let cache_path = dirs::cache_dir()
+        .ok_or_else(|| "OS cache directory is unavailable.".to_string())?
+        .join(CEF_CACHE_DIR);
+    std::fs::create_dir_all(&cache_path).map_err(|error| error.to_string())?;
+    let settings = cef_settings(&cache_path);
+    let mut app = OsrApp::new();
 
     // SAFETY: null sandbox info, as required on Linux. Called on the main
-    // thread before any browser exists; this thread becomes CEF's UI thread.
+    // application thread before GTK; CEF creates its separate UI thread.
     let ok = cef::initialize(
         Some(args.as_main_args()),
         Some(&settings),
-        None,
+        Some(&mut app),
         std::ptr::null_mut(),
     );
     if ok != 1 {
@@ -274,22 +342,35 @@ pub fn init() -> Result<(), String> {
     Ok(())
 }
 
-fn cef_settings() -> Settings {
+fn prepare_linux_threading() -> Result<(), String> {
+    // SAFETY: this is the first Xlib/GDK work in the process. CEF's Linux
+    // multi-threaded loop requires both calls before CEF and GTK initialize.
+    if unsafe { XInitThreads() } == 0 {
+        return Err("XInitThreads failed before CEF initialization.".to_string());
+    }
+    unsafe { gtk::gdk::ffi::gdk_threads_init() };
+    Ok(())
+}
+
+fn cef_settings(cache_path: &Path) -> Settings {
+    let cache_path: CefString = cache_path.to_string_lossy().as_ref().into();
     Settings {
         no_sandbox: 1,
         // Required for any windowless (OSR) browser to be creatable at all.
         windowless_rendering_enabled: 1,
-        // Tauri owns GTK's event loop. Keep CEF from installing a competing
-        // native pump; `start_pump` supplies CefDoMessageLoopWork instead.
-        multi_threaded_message_loop: 0,
-        external_message_pump: 1,
+        // CEF 150 supports its own UI thread on Linux. Keeping that pump out
+        // of Tauri's GLib context avoids a permanently-ready poll source.
+        multi_threaded_message_loop: 1,
+        external_message_pump: 0,
+        cache_path: cache_path.clone(),
+        root_cache_path: cache_path,
+        locale: CEF_LOCALE.into(),
         ..Default::default()
     }
 }
 
 #[tauri::command]
 pub fn cef_viewport_open(
-    app: AppHandle,
     url: String,
     width: u32,
     height: u32,
@@ -314,18 +395,11 @@ pub fn cef_viewport_open(
         return Err("CEF viewport scale factor is invalid.".to_string());
     }
 
-    on_main(&app, move || {
-        open_browser(url, width, height, scale_factor as f32, on_frame, on_cursor)
-    })?
+    on_cef_ui(move || open_browser(url, width, height, scale_factor as f32, on_frame, on_cursor))?
 }
 
 #[tauri::command]
-pub fn cef_viewport_resize(
-    app: AppHandle,
-    width: u32,
-    height: u32,
-    scale_factor: f64,
-) -> Result<(), String> {
+pub fn cef_viewport_resize(width: u32, height: u32, scale_factor: f64) -> Result<(), String> {
     let width = i32::try_from(width).map_err(|_| "CEF viewport width is too large.".to_string())?;
     let height =
         i32::try_from(height).map_err(|_| "CEF viewport height is too large.".to_string())?;
@@ -337,7 +411,7 @@ pub fn cef_viewport_resize(
     {
         return Err("CEF viewport size is invalid.".to_string());
     }
-    on_main(&app, move || {
+    on_cef_ui(move || {
         BROWSER.with(|cell| {
             if let Some(state) = cell.borrow().as_ref() {
                 state.width.set(width);
@@ -354,13 +428,13 @@ pub fn cef_viewport_resize(
 }
 
 #[tauri::command]
-pub fn cef_viewport_close(app: AppHandle) -> Result<(), String> {
-    on_main(&app, close_browser)
+pub fn cef_viewport_close() -> Result<(), String> {
+    on_cef_ui(close_browser)
 }
 
 #[tauri::command]
-pub fn cef_viewport_reload(app: AppHandle) -> Result<(), String> {
-    on_main(&app, || {
+pub fn cef_viewport_reload() -> Result<(), String> {
+    on_cef_ui(|| {
         BROWSER.with(|cell| {
             if let Some(state) = cell.borrow().as_ref() {
                 state.browser.reload();
@@ -370,21 +444,24 @@ pub fn cef_viewport_reload(app: AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn cef_viewport_input(app: AppHandle, events: Vec<CefInputEvent>) -> Result<(), String> {
-    on_main(&app, move || dispatch_input(events))?
+pub fn cef_viewport_input(events: Vec<CefInputEvent>) -> Result<(), String> {
+    on_cef_ui(move || dispatch_input(events))?
 }
 
-fn on_main<T: Send + 'static>(
-    app: &AppHandle,
-    task: impl FnOnce() -> T + Send + 'static,
-) -> Result<T, String> {
+fn on_cef_ui<T: Send + 'static>(task: impl FnOnce() -> T + Send + 'static) -> Result<T, String> {
+    if cef::currently_on(ThreadId::UI) == 1 {
+        return Ok(task());
+    }
     let (tx, rx) = std::sync::mpsc::channel();
-    app.run_on_main_thread(move || {
+    let job = move || {
         let _ = tx.send(task());
-    })
-    .map_err(|error| error.to_string())?;
+    };
+    let mut task = CefUiTask::new(Arc::new(Mutex::new(Some(Box::new(job)))));
+    if cef::post_task(ThreadId::UI, Some(&mut task)) != 1 {
+        return Err("CEF UI thread rejected the viewport task.".to_string());
+    }
     rx.recv()
-        .map_err(|_| "CEF viewport task was dropped by the main thread.".to_string())
+        .map_err(|_| "CEF viewport task was dropped by the UI thread.".to_string())
 }
 
 fn open_browser(
@@ -628,22 +705,6 @@ fn encode_frame(
     Ok(packet)
 }
 
-/// Gives CEF a slice of main-thread time. Safe to call before `init`, where it
-/// is a no-op.
-fn pump() {
-    if INITIALIZED.load(Ordering::SeqCst) {
-        cef::do_message_loop_work();
-    }
-}
-
-/// Starts the GTK timer that pumps CEF. Main thread only.
-pub fn start_pump() {
-    gtk::glib::timeout_add_local(MESSAGE_PUMP_INTERVAL, || {
-        pump();
-        gtk::glib::ControlFlow::Continue
-    });
-}
-
 /// Tears CEF down. Main thread only, and only from the exit path.
 ///
 /// This must run before the process exits, otherwise CEF's child processes are
@@ -651,23 +712,40 @@ pub fn start_pump() {
 /// (Tauri teardown deadlocks on Linux), so this is called from there rather
 /// than relying on any Drop impl, which a `process::exit` would skip.
 pub fn shutdown() {
-    if INITIALIZED.swap(false, Ordering::SeqCst) {
-        close_browser();
+    if INITIALIZED.load(Ordering::SeqCst) {
+        let _ = on_cef_ui(close_browser);
         cef::shutdown();
+        INITIALIZED.store(false, Ordering::SeqCst);
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{cef_settings, cursor_css, encode_frame, initialize_api_version, CefInputEvent};
+    use super::{
+        browser_switch_values, browser_switches, cef_settings, cursor_css, encode_frame,
+        initialize_api_version, CefInputEvent,
+    };
     use cef::{CursorType, Rect};
+    use std::path::Path;
 
     #[test]
-    fn cef_uses_external_message_pump_inside_tauri_gtk_loop() {
-        let settings = cef_settings();
+    fn cef_uses_its_supported_linux_ui_thread() {
+        let settings = cef_settings(Path::new("/tmp/polyui-cef-test"));
 
-        assert_eq!(settings.external_message_pump, 1);
-        assert_eq!(settings.multi_threaded_message_loop, 0);
+        assert_eq!(settings.external_message_pump, 0);
+        assert_eq!(settings.multi_threaded_message_loop, 1);
+        assert_eq!(settings.cache_path.to_string(), "/tmp/polyui-cef-test");
+        assert_eq!(settings.root_cache_path.to_string(), "/tmp/polyui-cef-test");
+        assert_eq!(settings.locale.to_string(), "en-US");
+    }
+
+    #[test]
+    fn cpu_osr_disables_unneeded_gpu_processes() {
+        assert_eq!(
+            browser_switches(),
+            ["disable-gpu", "disable-gpu-compositing"]
+        );
+        assert_eq!(browser_switch_values(), [("disk-cache-size", "67108864")]);
     }
 
     #[test]
