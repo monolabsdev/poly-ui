@@ -51,6 +51,13 @@ jobs:
             cargo clean --manifest-path src-tauri/Cargo.toml -p st-tts
           fi
       - run: cargo check --manifest-path src-tauri/Cargo.toml
+      - name: Verify ts-rs bindings are up to date
+        run: |
+          cargo test --manifest-path src-tauri/Cargo.toml export_bindings
+          if ! git diff --exit-code -- src/features/embedded-webview/generated; then
+            echo "::error::ts-rs bindings are stale. Run: cargo test --manifest-path src-tauri/Cargo.toml export_bindings"
+            exit 1
+          fi
 
   test:
     runs-on: ubuntu-24.04

@@ -143,30 +143,39 @@ async function bindNativeEvents(): Promise<void> {
   eventsBound = true;
   try {
     const { listen } = await import("@tauri-apps/api/event");
-    await listen<EmbeddedWebviewEvent>("embedded-webview-event", ({ payload }) => {
-      const { patchFrame } = useEmbeddedWebviewStore.getState().actions;
-      switch (payload.event.kind) {
-        case "titleChanged":
-          patchFrame(payload.label, { title: payload.event.title });
-          break;
-        case "urlChanged":
-          // The page is changing: the warm snapshot no longer matches it.
-          patchFrame(payload.label, { url: payload.event.url });
-          patchFrameSnapshots(payload.label, { cachedSnapshotUrl: null });
-          break;
-        case "loadStarted":
-          patchFrame(payload.label, { url: payload.event.url, status: "loading" });
-          patchFrameSnapshots(payload.label, { cachedSnapshotUrl: null });
-          break;
-        case "loadFinished":
-          patchFrame(payload.label, { url: payload.event.url, status: "ready" });
-          // Warm the cache so the very first overlay already swaps instantly.
-          void refreshSnapshotCache(payload.label);
-          break;
-      }
-    });
+    await listen<EmbeddedWebviewEvent>("embedded-webview-event", ({ payload }) =>
+      applyEmbeddedWebviewEvent(payload),
+    );
   } catch {
     // Not running under Tauri (Node tests): the bridge seam drives state.
+  }
+}
+
+/** Map a native page event onto frame state (exported for tests). */
+export function applyEmbeddedWebviewEvent(payload: EmbeddedWebviewEvent): void {
+  const { patchFrame } = useEmbeddedWebviewStore.getState().actions;
+  switch (payload.event.kind) {
+    case "titleChanged":
+      patchFrame(payload.label, { title: payload.event.title });
+      break;
+    case "urlChanged":
+      // The page is changing: the warm snapshot no longer matches it.
+      patchFrame(payload.label, { url: payload.event.url });
+      patchFrameSnapshots(payload.label, { cachedSnapshotUrl: null });
+      break;
+    case "loadStarted":
+      patchFrame(payload.label, { url: payload.event.url, status: "loading" });
+      patchFrameSnapshots(payload.label, { cachedSnapshotUrl: null });
+      disarmSnapshotRefresh(payload.label);
+      startLoadWatchdog(payload.label);
+      break;
+    case "loadFinished":
+      patchFrame(payload.label, { url: payload.event.url, status: "ready" });
+      clearLoadWatchdog(payload.label);
+      // Warm the cache so the very first overlay already swaps instantly,
+      // then keep it fresh on the idle cadence.
+      void refreshSnapshotCache(payload.label).then(() => armSnapshotRefresh(payload.label));
+      break;
   }
 }
 
@@ -217,14 +226,22 @@ function patchFrameSnapshots(label: string, patch: Partial<EmbeddedFrameState>):
   }
 }
 
+/** Labels with a warm-cache capture in flight, so refreshes can't pile up. */
+const capturing = new Set<string>();
+
 /**
  * Capture the visible page into the warm cache. Called when a page finishes
- * loading and after each uncover, so the next cover can swap instantly.
+ * loading, after each uncover, and on an idle cadence while visible, so the
+ * next cover swaps in a snapshot that matches the live page — the closer the
+ * cache tracks reality, the less visible the cover swap.
  */
 function refreshSnapshotCache(label: string): Promise<void> {
   const store = useEmbeddedWebviewStore;
   const frame = store.getState().frames[label];
-  if (!frame || !frame.shown || frame.covered) return Promise.resolve();
+  if (!frame || !frame.shown || frame.covered || capturing.has(label)) {
+    return Promise.resolve();
+  }
+  capturing.add(label);
   return bridge
     .snapshot(label)
     .then(async (fresh) => {
@@ -238,13 +255,103 @@ function refreshSnapshotCache(label: string): Promise<void> {
       }
       patchFrameSnapshots(label, { cachedSnapshotUrl: fresh });
     })
-    .catch(() => undefined);
+    .catch(() => undefined)
+    .finally(() => capturing.delete(label));
+}
+
+/**
+ * Idle warm-cache refresh. A hidden native webview can't be captured, so the
+ * only defence against a stale cover snapshot (the page scrolled or animated
+ * since the last capture) is to keep re-capturing while the page is visible
+ * and idle. Self-stops when the frame is covered, hidden, unmounted, or an
+ * overlay is open; re-arms while eligible.
+ *
+ * ponytail: fixed interval, not change-driven — the page runs in a separate
+ * native process with no push channel to the UI thread (none at all on Linux
+ * raw wry), so we can't observe its scroll/mutation. Interval is the tuning
+ * knob if capture cost ever matters.
+ */
+const SNAPSHOT_REFRESH_INTERVAL_MS = 2000;
+const refreshTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+function refreshEligible(label: string): boolean {
+  const state = useEmbeddedWebviewStore.getState();
+  const frame = state.frames[label];
+  return Boolean(frame && frame.shown && !frame.covered && state.overlayCount === 0);
+}
+
+function armSnapshotRefresh(label: string): void {
+  disarmSnapshotRefresh(label);
+  if (typeof setTimeout === "undefined" || !refreshEligible(label)) return;
+  const timer = setTimeout(() => {
+    refreshTimers.delete(label);
+    if (!refreshEligible(label)) return;
+    // Window unfocused: skip the capture but keep checking back.
+    if (typeof document !== "undefined" && document.hidden) {
+      armSnapshotRefresh(label);
+      return;
+    }
+    void refreshSnapshotCache(label).finally(() => {
+      if (refreshEligible(label)) armSnapshotRefresh(label);
+    });
+  }, SNAPSHOT_REFRESH_INTERVAL_MS);
+  refreshTimers.set(label, timer);
+}
+
+function disarmSnapshotRefresh(label: string): void {
+  const timer = refreshTimers.get(label);
+  if (timer !== undefined) {
+    clearTimeout(timer);
+    refreshTimers.delete(label);
+  }
+}
+
+/**
+ * Stop the loading spinner if a navigation never reports finished (dropped
+ * connection, TLS failure): the host only emits load start/finish, so a
+ * frontend deadline is the portable way to settle the status.
+ */
+const LOAD_WATCHDOG_MS = 20_000;
+const watchdogTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+function startLoadWatchdog(label: string): void {
+  clearLoadWatchdog(label);
+  if (typeof setTimeout === "undefined") return;
+  const timer = setTimeout(() => {
+    watchdogTimers.delete(label);
+    const frame = useEmbeddedWebviewStore.getState().frames[label];
+    if (frame?.status === "loading") {
+      useEmbeddedWebviewStore.getState().actions.patchFrame(label, { status: "ready" });
+    }
+  }, LOAD_WATCHDOG_MS);
+  watchdogTimers.set(label, timer);
+}
+
+function clearLoadWatchdog(label: string): void {
+  const timer = watchdogTimers.get(label);
+  if (timer !== undefined) {
+    clearTimeout(timer);
+    watchdogTimers.delete(label);
+  }
+}
+
+/** Clear all module-level timers and in-flight state (test seam). */
+export function resetEmbeddedWebviewInternals(): void {
+  for (const timer of refreshTimers.values()) clearTimeout(timer);
+  refreshTimers.clear();
+  for (const timer of watchdogTimers.values()) clearTimeout(timer);
+  watchdogTimers.clear();
+  capturing.clear();
+  coverToken += 1;
 }
 
 function coverFrame(label: string, token: number): Promise<void> {
   const store = useEmbeddedWebviewStore;
   const frame = store.getState().frames[label];
   if (!frame) return Promise.resolve();
+
+  // The page is about to be hidden; stop the idle refresh loop.
+  disarmSnapshotRefresh(label);
 
   // A frame the host is hiding anyway needs no snapshot — it can't occlude.
   if (!frame.shown) return Promise.resolve();
@@ -327,8 +434,10 @@ function uncoverFrame(label: string, token: number): Promise<void> {
         cachedSnapshotUrl: current.snapshotUrl ?? current.cachedSnapshotUrl,
       });
       // The page is visible again: refresh the cache so the next cover shows
-      // current content rather than this cycle's frame.
+      // current content rather than this cycle's frame, then resume the idle
+      // refresh loop.
       await refreshSnapshotCache(label);
+      armSnapshotRefresh(label);
     });
 }
 
@@ -369,6 +478,9 @@ export function mountFrame(label: string): void {
 }
 
 export function unmountFrame(label: string): void {
+  disarmSnapshotRefresh(label);
+  clearLoadWatchdog(label);
+  capturing.delete(label);
   useEmbeddedWebviewStore.getState().actions.frameUnmounted(label);
 }
 
@@ -392,10 +504,14 @@ export function setFrameShown(
   const frame = store.getState().frames[label];
   if (!frame || (!options?.force && frame.shown === shown)) return Promise.resolve();
   store.getState().actions.patchFrame(label, { shown });
+  if (!shown) disarmSnapshotRefresh(label);
   if (frame.covered) return Promise.resolve();
   if (shown && store.getState().overlayCount > 0) {
     // Shown under an open overlay: cover instead of revealing on top of it.
     return coverFrame(label, coverToken);
   }
-  return bridge.setVisible(label, shown).catch(() => undefined);
+  return bridge.setVisible(label, shown).catch(() => undefined).then(() => {
+    // Freshly revealed with no overlay: keep the cache warm.
+    if (shown) armSnapshotRefresh(label);
+  });
 }

@@ -1,8 +1,10 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  applyEmbeddedWebviewEvent,
   mountFrame,
   notifyOverlayClosed,
   notifyOverlayOpened,
+  resetEmbeddedWebviewInternals,
   setEmbeddedWebviewBridge,
   setFrameShown,
   unmountFrame,
@@ -25,13 +27,21 @@ function deferred<T>(): Deferred<T> {
 
 /** Flush promise continuations (and the setTimeout(0) uncover delay). */
 async function settle(): Promise<void> {
-  await new Promise((resolve) => setTimeout(resolve, 5));
+  // Deterministically drain the async chains the overlay engine schedules
+  // (promise microtasks + afterPaint's nested setTimeout(0) macrotasks),
+  // rather than racing a fixed wall-clock delay that flakes under load.
+  for (let i = 0; i < 6; i += 1) {
+    await Promise.resolve();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
 }
 
 class FakeBridge implements EmbeddedWebviewBridge {
   calls: string[] = [];
   pendingSnapshots: Deferred<string>[] = [];
   revoked: string[] = [];
+  /** When set, snapshot() resolves immediately instead of deferring. */
+  autoResolve = false;
   private snapshotSeq = 0;
 
   create(label: string, _url: string, _bounds: WebviewBounds): Promise<void> {
@@ -60,9 +70,13 @@ class FakeBridge implements EmbeddedWebviewBridge {
   }
   snapshot(label: string): Promise<string> {
     this.calls.push(`snapshot ${label} #${++this.snapshotSeq}`);
+    if (this.autoResolve) return Promise.resolve(`blob:auto-${this.snapshotSeq}`);
     const pending = deferred<string>();
     this.pendingSnapshots.push(pending);
     return pending.promise;
+  }
+  snapshotCount(): number {
+    return this.calls.filter((call) => call.startsWith("snapshot")).length;
   }
   revokeSnapshot(url: string): void {
     this.revoked.push(url);
@@ -77,6 +91,9 @@ beforeEach(() => {
   bridge = new FakeBridge();
   setEmbeddedWebviewBridge(bridge);
   useEmbeddedWebviewStore.setState({ frames: {}, overlayCount: 0 });
+  // Clear any idle-refresh / watchdog timers left running by a prior test so
+  // they can't fire mid-test and add stray snapshot calls.
+  resetEmbeddedWebviewInternals();
 });
 
 describe("overlay counting", () => {
@@ -288,5 +305,77 @@ describe("race tokens", () => {
     expect(frame("page")).toMatchObject({ covered: false, snapshotUrl: null, coverFallback: false });
     const lastVisible = bridge.calls.filter((call) => call.startsWith("visible page")).at(-1);
     expect(lastVisible === undefined || lastVisible === "visible page true").toBe(true);
+  });
+});
+
+describe("idle warm-cache refresh", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => {
+    vi.clearAllTimers();
+    vi.useRealTimers();
+  });
+
+  // Arm the refresh loop via an open→close cycle (uncover arms it), then
+  // return the snapshot count once the frame is live again.
+  async function armViaCycle(): Promise<void> {
+    bridge.autoResolve = true;
+    mountFrame("page");
+    notifyOverlayOpened();
+    await vi.advanceTimersByTimeAsync(50);
+    notifyOverlayClosed();
+    await vi.advanceTimersByTimeAsync(50);
+  }
+
+  it("re-captures the visible page on the idle cadence", async () => {
+    await armViaCycle();
+    const before = bridge.snapshotCount();
+
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(bridge.snapshotCount()).toBe(before + 1);
+
+    // Loop is self-sustaining while eligible.
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(bridge.snapshotCount()).toBe(before + 2);
+  });
+
+  it("stops re-capturing once an overlay covers the frame", async () => {
+    await armViaCycle();
+    notifyOverlayOpened();
+    await vi.advanceTimersByTimeAsync(50);
+    const covered = bridge.snapshotCount();
+
+    // No idle captures while covered.
+    await vi.advanceTimersByTimeAsync(6000);
+    expect(bridge.snapshotCount()).toBe(covered);
+  });
+
+  it("stops re-capturing once the frame is hidden by its host", async () => {
+    await armViaCycle();
+    await setFrameShown("page", false);
+    const hidden = bridge.snapshotCount();
+
+    await vi.advanceTimersByTimeAsync(6000);
+    expect(bridge.snapshotCount()).toBe(hidden);
+  });
+
+  it("drops the loading status if a load never reports finished", async () => {
+    mountFrame("page");
+    applyEmbeddedWebviewEvent({ label: "page", event: { kind: "loadStarted", url: "https://x" } });
+    expect(frame("page").status).toBe("loading");
+
+    await vi.advanceTimersByTimeAsync(20_000);
+    expect(frame("page").status).toBe("ready");
+  });
+
+  it("clears the watchdog when the load finishes normally", async () => {
+    bridge.autoResolve = true;
+    mountFrame("page");
+    applyEmbeddedWebviewEvent({ label: "page", event: { kind: "loadStarted", url: "https://x" } });
+    applyEmbeddedWebviewEvent({ label: "page", event: { kind: "loadFinished", url: "https://x" } });
+    expect(frame("page").status).toBe("ready");
+
+    // The fired watchdog must not later stomp a legitimately-ready page.
+    await vi.advanceTimersByTimeAsync(20_000);
+    expect(frame("page").status).toBe("ready");
   });
 });

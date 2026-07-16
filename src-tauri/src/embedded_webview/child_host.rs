@@ -11,7 +11,9 @@
 //! pattern.
 
 use super::host::{HostError, WebviewHost, ZOrder};
-use super::{emit_event, EmbeddedWebviewEventKind, WebviewBounds, COLLECTOR_SCRIPT};
+use super::{
+    emit_event, EmbeddedWebviewEventKind, WebviewBounds, COLLECTOR_SCRIPT, NEW_WINDOW_TO_SELF,
+};
 use std::sync::Mutex;
 use std::time::Duration;
 use tauri::webview::PageLoadEvent;
@@ -83,6 +85,9 @@ impl WebviewHost for ChildWebviewHost {
         )
         .initialization_script(NOTIFICATION_STUB)
         .initialization_script(COLLECTOR_SCRIPT)
+        .initialization_script(NEW_WINDOW_TO_SELF)
+        // Backstop: nothing the script misses may leak an orphan OS window.
+        .on_new_window(|_url, _features| tauri::webview::NewWindowResponse::Deny)
         .on_page_load(move |_webview, payload| {
             let url = payload.url().to_string();
             let kind = match payload.event() {

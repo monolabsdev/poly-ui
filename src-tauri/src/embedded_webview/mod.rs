@@ -40,6 +40,21 @@ pub const EMBEDDED_WEBVIEW_EVENT: &str = "embedded-webview-event";
 /// nothing beyond their own DOM.
 pub(crate) const COLLECTOR_SCRIPT: &str = include_str!("../agent_viewport_collector.js");
 
+/// Keep navigation inside the single embedded webview: `target="_blank"`
+/// links and `window.open` become same-view navigation instead of new
+/// windows (which the airspace design has no place for). Hosts also `Deny`
+/// new-window requests natively as a backstop, so nothing this misses can
+/// leak an orphan OS window.
+pub(crate) const NEW_WINDOW_TO_SELF: &str = r#"(() => {
+  try {
+    window.open = function (url) { try { if (url) location.assign(String(url)); } catch (_) {} return null; };
+    document.addEventListener("click", (event) => {
+      const anchor = event.target && event.target.closest ? event.target.closest("a[target]") : null;
+      if (anchor && anchor.target && anchor.target !== "_self") anchor.target = "_self";
+    }, true);
+  } catch (_) { /* leave the page's own behavior untouched */ }
+})();"#;
+
 /// Logical (CSS) pixels relative to the main window's top-left corner.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "../../src/features/embedded-webview/generated/")]

@@ -9,7 +9,9 @@
 //! and encode the returned cairo surface as PNG.
 
 use super::host::{HostError, WebviewHost, ZOrder};
-use super::{emit_event, EmbeddedWebviewEventKind, WebviewBounds, COLLECTOR_SCRIPT};
+use super::{
+    emit_event, EmbeddedWebviewEventKind, WebviewBounds, COLLECTOR_SCRIPT, NEW_WINDOW_TO_SELF,
+};
 use crate::gtk_overlay::{ensure_fixed, on_main};
 use gtk::prelude::*;
 use std::cell::RefCell;
@@ -78,6 +80,9 @@ impl WebviewHost for GtkWebviewHost {
             let webview = wry::WebViewBuilder::new()
                 .with_url(&url)
                 .with_initialization_script(COLLECTOR_SCRIPT)
+                .with_initialization_script(NEW_WINDOW_TO_SELF)
+                // Backstop: nothing the script misses may leak an orphan window.
+                .with_new_window_req_handler(|_url, _features| wry::NewWindowResponse::Deny)
                 .with_bounds(bounds_rect(bounds))
                 .with_on_page_load_handler(move |event, page_url| {
                     let kind = match event {
