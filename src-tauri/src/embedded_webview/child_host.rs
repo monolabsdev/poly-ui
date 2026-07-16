@@ -11,13 +11,26 @@
 //! pattern.
 
 use super::host::{HostError, WebviewHost, ZOrder};
-use super::{emit_event, EmbeddedWebviewEventKind, WebviewBounds};
-use crate::agent_viewport::NOTIFICATION_STUB;
+use super::{emit_event, EmbeddedWebviewEventKind, WebviewBounds, COLLECTOR_SCRIPT};
+use std::sync::Mutex;
 use std::time::Duration;
 use tauri::webview::PageLoadEvent;
 use tauri::{AppHandle, LogicalPosition, LogicalSize, Manager, Rect, Url, WebviewUrl};
 
 const SNAPSHOT_TIMEOUT: Duration = Duration::from_secs(5);
+const EVAL_TIMEOUT: Duration = Duration::from_secs(5);
+
+/// Tauri plugin shims (e.g. Notification) are injected into child webviews
+/// but have no IPC permission there; replace them with an inert
+/// standard-shaped API so remote pages don't hit capability rejections.
+const NOTIFICATION_STUB: &str = r#"(() => {
+  try {
+    const inert = function Notification() { throw new TypeError("Notifications are disabled in this viewport."); };
+    inert.permission = "denied";
+    inert.requestPermission = () => Promise.resolve("denied");
+    Object.defineProperty(window, "Notification", { value: inert, configurable: true });
+  } catch (_) { /* leave the page's own API untouched */ }
+})();"#;
 
 /// Namespace frontend labels so they can never collide with app windows or
 /// the agent viewport ("main", "agent-viewport", ...).
@@ -69,6 +82,7 @@ impl WebviewHost for ChildWebviewHost {
             WebviewUrl::External(url.clone()),
         )
         .initialization_script(NOTIFICATION_STUB)
+        .initialization_script(COLLECTOR_SCRIPT)
         .on_page_load(move |_webview, payload| {
             let url = payload.url().to_string();
             let kind = match payload.event() {
@@ -140,6 +154,22 @@ impl WebviewHost for ChildWebviewHost {
         Err(HostError::Unsupported(
             "Z-ordering embedded webviews requires the composition backend.".into(),
         ))
+    }
+
+    fn eval(&self, label: &str, js: String) -> Result<String, HostError> {
+        let webview = self.webview(label)?;
+        let (tx, rx) = std::sync::mpsc::channel::<String>();
+        let tx = Mutex::new(Some(tx));
+        webview
+            .eval_with_callback(js, move |result| {
+                if let Some(tx) = tx.lock().unwrap_or_else(|e| e.into_inner()).take() {
+                    let _ = tx.send(result);
+                }
+            })
+            .map_err(HostError::platform)?;
+        rx.recv_timeout(EVAL_TIMEOUT).map_err(|_| {
+            HostError::Platform("The page did not respond in time; it may still be loading.".into())
+        })
     }
 
     fn snapshot(&self, label: &str) -> Result<Vec<u8>, HostError> {

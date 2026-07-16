@@ -236,6 +236,10 @@ export function EmbeddedWebviewFrame({
   useEffect(() => {
     if (urlRef.current === url) return;
     urlRef.current = url;
+    // When the prop is just catching up with a navigation the page made
+    // itself (link click reported via urlChanged), navigating again would
+    // reload the page it is already on.
+    if (useEmbeddedWebviewStore.getState().frames[label]?.url === url) return;
     void enqueueOp(label, () =>
       getEmbeddedWebviewBridge()
         .navigate(label, url)

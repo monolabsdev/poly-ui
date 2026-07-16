@@ -34,6 +34,12 @@ use ts_rs::TS;
 
 pub const EMBEDDED_WEBVIEW_EVENT: &str = "embedded-webview-event";
 
+/// Injected into every embedded webview: exposes `window.__POLY_OBSERVE__`,
+/// a pure read-only DOM summarizer the agent queries via
+/// `embedded_webview_observe`. Pages can call it themselves but it exposes
+/// nothing beyond their own DOM.
+pub(crate) const COLLECTOR_SCRIPT: &str = include_str!("../agent_viewport_collector.js");
+
 /// Logical (CSS) pixels relative to the main window's top-left corner.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "../../src/features/embedded-webview/generated/")]
@@ -209,6 +215,30 @@ impl EmbeddedWebviews {
         Ok(self.host.snapshot(label)?)
     }
 
+    /// Evaluate the injected collector in the page and return its observation
+    /// JSON. `kind` is "snapshot" or "inspect"; `selector` applies to inspect.
+    pub fn observe(
+        &self,
+        label: &str,
+        kind: &str,
+        selector: Option<&str>,
+    ) -> Result<serde_json::Value, EmbeddedWebviewError> {
+        if kind != "snapshot" && kind != "inspect" {
+            return Err(EmbeddedWebviewError::Platform(format!(
+                "Unknown observe kind: {kind}"
+            )));
+        }
+        let selector_json = serde_json::to_string(&selector)
+            .map_err(|e| EmbeddedWebviewError::Platform(e.to_string()))?;
+        let js = format!(
+            "(() => {{ try {{ return window.__POLY_OBSERVE__ ? window.__POLY_OBSERVE__({kind:?}, {selector_json}) : {{ error: \"Collector not loaded; the page may still be starting.\" }}; }} catch (e) {{ return {{ error: String(e) }}; }} }})()"
+        );
+        self.require(label)?;
+        let raw = self.host.eval(label, js)?;
+        serde_json::from_str(&raw)
+            .map_err(|e| EmbeddedWebviewError::Platform(format!("Unreadable observation: {e}")))
+    }
+
     pub fn destroy(&self, label: &str) -> Result<(), EmbeddedWebviewError> {
         self.require(label)?;
         // Free the label even if the platform teardown fails, so a stuck
@@ -278,6 +308,17 @@ pub async fn embedded_webview_snapshot(
 }
 
 #[tauri::command]
+pub async fn embedded_webview_observe(
+    app: AppHandle,
+    label: String,
+    kind: String,
+    selector: Option<String>,
+) -> Result<serde_json::Value, EmbeddedWebviewError> {
+    app.state::<EmbeddedWebviews>()
+        .observe(&label, &kind, selector.as_deref())
+}
+
+#[tauri::command]
 pub async fn embedded_webview_destroy(
     app: AppHandle,
     label: String,
@@ -339,6 +380,10 @@ mod tests {
             }
             self.log(format!("snapshot {label}"));
             Ok(vec![1, 2, 3])
+        }
+        fn eval(&self, label: &str, js: String) -> Result<String, HostError> {
+            self.log(format!("eval {label} {js}"));
+            Ok(r#"{"title":"stub page"}"#.to_string())
         }
         fn destroy(&self, label: &str) -> Result<(), HostError> {
             self.log(format!("destroy {label}"));
@@ -430,6 +475,22 @@ mod tests {
             m.navigate("page", "file:///etc/passwd"),
             Err(EmbeddedWebviewError::InvalidUrl(_))
         ));
+    }
+
+    #[test]
+    fn observe_validates_kind_and_parses_the_result() {
+        let m = manager();
+        m.create("page", "https://example.com", BOUNDS).unwrap();
+        assert!(matches!(
+            m.observe("page", "screenshot", None),
+            Err(EmbeddedWebviewError::Platform(_))
+        ));
+        assert!(matches!(
+            m.observe("ghost", "snapshot", None),
+            Err(EmbeddedWebviewError::NotFound(_))
+        ));
+        let value = m.observe("page", "inspect", Some("#app")).unwrap();
+        assert_eq!(value["title"], "stub page");
     }
 
     #[test]

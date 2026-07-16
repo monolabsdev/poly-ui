@@ -19,15 +19,12 @@ mod web_search;
 mod whisper_state;
 mod window_state_recovery;
 
-use crate::agent_viewport::{
-    agent_viewport_close, agent_viewport_hide, agent_viewport_observe, agent_viewport_open,
-    agent_viewport_open_file, agent_viewport_reload, agent_viewport_set_bounds,
-};
+use crate::agent_viewport::{agent_viewport_serve_file, agent_viewport_stop_serving};
 use crate::commands::chat_commands::{chat, chat_stream, generate_chat_title};
 use crate::embedded_webview::{
     embedded_webview_create, embedded_webview_destroy, embedded_webview_navigate,
-    embedded_webview_reload, embedded_webview_set_bounds, embedded_webview_set_visible,
-    embedded_webview_snapshot,
+    embedded_webview_observe, embedded_webview_reload, embedded_webview_set_bounds,
+    embedded_webview_set_visible, embedded_webview_snapshot,
 };
 use crate::commands::config_commands::cancel_chat;
 use crate::commands::db_commands::execute_sql;
@@ -276,19 +273,15 @@ pub fn run() {
             agent_search_web,
             agent_read_web_results,
             agent_run_command,
-            agent_viewport_open,
-            agent_viewport_open_file,
-            agent_viewport_close,
-            agent_viewport_hide,
-            agent_viewport_reload,
-            agent_viewport_set_bounds,
-            agent_viewport_observe,
+            agent_viewport_serve_file,
+            agent_viewport_stop_serving,
             embedded_webview_create,
             embedded_webview_navigate,
             embedded_webview_reload,
             embedded_webview_set_bounds,
             embedded_webview_set_visible,
             embedded_webview_snapshot,
+            embedded_webview_observe,
             embedded_webview_destroy,
             get_whisper_models_status,
             download_whisper_model,

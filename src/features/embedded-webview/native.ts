@@ -32,6 +32,15 @@ export function embeddedWebviewDestroy(label: string): Promise<void> {
   return invoke("embedded_webview_destroy", { label });
 }
 
+/** Run the injected collector in the page and return its observation JSON. */
+export function embeddedWebviewObserve(
+  label: string,
+  kind: "snapshot" | "inspect",
+  selector?: string,
+): Promise<unknown> {
+  return invoke("embedded_webview_observe", { label, kind, selector: selector ?? null });
+}
+
 /**
  * Capture the page as PNG. The command returns a raw binary IPC response
  * (ArrayBuffer), wrapped here into an object URL for direct use as an <img>

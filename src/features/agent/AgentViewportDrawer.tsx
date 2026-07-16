@@ -24,11 +24,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useSettingsStore } from "@/store/settingsStore";
 import { EmbeddedWebviewFrame } from "@/features/embedded-webview/EmbeddedWebviewFrame";
-import {
-  getEmbeddedWebviewBridge,
-  useEmbeddedWebviewStore,
-} from "@/features/embedded-webview/embeddedWebviewStore";
-import * as native from "./native";
+import { useEmbeddedWebviewStore } from "@/features/embedded-webview/embeddedWebviewStore";
 import { AgentReviewContent } from "./AgentReviewPanel";
 import {
   moveBrowserHistory,
@@ -37,6 +33,7 @@ import {
   type BrowserHistoryState,
 } from "./browserNavigation";
 import {
+  AGENT_BROWSER_LABEL,
   closeViewportBrowser,
   closeViewportReview,
   hideViewportDrawer,
@@ -49,9 +46,6 @@ import {
   VIEWPORT_MIN_WIDTH,
   type ViewportTab,
 } from "./viewportStore";
-
-/** Label of the drawer's native browser webview (embedded webview manager). */
-const AGENT_BROWSER_LABEL = "agent-browser";
 
 type TabDragState = {
   tab: ViewportTab;
@@ -91,10 +85,6 @@ export function AgentViewportDrawer() {
   const navRef = useRef<HTMLElement>(null);
   const dragStateRef = useRef<TabDragState | null>(null);
   const tabRefs = useRef<Record<ViewportTab, HTMLDivElement | null>>({ browser: null, review: null });
-
-  useEffect(() => {
-    if (open) void native.agentViewportHide().catch(() => undefined);
-  }, [open, activeTab]);
 
   useEffect(() => {
     if (!session?.url) return;
@@ -155,9 +145,11 @@ export function AgentViewportDrawer() {
 
   // A hidden native webview keeps running; after a while offload (destroy)
   // it to free memory unless the user opted to keep it alive. Reopening
-  // remounts the frame, which reloads the page.
+  // remounts the frame, which reloads the page. Agent sessions are never
+  // offloaded: the agent observes this webview, and destroying it mid-run
+  // would break observations while the drawer is hidden.
   useEffect(() => {
-    if (keepViewportActive) return;
+    if (keepViewportActive || session?.openedBy === "agent") return;
     if (!visible && (session?.url || browserOpen)) {
       offloadTimerRef.current = setTimeout(() => {
         setFrameOffloaded(true);
@@ -207,9 +199,7 @@ export function AgentViewportDrawer() {
 
   const reloadBrowser = () => {
     if (!session?.url) return;
-    void getEmbeddedWebviewBridge().reload(AGENT_BROWSER_LABEL).catch(() => undefined);
-    // Agent sessions keep a hidden observer webview in sync for observations.
-    if (session.openedBy === "agent") void reloadViewport().catch(() => undefined);
+    void reloadViewport().catch(() => undefined);
   };
 
   const startTabDrag = (tab: ViewportTab, event: ReactPointerEvent<HTMLElement>) => {

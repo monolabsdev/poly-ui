@@ -77,32 +77,13 @@ export function runCommand(
   });
 }
 
-export function agentViewportOpen(url: string): Promise<string> {
-  return invoke<string>("agent_viewport_open", { url });
+/** Resolve a workspace file to a loopback URL for the browser webview. */
+export function agentViewportServeFile(workspacePath: string, path: string): Promise<string> {
+  return invoke<string>("agent_viewport_serve_file", { workspacePath, path });
 }
 
-export function agentViewportOpenFile(workspacePath: string, path: string): Promise<string> {
-  return invoke<string>("agent_viewport_open_file", { workspacePath, path });
-}
-
-export function agentViewportClose(): Promise<void> {
-  return invoke("agent_viewport_close");
-}
-
-export function agentViewportHide(): Promise<void> {
-  return invoke("agent_viewport_hide");
-}
-
-export function agentViewportReload(): Promise<void> {
-  return invoke("agent_viewport_reload");
-}
-
-export function agentViewportSetBounds(bounds: { x: number; y: number; width: number; height: number }): Promise<void> {
-  return invoke("agent_viewport_set_bounds", bounds);
-}
-
-export function agentViewportObserve(kind: "snapshot" | "inspect", selector?: string): Promise<unknown> {
-  return invoke("agent_viewport_observe", { kind, selector: selector ?? null });
+export function agentViewportStopServing(): Promise<void> {
+  return invoke("agent_viewport_stop_serving");
 }
 
 export function webSearch(query: string, config: WebSearchConfig): Promise<AgentSearchResult[]> {

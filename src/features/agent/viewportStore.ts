@@ -1,15 +1,23 @@
 import { create } from "zustand";
+import {
+  getEmbeddedWebviewBridge,
+  useEmbeddedWebviewStore,
+} from "@/features/embedded-webview/embeddedWebviewStore";
 import * as native from "./native";
 import type { AgentEditedFile, AgentToolCall } from "./types";
 
 /**
  * One viewport session at a time, scoped to the agent run that opened it.
- * The WebView itself is a native child webview embedded in the main window
- * (src-tauri/src/agent_viewport.rs); this store mirrors its state for the
- * drawer and the timeline card. Closing the drawer hides the webview but
- * keeps the session; only browser_close / run failure / chat deletion
- * destroy it.
+ * The page renders in a native embedded webview owned by the drawer
+ * (EmbeddedWebviewFrame, label AGENT_BROWSER_LABEL); agent observations run
+ * against that same visible webview, so the agent always sees exactly what
+ * the user sees. This store mirrors its state for the drawer and the
+ * timeline card. Closing the drawer hides the webview but keeps the session;
+ * only browser_close / run failure / chat deletion destroy it.
  */
+
+/** Label of the drawer's browser webview in the embedded webview manager. */
+export const AGENT_BROWSER_LABEL = "agent-browser";
 export type ViewportStatus = "loading" | "ready" | "closed";
 
 export type ViewportSession = {
@@ -181,15 +189,27 @@ export const useViewportStore = create<ViewportStore>((set) => ({
   },
 }));
 
-let eventsBound = false;
+let statusBound = false;
 
-/** Subscribe to native webview status events. Lazy so tests never touch Tauri APIs. */
-async function bindNativeEvents() {
-  if (eventsBound) return;
-  eventsBound = true;
-  const { listen } = await import("@tauri-apps/api/event");
-  await listen<{ url: string; phase: ViewportStatus }>("agent-viewport-status", (event) => {
-    useViewportStore.getState().actions.statusChanged(event.payload.phase, event.payload.url);
+/**
+ * Mirror the browser frame's load status and URL into the session. The
+ * embedded webview store is fed by native page events; subscribing to it
+ * (rather than Tauri events directly) keeps this testable without Tauri.
+ */
+function bindEmbeddedStatus(): void {
+  if (statusBound) return;
+  statusBound = true;
+  let last = useEmbeddedWebviewStore.getState().frames[AGENT_BROWSER_LABEL];
+  useEmbeddedWebviewStore.subscribe((state) => {
+    const frame = state.frames[AGENT_BROWSER_LABEL];
+    const previous = last;
+    last = frame;
+    if (!frame || frame === previous) return;
+    if (frame.status !== previous?.status || frame.url !== previous?.url) {
+      useViewportStore
+        .getState()
+        .actions.statusChanged(frame.status === "ready" ? "ready" : "loading", frame.url ?? "");
+    }
   });
 }
 
@@ -200,8 +220,11 @@ export async function openViewportUrl(input: {
   reason: string | null;
   openedBy?: ViewportSession["openedBy"];
 }): Promise<void> {
-  await bindNativeEvents();
-  const url = await native.agentViewportOpen(input.url);
+  const url = safeHttpUrl(input.url);
+  if (!url) {
+    throw new Error("Blocked URL: only http and https pages can open in the viewport.");
+  }
+  bindEmbeddedStatus();
   useViewportStore.getState().actions.opened({
     runId: input.runId,
     chatId: input.chatId,
@@ -264,8 +287,8 @@ export async function openViewportFile(input: {
   path: string;
   reason: string | null;
 }): Promise<void> {
-  await bindNativeEvents();
-  const url = await native.agentViewportOpenFile(input.workspacePath, input.path);
+  const url = await native.agentViewportServeFile(input.workspacePath, input.path);
+  bindEmbeddedStatus();
   useViewportStore.getState().actions.opened({
     runId: input.runId,
     chatId: input.chatId,
@@ -277,10 +300,13 @@ export async function openViewportFile(input: {
   });
 }
 
-/** Destroy the webview and forget the session. */
+/**
+ * Forget the session; the drawer unmounts the frame, destroying the native
+ * webview. The workspace file server stops handing out files.
+ */
 export async function closeViewport(): Promise<void> {
   useViewportStore.getState().actions.clear();
-  await native.agentViewportClose().catch(() => undefined);
+  await native.agentViewportStopServing().catch(() => undefined);
 }
 
 /** Open the drawer to a blank browser tab for manual navigation. */
@@ -292,7 +318,7 @@ export function openEmptyViewport(): void {
 export function closeViewportBrowser(): void {
   const hadSession = Boolean(useViewportStore.getState().session);
   useViewportStore.getState().actions.browserClosed();
-  if (hadSession) void native.agentViewportClose().catch(() => undefined);
+  if (hadSession) void native.agentViewportStopServing().catch(() => undefined);
 }
 
 /** Close only the review tab; keep an open browser tab alive. */
@@ -302,8 +328,8 @@ export function closeViewportReview(): void {
 
 /** Hide the drawer but keep the session and page state alive. */
 export function hideViewportDrawer(): void {
+  // The frame's `visible` prop hides the native view when the drawer closes.
   useViewportStore.getState().actions.setDrawerOpen(false);
-  void native.agentViewportHide().catch(() => undefined);
 }
 
 export function showViewportDrawer(): void {
@@ -343,7 +369,7 @@ export function openViewportPreviewUrl(input: {
 }
 
 export function reloadViewport(): Promise<void> {
-  return native.agentViewportReload();
+  return getEmbeddedWebviewBridge().reload(AGENT_BROWSER_LABEL);
 }
 
 function safeHttpUrl(input: string): string | null {

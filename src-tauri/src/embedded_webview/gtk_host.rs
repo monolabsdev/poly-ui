@@ -9,17 +9,19 @@
 //! and encode the returned cairo surface as PNG.
 
 use super::host::{HostError, WebviewHost, ZOrder};
-use super::{emit_event, EmbeddedWebviewEventKind, WebviewBounds};
+use super::{emit_event, EmbeddedWebviewEventKind, WebviewBounds, COLLECTOR_SCRIPT};
 use crate::gtk_overlay::{ensure_fixed, on_main};
 use gtk::prelude::*;
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::sync::Mutex;
 use std::time::Duration;
 use tauri::{AppHandle, Url};
 use webkit2gtk::WebViewExt;
 use wry::{WebViewBuilderExtUnix, WebViewExtUnix};
 
 const SNAPSHOT_TIMEOUT: Duration = Duration::from_secs(5);
+const EVAL_TIMEOUT: Duration = Duration::from_secs(5);
 
 // wry::WebView is !Send; all instances live on the GTK main thread.
 thread_local! {
@@ -75,6 +77,7 @@ impl WebviewHost for GtkWebviewHost {
 
             let webview = wry::WebViewBuilder::new()
                 .with_url(&url)
+                .with_initialization_script(COLLECTOR_SCRIPT)
                 .with_bounds(bounds_rect(bounds))
                 .with_on_page_load_handler(move |event, page_url| {
                     let kind = match event {
@@ -175,6 +178,27 @@ impl WebviewHost for GtkWebviewHost {
         Err(HostError::Unsupported(
             "Z-ordering embedded webviews is not supported on Linux.".into(),
         ))
+    }
+
+    fn eval(&self, label: &str, js: String) -> Result<String, HostError> {
+        let label = label.to_string();
+        let (tx, rx) = std::sync::mpsc::channel::<String>();
+        let tx = Mutex::new(Some(tx));
+        on_main(&self.app, move || {
+            with_webview(&label, |webview| {
+                webview
+                    .evaluate_script_with_callback(&js, move |result| {
+                        if let Some(tx) = tx.lock().unwrap_or_else(|e| e.into_inner()).take() {
+                            let _ = tx.send(result);
+                        }
+                    })
+                    .map_err(HostError::platform)
+            })
+        })
+        .map_err(HostError::Platform)??;
+        rx.recv_timeout(EVAL_TIMEOUT).map_err(|_| {
+            HostError::Platform("The page did not respond in time; it may still be loading.".into())
+        })
     }
 
     fn snapshot(&self, label: &str) -> Result<Vec<u8>, HostError> {

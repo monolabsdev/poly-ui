@@ -1,4 +1,5 @@
-import * as native from "./native";
+import { embeddedWebviewObserve } from "@/features/embedded-webview/native";
+import { AGENT_BROWSER_LABEL } from "./viewportStore";
 import {
   composeSnapshot,
   type ViewportObservation,
@@ -23,7 +24,7 @@ function assertNoCollectorError(raw: unknown): asserts raw is Record<string, unk
 }
 
 export async function snapshotViewport(runId: string): Promise<ViewportSnapshotResult> {
-  const raw = await native.agentViewportObserve("snapshot");
+  const raw = await embeddedWebviewObserve(AGENT_BROWSER_LABEL, "snapshot");
   assertNoCollectorError(raw);
   const observation = raw as ViewportObservation;
   const prev = last?.runId === runId ? last.observation : null;
@@ -33,7 +34,7 @@ export async function snapshotViewport(runId: string): Promise<ViewportSnapshotR
 }
 
 export async function inspectViewport(selector: string): Promise<Record<string, unknown>> {
-  const raw = await native.agentViewportObserve("inspect", selector);
+  const raw = await embeddedWebviewObserve(AGENT_BROWSER_LABEL, "inspect", selector);
   assertNoCollectorError(raw);
   return raw;
 }

@@ -51,5 +51,8 @@ pub trait WebviewHost: Send + Sync + 'static {
     /// Capture the current page as PNG bytes. Blocks (with an internal
     /// timeout) until the platform capture completes.
     fn snapshot(&self, label: &str) -> Result<Vec<u8>, HostError>;
+    /// Evaluate JavaScript in the page and return the serialized result.
+    /// Blocks (with an internal timeout) until the page responds.
+    fn eval(&self, label: &str, js: String) -> Result<String, HostError>;
     fn destroy(&self, label: &str) -> Result<(), HostError>;
 }

@@ -5,7 +5,7 @@ const source = readFileSync("src/features/agent/AgentViewportDrawer.tsx", "utf8"
 describe("AgentViewportDrawer browser preview", () => {
   it("renders the browser surface in a native embedded webview", () => {
     expect(source).toContain("<EmbeddedWebviewFrame");
-    expect(source).toContain('const AGENT_BROWSER_LABEL = "agent-browser"');
+    expect(source).toContain("AGENT_BROWSER_LABEL");
     expect(source).toContain("visible={visible && browserActive}");
     expect(source).not.toContain("<iframe");
     // Bounds sync belongs to EmbeddedWebviewFrame, not the drawer.
