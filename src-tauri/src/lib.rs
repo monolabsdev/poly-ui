@@ -1,5 +1,7 @@
 mod agent_viewport;
 mod auth;
+#[cfg(target_os = "linux")]
+pub mod cef_osr;
 mod commands;
 mod db;
 mod error;
@@ -93,6 +95,21 @@ pub fn run() {
     startup_log::log_phase("app entry reached");
     startup_log::log_startup_environment();
 
+    // CEF must initialize before tao/GTK does. On Linux CEF initializes GTK
+    // itself, and doing that after `gtk_init` has already run warns
+    // ("gtk_disable_setlocale() must be called before gtk_init()") and then
+    // segfaults. Tauri calls gtk_init while building the app, so CEF cannot
+    // wait for the setup hook. Failure is non-fatal: it costs the viewport,
+    // not the app.
+    #[cfg(target_os = "linux")]
+    {
+        startup_log::log_phase("CEF initialization");
+        match cef_osr::init() {
+            Ok(()) => startup_log::log_phase("CEF ready"),
+            Err(error) => startup_log::log_error(format!("CEF init failed: {error}")),
+        }
+    }
+
     let context = tauri::generate_context!();
     startup_log::log_phase("config loaded");
     window_state_recovery::recover_invalid_window_state();
@@ -123,6 +140,10 @@ pub fn run() {
         .manage(MobilePairingState::default())
         .setup(|app| {
             startup_log::log_phase("setup hook entered");
+            // CEF itself is already initialized (see `run`); the pump timer is
+            // attached here, once GTK's main loop exists to host it.
+            #[cfg(target_os = "linux")]
+            cef_osr::start_pump();
             startup_log::log_phase("ONNX Runtime initialization");
             initialize_onnxruntime(app).map_err(|error| {
                 startup_log::log_error(&error);
@@ -301,6 +322,16 @@ pub fn run() {
             // sessions deadlocks on Linux, leaving a frozen "not responding"
             // window. SQLite is crash-safe and window state is saved on
             // CloseRequested, so skipping cleanup loses nothing.
+            //
+            // CEF is the one thing that does NOT survive this: process::exit
+            // skips destructors, and CEF's child processes would outlive us as
+            // zombies. Shut it down explicitly first. This runs on the main
+            // thread, which is CEF's UI thread, as cef::shutdown requires.
+            #[cfg(target_os = "linux")]
+            {
+                startup_log::log_phase("CEF shutdown");
+                cef_osr::shutdown();
+            }
             startup_log::log_phase("exit requested; terminating process");
             std::process::exit(code.unwrap_or(0));
         }
