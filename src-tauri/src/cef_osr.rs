@@ -34,7 +34,7 @@
 use cef::{args::Args, *};
 use serde::Deserialize;
 use std::cell::{Cell, RefCell};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -53,6 +53,7 @@ const RECT_HEADER_BYTES: usize = 16;
 const BYTES_PER_PIXEL: usize = 4;
 const MAX_DEVICE_SCALE_FACTOR: f64 = 8.0;
 const CEF_CACHE_DIR: &str = "com.tslater.polyui/cef";
+const CEF_ENABLED_FILE: &str = "com.tslater.polyui/cef-enabled";
 const CEF_LOCALE: &str = "en-US";
 /// Keep Chromium's HTTP cache bounded; page storage/cookies are separate.
 const CEF_DISK_CACHE_BYTES: &str = "67108864";
@@ -311,6 +312,42 @@ pub fn execute_subprocess() -> Option<i32> {
 
 fn initialize_api_version() {
     let _ = cef::api_hash(cef::sys::CEF_API_VERSION_LAST, 0);
+}
+
+fn enabled_path() -> Result<PathBuf, String> {
+    dirs::config_dir()
+        .map(|path| path.join(CEF_ENABLED_FILE))
+        .ok_or_else(|| "OS config directory is unavailable.".to_string())
+}
+
+pub fn enabled_on_next_start() -> bool {
+    enabled_path().is_ok_and(|path| path.is_file())
+}
+
+fn set_enabled_at(path: &Path, enabled: bool) -> Result<(), String> {
+    if enabled {
+        let parent = path
+            .parent()
+            .ok_or_else(|| "CEF preference path has no parent directory.".to_string())?;
+        std::fs::create_dir_all(parent).map_err(|error| error.to_string())?;
+        return std::fs::write(path, b"enabled").map_err(|error| error.to_string());
+    }
+
+    match std::fs::remove_file(path) {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(error.to_string()),
+    }
+}
+
+#[tauri::command]
+pub fn cef_viewport_set_enabled(enabled: bool) -> Result<(), String> {
+    set_enabled_at(&enabled_path()?, enabled)
+}
+
+#[tauri::command]
+pub fn cef_viewport_is_enabled() -> bool {
+    enabled_on_next_start()
 }
 
 /// Initializes CEF in the browser process. Main thread only.
@@ -723,7 +760,7 @@ pub fn shutdown() {
 mod tests {
     use super::{
         browser_switch_values, browser_switches, cef_settings, cursor_css, encode_frame,
-        initialize_api_version, CefInputEvent,
+        initialize_api_version, set_enabled_at, CefInputEvent,
     };
     use cef::{CursorType, Rect};
     use std::path::Path;
@@ -746,6 +783,18 @@ mod tests {
             ["disable-gpu", "disable-gpu-compositing"]
         );
         assert_eq!(browser_switch_values(), [("disk-cache-size", "67108864")]);
+    }
+
+    #[test]
+    fn cef_preference_can_be_enabled_and_disabled() {
+        let path = std::env::temp_dir().join(format!("polyui-cef-enabled-{}", std::process::id()));
+        let _ = std::fs::remove_file(&path);
+
+        set_enabled_at(&path, true).expect("enable CEF preference");
+        assert!(path.is_file());
+
+        set_enabled_at(&path, false).expect("disable CEF preference");
+        assert!(!path.exists());
     }
 
     #[test]

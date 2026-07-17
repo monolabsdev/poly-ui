@@ -133,6 +133,18 @@ export function cefViewportInput(events: CefInputEvent[]): Promise<void> {
   return invoke("cef_viewport_input", { events });
 }
 
+export function cefViewportSetEnabled(enabled: boolean): Promise<void> {
+  return invoke("cef_viewport_set_enabled", { enabled });
+}
+
+export function cefViewportIsEnabled(): Promise<boolean> {
+  return invoke<boolean>("cef_viewport_is_enabled");
+}
+
+export function restartApp(): Promise<void> {
+  return invoke("restart_app");
+}
+
 export function webSearch(query: string, config: WebSearchConfig): Promise<AgentSearchResult[]> {
   return invoke<AgentSearchResult[]>("agent_web_search", { query, config });
 }

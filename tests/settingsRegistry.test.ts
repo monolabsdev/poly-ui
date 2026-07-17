@@ -100,4 +100,14 @@ describe("settings registry", () => {
     expect(mobileTab).toContain("mobileWebAccess");
     expect(mobileTab).toContain("mobile_pairing_stop");
   });
+
+  it("offers restart-gated Chromium only on Linux", () => {
+    const advanced = readFileSync("src/features/settings/tabs/AdvancedSettingsContent.tsx", "utf8");
+    expect(advanced).toContain("IS_LINUX");
+    expect(advanced).toContain("Experimental Chromium browser");
+    expect(advanced).toContain("useConfirmStore");
+    expect(advanced).toContain("cefViewportSetEnabled");
+    expect(advanced).toContain("restartApp");
+    expect(advanced).not.toContain("updateGeneral({ experimentalChromiumBrowser");
+  });
 });

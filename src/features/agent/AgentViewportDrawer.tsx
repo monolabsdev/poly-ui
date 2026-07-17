@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { IS_LINUX } from "@/lib/utils/platform";
 import { useSettingsStore } from "@/store/settingsStore";
 import * as native from "./native";
 import { AgentReviewContent } from "./AgentReviewPanel";
@@ -90,6 +91,10 @@ export function AgentViewportDrawer() {
   const reduceMotion = useSettingsStore((state) => state.performance.reduceMotion);
   const reduceTransparency = useSettingsStore((state) => state.performance.reduceTransparency);
   const keepViewportActive = useSettingsStore((state) => state.performance.keepViewportActive);
+  const experimentalChromiumBrowser = useSettingsStore(
+    (state) => state.general.experimentalChromiumBrowser,
+  );
+  const useChromiumBrowser = IS_LINUX && experimentalChromiumBrowser;
   const [dragging, setDragging] = useState(false);
   const [url, setUrl] = useState("");
   const [frameNonce, setFrameNonce] = useState(0);
@@ -532,11 +537,24 @@ export function AgentViewportDrawer() {
                 {frameOffloaded || frameSuspended ? (
                   <BrowserNewTabEmpty />
                 ) : (
-                  <CefViewport
-                    key={`${session.url}#${frameNonce}`}
-                    url={session.url}
-                    onFirstFrame={handleFirstFrame}
-                  />
+                  useChromiumBrowser ? (
+                    <CefViewport
+                      key={`${session.url}#${frameNonce}`}
+                      url={session.url}
+                      onFirstFrame={handleFirstFrame}
+                    />
+                  ) : (
+                    <iframe
+                      key={`${session.url}#${frameNonce}`}
+                      src={session.url}
+                      title="Viewport preview"
+                      className="h-full w-full border-0 bg-background"
+                      sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads"
+                      referrerPolicy="no-referrer"
+                      allow="clipboard-read; clipboard-write; fullscreen"
+                      onLoad={handleFirstFrame}
+                    />
+                  )
                 )}
                 {browserLoading && !frameSuspended ? (
                   <div
