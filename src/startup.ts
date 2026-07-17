@@ -1,12 +1,15 @@
 import type { SystemPrompt } from "@/store/modelStore";
 import { useAuthStore } from "@/store/authStore";
 import { useModelStore } from "@/store/modelStore";
+import { useSettingsStore } from "@/store/settingsStore";
 import { useOllamaStore } from "@/features/ollama/monitor";
 import { initStoreCoordinator } from "@/store/coordinator";
 import { initRepository } from "@/lib/repositories";
 import { startUpdateChecker } from "@/store/updateStore";
 import { isPermissionGranted, requestPermission } from "@tauri-apps/plugin-notification";
 import { backupCorruptStorageItem, startupError, startupPhase } from "@/lib/utils/startupDiagnostics";
+import { IS_LINUX } from "@/lib/utils/platform";
+import { cefViewportIsEnabled } from "@/features/agent/native";
 
 const SYSTEM_PROMPTS_STORAGE_KEY = "polyui.systemPrompts";
 
@@ -95,6 +98,16 @@ async function initializeStores() {
   startupPhase("initialize stores start");
   restoreSystemPrompts();
   startSystemPromptPersistence();
+
+  if (IS_LINUX) {
+    await cefViewportIsEnabled()
+      .then((enabled) => {
+        useSettingsStore.getState().actions.updateGeneral({
+          experimentalChromiumBrowser: enabled,
+        });
+      })
+      .catch((error) => startupError("CEF preference sync failed", error));
+  }
 
   startupPhase("repository init start");
   await initRepository();

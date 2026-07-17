@@ -90,6 +90,17 @@ fn initialize_onnxruntime(app: &tauri::App) -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+fn restart_app(app: tauri::AppHandle) -> Result<(), String> {
+    let env = app.env();
+    app.run_on_main_thread(move || {
+        #[cfg(target_os = "linux")]
+        cef_osr::shutdown();
+        tauri::process::restart(&env);
+    })
+    .map_err(|error| error.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     startup_log::install_panic_hook();
@@ -104,10 +115,14 @@ pub fn run() {
     // not the app.
     #[cfg(target_os = "linux")]
     {
-        startup_log::log_phase("CEF initialization");
-        match cef_osr::init() {
-            Ok(()) => startup_log::log_phase("CEF ready"),
-            Err(error) => startup_log::log_error(format!("CEF init failed: {error}")),
+        if cef_osr::enabled_on_next_start() {
+            startup_log::log_phase("CEF initialization");
+            match cef_osr::init() {
+                Ok(()) => startup_log::log_phase("CEF ready"),
+                Err(error) => startup_log::log_error(format!("CEF init failed: {error}")),
+            }
+        } else {
+            startup_log::log_phase("CEF disabled");
         }
     }
 
@@ -292,6 +307,11 @@ pub fn run() {
             cef_osr::cef_viewport_reload,
             #[cfg(target_os = "linux")]
             cef_osr::cef_viewport_input,
+            #[cfg(target_os = "linux")]
+            cef_osr::cef_viewport_set_enabled,
+            #[cfg(target_os = "linux")]
+            cef_osr::cef_viewport_is_enabled,
+            restart_app,
             get_whisper_models_status,
             download_whisper_model,
             select_whisper_model,

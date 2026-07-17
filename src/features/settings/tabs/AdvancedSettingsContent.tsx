@@ -10,10 +10,15 @@ import {
   memoryUpdateSettings,
 } from "@/features/memory/memoryClient";
 import { getCurrentProviderAccountId } from "@/features/providers";
+import { IS_LINUX } from "@/lib/utils/platform";
+import { useConfirmStore } from "@/store/confirmStore";
+import { useNotify } from "@/hooks/useNotify";
+import * as native from "@/features/agent/native";
 
 export function AdvancedSettingsContent() {
-  const { experimentalFeatures, memoryBeta, actions } = useSettingsStore(
+  const { experimentalChromiumBrowser, experimentalFeatures, memoryBeta, actions } = useSettingsStore(
     useShallow((state) => ({
+      experimentalChromiumBrowser: state.general.experimentalChromiumBrowser,
       experimentalFeatures: state.general.experimentalFeatures,
       memoryBeta: state.general.memoryBeta,
       actions: state.actions,
@@ -21,6 +26,7 @@ export function AdvancedSettingsContent() {
   );
   const agentEnabled = useAgentStore((state) => state.enabled);
   const setAgentEnabled = useAgentStore((state) => state.actions.setEnabled);
+  const notify = useNotify();
 
   const handleExperimentalToggle = useCallback((checked: boolean) => {
     actions.updateGeneral({ experimentalFeatures: checked });
@@ -56,6 +62,23 @@ export function AdvancedSettingsContent() {
         console.error("[Memory] failed to update settings", err);
       });
   }, [actions]);
+
+  const handleChromiumToggle = useCallback((checked: boolean) => {
+    useConfirmStore.getState().actions.request({
+      title: checked ? "Use experimental Chromium browser?" : "Disable experimental Chromium browser?",
+      description: checked
+        ? "Chromium uses more memory and disk space. Poly will restart to enable it."
+        : "Poly will restart and return to the lighter iframe browser.",
+      confirmLabel: "Restart",
+      onConfirm: () => {
+        void native.cefViewportSetEnabled(checked)
+          .then(() => {
+            return native.restartApp();
+          })
+          .catch((error) => notify.error("Browser setting failed", String(error)));
+      },
+    });
+  }, [notify]);
 
   return (
     <SettingsSection
@@ -101,6 +124,22 @@ export function AdvancedSettingsContent() {
           A Memory tab appears in Settings when enabled.
         </p>
       </SettingRow>
+      {IS_LINUX ? (
+        <SettingRow
+          title="Experimental Chromium browser"
+          description="Use Chromium instead of the iframe browser for agent viewport pages."
+          action={
+            <Switch
+              checked={experimentalChromiumBrowser}
+              onCheckedChange={handleChromiumToggle}
+            />
+          }
+        >
+          <p className="text-sm text-muted-foreground">
+            Requires an app restart and uses more memory and disk space.
+          </p>
+        </SettingRow>
+      ) : null}
     </SettingsSection>
   );
 }

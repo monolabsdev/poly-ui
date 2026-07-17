@@ -2,11 +2,12 @@ import { readFileSync } from "node:fs";
 
 const source = readFileSync("src/features/agent/AgentViewportDrawer.tsx", "utf8");
 
-describe("AgentViewportDrawer CEF preview", () => {
-  it("uses a canvas for the visible browser surface", () => {
+describe("AgentViewportDrawer browser preview", () => {
+  it("uses the iframe by default and CEF only when enabled", () => {
+    expect(source).toContain("experimentalChromiumBrowser");
+    expect(source).toContain("<iframe");
     expect(source).toContain("<canvas");
     expect(source).toContain("cefViewportOpen");
-    expect(source).not.toContain("<iframe");
   });
 
   it("resizes CEF from the canvas CSS size and DPR", () => {

@@ -12,6 +12,7 @@ export type GeneralSettings = {
   webSearch: WebSearchSettings;
   webSearchEnabled: boolean;
   experimentalFeatures: boolean;
+  experimentalChromiumBrowser: boolean;
   mobileWebAccess: boolean;
   showModelInEmptyState: boolean;
   voiceModeExperimental: boolean;
@@ -118,6 +119,7 @@ function defaultSettingsState(): Omit<SettingsState, "actions"> {
       webSearch: createDefaultWebSearchSettings(),
       webSearchEnabled: false,
       experimentalFeatures: false,
+      experimentalChromiumBrowser: false,
       mobileWebAccess: false,
       showModelInEmptyState: false,
       voiceModeExperimental: false,

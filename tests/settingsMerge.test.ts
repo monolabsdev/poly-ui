@@ -41,6 +41,7 @@ describe("mergeSettingsWithDefaults", () => {
     // Fields absent from the persisted blob come from defaults.
     expect(merged.dictation.vadSensitivity).toBe(defaults.dictation.vadSensitivity);
     expect(merged.general.webSearch.apiKeys).toEqual(defaults.general.webSearch.apiKeys);
+    expect(merged.general.experimentalChromiumBrowser).toBe(false);
     expect(merged.tts.supertonic.speed).toBe(defaults.tts.supertonic.speed);
     expect(merged.performance).toEqual(defaults.performance);
     expect(merged.actions).toBe(defaults.actions);
