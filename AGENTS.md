@@ -60,13 +60,14 @@ Rust emits typed Tauri events (`chat-chunk`, `chat-thinking`, `web-search-event`
 
 ## Branching & PR workflow
 
-- **Never PR `dev → main`.** `dev` is a WIP branch with unfinished/stale commits.
-- Always create a feature branch off `dev` for each isolated change:
+- **Never commit directly to `main`.** All changes must be pull-requested.
+- Create a feature branch off `main` for each isolated change:
   ```bash
-  git checkout dev
+  git checkout main
+  git pull
   git checkout -b feat/your-thing
   # commit work
   git push origin feat/your-thing
   # PR feat/your-thing → main
   ```
-- Each PR carries only its feature branch commits. `dev` stays for day-to-day work without polluting PRs.
+- Each PR carries only its feature branch commits. Keep `main` clean.
