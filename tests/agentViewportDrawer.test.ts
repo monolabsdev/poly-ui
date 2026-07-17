@@ -2,16 +2,31 @@ import { readFileSync } from "node:fs";
 
 const source = readFileSync("src/features/agent/AgentViewportDrawer.tsx", "utf8");
 
-describe("AgentViewportDrawer iframe preview", () => {
-  it("uses a sandboxed iframe for the visible browser surface", () => {
-    expect(source).toContain("<iframe");
-    expect(source).toContain("sandbox=\"allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads\"");
-    expect(source).not.toContain("agentViewportSetBounds");
+describe("AgentViewportDrawer CEF preview", () => {
+  it("uses a canvas for the visible browser surface", () => {
+    expect(source).toContain("<canvas");
+    expect(source).toContain("cefViewportOpen");
+    expect(source).not.toContain("<iframe");
   });
 
-  it("warns for https pages that may refuse embedding", () => {
-    expect(source).toContain("HttpsPreviewWarning");
-    expect(source).toContain("Some HTTPS sites block embedded previews");
+  it("resizes CEF from the canvas CSS size and DPR", () => {
+    expect(source).toContain("ResizeObserver");
+    expect(source).toContain("window.devicePixelRatio");
+    expect(source).toContain("cefViewportResize");
+  });
+
+  it("does not recreate the CEF browser after the first frame", () => {
+    expect(source).toContain("const handleFirstFrame = useCallback");
+    expect(source).toContain("onFirstFrame={handleFirstFrame}");
+  });
+
+  it("forwards focused canvas input and coalesces pointer traffic", () => {
+    expect(source).toContain("tabIndex={0}");
+    expect(source).toContain("onMouseMove={queueMouseMove}");
+    expect(source).toContain("onWheel={queueWheel}");
+    expect(source).toContain("requestAnimationFrame(flushPointerInput)");
+    expect(source).toContain('onKeyDown={(event) => sendKey(event, "down")}');
+    expect(source).toContain('onKeyUp={(event) => sendKey(event, "up")}');
   });
 
   it("keeps tab chrome vertically centered", () => {

@@ -1,5 +1,6 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke, type Channel } from "@tauri-apps/api/core";
 import type { WebSearchConfig } from "@/features/web-search/types";
+import type { CefInputEvent } from "./cefInput";
 
 export type AgentDirEntry = { name: string; kind: "file" | "dir" };
 export type AgentGrepHit = { path: string; line: number; text: string };
@@ -103,6 +104,33 @@ export function agentViewportSetBounds(bounds: { x: number; y: number; width: nu
 
 export function agentViewportObserve(kind: "snapshot" | "inspect", selector?: string): Promise<unknown> {
   return invoke("agent_viewport_observe", { kind, selector: selector ?? null });
+}
+
+export function cefViewportOpen(input: {
+  url: string;
+  width: number;
+  height: number;
+  scaleFactor: number;
+  onFrame: Channel<ArrayBuffer>;
+  onCursor: Channel<string>;
+}): Promise<void> {
+  return invoke("cef_viewport_open", input);
+}
+
+export function cefViewportResize(width: number, height: number, scaleFactor: number): Promise<void> {
+  return invoke("cef_viewport_resize", { width, height, scaleFactor });
+}
+
+export function cefViewportClose(): Promise<void> {
+  return invoke("cef_viewport_close");
+}
+
+export function cefViewportReload(): Promise<void> {
+  return invoke("cef_viewport_reload");
+}
+
+export function cefViewportInput(events: CefInputEvent[]): Promise<void> {
+  return invoke("cef_viewport_input", { events });
 }
 
 export function webSearch(query: string, config: WebSearchConfig): Promise<AgentSearchResult[]> {

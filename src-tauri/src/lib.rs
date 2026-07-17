@@ -1,5 +1,7 @@
 mod agent_viewport;
 mod auth;
+#[cfg(target_os = "linux")]
+pub mod cef_osr;
 mod commands;
 mod db;
 mod error;
@@ -24,8 +26,9 @@ use crate::commands::chat_commands::{chat, chat_stream, generate_chat_title};
 use crate::commands::config_commands::cancel_chat;
 use crate::commands::db_commands::execute_sql;
 use crate::commands::dictation_commands::{
-    download_whisper_model, get_whisper_models_status, native_dictation_audio_level, preload_whisper_model,
-    release_tts_engine, release_whisper_model, select_whisper_model, start_native_dictation_recording, stop_native_dictation_and_transcribe,
+    download_whisper_model, get_whisper_models_status, native_dictation_audio_level,
+    preload_whisper_model, release_tts_engine, release_whisper_model, select_whisper_model,
+    start_native_dictation_recording, stop_native_dictation_and_transcribe,
     stop_native_dictation_recording, transcribe_audio, transcribe_native_dictation_partial,
 };
 use crate::commands::model_commands::{cancel_pull, delete_model, get_local_models, pull_model};
@@ -92,6 +95,21 @@ pub fn run() {
     startup_log::install_panic_hook();
     startup_log::log_phase("app entry reached");
     startup_log::log_startup_environment();
+
+    // CEF must initialize before tao/GTK does. On Linux CEF initializes GTK
+    // itself, and doing that after `gtk_init` has already run warns
+    // ("gtk_disable_setlocale() must be called before gtk_init()") and then
+    // segfaults. Tauri calls gtk_init while building the app, so CEF cannot
+    // wait for the setup hook. Failure is non-fatal: it costs the viewport,
+    // not the app.
+    #[cfg(target_os = "linux")]
+    {
+        startup_log::log_phase("CEF initialization");
+        match cef_osr::init() {
+            Ok(()) => startup_log::log_phase("CEF ready"),
+            Err(error) => startup_log::log_error(format!("CEF init failed: {error}")),
+        }
+    }
 
     let context = tauri::generate_context!();
     startup_log::log_phase("config loaded");
@@ -264,6 +282,16 @@ pub fn run() {
             agent_viewport_reload,
             agent_viewport_set_bounds,
             agent_viewport_observe,
+            #[cfg(target_os = "linux")]
+            cef_osr::cef_viewport_open,
+            #[cfg(target_os = "linux")]
+            cef_osr::cef_viewport_resize,
+            #[cfg(target_os = "linux")]
+            cef_osr::cef_viewport_close,
+            #[cfg(target_os = "linux")]
+            cef_osr::cef_viewport_reload,
+            #[cfg(target_os = "linux")]
+            cef_osr::cef_viewport_input,
             get_whisper_models_status,
             download_whisper_model,
             select_whisper_model,
@@ -301,6 +329,16 @@ pub fn run() {
             // sessions deadlocks on Linux, leaving a frozen "not responding"
             // window. SQLite is crash-safe and window state is saved on
             // CloseRequested, so skipping cleanup loses nothing.
+            //
+            // CEF is the one thing that does NOT survive this: process::exit
+            // skips destructors, and CEF's child processes would outlive us as
+            // zombies. Shut it down explicitly first, from the same main
+            // application thread that initialized it.
+            #[cfg(target_os = "linux")]
+            {
+                startup_log::log_phase("CEF shutdown");
+                cef_osr::shutdown();
+            }
             startup_log::log_phase("exit requested; terminating process");
             std::process::exit(code.unwrap_or(0));
         }
