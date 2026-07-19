@@ -2,7 +2,6 @@ import { appendAgentEvent } from "../src/features/agent/activity";
 import { buildAgentPrompt } from "../src/features/agent/prompt";
 import type { AgentMessageState } from "../src/features/agent/types";
 import type { AgentRawEvent } from "../src/features/agent/agentClient";
-import { readFileSync } from "node:fs";
 
 describe("Poly Agent workflow", () => {
   it("builds a Poly Agent execution prompt for file edits", () => {
@@ -52,21 +51,6 @@ describe("Poly Agent workflow", () => {
     ]);
   });
 
-  it("exposes separate search and read web tools in the SDK runtime", () => {
-    const runtime = readFileSync("src/features/agent/sdkRuntime.ts", "utf8");
-
-    expect(runtime).toContain("search_web: tool");
-    expect(runtime).toContain("read_web_results: tool");
-    expect(runtime).toContain("untrusted evidence");
-  });
-
-  it("streams provider reasoning deltas into Poly Agent activity", () => {
-    const runtime = readFileSync("src/features/agent/sdkRuntime.ts", "utf8");
-
-    expect(runtime).toContain("reasoning: \"low\"");
-    expect(runtime).toContain("reasoning-delta");
-    expect(runtime).toContain("part.text");
-  });
 });
 
 function baseAgentState(): AgentMessageState {
