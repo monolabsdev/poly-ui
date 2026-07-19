@@ -52,4 +52,11 @@ describe("mergeSettingsWithDefaults", () => {
     expect(merged.general).toEqual(defaults.general);
     expect(merged.actions).toBe(defaults.actions);
   });
+
+  it("keeps opt-in surfaces off and web search local by default", () => {
+    expect(defaults.general.webSearch.provider).toBe("local");
+    expect(defaults.general.webSearchEnabled).toBe(false);
+    expect(defaults.general.mobileWebAccess).toBe(false);
+    expect(defaults.general.experimentalChromiumBrowser).toBe(false);
+  });
 });
