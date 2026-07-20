@@ -210,8 +210,11 @@ fn emit_cef_link_args() {
     // cef-dll-sys copies libcef.so next to the binary but never tells the
     // linker to look there, so the binary dies at startup with
     // "libcef.so: cannot open shared object file". $ORIGIN resolves to the
-    // binary's own directory at load time.
-    println!("cargo::rustc-link-arg-bins=-Wl,-rpath,$ORIGIN");
+    // binary's own directory at load time (dev builds); the ../lib entry
+    // resolves the installed layout, where the binary sits in usr/bin and the
+    // bundled CEF runtime in usr/lib/PolyUI (deb, rpm, and AppImage AppDir all
+    // share that shape).
+    println!("cargo::rustc-link-arg-bins=-Wl,-rpath,$ORIGIN:$ORIGIN/../lib/PolyUI");
 
     // Keep the executable's bundled SQLite (sqlx -> libsqlite3-sys) out of the
     // dynamic symbol table, so it stops interposing over the system
