@@ -260,7 +260,7 @@ export default function ChatWorkspace({
 
   return (
     <Box
-      className="relative flex h-full min-h-0 flex-1 flex-col bg-background"
+      className="relative flex h-full min-h-0 min-w-0 flex-1 flex-col bg-background"
     >
       {/* Full voice mode is opaque over the workspace — skip rendering the
           chat UI behind it so streaming markdown re-renders don't starve the
