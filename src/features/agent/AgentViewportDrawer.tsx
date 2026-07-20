@@ -100,6 +100,10 @@ export function AgentViewportDrawer() {
   const [frameNonce, setFrameNonce] = useState(0);
   const [frameLoading, setFrameLoading] = useState(false);
   const handleFirstFrame = useCallback(() => setFrameLoading(false), []);
+  const handleAddressChange = useCallback((address: string) => {
+    setUrl(address);
+    setHistory((state) => pushBrowserHistory(state, address));
+  }, []);
   const [frameSuspended, setFrameSuspended] = useState(false);
   const [frameOffloaded, setFrameOffloaded] = useState(false);
   const offloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -247,6 +251,12 @@ export function AgentViewportDrawer() {
   const reloadBrowser = () => {
     if (!session?.url) return;
     setFrameLoading(true);
+    if (useChromiumBrowser) {
+      // Reload in place: remounting would recreate the browser at the stale
+      // session URL and lose any in-page navigation.
+      void native.cefViewportReload().catch(() => setFrameNonce((nonce) => nonce + 1));
+      return;
+    }
     setFrameNonce((nonce) => nonce + 1);
   };
 
@@ -542,6 +552,7 @@ export function AgentViewportDrawer() {
                       key={`${session.url}#${frameNonce}`}
                       url={session.url}
                       onFirstFrame={handleFirstFrame}
+                      onAddressChange={handleAddressChange}
                     />
                   ) : (
                     <iframe
@@ -594,7 +605,15 @@ export function AgentViewportDrawer() {
   );
 }
 
-function CefViewport({ url, onFirstFrame }: { url: string; onFirstFrame: () => void }) {
+function CefViewport({
+  url,
+  onFirstFrame,
+  onAddressChange,
+}: {
+  url: string;
+  onFirstFrame: () => void;
+  onAddressChange: (url: string) => void;
+}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const pointerAnimationRef = useRef(0);
   const pendingMoveRef = useRef<CefInputEvent | null>(null);
@@ -722,6 +741,10 @@ function CefViewport({ url, onFirstFrame }: { url: string; onFirstFrame: () => v
     cursors.onmessage = (cursor) => {
       canvas.style.cursor = cursor;
     };
+    const addresses = new Channel<string>();
+    addresses.onmessage = (address) => {
+      if (!disposed) onAddressChange(address);
+    };
     const present = () => {
       paintAnimationFrame = 0;
       const frame = pendingFrame;
@@ -762,7 +785,7 @@ function CefViewport({ url, onFirstFrame }: { url: string; onFirstFrame: () => v
       lastSize = size;
       if (!opened) {
         opened = true;
-        void native.cefViewportOpen({ url, width, height, scaleFactor, onFrame: frames, onCursor: cursors }).catch((error) => {
+        void native.cefViewportOpen({ url, width, height, scaleFactor, onFrame: frames, onCursor: cursors, onAddress: addresses }).catch((error) => {
           opened = false;
           console.error("Failed to open CEF viewport:", error);
         });
@@ -783,7 +806,7 @@ function CefViewport({ url, onFirstFrame }: { url: string; onFirstFrame: () => v
       if (pointerAnimationRef.current) cancelAnimationFrame(pointerAnimationRef.current);
       if (opened) void native.cefViewportClose().catch(() => undefined);
     };
-  }, [url, onFirstFrame]);
+  }, [url, onFirstFrame, onAddressChange]);
 
   return (
     <canvas

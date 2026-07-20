@@ -113,6 +113,7 @@ export function cefViewportOpen(input: {
   scaleFactor: number;
   onFrame: Channel<ArrayBuffer>;
   onCursor: Channel<string>;
+  onAddress: Channel<string>;
 }): Promise<void> {
   return invoke("cef_viewport_open", input);
 }

@@ -270,6 +270,7 @@ cef::wrap_render_handler! {
 cef::wrap_display_handler! {
     struct OsrDisplayHandler {
         on_cursor: Channel<String>,
+        on_address: Channel<String>,
     }
 
     impl DisplayHandler {
@@ -282,6 +283,18 @@ cef::wrap_display_handler! {
         ) -> ::std::os::raw::c_int {
             let _ = self.on_cursor.send(cursor_css(type_).to_string());
             1
+        }
+
+        fn on_address_change(
+            &self,
+            _browser: Option<&mut Browser>,
+            frame: Option<&mut Frame>,
+            url: Option<&CefString>,
+        ) {
+            let is_main_frame = frame.is_some_and(|frame| frame.is_main() != 0);
+            if let Some(url) = url.filter(|_| is_main_frame) {
+                let _ = self.on_address.send(url.to_string());
+            }
         }
     }
 }
@@ -441,6 +454,7 @@ pub fn cef_viewport_open(
     scale_factor: f64,
     on_frame: Channel<InvokeResponseBody>,
     on_cursor: Channel<String>,
+    on_address: Channel<String>,
 ) -> Result<(), String> {
     let parsed = url::Url::parse(&url).map_err(|error| error.to_string())?;
     if !matches!(parsed.scheme(), "http" | "https") {
@@ -459,7 +473,17 @@ pub fn cef_viewport_open(
         return Err("CEF viewport scale factor is invalid.".to_string());
     }
 
-    on_cef_ui(move || open_browser(url, width, height, scale_factor as f32, on_frame, on_cursor))?
+    on_cef_ui(move || {
+        open_browser(
+            url,
+            width,
+            height,
+            scale_factor as f32,
+            on_frame,
+            on_cursor,
+            on_address,
+        )
+    })?
 }
 
 #[tauri::command]
@@ -528,6 +552,7 @@ fn on_cef_ui<T: Send + 'static>(task: impl FnOnce() -> T + Send + 'static) -> Re
         .map_err(|_| "CEF viewport task was dropped by the UI thread.".to_string())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn open_browser(
     url: String,
     width: i32,
@@ -535,6 +560,7 @@ fn open_browser(
     scale_factor: f32,
     on_frame: Channel<InvokeResponseBody>,
     on_cursor: Channel<String>,
+    on_address: Channel<String>,
 ) -> Result<(), String> {
     if !INITIALIZED.load(Ordering::SeqCst) {
         return Err("CEF is not initialized.".to_string());
@@ -552,7 +578,7 @@ fn open_browser(
         full_frame_pending.clone(),
         on_frame,
     );
-    let display_handler = OsrDisplayHandler::new(on_cursor);
+    let display_handler = OsrDisplayHandler::new(on_cursor, on_address);
     let mut client = OsrClient::new(render_handler, display_handler);
     let window_info = WindowInfo::default().set_as_windowless(Default::default());
     let browser_settings = BrowserSettings {
