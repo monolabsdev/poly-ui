@@ -9,6 +9,21 @@ use std::pin::Pin;
 pub enum ProviderType {
     OllamaLocal,
     OpenAICompatible,
+    // TODO: Add native Anthropic provider.
+    // Implements ChatProvider + ModelCatalog.
+    // Uses https://api.anthropic.com/v1/messages endpoint.
+    // SSE format: message_start → content_block_delta → message_delta → message_stop.
+    // System prompt goes as top-level "system" param (not in messages).
+    // Tools use top-level "tools[]" with "input_schema" (no function wrapper).
+    // Thinking mode via "thinking" content block type + extended thinking header.
+    AnthropicNative,
+    // TODO: Add native Google Gemini provider.
+    // Implements ChatProvider + ModelCatalog.
+    // Uses https://generativelanguage.googleapis.com/v1beta/models/{model}:streamGenerateContent
+    // SSE format: servercontent events with candidates[0].content.parts[].
+    // Tools go in tools[0].function_declarations[].
+    // API key passed as ?key= query param.
+    GeminiNative,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]

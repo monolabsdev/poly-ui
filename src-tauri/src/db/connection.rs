@@ -38,6 +38,8 @@ pub async fn init_db<R: Runtime>(app: &AppHandle<R>) -> Result<SqlitePool, Strin
     startup_log::log_phase("database migrations complete");
 
     // Remove stale rows from earlier provider types.
+    // TODO: Update the IN clause to include 'AnthropicNative' and 'GeminiNative' once those
+    // provider types are fully implemented and seeded. For now, keep the two current types only.
     sqlx::query("DELETE FROM provider_configs WHERE provider_type NOT IN ('OllamaLocal', 'OpenAICompatible')")
         .execute(&pool)
         .await
@@ -85,6 +87,14 @@ pub async fn ensure_default_provider_configs(
     .execute(pool)
     .await
     .map_err(|e| e.to_string())?;
+
+    // TODO: Seed default Anthropic provider config (disabled by default, priority 2).
+    // INSERT AnthropicNative with api_base_url = 'https://api.anthropic.com/v1'.
+    // Same pattern as OpenAI: WHERE NOT EXISTS on (account_id, provider_type, api_base_url).
+
+    // TODO: Seed default Gemini provider config (disabled by default, priority 3).
+    // INSERT GeminiNative with api_base_url = 'https://generativelanguage.googleapis.com/v1beta'.
+    // Same pattern as OpenAI: WHERE NOT EXISTS on (account_id, provider_type, api_base_url).
 
     Ok(())
 }
