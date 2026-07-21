@@ -3,8 +3,8 @@ import { create } from "zustand";
 import { useAuthStore } from "@/store/authStore";
 import { getSessionToken } from "@/lib/utils/utils";
 
-// TODO: Add "AnthropicNative" and "GeminiNative" once the Rust providers are implemented.
-export type ProviderType = "OllamaLocal" | "OpenAICompatible";
+// TODO: Add "GeminiNative" once the Rust provider is implemented.
+export type ProviderType = "OllamaLocal" | "OpenAICompatible" | "AnthropicNative";
 export type ProviderStatus = "Online" | "Offline" | "Reconnecting" | "Unavailable";
 
 export interface ProviderConfig {

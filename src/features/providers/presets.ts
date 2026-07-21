@@ -1,5 +1,5 @@
-// TODO: Add "anthropic-native" and "gemini-native" kinds once the Rust providers are implemented.
-export type ProviderKind = "ollama-local" | "openai-compatible";
+// TODO: Add "gemini-native" kind once the Rust provider is implemented.
+export type ProviderKind = "ollama-local" | "openai-compatible" | "anthropic-native";
 
 export interface ProviderPreset {
   id: string;
@@ -64,17 +64,14 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     requiresApiKey: true,
     modelSuggestions: ["deepseek-chat", "deepseek-reasoner"],
   },
-  // TODO: Add Anthropic preset — kind: "anthropic-native", baseUrl: "https://api.anthropic.com/v1".
-  // Model suggestions: ["claude-sonnet-4-20250514", "claude-haiku-4-20250414"].
-  // Requires API key. Backend sends x-api-key header + anthropic-version header.
-  // {
-  //   id: "anthropic",
-  //   label: "Anthropic",
-  //   kind: "anthropic-native",
-  //   baseUrl: "https://api.anthropic.com/v1",
-  //   requiresApiKey: true,
-  //   modelSuggestions: ["claude-sonnet-4-20250514", "claude-haiku-4-20250414"],
-  // },
+  {
+    id: "anthropic",
+    label: "Anthropic",
+    kind: "anthropic-native",
+    baseUrl: "https://api.anthropic.com/v1",
+    requiresApiKey: true,
+    modelSuggestions: ["claude-sonnet-4-20250514", "claude-haiku-4-20250414"],
+  },
   // TODO: Add Gemini preset — kind: "gemini-native", baseUrl: "https://generativelanguage.googleapis.com/v1beta".
   // Model suggestions: ["gemini-2.5-pro", "gemini-2.5-flash"].
   // Requires API key. Backend passes key as ?key= query param.

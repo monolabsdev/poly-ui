@@ -1,8 +1,7 @@
+use crate::providers::anthropic::AnthropicNativeProvider;
 use crate::providers::base::{
     ChatProvider, LocalModelManager, ModelCatalog, ProviderConfig, ProviderType,
 };
-// TODO: Import AnthropicNativeProvider once anthropic.rs is created.
-// use crate::providers::anthropic::AnthropicNativeProvider;
 // TODO: Import GeminiNativeProvider once gemini.rs is created.
 // use crate::providers::gemini::GeminiNativeProvider;
 use crate::providers::ollama::OllamaProvider;
@@ -29,10 +28,10 @@ impl ProviderFactory {
                 profile.api_key.unwrap_or_default(),
                 profile.headers,
             ))),
-            // TODO: Add AnthropicNative match arm.
-            // Construct AnthropicNativeProvider with profile.endpoint, profile.api_key.
-            // Anthropic uses x-api-key header (api_key field) and requires Anthropic-version header.
-            ProviderType::AnthropicNative => todo!("AnthropicNative provider not yet implemented"),
+            ProviderType::AnthropicNative => Some(Box::new(AnthropicNativeProvider::new(
+                profile.endpoint,
+                profile.api_key,
+            ))),
             // TODO: Add GeminiNative match arm.
             // Construct GeminiNativeProvider with profile.endpoint, profile.api_key.
             // Gemini uses ?key= query param for auth.
@@ -57,8 +56,10 @@ impl ProviderFactory {
                 profile.api_key.unwrap_or_default(),
                 profile.headers,
             ))),
-            // TODO: Add AnthropicNative match arm — same constructor as create_chat_provider.
-            ProviderType::AnthropicNative => todo!("AnthropicNative catalog not yet implemented"),
+            ProviderType::AnthropicNative => Some(Box::new(AnthropicNativeProvider::new(
+                profile.endpoint,
+                profile.api_key,
+            ))),
             // TODO: Add GeminiNative match arm — same constructor as create_chat_provider.
             ProviderType::GeminiNative => todo!("GeminiNative catalog not yet implemented"),
         }

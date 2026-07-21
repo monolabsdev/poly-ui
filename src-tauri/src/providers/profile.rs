@@ -18,7 +18,6 @@ impl ProviderProfile {
             ProviderType::OpenAICompatible => config
                 .api_base_url
                 .unwrap_or_else(|| "https://api.openai.com/v1".to_string()),
-            // TODO: Add AnthropicNative endpoint default: "https://api.anthropic.com/v1"
             ProviderType::AnthropicNative => config
                 .api_base_url
                 .unwrap_or_else(|| "https://api.anthropic.com/v1".to_string()),
