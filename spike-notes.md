@@ -2,11 +2,12 @@
 
 Branch: `spike/cef-osr`. Research spike — prove, don't polish.
 
-Status: **CP3 prototype works, spike remains a performance no-go**. The visible agent
-viewport is now a DOM canvas fed by a real CEF OSR browser. CEF initialization still makes
-the Tauri main thread consume one full CPU core while idle. The owner explicitly asked to
-continue through the canvas proof after CP1 exposed that blocker; later checkpoints remain
-blocked until it is understood.
+Status: **superseded — the spike shipped**. The idle-spin blocker described below was
+fixed in `c2fde0d fix(cef): remove idle spin and shrink runtime` (external message pump
+scheduled as one-shot GLib timeouts; see `cef_osr.rs`), input forwarding landed in
+`5a499a5` (CP4), and the feature merged to `main` behind the experimental Chromium
+browser toggle (Linux only, off by default). The sections below are the historical
+record of the spike and no longer describe the current code.
 
 ## Pinned versions
 

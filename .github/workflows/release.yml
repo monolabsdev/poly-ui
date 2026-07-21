@@ -319,6 +319,12 @@ jobs:
           APPIMAGE="$(find "$BUNDLE/appimage" -maxdepth 1 -name '*.AppImage' -type f | head -n 1)"
           test -n "$DEB"
           dpkg-deb -c "$DEB" | grep 'libonnxruntime.so' >/dev/null
+          # CEF runtime must ship inside the packages: libcef.so is a hard
+          # dynamic dependency of the binary, so a package without it does
+          # not even launch.
+          for cef_file in libcef.so icudtl.dat resources.pak locales/en-US.pak; do
+            dpkg-deb -c "$DEB" | grep "PolyUI/$cef_file" >/dev/null
+          done
           test -n "$RPM"
           test -n "$APPIMAGE"
           mkdir -p "release-artifacts/linux-${{ matrix.arch }}"
