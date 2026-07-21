@@ -1,5 +1,8 @@
-// TODO: Add "gemini-native" kind once the Rust provider is implemented.
-export type ProviderKind = "ollama-local" | "openai-compatible" | "anthropic-native";
+export type ProviderKind =
+  | "ollama-local"
+  | "openai-compatible"
+  | "anthropic-native"
+  | "gemini-native";
 
 export interface ProviderPreset {
   id: string;
@@ -72,17 +75,14 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     requiresApiKey: true,
     modelSuggestions: ["claude-sonnet-4-20250514", "claude-haiku-4-20250414"],
   },
-  // TODO: Add Gemini preset — kind: "gemini-native", baseUrl: "https://generativelanguage.googleapis.com/v1beta".
-  // Model suggestions: ["gemini-2.5-pro", "gemini-2.5-flash"].
-  // Requires API key. Backend passes key as ?key= query param.
-  // {
-  //   id: "gemini",
-  //   label: "Google Gemini",
-  //   kind: "gemini-native",
-  //   baseUrl: "https://generativelanguage.googleapis.com/v1beta",
-  //   requiresApiKey: true,
-  //   modelSuggestions: ["gemini-2.5-pro", "gemini-2.5-flash"],
-  // },
+  {
+    id: "gemini",
+    label: "Google Gemini",
+    kind: "gemini-native",
+    baseUrl: "https://generativelanguage.googleapis.com/v1beta",
+    requiresApiKey: true,
+    modelSuggestions: ["gemini-2.5-pro", "gemini-2.5-flash"],
+  },
   {
     id: "ollama",
     label: "Ollama (Local)",

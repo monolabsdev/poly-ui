@@ -17,12 +17,6 @@ pub enum ProviderType {
     // Tools use top-level "tools[]" with "input_schema" (no function wrapper).
     // Thinking mode via "thinking" content block type + extended thinking header.
     AnthropicNative,
-    // TODO: Add native Google Gemini provider.
-    // Implements ChatProvider + ModelCatalog.
-    // Uses https://generativelanguage.googleapis.com/v1beta/models/{model}:streamGenerateContent
-    // SSE format: servercontent events with candidates[0].content.parts[].
-    // Tools go in tools[0].function_declarations[].
-    // API key passed as ?key= query param.
     GeminiNative,
 }
 

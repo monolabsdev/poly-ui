@@ -38,8 +38,7 @@ pub async fn init_db<R: Runtime>(app: &AppHandle<R>) -> Result<SqlitePool, Strin
     startup_log::log_phase("database migrations complete");
 
     // Remove stale rows from earlier provider types.
-    // TODO: Add 'GeminiNative' to the IN clause once that provider type is implemented and seeded.
-    sqlx::query("DELETE FROM provider_configs WHERE provider_type NOT IN ('OllamaLocal', 'OpenAICompatible', 'AnthropicNative')")
+    sqlx::query("DELETE FROM provider_configs WHERE provider_type NOT IN ('OllamaLocal', 'OpenAICompatible', 'AnthropicNative', 'GeminiNative')")
         .execute(&pool)
         .await
         .map_err(|e| e.to_string())?;
@@ -104,9 +103,22 @@ pub async fn ensure_default_provider_configs(
     .await
     .map_err(|e| e.to_string())?;
 
-    // TODO: Seed default Gemini provider config (disabled by default, priority 3).
-    // INSERT GeminiNative with api_base_url = 'https://generativelanguage.googleapis.com/v1beta'.
-    // Same pattern as OpenAI: WHERE NOT EXISTS on (account_id, provider_type, api_base_url).
+    sqlx::query(
+        r#"
+        INSERT INTO provider_configs (account_id, provider_type, enabled, api_base_url, priority)
+        SELECT ?1, 'GeminiNative', 0, 'https://generativelanguage.googleapis.com/v1beta', 3
+        WHERE NOT EXISTS (
+            SELECT 1 FROM provider_configs
+            WHERE account_id = ?1
+              AND provider_type = 'GeminiNative'
+              AND api_base_url = 'https://generativelanguage.googleapis.com/v1beta'
+        )
+        "#,
+    )
+    .bind(&account_id)
+    .execute(pool)
+    .await
+    .map_err(|e| e.to_string())?;
 
     Ok(())
 }

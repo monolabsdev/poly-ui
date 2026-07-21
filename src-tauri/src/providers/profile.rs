@@ -21,7 +21,6 @@ impl ProviderProfile {
             ProviderType::AnthropicNative => config
                 .api_base_url
                 .unwrap_or_else(|| "https://api.anthropic.com/v1".to_string()),
-            // TODO: Add GeminiNative endpoint default: "https://generativelanguage.googleapis.com/v1beta"
             ProviderType::GeminiNative => config
                 .api_base_url
                 .unwrap_or_else(|| "https://generativelanguage.googleapis.com/v1beta".to_string()),

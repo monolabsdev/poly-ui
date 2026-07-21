@@ -200,4 +200,5 @@ export const providerLabels: Record<ModelProvider, string> = {
   OllamaLocal: "Ollama",
   OpenAICompatible: "OpenAI-compatible",
   AnthropicNative: "Anthropic",
+  GeminiNative: "Gemini",
 };

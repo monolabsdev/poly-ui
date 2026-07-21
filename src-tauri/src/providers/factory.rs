@@ -2,8 +2,7 @@ use crate::providers::anthropic::AnthropicNativeProvider;
 use crate::providers::base::{
     ChatProvider, LocalModelManager, ModelCatalog, ProviderConfig, ProviderType,
 };
-// TODO: Import GeminiNativeProvider once gemini.rs is created.
-// use crate::providers::gemini::GeminiNativeProvider;
+use crate::providers::gemini::GeminiNativeProvider;
 use crate::providers::ollama::OllamaProvider;
 use crate::providers::openai_compatible::OpenAICompatibleProvider;
 use crate::providers::profile::ProviderProfile;
@@ -32,10 +31,10 @@ impl ProviderFactory {
                 profile.endpoint,
                 profile.api_key,
             ))),
-            // TODO: Add GeminiNative match arm.
-            // Construct GeminiNativeProvider with profile.endpoint, profile.api_key.
-            // Gemini uses ?key= query param for auth.
-            ProviderType::GeminiNative => todo!("GeminiNative provider not yet implemented"),
+            ProviderType::GeminiNative => Some(Box::new(GeminiNativeProvider::new(
+                profile.endpoint,
+                profile.api_key,
+            ))),
         }
     }
 
@@ -60,8 +59,10 @@ impl ProviderFactory {
                 profile.endpoint,
                 profile.api_key,
             ))),
-            // TODO: Add GeminiNative match arm — same constructor as create_chat_provider.
-            ProviderType::GeminiNative => todo!("GeminiNative catalog not yet implemented"),
+            ProviderType::GeminiNative => Some(Box::new(GeminiNativeProvider::new(
+                profile.endpoint,
+                profile.api_key,
+            ))),
         }
     }
 
