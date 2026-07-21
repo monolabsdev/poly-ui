@@ -126,7 +126,6 @@ export function AgentViewportDrawer() {
     }
     setUrl(session.url);
     setFrameLoading(true);
-    setFrameNonce((nonce) => nonce + 1);
     setHistory((state) => {
       if (historyMoveRef.current) {
         historyMoveRef.current = false;
@@ -797,7 +796,6 @@ function CefViewport({
     };
     const observer = new ResizeObserver(resize);
     observer.observe(canvas);
-    resize();
 
     return () => {
       disposed = true;

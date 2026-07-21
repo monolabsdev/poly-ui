@@ -20,25 +20,25 @@
 //!    pointer. On Linux it is required to be null.
 //! 2. `on_paint` hands us a `*const u8` BGRA buffer owned by CEF, valid only
 //!    for the duration of the call.
-//! 3. Linux CEF requires Xlib threading initialized before either CEF or GTK
-//!    touches X11.
+//! 3. Linux multi-threaded CEF requires Xlib/GDK threading initialized before
+//!    either CEF or GTK touches X11.
 //!
 //! ## Threading invariants
 //!
 //! - `execute_subprocess` MUST be the first thing `main` does, before any
 //!   thread is spawned. CEF forks a zygote on Linux; forking a process that
 //!   already has threads is undefined behaviour.
-//! - `init`, CEF message-loop work, browser callbacks, and `shutdown` all run
-//!   on the GTK main thread. This avoids racing GTK's process-global state.
+//! - `init` and `shutdown` run on the main application thread. CEF owns a
+//!   separate UI thread; all browser work is posted there through `on_cef_ui`.
 
 use cef::{args::Args, *};
 use serde::Deserialize;
 use std::cell::{Cell, RefCell};
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::ipc::{Channel, InvokeResponseBody};
 
 #[link(name = "X11")]
@@ -69,7 +69,6 @@ fn browser_switch_values() -> [(&'static str, &'static str); 1] {
 /// Set once `initialize` succeeds, so `shutdown` cannot run against an
 /// uninitialized CEF (which aborts inside Chromium) and cannot run twice.
 static INITIALIZED: AtomicBool = AtomicBool::new(false);
-static PUMP_GENERATION: AtomicU64 = AtomicU64::new(0);
 
 struct BrowserState {
     browser: Browser,
@@ -161,24 +160,10 @@ cef::wrap_task! {
     }
 }
 
-cef::wrap_browser_process_handler! {
-    struct OsrBrowserProcessHandler;
-
-    impl BrowserProcessHandler {
-        fn on_schedule_message_pump_work(&self, delay_ms: i64) {
-            schedule_message_pump(delay_ms);
-        }
-    }
-}
-
 cef::wrap_app! {
     struct OsrApp;
 
     impl App {
-        fn browser_process_handler(&self) -> Option<BrowserProcessHandler> {
-            Some(OsrBrowserProcessHandler::new())
-        }
-
         fn on_before_command_line_processing(
             &self,
             _process_type: Option<&CefString>,
@@ -390,7 +375,7 @@ pub fn init() -> Result<(), String> {
     let mut app = OsrApp::new();
 
     // SAFETY: null sandbox info, as required on Linux. Called on the main
-    // application thread before GTK; both share the GLib main loop.
+    // application thread before GTK; CEF creates its separate UI thread.
     let ok = cef::initialize(
         Some(args.as_main_args()),
         Some(&settings),
@@ -408,25 +393,13 @@ pub fn init() -> Result<(), String> {
 }
 
 fn prepare_linux_threading() -> Result<(), String> {
-    // SAFETY: this is the first Xlib work in the process, before CEF and GTK.
+    // SAFETY: this is the first Xlib/GDK work in the process. CEF's Linux
+    // multi-threaded loop requires both calls before CEF and GTK initialize.
     if unsafe { XInitThreads() } == 0 {
         return Err("XInitThreads failed before CEF initialization.".to_string());
     }
+    unsafe { gtk::gdk::ffi::gdk_threads_init() };
     Ok(())
-}
-
-fn schedule_message_pump(delay_ms: i64) {
-    let generation = PUMP_GENERATION
-        .fetch_add(1, Ordering::AcqRel)
-        .wrapping_add(1);
-    let delay = Duration::from_millis(delay_ms.max(0) as u64);
-    gtk::glib::timeout_add_once(delay, move || {
-        if INITIALIZED.load(Ordering::Acquire)
-            && PUMP_GENERATION.load(Ordering::Acquire) == generation
-        {
-            cef::do_message_loop_work();
-        }
-    });
 }
 
 fn cef_settings(cache_path: &Path) -> Settings {
@@ -435,10 +408,8 @@ fn cef_settings(cache_path: &Path) -> Settings {
         no_sandbox: 1,
         // Required for any windowless (OSR) browser to be creatable at all.
         windowless_rendering_enabled: 1,
-        // Keep CEF and GTK on one UI thread. CEF schedules one-shot GLib work,
-        // so idle browsers do not pay for a polling timer.
-        multi_threaded_message_loop: 0,
-        external_message_pump: 1,
+        multi_threaded_message_loop: 1,
+        external_message_pump: 0,
         cache_path: cache_path.clone(),
         root_cache_path: cache_path,
         locale: CEF_LOCALE.into(),
@@ -819,11 +790,11 @@ mod tests {
     use std::path::Path;
 
     #[test]
-    fn cef_integrates_with_gtk_main_thread() {
+    fn cef_uses_its_supported_linux_ui_thread() {
         let settings = cef_settings(Path::new("/tmp/polyui-cef-test"));
 
-        assert_eq!(settings.external_message_pump, 1);
-        assert_eq!(settings.multi_threaded_message_loop, 0);
+        assert_eq!(settings.external_message_pump, 0);
+        assert_eq!(settings.multi_threaded_message_loop, 1);
         assert_eq!(settings.cache_path.to_string(), "/tmp/polyui-cef-test");
         assert_eq!(settings.root_cache_path.to_string(), "/tmp/polyui-cef-test");
         assert_eq!(settings.locale.to_string(), "en-US");
