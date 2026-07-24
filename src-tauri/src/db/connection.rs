@@ -189,7 +189,6 @@ async fn ensure_conversations_schema(pool: &SqlitePool) -> Result<(), String> {
             thinking TEXT,
             thinkingDuration REAL,
             webSearch TEXT,
-            agent TEXT,
             status TEXT,
             errorMessage TEXT,
             memoryUpdates TEXT
@@ -224,21 +223,6 @@ async fn ensure_conversations_schema(pool: &SqlitePool) -> Result<(), String> {
 
     if !has_provider {
         sqlx::query("ALTER TABLE messages ADD COLUMN provider TEXT")
-            .execute(pool)
-            .await
-            .map_err(|e| e.to_string())?;
-    }
-
-    let has_agent =
-        sqlx::query("SELECT COUNT(*) FROM pragma_table_info('messages') WHERE name = 'agent'")
-            .fetch_one(pool)
-            .await
-            .map_err(|e| e.to_string())?
-            .get::<i64, _>(0)
-            > 0;
-
-    if !has_agent {
-        sqlx::query("ALTER TABLE messages ADD COLUMN agent TEXT")
             .execute(pool)
             .await
             .map_err(|e| e.to_string())?;
@@ -511,7 +495,7 @@ mod tests {
         .await
         .unwrap();
 
-        assert_eq!(account_count, 2);
+        assert_eq!(account_count, 4);
     }
 
     #[tokio::test]
